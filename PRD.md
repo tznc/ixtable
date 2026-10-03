@@ -1030,7 +1030,7 @@ An agent-only judgment may block CI only when it produces a deterministic failin
 
 ### 27.3 Performance targets
 
-- Median install-to-working CRUD application: under 30 minutes.
+- Median install-to-working CRUD application: under 30 minutes, measured in moderated usability sessions rather than product telemetry (§27.5).
 - Typical application open: under 3 seconds after warm start.
 - Local field edit acknowledgement: under 100 ms, excluding backend latency.
 - Typical autosave completion: under 2 seconds.
@@ -1049,8 +1049,11 @@ Targets are measured against published reference hardware and fixture sizes.
 
 ### 27.5 Observability and privacy
 
+- Desktop Studio and Runtime send no usage analytics, telemetry, or third-party tracking. Local use is never measured.
 - Local diagnostic logs are available without an account.
-- Optional crash/diagnostic upload requires informed consent.
+- Optional crash/diagnostic upload requires informed consent and contains no application data.
+- Product metrics come only from ixtable Cloud, as daily aggregate counts. No per-user analytics leave the Cloud control plane, and none go to third parties.
+- The marketing website (ixtable.com) uses Google Analytics 4. This does not extend to the desktop product or Cloud.
 - Cloud health, authentication, publishing, storage, and key-service metrics are monitored.
 - Data collection and retention are documented in product privacy controls.
 
@@ -1214,7 +1217,8 @@ Deliver:
 - privacy policy, terms, and security documentation;
 - service monitoring, alerting, backups, and incident procedures;
 - signed desktop installers for all platforms (in-app update channels are deferred post-MVP; users download new versions from GitHub Releases);
-- onboarding using the three golden applications; and
+- onboarding using the three golden applications;
+- aggregate-only reporting RPCs for business operations: `gtm_funnel_daily(start_date, end_date)` returning per-day counts, and `gtm_entitlements()` returning `(subscription_id, state)` for billing reconciliation; both executable only by the service role and returning no personal data; and
 - public documentation.
 
 Exit criteria:
@@ -1297,9 +1301,14 @@ Commercial launch is blocked unless:
 
 ### Activation
 
-- Median install to working relational CRUD app under 30 minutes.
-- Percentage of new developers who successfully run a golden application.
-- Percentage who create a custom table, form, query, and report.
+Activation is measured only from ixtable Cloud sign-ups, as daily aggregate counts (§27.5). Local-only use is not measured.
+
+- Waitlist and account sign-ups.
+- Percentage of sign-ups that confirm their email.
+- Percentage of confirmed accounts that create a cloud application.
+- Percentage of cloud applications that publish a checkpoint.
+
+Local onboarding quality (install to working CRUD app, golden application success, custom table/form/query/report creation) is assessed in moderated usability sessions, not telemetry.
 
 ### Product depth
 
@@ -1310,7 +1319,7 @@ Commercial launch is blocked unless:
 ### Commercial conversion
 
 - Launch target: at least US$500 MRR from at least 5 paying customers.
-- Percentage of active local developers creating a cloud application.
+- Percentage of confirmed accounts creating a cloud application.
 - Publish-to-invitation completion rate.
 - Invited-user activation rate.
 - Paid application retention.
