@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
-      url: ${{ github.event_name == 'pull_request' && format('https://preview-{0}.ixtable.pages.dev', github.event.pull_request.number) || 'https://ixtable.pages.dev' }}
+      url: ${{ github.event_name == 'pull_request' && format('https://preview-{0}.ixtable.pages.dev', github.event.pull_request.number) || 'https://ixtable.com' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

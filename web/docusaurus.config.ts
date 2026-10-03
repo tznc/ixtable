@@ -21,7 +21,7 @@ const config: Config = {
     faster: true,
   },
 
-  url: "https://ixtable.pages.dev",
+  url: "https://ixtable.com",
   baseUrl: "/",
 
   organizationName: "ixtable",
@@ -53,6 +53,9 @@ const config: Config = {
           sidebarPath: "./sidebars.ts",
         },
         blog: false,
+        sitemap: {
+          ignorePatterns: ["/login", "/account", "/forgot-password", "/reset-password"],
+        },
         theme: {
           customCss: "./src/css/custom.css",
         },
