@@ -64,6 +64,10 @@ jobs:
         env:
           # Repository variable, not a secret. Unset means no analytics in the build.
           GA4_MEASUREMENT_ID: ${{ vars.GA4_MEASUREMENT_ID }}
+          # Hosted Supabase project. The anon key is public by design; RLS
+          # guards the data. Unset falls back to the local dev stack.
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
 
       - name: Publish production
         if: github.event_name != 'pull_request'
