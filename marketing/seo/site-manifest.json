@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1",
+  "mode": "live",
+  "siteUrl": "https://ixtable.com",
+  "sitemapUrl": "https://ixtable.com/sitemap.xml",
+  "robotsUrl": "https://ixtable.com/robots.txt",
+  "analytics": {
+    "ga4": true,
+    "googleSearchConsole": true,
+    "bingWebmasterTools": true
+  },
+  "pages": [
+    {
+      "path": "/",
+      "canonical": "https://ixtable.com/",
+      "title": "Build the business app you need | ixtable",
+      "description": "ixtable is a free, open-source desktop app builder for relational business apps. Join the waitlist for ixtable Cloud private distribution.",
+      "primaryQuery": "microsoft access alternative",
+      "intent": "commercial",
+      "cta": "waitlist"
+    },
+    {
+      "path": "/pricing",
+      "canonical": "https://ixtable.com/pricing",
+      "title": "Pricing for ixtable Cloud | ixtable",
+      "description": "The ixtable desktop app is free and open source. ixtable Cloud plans are priced per app and billed monthly, with no free trial.",
+      "primaryQuery": "ixtable pricing",
+      "intent": "transactional",
+      "cta": "signup"
+    },
+    {
+      "path": "/docs/",
+      "canonical": "https://ixtable.com/docs/",
+      "title": "ixtable docs: Studio, Runtime, and the .ixt file | ixtable",
+      "description": "How ixtable stores a business app as one portable .ixt file, and how Studio designs it and the local Runtime runs it on Windows, macOS, and Linux.",
+      "primaryQuery": "ixtable documentation",
+      "intent": "informational",
+      "cta": "github"
+    },
+    {
+      "path": "/blog",
+      "canonical": "https://ixtable.com/blog",
+      "title": "Product notes and updates | ixtable",
+      "description": "Notes on building ixtable, the free local-first desktop app builder, and ixtable Cloud for private app distribution.",
+      "primaryQuery": "local-first app builder",
+      "intent": "informational",
+      "cta": "waitlist"
+    }
+  ]
+}

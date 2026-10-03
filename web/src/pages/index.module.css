@@ -72,6 +72,29 @@
   border-bottom: 1px solid #9da39e;
   padding: 8px 0;
 }
+.waitlist {
+  margin: 36px auto 0;
+  max-width: 520px;
+  scroll-margin-top: 96px;
+}
+.disabledButton {
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: #6b716c;
+  background: #f0f1ed;
+  border: 1px dashed #b9beb8;
+  border-radius: 4px;
+  cursor: not-allowed;
+}
+.ctaLinks {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 28px;
+}
 .microcopy {
   font-size: 12px !important;
   color: #878c88 !important;
@@ -617,7 +640,7 @@
   margin-bottom: 32px;
 }
 .cta .primaryButton {
-  margin: auto;
+  margin: 0;
 }
 @media (max-width: 800px) {
   .hero {

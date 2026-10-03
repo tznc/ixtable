@@ -145,7 +145,9 @@ test.describe("web QA", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       /Build the app\s*your business needs\./,
     );
-    await expect(page.getByRole("link", { name: /Get started free/i })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Join the waitlist" }).first(),
+    ).toBeVisible();
     await expect(page.getByLabel("Preview of the ixtable app builder")).toBeVisible();
     await expect(
       page.getByRole("heading", { name: /More capable than a spreadsheet/i }),
@@ -164,7 +166,7 @@ test.describe("web QA", () => {
     await expect(page.locator("main")).not.toHaveCSS("overflow-x", "scroll");
 
     await capture(page, "landing-01-desktop", [
-      "The hero, primary action, and ixtable product preview are visible above the fold.",
+      "The hero, waitlist form, GitHub link, disabled download note, and product preview are visible.",
       "Feature sections form a clear editorial rhythm without clipped or overlapping content.",
       "The final call to action is visible at the bottom of the page.",
     ]);
@@ -207,7 +209,9 @@ test.describe("web QA", () => {
     await page.goto("/");
 
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Get started free/i })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Join the waitlist" }).first(),
+    ).toBeVisible();
     await expect(page.getByLabel("Preview of the ixtable app builder")).toBeVisible();
     const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(pageWidth).toBeLessThanOrEqual(390);
@@ -218,6 +222,7 @@ test.describe("web QA", () => {
       "Text remains legible and no content is visibly clipped.",
     ]);
   });
+
 });
 
 const GUIDE_PAGES = [

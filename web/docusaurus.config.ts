@@ -11,6 +11,11 @@ const SUPABASE_ANON_KEY =
   process.env.SUPABASE_ANON_KEY ??
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
 
+// GA4 runs on the marketing site only, and only when the deploy workflow sets
+// GA4_MEASUREMENT_ID. Local builds and e2e runs ship no tracking. The desktop
+// app and ixtable Cloud never load third-party analytics.
+const GA4_MEASUREMENT_ID = process.env.GA4_MEASUREMENT_ID?.trim();
+
 const config: Config = {
   title: "ixtable",
   tagline: "Build the business app you need",
@@ -52,9 +57,34 @@ const config: Config = {
         docs: {
           sidebarPath: "./sidebars.ts",
         },
-        blog: false,
+        blog: {
+          path: "blog",
+          blogTitle: "Product notes and updates",
+          blogDescription:
+            "Notes on building ixtable, the free local-first desktop app builder, and ixtable Cloud for private app distribution.",
+          showReadingTime: true,
+          blogSidebarCount: "ALL",
+          blogSidebarTitle: "All posts",
+          onUntruncatedBlogPosts: "ignore",
+        },
+        ...(GA4_MEASUREMENT_ID
+          ? { gtag: { trackingID: GA4_MEASUREMENT_ID, anonymizeIP: true } }
+          : {}),
         sitemap: {
-          ignorePatterns: ["/login", "/account", "/forgot-password", "/reset-password"],
+          // Auth, account and Cloud dashboard pages are not for search engines.
+          ignorePatterns: [
+            "/login/**",
+            "/signup/**",
+            "/account/**",
+            "/forgot-password/**",
+            "/reset-password/**",
+            "/desktop-auth/**",
+            "/invite/**",
+            "/auth/**",
+            "/cloud/**",
+            "/admin/**",
+            "/invitations/**",
+          ],
         },
         theme: {
           customCss: "./src/css/custom.css",
@@ -86,6 +116,7 @@ const config: Config = {
         },
         { to: "/pricing", label: "Pricing", position: "left" },
         { to: "/cloud", label: "Cloud", position: "left" },
+        { to: "/blog", label: "Blog", position: "left" },
         {
           href: "https://github.com/ixtable/ixtable",
           label: "GitHub",
@@ -128,6 +159,7 @@ const config: Config = {
           title: "More",
           items: [
             { label: "Pricing", to: "/pricing" },
+            { label: "Blog", to: "/blog" },
             {
               label: "GitHub",
               href: "https://github.com/ixtable/ixtable",

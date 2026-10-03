@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "@docusaurus/Link";
+import useBrokenLinks from "@docusaurus/useBrokenLinks";
 import Layout from "@theme/Layout";
+import WaitlistForm from "@site/src/components/WaitlistForm";
 import styles from "./index.module.css";
 import dataViewImage from "../../docs/assets/data-view.png";
 import formBuilderImage from "../../docs/assets/design-view.png";
@@ -17,7 +19,7 @@ const features = [
   {
     number: "02",
     title: "Build the app you need",
-    text: "Create focused views and workflows around your data—without starting from code.",
+    text: "Create focused views and workflows around your data without starting from code.",
   },
   {
     number: "03",
@@ -81,10 +83,12 @@ function ProductPreview(): ReactNode {
 }
 
 export default function Home(): ReactNode {
+  // The waitlist anchor is a plain div, so register it for the broken-anchor check.
+  useBrokenLinks().collectAnchor("waitlist");
   return (
     <Layout
       title="Build the business app you need"
-      description="A modern Microsoft Access alternative for building useful apps around your data."
+      description="ixtable is a free, open-source desktop app builder for relational business apps. Join the waitlist for ixtable Cloud private distribution."
     >
       <main className={styles.page}>
         <section className={styles.hero}>
@@ -95,19 +99,23 @@ export default function Home(): ReactNode {
             <em>your business needs.</em>
           </h1>
           <p>
-            ixtable is a modern Microsoft Access alternative for turning relational data into useful
-            internal apps—without the legacy overhead.
+            ixtable is a free, open-source desktop app builder, a modern take on Microsoft Access.
+            Build relational business apps locally. ixtable Cloud, the paid service for private
+            distribution, opens to the public soon.
           </p>
+          <div className={styles.waitlist} id="waitlist">
+            <WaitlistForm />
+          </div>
           <div className={styles.actions}>
-            <Link className={styles.primaryButton} to="/login">
-              Get started free <span>→</span>
+            <Link className={styles.textButton} href="https://github.com/ixtable/ixtable">
+              View on GitHub <span>↗</span>
             </Link>
-            <Link className={styles.textButton} to="/docs/">
-              Explore the docs <span>↗</span>
-            </Link>
+            <button type="button" className={styles.disabledButton} disabled aria-disabled="true">
+              Download: signed installers coming soon
+            </button>
           </div>
           <p className={styles.microcopy}>
-            Relational by design · Built for desktop · Your data stays yours
+            Free under Apache-2.0 · Windows, macOS, and Linux · Your data stays local
           </p>
           <ProductPreview />
         </section>
@@ -226,9 +234,14 @@ export default function Home(): ReactNode {
             <em>starts with a table.</em>
           </h2>
           <p>Build a modern database app around the way your team actually works.</p>
-          <Link className={styles.primaryButton} to="/login">
-            Start building with ixtable <span>→</span>
-          </Link>
+          <div className={styles.ctaLinks}>
+            <Link className={styles.primaryButton} href="#waitlist">
+              Join the waitlist <span>↑</span>
+            </Link>
+            <Link className={styles.textButton} to="/pricing">
+              See pricing <span>→</span>
+            </Link>
+          </div>
         </section>
       </main>
     </Layout>

@@ -1,6 +1,10 @@
 ---
 sidebar_position: 1
 slug: /
+title: "ixtable docs: Studio, Runtime, and the .ixt file"
+sidebar_label: Overview
+pagination_label: Overview
+description: How ixtable stores a business app as one portable .ixt file, and how Studio designs it and the local Runtime runs it on Windows, macOS, and Linux.
 ---
 
 # Overview

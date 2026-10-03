@@ -163,9 +163,10 @@ Failed jobs upload test reports and screenshot output as artifacts.
 
 ## Website
 
-`web/` is the Docusaurus site with the product docs and the future ixtable
-Cloud account pages. `supabase/` holds the local Supabase stack those pages
-use. Neither is part of the desktop app.
+`web/` is the Docusaurus site at [ixtable.com](https://ixtable.com), with the
+product docs, pricing, a blog, the ixtable Cloud waitlist, and the Cloud
+account pages. `supabase/` holds the local Supabase stack those pages use,
+including the waitlist table. Neither is part of the desktop app.
 
 ```bash
 cd web && npm ci && npm start    # docs site on :3001
@@ -173,5 +174,10 @@ supabase start                   # from the repo root: local Postgres, Auth, Mai
 ```
 
 `.github/workflows/ci.yml` and `deploy-web.yml` test and deploy the site.
+The deploy workflow sets `GA4_MEASUREMENT_ID` from a repository variable, and
+only builds with that variable include Google Analytics. Local builds and e2e
+runs ship no tracking. The desktop app never loads third-party analytics.
+`marketing/seo/site-manifest.json` lists the public pages for the SEO
+validator.
 Use `.claude/skills/writing/SKILL.md` for docs, and check a page with
 `python3 .claude/skills/writing/scripts/readability.py <file>`.

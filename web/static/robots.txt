@@ -1,0 +1,14 @@
+User-agent: *
+Disallow: /login
+Disallow: /signup
+Disallow: /account
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /desktop-auth
+Disallow: /invite
+Disallow: /auth
+Disallow: /cloud
+Disallow: /admin
+Disallow: /invitations
+
+Sitemap: https://ixtable.com/sitemap.xml

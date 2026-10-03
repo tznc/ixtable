@@ -45,7 +45,10 @@ export default function PricingPage(): ReactNode {
   }, [api, loading, user]);
 
   return (
-    <Layout title="Pricing" description="ixtable Cloud plans, priced per app">
+    <Layout
+      title="Pricing for ixtable Cloud"
+      description="The ixtable desktop app is free and open source. ixtable Cloud plans are priced per app and billed monthly, with no free trial."
+    >
       <main className="cloud-page">
         <h1>Pricing</h1>
         <p>
