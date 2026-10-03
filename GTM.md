@@ -155,9 +155,9 @@ Status is Done, Partial, Missing, or Deferred. Owner is one of:
 ### You, now (unblocks the measurement loop)
 
 1. Verify `ixtable.com` in Search Console and add the biz-tools service account.
-2. Create the GA4 property; set the `GA4_MEASUREMENT_ID` variable in ixtable; give the service account Viewer access and send me the property ID.
+2. Create the GA4 property. Set the `GA4_MEASUREMENT_ID` variable in ixtable. Give the service account Viewer access and send me the property ID.
 3. Add `ixtable.pages.dev` to `ixtable.com` as a 301 in Cloudflare.
-4. Create the hosted Supabase project; send me the project URL. Add the service role key to biz-tools' `product-production` environment.
+4. Create the hosted Supabase project. Send me the project URL. Add the service role key to biz-tools' `product-production` environment.
 5. Set up custom SMTP and DNS records (SPF, DKIM, DMARC) for ixtable.com.
 6. Install the biz-tools GitHub App on the ixtable org with Contents and Pull requests write access (`docs/github-app.md` in biz-tools).
 7. Create the GitHub environments in biz-tools: `analytics-production`, `commerce-production`, `product-production`, `marketing-production`.
@@ -165,9 +165,9 @@ Status is Done, Partial, Missing, or Deferred. Owner is one of:
 
 ### You, before public beta
 
-9. Form the legal entity if it does not exist; apply for Apple Developer and a Windows signing certificate.
+9. Form the legal entity if it does not exist. Apply for Apple Developer and a Windows signing certificate.
 10. Reserve social handles and support mailboxes.
-11. Run 10 to 15 customer interviews; confirm or change the plan prices.
+11. Run 10 to 15 customer interviews. Confirm or change the plan prices.
 12. Recruit 5 to 10 design partners.
 13. Start a trademark search for "ixtable".
 
