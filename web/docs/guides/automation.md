@@ -59,6 +59,21 @@ A button control on a form runs the action set in its **Button action** property
 
 A dashboard button runs the action picked in its **Action** property. Its steps see the dashboard filters as `params` and the application state as `app`. A dashboard button cannot set form state.
 
+## Form events
+
+A form can run an action when something happens to it. Select the form in Design mode and pick an action for each event in the **Events** section of its properties.
+
+| Event | When it runs |
+| --- | --- |
+| On load | The form opens on a record, or on a new record |
+| On current | The form moves to another record. Switching between viewing and editing the same record does not count |
+| Before update | The user saves a new or changed record, after the field checks pass and before the record is written |
+| After update | The record was saved |
+
+The steps see the record as `record`, like a button's steps. In before update, `record` holds the values about to be saved. When the action fails, the record is not saved and its message shows on the form. A **Fail with message** step with a condition is the usual way to reject a save, for example `record.end < record.start`. A declined Confirm step also cancels the save.
+
+If an after update action fails, the record stays saved and the form says so. Events check the same role permissions as buttons. A form that reads a saved query cannot save, so it offers only on load and on current. Forms in list mode run no events.
+
 ## Triggers
 
 A trigger runs an action when a record in a table is created or updated. Choose **New trigger** on the Triggers tab and set the table, the event, and the action. Deleting a record never fires a trigger.

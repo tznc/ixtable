@@ -1,11 +1,12 @@
 import { Plus, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
+import { ActionPicker } from "../automation/ActionPicker";
 import type { DbObject } from "../lib/types";
 import { readQueries } from "../query/types";
 import { newId } from "../lib/utils";
 import { filterNames } from "../runtime/conditions";
 import { ExpressionField } from "./ExpressionField";
-import { type DesignForm, FORM_MODES, type FormMode } from "./schema";
+import { type DesignForm, FORM_EVENTS, FORM_MODES, type FormMode } from "./schema";
 import { useDesignEditor } from "./useDesignEditor";
 
 /** Properties of the selected form: source, modes, list settings, validation rules, grid. */
@@ -264,6 +265,25 @@ export function FormProperties({
           <Plus aria-hidden="true" />
           Add rule
         </button>
+      </fieldset>
+      <fieldset className="fd-fieldset">
+        <legend>Events</legend>
+        {FORM_EVENTS.filter(
+          // A query-sourced form is read-only, so it never saves.
+          (e) => source?.kind !== "query" || e.name === "onLoad" || e.name === "onCurrent",
+        ).map((event) => (
+          <ActionPicker
+            key={event.name}
+            label={event.label}
+            value={form.events?.[event.name]}
+            onChange={(actionId) => {
+              const events = { ...form.events };
+              if (actionId) events[event.name] = actionId;
+              else delete events[event.name];
+              change({ events }, `Set ${event.label.toLowerCase()} action`);
+            }}
+          />
+        ))}
       </fieldset>
       {layoutSettings}
     </>

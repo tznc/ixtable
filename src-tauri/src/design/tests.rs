@@ -494,3 +494,43 @@ fn multi_column_keys_round_trip_and_are_checked() {
         .iter()
         .any(|e| e.contains("key column without a target")));
 }
+
+#[test]
+fn form_events_round_trip_and_must_name_existing_actions() {
+    let value = serde_json::json!({
+        "id": "f", "name": "Orders",
+        "events": { "onLoad": "a1", "beforeUpdate": "gone" }
+    });
+    let form: Form = serde_json::from_value(value).unwrap();
+    assert_eq!(form.events.on_load.as_deref(), Some("a1"));
+    assert_eq!(
+        form.events.bound().collect::<Vec<_>>(),
+        [("on load", "a1"), ("before update", "gone")]
+    );
+    let json = serde_json::to_value(&form).unwrap();
+    assert_eq!(
+        json["events"],
+        serde_json::json!({ "onLoad": "a1", "beforeUpdate": "gone" })
+    );
+    // An unbound form writes no events key.
+    let bare = serde_json::to_value(Form::default()).unwrap();
+    assert!(bare.get("events").is_none());
+
+    let mut config = config_with(form);
+    config.actions = serde_json::from_value(serde_json::json!([
+        { "id": "a1", "name": "Load", "steps": [], "onError": "stop" }
+    ]))
+    .unwrap();
+    let errs = errors(&validate(&config));
+    assert!(
+        errs.iter()
+            .any(|e| e.contains("action that does not exist on before update")),
+        "{errs:?}"
+    );
+    assert_eq!(
+        errs.iter()
+            .filter(|e| e.contains("does not exist on"))
+            .count(),
+        1
+    );
+}

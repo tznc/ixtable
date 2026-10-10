@@ -122,6 +122,15 @@ export type DesignControl = {
   styles?: ConditionalStyle[];
 };
 export type FormRule = { id: string; expression: string; message: string };
+/** Form events (PRD §17.4); each runs a declarative action (src/runtime/formEvents.ts). */
+export type FormEventName = "onLoad" | "onCurrent" | "beforeUpdate" | "afterUpdate";
+export type FormEvents = Partial<Record<FormEventName, string | null>>;
+export const FORM_EVENTS: { name: FormEventName; label: string }[] = [
+  { name: "onLoad", label: "On load" },
+  { name: "onCurrent", label: "On current" },
+  { name: "beforeUpdate", label: "Before update" },
+  { name: "afterUpdate", label: "After update" },
+];
 export type DesignForm = {
   id: string;
   name: string;
@@ -135,6 +144,8 @@ export type DesignForm = {
   rules: FormRule[];
   /** List mode row filter: an expression over `record`, `app` and `params`. */
   filter?: string | null;
+  /** Event → action id. */
+  events?: FormEvents;
 };
 export type NavKind = "form" | "report" | "dashboard" | "table" | "group";
 export type NavigationItem = {
@@ -317,7 +328,17 @@ function upgradeForm(raw: unknown): DesignForm {
     detailFormId: (form.detailFormId as string | null | undefined) ?? null,
     rules: arr(form.rules).map((r) => ({ id: "", expression: "", message: "", ...rec(r) })),
     ...(typeof form.filter === "string" ? { filter: form.filter } : {}),
+    ...upgradeEvents(form.events),
   };
+}
+
+function upgradeEvents(raw: unknown): { events?: FormEvents } {
+  const events: FormEvents = {};
+  for (const { name } of FORM_EVENTS) {
+    const id = rec(raw)[name];
+    if (typeof id === "string" && id) events[name] = id;
+  }
+  return Object.keys(events).length ? { events } : {};
 }
 
 function upgradeNav(raw: unknown): NavigationItem {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { runAction } from "../automation/runner";
-import type { DesignControl, DesignForm, FormMode } from "../design/schema";
+import { type ActionContext, runAction } from "../automation/runner";
+import type { DesignControl, DesignForm, FormEventName, FormMode } from "../design/schema";
 import { isInputKind } from "../design/schema";
 import { useDocumentConfig } from "../lib/config-store";
 import { CommittedWriteError, deleteRecord, insertRecord, updateRecord } from "../lib/records";
@@ -8,6 +8,13 @@ import type { DataValue, TableSchema } from "../lib/types";
 import { useConfirm } from "./Confirm";
 import { type BodyContext, ControlGrid } from "./FormBody";
 import { loadRecord, recordIdFor, tableSchema } from "./data";
+import {
+  afterUpdateProblem,
+  eventAction,
+  eventsToRaise,
+  runFormEvent,
+  vetoMessage,
+} from "./formEvents";
 import {
   compute,
   defaultRecord,
@@ -286,6 +293,13 @@ export function RecordView({
       // Create can be pressed before the schema load finishes; wait for it instead of ignoring it.
       const def = schema ?? (await tableSchema(table));
       const values = valuesToWrite();
+      // As in Access, saving an unchanged record raises no update events.
+      const changes = mode === "create" || dirty;
+      const veto = changes ? vetoMessage((await raise("beforeUpdate", values)).result) : null;
+      if (veto) {
+        setStatus({ text: veto, tone: "error" });
+        return;
+      }
       if (mode === "create") {
         if (!allowed("create")) throw new PermissionError("This role cannot create records here.");
         const keys = new Set(
@@ -305,6 +319,7 @@ export function RecordView({
           if (saved[name] == null) saved[name] = fromDataValue(id[i]);
         });
         announce(problem ?? "Record created.", problem ? "error" : "info");
+        if (await afterUpdate(saved)) return;
         if (embedded) onClose();
         else onMode("detail", recordIdFor(def, saved, id));
       } else {
@@ -322,6 +337,7 @@ export function RecordView({
             )
           : {};
         announce(problem ?? "Changes saved.", problem ? "error" : "info");
+        if (changes && (await afterUpdate(values))) return;
         if (embedded) onClose();
         else onMode("detail", recordId);
       }
@@ -330,6 +346,19 @@ export function RecordView({
     } finally {
       setBusy(false);
     }
+  };
+
+  /** Raises after update on the saved values; true when its action navigated away. */
+  const afterUpdate = async (saved: RecordValues) => {
+    // The view reloads after a save anyway, so the action's own refresh is not needed.
+    const { result, navigated } = await raise("afterUpdate", saved, {
+      refresh: () => undefined,
+      // A keyless row now holds the saved values; they are what a further write must match.
+      ...(mode === "edit" && { snapshot: { ...original, ...saved } }),
+    });
+    const problem = afterUpdateProblem(result);
+    if (problem) announce(problem, "error");
+    return navigated;
   };
 
   const remove = async () => {
@@ -345,30 +374,76 @@ export function RecordView({
     }
   };
 
+  /** The context a button or form event action runs in, as the signed-in role. */
+  const actionContext = (values: RecordValues): ActionContext => ({
+    config,
+    record: { ...values },
+    ...(mode !== "create" && table && { snapshot: { ...original } }),
+    form: formState,
+    app,
+    navigate: (target) => onNavigate(target),
+    setState: (where, key, value) =>
+      where === "form"
+        ? setFormState((s) => ({ ...s, [key]: value }))
+        : runtime.setAppState(key, value),
+    confirm,
+    notify: (text, tone = "info") => announce(text, tone),
+    authorize: (kind, id, op) => can(config, roleId, kind, id, op as "read"),
+    refresh: () => (mode === "detail" ? setReload((n) => n + 1) : onMode(mode, recordId)),
+  });
+
   const runButton = async (control: DesignControl) => {
     if (!control.actionId || !ready) return;
     setNotice(null);
     setRunning(true);
-    const result = await runAction(control.actionId, {
-      config,
-      record: { ...record },
-      ...(mode !== "create" && table && { snapshot: { ...original } }),
-      form: formState,
-      app,
-      navigate: (target) => onNavigate(target),
-      setState: (where, key, value) =>
-        where === "form"
-          ? setFormState((s) => ({ ...s, [key]: value }))
-          : runtime.setAppState(key, value),
-      confirm,
-      notify: (text, tone = "info") => announce(text, tone),
-      authorize: (kind, id, op) => can(config, roleId, kind, id, op as "read"),
-      refresh: () => (mode === "detail" ? setReload((n) => n + 1) : onMode(mode, recordId)),
-    })
+    const result = await runAction(control.actionId, actionContext(record))
       .catch((reason) => ({ ok: false, error: message(reason) }))
       .finally(() => setRunning(false));
     if (!result.ok && result.error) setNotice({ text: result.error, tone: "error" });
   };
+
+  /**
+   * Runs a form event's action on `values` (PRD §17.4). `navigated` is set when it
+   * opened something, so the caller does not then switch this view's mode over it.
+   */
+  const raise = async (
+    event: FormEventName,
+    values: RecordValues,
+    extra?: Partial<ActionContext>,
+  ) => {
+    let navigated = false;
+    if (!eventAction(form, event)) return { result: null, navigated };
+    const base = actionContext(values);
+    const result = await runFormEvent(form, event, {
+      ...base,
+      navigate: (target) => {
+        navigated = true;
+        base.navigate(target);
+      },
+      ...extra,
+    });
+    return { result, navigated };
+  };
+
+  // On load once per opened view, then on current each time it shows another record.
+  const raised = useRef({ opened: false, current: null as string | null });
+  useEffect(() => {
+    if (loading || (table && mode !== "create" && identity === null)) return;
+    const shown = JSON.stringify([form.id, mode === "create" ? "new" : (recordId ?? null)]);
+    const events = eventsToRaise(raised.current, shown);
+    if (!events.some((event) => eventAction(form, event))) return;
+    setRunning(true);
+    (async () => {
+      for (const event of events) {
+        const { result } = await raise(event, record);
+        if (result && !result.ok && result.error && mounted.current)
+          setNotice({ text: result.error, tone: "error" });
+        if (result && !result.ok) break;
+      }
+    })().finally(() => mounted.current && setRunning(false));
+    // Raised once per finished load; the record and context are those of that load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadedKey]);
   // Actions run only on a fully loaded record (and one at a time).
   const ready = !loading && !running && !busy && (mode === "create" || !table || identity !== null);
 
