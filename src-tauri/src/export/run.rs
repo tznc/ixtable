@@ -8,7 +8,7 @@ use crate::data::{duck_value, DataValue};
 use crate::manager::AppError;
 use crate::queries::RunGuard;
 use duckdb::types::Value as DuckValue;
-use std::fs::{self, File};
+use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 
@@ -121,7 +121,10 @@ fn stream(
             count += 1;
         }
         sink.finish().map_err(|e| AppError::new("IO_ERROR", e))?;
-        File::open(&tmp)
+        // Windows flushes only through a handle opened for writing.
+        OpenOptions::new()
+            .write(true)
+            .open(&tmp)
             .and_then(|f| f.sync_all())
             .map_err(|e| AppError::new("IO_ERROR", e))?;
         fs::rename(&tmp, path).map_err(|e| AppError::new("IO_ERROR", e))?;
