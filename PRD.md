@@ -342,7 +342,8 @@ Studio warns that shared credentials reduce revocation and database-level attrib
 `RecordStore` is the generic name for the current split:
 
 - DuckDB reads every list, detail, selector, saved query, report, and dashboard dataset.
-- Writes go directly to the selected store (SQLite or PostgreSQL). They never go through DuckDB.
+- Record writes from forms, tables, actions, triggers, and imports go directly to the selected store (SQLite or PostgreSQL). They never go through DuckDB.
+- User-written action queries (§12.1) are the one exception. They run through a separate, short-lived writable DuckDB connection to the same store. The shared reader stays read-only.
 
 Studio UI must speak store capabilities (in-place change vs rebuild), not SQLite-only alter-table language.
 
@@ -377,15 +378,19 @@ Reads include:
 
 DuckDB accesses data through curated, bundled extensions, including SQLite and PostgreSQL integration. The MVP extension allowlist is fixed and signed; arbitrary extension installation is deferred.
 
-All creates, updates, and deletes go directly to the selected RecordStore.
+Record creates, updates, and deletes go directly to the selected RecordStore. Set-based changes that the user writes as action queries (§12.1) go through a separate writable DuckDB connection.
 
 ```text
 Read
-  -> DuckDB
+  -> DuckDB (read-only)
      -> SQLite / PostgreSQL / allowed external source
 
-Write
+Record write
   -> RecordStore
+     -> SQLite / PostgreSQL
+
+Action query (user-written)
+  -> DuckDB writer (short-lived, one transaction)
      -> SQLite / PostgreSQL
 ```
 
@@ -442,9 +447,21 @@ The visual query builder supports:
 
 Advanced users may write SQL directly.
 
-Every saved read query executes through DuckDB. Mutating SQL belongs to migrations or explicit actions, not saved read queries.
+Every saved read query executes through DuckDB. Schema changes belong to migrations, not queries.
 
 Query results may source forms, tables, reports, charts, and dashboards.
+
+### 12.1 Action queries
+
+Users may save action queries that change rows in bulk, matching Access append, update, delete, and make-table queries. An action query declares its kind (`insert`, `update`, `delete`, or `replace`) and one target table, and is written in the same DuckDB SQL dialect as read queries, so it runs unchanged on SQLite and PostgreSQL.
+
+- The DuckDB write path is allowed only for these user-written queries. Product features never generate DuckDB writes in place of RecordStore writes.
+- A guard accepts exactly one statement of the declared kind against the declared table. DDL, catalog, settings, and file access are rejected.
+- Each run is one transaction on a short-lived writer connection that is locked down like the reader. A dry run reports affected row counts and rolls back.
+- Role permissions are checked per table operation, record triggers fire for each created or updated row, and the store's constraints, including foreign keys, are enforced as for RecordStore writes.
+- After commit, the reader refreshes as after any other write (§10.1).
+
+Action queries may be run from Studio, from manual actions (§17.2), and by imported Access applications. Design details: [action queries decision record](docs/decisions/action-queries.md).
 
 ---
 

@@ -1,9 +1,9 @@
 # Action queries
 
-Status: accepted. Extends PRD §12 (saved queries) with queries that change
-rows. Supersedes the "reads cannot write" consequence of the
-[DuckDB read path](./duckdb-read-path.md) for action queries only: the reader
-itself stays locked read-only.
+Status: accepted. Implements PRD §12.1 (action queries), which extends saved
+queries with queries that change rows. Supersedes the "reads cannot write"
+consequence of the [DuckDB read path](./duckdb-read-path.md) for action
+queries only: the reader itself stays locked read-only.
 
 ## Context
 
@@ -154,3 +154,6 @@ becomes a `runQuery` step.
 - 2026-10-10: the writer turns on SQLite foreign keys itself, because the
   scanner's own SQLite (macOS and Windows) leaves them off. Both guards
   refuse `sqlite_query`.
+- 2026-10-10: PRD §9.4, §10 and §12.1 now allow the DuckDB write path for
+  user-written action queries only, and require store constraints, including
+  foreign keys, to hold as they do for RecordStore writes.
