@@ -12,7 +12,20 @@ warns and builds whatever it can sign.
 | `APPLE_CERTIFICATE` | base64 of the Developer ID Application `.p12` |
 | `APPLE_CERTIFICATE_PASSWORD` | `.p12` password |
 | `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: ixtable Ltd (TEAMID)` |
-| `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | notarization: Apple ID, app-specific password, team |
+
+Notarization takes one of two credential sets. When any API key secret is
+set, `signing.mjs` requires the API key set and ignores the Apple ID set.
+
+| Secret | Use |
+|---|---|
+| `APPLE_API_ISSUER` | App Store Connect API issuer ID (preferred set) |
+| `APPLE_API_KEY` | API key ID, e.g. `ABC123DEF4` |
+| `APPLE_API_PRIVATE_KEY` | text of the `AuthKey_<id>.p8` file, Developer role |
+| `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | fallback set: Apple ID, app-specific password, team |
+
+The API key is not tied to a person's Apple ID and survives staff changes.
+`signing.mjs` writes it to `$RUNNER_TEMP/AuthKey_<id>.p8` (mode 600) and
+exports only `APPLE_API_KEY_PATH`, never the key text.
 
 The Tauri CLI imports the certificate into a temporary keychain. It signs with
 the hardened runtime (`bundle.macOS.hardenedRuntime`) and the entitlements in
