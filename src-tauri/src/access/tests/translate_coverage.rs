@@ -46,7 +46,9 @@ fn value(db: &duckdb::Connection, expr: &str) -> Option<String> {
 fn column(db: &duckdb::Connection, access: &str) -> Vec<Option<String>> {
     let sql = translate(access);
     let mut st = db
-        .prepare(&format!("SELECT CAST(\"V\" AS VARCHAR) FROM ({sql}) ORDER BY \"ID\""))
+        .prepare(&format!(
+            "SELECT CAST(\"V\" AS VARCHAR) FROM ({sql}) ORDER BY \"ID\""
+        ))
         .unwrap_or_else(|e| panic!("{sql}: {e}"));
     st.query_map([], |r| r.get(0))
         .unwrap()
@@ -103,7 +105,10 @@ fn format_patterns_run_in_duckdb() {
         ("Format([Order Date], \"hh:nn:ss\")", "14:07:09"),
         ("Format([Order Date], \"h:mm AM/PM\")", "2:07 PM"),
         ("Format([Order Date], \"mmmm yyyy\")", "March 2024"),
-        ("Format([Order Date], \"\\Q\\t\\r \"\"x\"\" yy\")", "Qtr x 24"),
+        (
+            "Format([Order Date], \"\\Q\\t\\r \"\"x\"\" yy\")",
+            "Qtr x 24",
+        ),
         ("Format([Order Date], \"Long Time\")", "2:07:09 PM"),
         ("Format(Amount, \"#,##0.00\")", "1,234.50"),
         ("Format(Amount, \"$#,##0\")", "$1,235"),
@@ -120,19 +125,31 @@ fn format_patterns_run_in_duckdb() {
     for (expr, expected) in cases {
         assert_eq!(value(&db, expr).as_deref(), Some(expected), "{expr}");
     }
-    assert_eq!(strftime_pattern("m/d/yy h:nn").unwrap(), "%-m/%-d/%y %-H:%M");
+    assert_eq!(
+        strftime_pattern("m/d/yy h:nn").unwrap(),
+        "%-m/%-d/%y %-H:%M"
+    );
     assert_eq!(strftime_pattern("hh:mm").unwrap(), "%H:%M");
     assert_eq!(strftime_pattern("mm:ss").unwrap(), "%M:%S");
     assert_eq!(number_spec("$#,##0.00").decimals, 2);
-    assert!(untranslated("SELECT Format([Order Date], \"q\\/yyyy\") FROM Orders").contains("quarter"));
+    assert!(
+        untranslated("SELECT Format([Order Date], \"q\\/yyyy\") FROM Orders").contains("quarter")
+    );
 }
 
 #[test]
 fn domain_functions_with_criteria_from_the_row_are_correlated() {
     let db = db();
     assert_eq!(
-        column(&db, "SELECT ID, DLookUp(\"Company\", \"Customers\", \"ID=\" & [Customer]) AS V FROM Orders"),
-        [Some("Contoso".into()), Some("O'Brien & Co".into()), Some("O'Brien & Co".into())]
+        column(
+            &db,
+            "SELECT ID, DLookUp(\"Company\", \"Customers\", \"ID=\" & [Customer]) AS V FROM Orders"
+        ),
+        [
+            Some("Contoso".into()),
+            Some("O'Brien & Co".into()),
+            Some("O'Brien & Co".into())
+        ]
     );
     // Quotes around the value, and the domain is the query's own table.
     assert_eq!(
@@ -153,7 +170,10 @@ fn domain_functions_with_criteria_from_the_row_are_correlated() {
         [Some("1".into()), Some("1".into()), Some("1".into())]
     );
     // DCount with a literal criteria (was translated as a VBA function before).
-    assert_eq!(value(&db, "DCount(\"ID\", \"Orders\", \"Paid = False\")").as_deref(), Some("2"));
+    assert_eq!(
+        value(&db, "DCount(\"ID\", \"Orders\", \"Paid = False\")").as_deref(),
+        Some("2")
+    );
 }
 
 /// Form and report expressions; tests/unit/access-expressions.test.ts

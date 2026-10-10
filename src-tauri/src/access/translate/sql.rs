@@ -228,8 +228,7 @@ impl<'a> SqlWriter<'a> {
                     | "day" | "hour" | "minute" | "second" | "weekday" | "datediff"
                     | "datepart" | "len" | "instr" | "val" | "int" | "fix" | "abs" | "round"
                     | "cint" | "clng" | "cdbl" | "csng" | "ccur" | "cdec" | "sgn" | "sqr"
-                    | "instrrev" | "strcomp" | "rnd" | "timer" | "atn" | "sin" | "cos"
-                    | "tan" => {
+                    | "instrrev" | "strcomp" | "rnd" | "timer" | "atn" | "sin" | "cos" | "tan" => {
                         Kind::Number
                     }
                     "min" | "max" | "first" | "last" | "nz" | "dmin" | "dmax" | "dfirst"

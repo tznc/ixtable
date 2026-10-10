@@ -407,7 +407,11 @@ fn binary_databases_get_generated_forms_and_working_queries() {
             .iter()
             .find(|q| q.name == "Unpaid Orders")
             .unwrap();
-        rows(m, &window, &format!("SELECT count(*) FROM ({})", unpaid.sql));
+        rows(
+            m,
+            &window,
+            &format!("SELECT count(*) FROM ({})", unpaid.sql),
+        );
         m.close(&window, true).unwrap();
     }
 }
@@ -604,12 +608,17 @@ fn migration_report_links_objects_and_saves_as_text() {
     assert_eq!(errs, Vec::<String>::new());
     let config = manager().config("mig").unwrap();
     let stored = &config.settings["accessImport"];
-    assert!(stored["importedAt"].as_str().is_some_and(|t| t.ends_with('Z')));
+    assert!(stored["importedAt"]
+        .as_str()
+        .is_some_and(|t| t.ends_with('Z')));
     assert!(stored["warnings"].is_array());
     // Forms, reports, macros and queries point at what they became.
     for item in report.items.iter().filter(|i| i.status != Status::Skipped) {
         let Some(target) = &item.target else {
-            assert!(!["form", "report", "query"].contains(&item.kind.as_str()), "{item:?}");
+            assert!(
+                !["form", "report", "query"].contains(&item.kind.as_str()),
+                "{item:?}"
+            );
             continue;
         };
         let found = match target.kind {
@@ -625,7 +634,10 @@ fn migration_report_links_objects_and_saves_as_text() {
     let dir = std::env::temp_dir().join(format!("ixtable-mig-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     crate::access::write_report_text(&dir.join("report.md"), "# Report").unwrap();
-    assert_eq!(std::fs::read_to_string(dir.join("report.md")).unwrap(), "# Report");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("report.md")).unwrap(),
+        "# Report"
+    );
     let err = crate::access::write_report_text(&dir.join("report.exe"), "x").unwrap_err();
     assert_eq!(err.code, "VALIDATION_ERROR");
     manager().close("mig", true).unwrap();

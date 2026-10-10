@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { evaluate } from "../../src/expr";
 
-// Expressions the Access importer writes for form and report controls
-// (src-tauri/src/access/tests/translate_coverage.rs asserts the same text).
 const record = { Amount: 42, Due: "2024-08-15", Status: "Open order", Find: "order", Priority: 2 };
 
 describe("translated Access expressions", () => {

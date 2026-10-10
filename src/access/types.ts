@@ -18,18 +18,36 @@ export interface AccessInventory {
   reports: string[];
   macros: string[];
   modules: string[];
-  /** Objects a binary file stores compiled: [kind, name]. */
+  // Objects a binary file stores compiled: [kind, name].
   compiled: [string, string][];
   warnings: string[];
 }
 
 export type ItemStatus = "converted" | "partial" | "skipped";
 
+/** The ixtable object an Access object became. */
+export interface ImportTarget {
+  kind: "form" | "report" | "action" | "query";
+  id: string;
+}
+
 export interface ImportItem {
   kind: string;
   name: string;
   status: ItemStatus;
   notes: string[];
+  target?: ImportTarget;
+}
+
+/** `settings.accessImport` of an imported document: the migration report. */
+export interface AccessMigration {
+  source: string;
+  format: AccessFormat;
+  report: ImportItem[];
+  warnings: string[];
+  importedAt: string | null;
+  // `kind:name` keys of items the developer marked as reviewed.
+  reviewed: string[];
 }
 
 export interface AccessImportReport {

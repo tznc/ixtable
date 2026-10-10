@@ -338,7 +338,11 @@ impl<'a> ExprWriter<'a> {
                 }
                 let mut out = "null".to_string();
                 for pair in args.chunks(2).rev() {
-                    out = format!("if({}, {}, {out})", self.write(&pair[0])?, self.write(&pair[1])?);
+                    out = format!(
+                        "if({}, {}, {out})",
+                        self.write(&pair[0])?,
+                        self.write(&pair[1])?
+                    );
                 }
                 return Ok(out);
             }

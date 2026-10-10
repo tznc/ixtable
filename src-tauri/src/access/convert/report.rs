@@ -66,19 +66,48 @@ impl ImportReport {
             let (kind, id) = match item.kind.as_str() {
                 "form" => (
                     "form",
-                    find(config.design.forms.iter().map(|f| (f.name.as_str(), f.id.as_str())).collect(), &item.name),
+                    find(
+                        config
+                            .design
+                            .forms
+                            .iter()
+                            .map(|f| (f.name.as_str(), f.id.as_str()))
+                            .collect(),
+                        &item.name,
+                    ),
                 ),
                 "report" => (
                     "report",
-                    find(config.reports.iter().map(|r| (r.name.as_str(), r.id.as_str())).collect(), &item.name),
+                    find(
+                        config
+                            .reports
+                            .iter()
+                            .map(|r| (r.name.as_str(), r.id.as_str()))
+                            .collect(),
+                        &item.name,
+                    ),
                 ),
                 "macro" => (
                     "action",
-                    find(config.actions.iter().map(|a| (a.name.as_str(), a.id.as_str())).collect(), &item.name),
+                    find(
+                        config
+                            .actions
+                            .iter()
+                            .map(|a| (a.name.as_str(), a.id.as_str()))
+                            .collect(),
+                        &item.name,
+                    ),
                 ),
                 "query" => (
                     "query",
-                    find(config.saved_queries.iter().map(|q| (q.name.as_str(), q.id.as_str())).collect(), &item.name),
+                    find(
+                        config
+                            .saved_queries
+                            .iter()
+                            .map(|q| (q.name.as_str(), q.id.as_str()))
+                            .collect(),
+                        &item.name,
+                    ),
                 ),
                 _ => continue,
             };

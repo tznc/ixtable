@@ -48,13 +48,20 @@ pub fn duck_call(
                 Some(1) => format!("upper({})", a[0]),
                 Some(2) => format!("lower({})", a[0]),
                 Some(3) => proper(&a[0]),
-                _ => return Err("StrConv supports only vbUpperCase, vbLowerCase and vbProperCase".into()),
+                _ => {
+                    return Err(
+                        "StrConv supports only vbUpperCase, vbLowerCase and vbProperCase".into(),
+                    )
+                }
             }
         }
         "monthname" => {
             need(1)?;
             let f = if is_false(args, 1) { "%B" } else { "%b" };
-            format!("strftime(make_date(2000, CAST({} AS INTEGER), 1), '{f}')", a[0])
+            format!(
+                "strftime(make_date(2000, CAST({} AS INTEGER), 1), '{f}')",
+                a[0]
+            )
         }
         "weekdayname" => {
             need(1)?;
@@ -63,7 +70,10 @@ pub fn duck_call(
             }
             let f = if is_false(args, 1) { "%A" } else { "%a" };
             // 2000-01-01 was a Saturday, so day 1 (Sunday) is the 2nd.
-            format!("strftime(make_date(2000, 1, 1 + CAST({} AS INTEGER)), '{f}')", a[0])
+            format!(
+                "strftime(make_date(2000, 1, 1 + CAST({} AS INTEGER)), '{f}')",
+                a[0]
+            )
         }
         "formatcurrency" | "formatnumber" | "formatpercent" => {
             need(1)?;
@@ -104,7 +114,10 @@ pub fn duck_call(
         "hex" => format!("upper(to_hex(CAST({} AS BIGINT)))", a[0]),
         "oct" => format!("printf('%o', CAST({} AS BIGINT))", a[0]),
         "rnd" => "random()".into(),
-        "timer" => "(epoch(CAST(now() AS TIMESTAMP)) - epoch(CAST(CAST(now() AS TIMESTAMP) AS DATE)))".into(),
+        "timer" => {
+            "(epoch(CAST(now() AS TIMESTAMP)) - epoch(CAST(CAST(now() AS TIMESTAMP) AS DATE)))"
+                .into()
+        }
         "timeserial" => {
             need(3)?;
             format!(
@@ -223,7 +236,10 @@ pub fn format_sql(value: &str, pattern: Option<&Expr>) -> Result<String, String>
     }
     if is_date_pattern(&section) {
         let f = strftime_pattern(&section)?;
-        return Ok(format!("strftime(CAST({value} AS TIMESTAMP), {})", string_literal(&f)));
+        return Ok(format!(
+            "strftime(CAST({value} AS TIMESTAMP), {})",
+            string_literal(&f)
+        ));
     }
     Err(format!("the format \"{fmt}\" is not supported"))
 }
@@ -339,7 +355,8 @@ pub fn strftime_pattern(p: &str) -> Result<String, String> {
             'h' => {
                 let n = run(i, 'h');
                 let twelve = chars[i..].iter().collect::<String>().to_ascii_lowercase();
-                let twelve = twelve.contains("am/pm") || twelve.contains("a/p") || twelve.contains("ampm");
+                let twelve =
+                    twelve.contains("am/pm") || twelve.contains("a/p") || twelve.contains("ampm");
                 out.push_str(match (twelve, n) {
                     (true, 1) => "%-I",
                     (true, _) => "%I",
@@ -418,7 +435,11 @@ pub fn number_spec(p: &str) -> NumberSpec {
     let mut after_point = false;
     while i < chars.len() {
         let c = chars[i];
-        let text = if seen_digit { &mut spec.suffix } else { &mut spec.prefix };
+        let text = if seen_digit {
+            &mut spec.suffix
+        } else {
+            &mut spec.prefix
+        };
         match c {
             '0' | '#' => {
                 // Digits after a suffix started are part of the number again.
