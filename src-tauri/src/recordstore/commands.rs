@@ -342,11 +342,11 @@ fn op_kind(op: &WriteOp) -> crate::authz::Op {
         WriteOp::Delete { .. } => crate::authz::Op::Delete,
     }
 }
-fn trigger_event(op: &WriteOp) -> Option<crate::automation::TriggerEvent> {
+fn trigger_event(op: &WriteOp) -> crate::automation::TriggerEvent {
     match op {
-        WriteOp::Insert { .. } => Some(crate::automation::TriggerEvent::Created),
-        WriteOp::Update { .. } => Some(crate::automation::TriggerEvent::Updated),
-        WriteOp::Delete { .. } => None,
+        WriteOp::Insert { .. } => crate::automation::TriggerEvent::Created,
+        WriteOp::Update { .. } => crate::automation::TriggerEvent::Updated,
+        WriteOp::Delete { .. } => crate::automation::TriggerEvent::Deleted,
     }
 }
 
@@ -370,8 +370,10 @@ fn authorize_ops(
     for (i, op) in ops.iter().enumerate() {
         let auth = triggers.get(i).and_then(Option::as_ref);
         crate::trigger_auth::authorize(window, op.table(), op_kind(op), auth)?;
-        if let Some(event) = trigger_event(op) {
-            crate::trigger_auth::precheck(window, op.table(), event)?;
+        crate::trigger_auth::precheck(window, op.table(), trigger_event(op))?;
+        if !matches!(op, WriteOp::Delete { .. }) {
+            let before = crate::automation::TriggerEvent::BeforeChange;
+            crate::trigger_auth::precheck(window, op.table(), before)?;
         }
     }
     Ok(())
@@ -388,9 +390,8 @@ fn with_grants(
         .iter()
         .zip(outcomes)
         .map(|(op, outcome)| {
-            let trigger_grant = trigger_event(op).and_then(|event| {
-                crate::trigger_auth::issue(window, &config, op.table(), event, now)
-            });
+            let trigger_grant =
+                crate::trigger_auth::issue(window, &config, op.table(), trigger_event(op), now);
             TriggeredOutcome {
                 outcome,
                 trigger_grant,

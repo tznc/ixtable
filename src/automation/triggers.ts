@@ -1,7 +1,13 @@
 /**
  * Record triggers (PRD §17.3), hooked into src/lib/records.ts.
  *
- * Sync triggers run their action after the initiating write commits, inside the
+ * Before-change triggers run before a create or update is sent: their actions
+ * may set fields of the record (setField) or reject the save (a fail step or
+ * any failing step), and cannot write records, so a rejection writes nothing.
+ * Action queries hand them each pending row through `beforeBulk`.
+ *
+ * Created, updated and deleted triggers run after the write commits. Sync
+ * triggers run their action after the initiating write commits, inside the
  * same workflow: the caller's insertRecord/updateRecord awaits them and a failing
  * trigger makes that call reject. The write itself is already committed then;
  * rollback-mode actions only undo their own writes.
@@ -18,7 +24,9 @@ import { evaluate, evaluateBoolean } from "../expr";
 import { inspectTable, readTablePage } from "../lib/api";
 import {
   type BulkChange,
+  type PendingRow,
   type RecordWrite,
+  type RowOverride,
   registerRecordHook,
   type WriteExtra,
 } from "../lib/records";
@@ -27,7 +35,14 @@ import type { DataValue, DocumentConfig, Filter } from "../lib/types";
 import { enqueueJob, notifyJobsChanged, releaseTriggerGrant } from "./api";
 import { type ActionContext, runAction } from "./runner";
 import type { Trigger, TriggerEvent } from "./types";
-import { fromDataValue, namedToObject, rowToObject, stableHash, toDataValue } from "./values";
+import {
+  fromDataValue,
+  namedToObject,
+  rowToObject,
+  stableHash,
+  toDataValue,
+  toNamedValues,
+} from "./values";
 
 export const MAX_TRIGGER_DEPTH = 5;
 
@@ -56,19 +71,36 @@ export interface TriggerEnv {
 const enabledFor = (config: DocumentConfig, table: string, event: TriggerEvent) =>
   (config.triggers ?? []).filter((t) => t.enabled && t.table === table && t.event === event);
 
+/** Thrown when a before-change trigger rejects a save; nothing was written. */
+export class BeforeChangeRejected extends Error {}
+
 /**
  * Registers the trigger hook on record writes; returns its unregister function.
- * Before an update that has `updated` triggers, it reads the row so `old` is
- * available even when the caller did not pass `meta.old`.
+ * Before an update with `updated` or `beforeChange` triggers, or a delete with
+ * `deleted` triggers, it reads the row so `old` is available even when the
+ * caller did not pass `meta.old`. Before-change triggers then decide the write.
  */
 export function installTriggers(env: TriggerEnv): () => void {
   const previous = new WeakMap<RecordWrite, Record<string, unknown> | null>();
   return registerRecordHook({
     before: async (write) => {
-      if (write.operation !== "update" || write.meta?.old || !write.identity) return;
-      if (!enabledFor(env.getConfig(), write.table, "updated").length) return;
-      previous.set(write, await readRow(write.table, write.identity));
+      const config = env.getConfig();
+      const has = (event: TriggerEvent) => enabledFor(config, write.table, event).length > 0;
+      const needsOld =
+        write.operation === "update"
+          ? has("updated") || has("beforeChange")
+          : write.operation === "delete" && has("deleted");
+      const old =
+        write.meta?.old ??
+        (needsOld && write.identity ? await readRow(write.table, write.identity) : null);
+      const next =
+        write.operation === "delete" || !has("beforeChange")
+          ? write
+          : await beforeChange(write, old, env);
+      if (needsOld && !write.meta?.old) previous.set(next, old);
+      return next;
     },
+    beforeBulk: (table, rows, depth) => beforeChangeBulk(table, rows, depth, env),
     after: (write, result, extra) =>
       write.meta?.bulk
         ? dispatchBulk(write, write.meta.bulk, env)
@@ -108,7 +140,88 @@ export async function dispatchTriggers(
 }
 
 /**
- * Fires an action query's triggers once per created or updated row, in order,
+ * Runs the before-change triggers of a create or update: returns the write with
+ * the fields they set, or throws BeforeChangeRejected.
+ */
+async function beforeChange(
+  write: RecordWrite,
+  old: Record<string, unknown> | null,
+  env: TriggerEnv,
+): Promise<RecordWrite> {
+  const values = namedToObject(write.values);
+  const record = write.operation === "update" ? { ...old, ...values } : values;
+  const isNew = write.operation === "insert";
+  const set = await decide(write.table, record, isNew ? null : old, write.meta?.triggerDepth, env);
+  if (!Object.keys(set).length) return write;
+  return {
+    ...write,
+    values: [...write.values.filter((v) => !(v.column in set)), ...toNamedValues(set)],
+  };
+}
+
+/** Runs the before-change triggers on each row an action query is about to write. */
+async function beforeChangeBulk(
+  table: string,
+  rows: PendingRow[],
+  depth: number,
+  env: TriggerEnv,
+): Promise<RowOverride[]> {
+  if (!enabledFor(env.getConfig(), table, "beforeChange").length) return [];
+  const overrides: RowOverride[] = [];
+  for (const [i, row] of rows.entries()) {
+    const old = row.old ? namedToObject(row.old) : null;
+    const set = await decide(table, namedToObject(row.values), old, depth, env);
+    if (Object.keys(set).length) overrides.push({ row: i, values: toNamedValues(set) });
+  }
+  return overrides;
+}
+
+/**
+ * Runs a table's before-change triggers in order on `record` (each sees the
+ * fields earlier ones set) and returns the fields they set. A failing action
+ * rejects: a fail step with its own message, anything else naming the trigger.
+ */
+async function decide(
+  table: string,
+  record: Record<string, unknown>,
+  old: Record<string, unknown> | null,
+  triggerDepth: number | undefined,
+  env: TriggerEnv,
+): Promise<Record<string, unknown>> {
+  const set: Record<string, unknown> = {};
+  const app = env.app?.() ?? {};
+  for (const trigger of enabledFor(env.getConfig(), table, "beforeChange")) {
+    const current = { ...record, ...set };
+    if (
+      trigger.condition?.trim() &&
+      !evaluateBoolean(trigger.condition, { record: current, old, app })
+    )
+      continue;
+    const outcome = await runAction(
+      trigger.actionId,
+      env.context({
+        record: current,
+        old: old ?? undefined,
+        triggerDepth: triggerDepth ?? 0,
+        beforeChange: { set },
+        // App mode skips the role's checks; it holds no grant, since the action cannot write.
+        ...(trigger.runAs !== "user" && { triggerAuth: { triggerId: trigger.id, grant: "" } }),
+      }),
+    );
+    if (!outcome.ok)
+      throw new BeforeChangeRejected(
+        `Not saved: ${
+          outcome.aborted
+            ? outcome.error
+            : `trigger "${trigger.name}" failed: ${outcome.error ?? "unknown error"}`
+        }`,
+      );
+  }
+  return set;
+}
+
+/**
+ * Fires an action query's triggers once per created, updated or deleted row, in order,
  * as if each row had been written alone. The rows of one event share Rust's
  * grant, released when all of them have run. Failures are collected so one
  * bad row does not stop the others' triggers.
@@ -148,8 +261,24 @@ async function dispatchBulk(write: RecordWrite, bulk: BulkChange, env: TriggerEn
         1,
         bulk.updatedGrant ?? undefined,
       );
+    for (const [i, row] of (bulk.deleted ?? []).entries())
+      await each(
+        {
+          operation: "delete",
+          table: write.table,
+          values: [],
+          identity: row.identity,
+          meta: {
+            ...base,
+            writeId: `${write.meta?.writeId}:d${i}`,
+            old: namedToObject(row.values),
+          },
+        },
+        1,
+        bulk.deletedGrant ?? undefined,
+      );
   } finally {
-    for (const grant of [bulk.createdGrant, bulk.updatedGrant])
+    for (const grant of [bulk.createdGrant, bulk.updatedGrant, bulk.deletedGrant])
       if (grant) await releaseTriggerGrant(grant).catch(() => undefined);
   }
   if (failures.length) throw new Error(failures.join("; "));
@@ -162,8 +291,8 @@ async function dispatch(
   oldRow: Record<string, unknown> | undefined,
   grant: string | undefined,
 ): Promise<void> {
-  if (write.operation === "delete") return;
-  const event: TriggerEvent = write.operation === "insert" ? "created" : "updated";
+  const event: TriggerEvent =
+    write.operation === "insert" ? "created" : write.operation === "update" ? "updated" : "deleted";
   const triggers = enabledFor(env.getConfig(), write.table, event);
   if (!triggers.length) return;
   const depth = (write.meta?.triggerDepth ?? 0) + 1;
@@ -174,11 +303,15 @@ async function dispatch(
   const identity =
     (write.operation === "insert" ? (result as DataValue[] | null) : write.identity) ?? [];
   const values = namedToObject(write.values);
-  const record = (await readRow(write.table, identity)) ?? {
-    ...values,
-    ...(identity.length === 1 && { rowid: fromDataValue(identity[0]) }),
-  };
   const old = write.meta?.old ?? oldRow ?? null;
+  // A deleted row is gone: its triggers see the values it had.
+  const record =
+    event === "deleted"
+      ? (old ?? {})
+      : ((await readRow(write.table, identity)) ?? {
+          ...values,
+          ...(identity.length === 1 && { rowid: fromDataValue(identity[0]) }),
+        });
   const app = env.app?.() ?? {};
   for (const trigger of triggers) {
     const scope = { record, old, app };

@@ -36,13 +36,31 @@ export interface RecordWriteMeta {
   bulk?: BulkChange;
 }
 
-/** The rows an action query created or updated, for firing triggers once per row. */
+/** The rows an action query created, updated or deleted, for firing triggers once per row. */
 export interface BulkChange {
   created: DataValue[][];
   updated: { identity: DataValue[]; old: NamedValue[] }[];
+  /** Deleted rows with every column's value before the statement. */
+  deleted?: { identity: DataValue[]; values: NamedValue[] }[];
   /** Sync app-mode trigger grants Rust issued for each event; shared by its rows. */
   createdGrant?: string | null;
   updatedGrant?: string | null;
+  deletedGrant?: string | null;
+}
+
+/** A row an action query is about to create or update, for before-change triggers. */
+export interface PendingRow {
+  identity: DataValue[];
+  /** Every column's new value. */
+  values: NamedValue[];
+  /** Every column's value before an update; null for a created row. */
+  old: NamedValue[] | null;
+}
+
+/** Fields before-change triggers set on one pending row, by its position in `pending.rows`. */
+export interface RowOverride {
+  row: number;
+  values: NamedValue[];
 }
 
 /** What `run_action_query` returns (src-tauri/src/queries/action.rs). */
@@ -53,6 +71,8 @@ export interface ActionQueryRun extends BulkChange {
   removed: number;
   dryRun: boolean;
   table: string;
+  /** Rows awaiting before-change triggers: nothing was written yet (see `runActionQuery`). */
+  pending?: { fingerprint: string; rows: PendingRow[] };
 }
 
 /** What an app-mode trigger presents to Rust: its sync grant, or its job lease. */
@@ -99,8 +119,10 @@ export function setRecordRouter(next: RecordRouter): () => void {
 }
 
 export interface RecordHook {
-  // Runs before the write; throwing aborts it.
-  before?: (write: RecordWrite) => void | Promise<void>;
+  // Runs before the write; throwing aborts it, returning a write replaces it (before-change triggers).
+  before?: (write: RecordWrite) => void | RecordWrite | Promise<void | RecordWrite>;
+  // Runs before an action query writes its rows (before-change triggers); throwing aborts the query.
+  beforeBulk?: (table: string, rows: PendingRow[], triggerDepth: number) => Promise<RowOverride[]>;
   // Runs after the write commits, with the command result.
   after?: (write: RecordWrite, result: unknown, extra?: WriteExtra) => void | Promise<void>;
 }
@@ -184,11 +206,18 @@ async function write<T>(
     if (routed) return (await routed) as T;
   }
   const active = [...hooks];
-  for (const hook of active) await hook.before?.(record);
-  const outcome = await send(record);
+  const final = await beforeAll(record, active);
+  const outcome = await send(final);
   announceChange();
-  const [result] = await afterCommit([record], [outcome], active);
+  const [result] = await afterCommit([final], [outcome], active);
   return result as T;
+}
+
+/** Runs the before hooks in turn; each may replace the write. */
+async function beforeAll(record: RecordWrite, active: RecordHook[]): Promise<RecordWrite> {
+  let current = record;
+  for (const hook of active) current = (await hook.before?.(current)) ?? current;
+  return current;
 }
 
 const trigger = (record: RecordWrite) => record.meta?.trigger ?? null;
@@ -197,7 +226,8 @@ const trigger = (record: RecordWrite) => record.meta?.trigger ?? null;
 export const insertRecord = (table: string, values: NamedValue[], meta?: RecordWriteMeta) =>
   write<DataValue[]>(
     { operation: "insert", table, values, identity: null, ...(meta && { meta }) },
-    (record) => call<Outcome>("insert_row", { table, values, trigger: trigger(record) }),
+    (record) =>
+      call<Outcome>("insert_row", { table, values: record.values, trigger: trigger(record) }),
   );
 
 /**
@@ -213,7 +243,7 @@ export const updateRecord = (
   write<number>({ operation: "update", table, values, identity, ...(meta && { meta }) }, (record) =>
     call<Outcome>("update_row", {
       table,
-      values,
+      values: record.values,
       identity,
       expected: meta?.expected ?? null,
       trigger: trigger(record),
@@ -242,9 +272,9 @@ export const deleteRecord = (table: string, identity: DataValue[], meta?: Record
  * actions here; the action runner routes them before batching.
  */
 export async function writeRecordBatch(input: RecordWrite[]): Promise<unknown[]> {
-  const writes = input.map(withWriteId);
   const active = [...hooks];
-  for (const record of writes) for (const hook of active) await hook.before?.(record);
+  const writes: RecordWrite[] = [];
+  for (const record of input.map(withWriteId)) writes.push(await beforeAll(record, active));
   const outcomes = await call<Outcome[]>("execute_write_batch", {
     ops: writes.map(toOp),
     triggers: writes.map((w) => w.meta?.trigger ?? null),
@@ -255,22 +285,33 @@ export async function writeRecordBatch(input: RecordWrite[]): Promise<unknown[]>
 
 /**
  * Runs a saved action query (docs/decisions/action-queries.md). With `dryRun`
- * the changes roll back and only the counts come back. Otherwise every record
- * hook runs once with a single write that stands for the whole query (its
- * `meta.bulk` lists the created and updated rows); the trigger hook fires the
- * table's triggers once per row. A failing trigger rejects with a
- * CommittedWriteError: the query's changes are saved.
+ * the changes roll back and only the counts come back. On a table with
+ * before-change triggers the first call writes nothing and returns the pending
+ * rows: the `beforeBulk` hooks decide on them (a rejection ends the run with
+ * nothing written), and a second call writes the query with the fields they
+ * set. Then every record hook runs once with a single write that stands for
+ * the whole query (its `meta.bulk` lists the created, updated and deleted
+ * rows); the trigger hook fires the table's triggers once per row. A failing
+ * trigger rejects with a CommittedWriteError: the query's changes are saved.
  */
 export async function runActionQuery(
   queryId: string,
   params: NamedValue[],
   options: { dryRun?: boolean; triggerDepth?: number } = {},
 ): Promise<ActionQueryRun> {
-  const run = await call<ActionQueryRun>("run_action_query", {
-    id: queryId,
-    params,
-    dryRun: options.dryRun ?? false,
-  });
+  const request = { id: queryId, params, dryRun: options.dryRun ?? false };
+  let run = await call<ActionQueryRun>("run_action_query", request);
+  if (run.pending) {
+    const active = [...hooks];
+    const overrides: RowOverride[] = [];
+    for (const hook of active)
+      overrides.push(
+        ...((await hook.beforeBulk?.(run.table, run.pending.rows, options.triggerDepth ?? 0)) ??
+          []),
+      );
+    const before = { fingerprint: run.pending.fingerprint, overrides };
+    run = await call<ActionQueryRun>("run_action_query", { ...request, before });
+  }
   if (run.dryRun) return run;
   announceChange();
   const operation: RecordOperation = run.updated.length ? "update" : "insert";

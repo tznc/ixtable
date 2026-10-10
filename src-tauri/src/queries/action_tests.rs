@@ -137,7 +137,7 @@ fn embedded_sqlite_updates_run_on_a_copy_under_the_table_name() {
 }
 
 /// A workspace with `data.db` holding customers and orders.
-fn workspace() -> std::path::PathBuf {
+pub(crate) fn workspace() -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!("ixtable-action-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     let c = rusqlite::Connection::open(dir.join("data.db")).unwrap();
@@ -153,12 +153,12 @@ fn workspace() -> std::path::PathBuf {
     dir
 }
 
-fn writer(dir: &std::path::Path) -> duckdb::Connection {
+pub(crate) fn writer(dir: &std::path::Path) -> duckdb::Connection {
     let extension = data::extensions::sqlite_extension_path().unwrap();
     data::write::open_writer(dir, &extension, &data::read::ReadTarget::Sqlite, false).unwrap()
 }
 
-fn rows(dir: &std::path::Path, sql: &str) -> Vec<Vec<i64>> {
+pub(crate) fn rows(dir: &std::path::Path, sql: &str) -> Vec<Vec<i64>> {
     let c = rusqlite::Connection::open(dir.join("data.db")).unwrap();
     let mut stmt = c.prepare(sql).unwrap();
     let n = stmt.column_count();
@@ -170,7 +170,7 @@ fn rows(dir: &std::path::Path, sql: &str) -> Vec<Vec<i64>> {
 
 const ORDERS: &str = "data.\"main\".\"orders\"";
 
-fn job(kind: ActionKind, watch: bool, dry_run: bool) -> Job {
+pub(crate) fn job(kind: ActionKind, watch: bool, dry_run: bool) -> Job {
     Job {
         table: ORDERS.into(),
         name: "orders".into(),
@@ -179,10 +179,16 @@ fn job(kind: ActionKind, watch: bool, dry_run: bool) -> Job {
         kind,
         watch,
         dry_run,
+        deleted: false,
+        before: Default::default(),
+        sqlite: true,
+        logical: vec![],
+        generated: vec![],
+        defaulted: vec![],
     }
 }
 
-fn copy_sql(sql: &str, table: &str) -> String {
+pub(crate) fn copy_sql(sql: &str, table: &str) -> String {
     let query = SavedQuery {
         sql: sql.into(),
         ..Default::default()
@@ -458,6 +464,12 @@ fn postgres_action_queries_write_through_the_attachment() {
         kind,
         watch: true,
         dry_run,
+        deleted: false,
+        before: Default::default(),
+        sqlite: false,
+        logical: vec![],
+        generated: vec![],
+        defaulted: vec![],
     };
     let query = SavedQuery {
         sql: "UPDATE visits SET day = day + 1, seen = coalesce(seen, TIMESTAMP '2024-03-01 08:00'), paid = true WHERE total < $max".into(),

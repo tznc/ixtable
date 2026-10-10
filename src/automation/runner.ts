@@ -45,7 +45,16 @@ import * as queryApi from "../query/api";
 import { ACTION_QUERY_OPS, type ActionSpec } from "../query/types";
 import { customActionFor, customScope } from "./custom";
 import { afterWrite, currentRow, type FoundRow, matchRows, rowKey, withKeys } from "./rows";
-import type { ActionDef, MatchSpec, OnError, Step, StepLog, ValueMap } from "./types";
+import { STEP_LABELS } from "./steps";
+import {
+  type ActionDef,
+  BEFORE_CHANGE_STEPS,
+  type MatchSpec,
+  type OnError,
+  type Step,
+  type StepLog,
+  type ValueMap,
+} from "./types";
 import { rowToObject, toNamedValues } from "./values";
 
 export { ActionPicker } from "./ActionPicker";
@@ -87,6 +96,11 @@ export interface ActionContext {
   snapshot?: Record<string, unknown>;
   /** Original values a write of this row must match (custom actions: what the caller edited). */
   current?: { table: string; identity: DataValue[]; expected: NamedValue[] };
+  /**
+   * Set while a before-change trigger runs: setField steps collect the record's
+   * new field values in `set`, and steps that write or touch the UI are refused.
+   */
+  beforeChange?: { set: Record<string, unknown> };
 }
 
 export interface ActionResult {
@@ -94,6 +108,8 @@ export interface ActionResult {
   error?: string;
   /** True when a confirm step was declined. */
   cancelled?: boolean;
+  /** True when a fail step ended the action (`error` is its message). */
+  aborted?: boolean;
   steps: StepLog[];
   /** Values stored by steps with `storeAs`. */
   results: Record<string, unknown>;
@@ -342,6 +358,7 @@ function effect(frame: Frame, run: () => void) {
 
 async function runStep(step: Step, frame: Frame, path: string): Promise<void> {
   const { ctx, scope } = frame;
+  if (ctx.beforeChange) refuseInBeforeChange(step, ctx.config);
   switch (step.kind) {
     case "createRecord": {
       authorize(frame, "table", step.table, "create");
@@ -521,9 +538,26 @@ async function runStep(step: Step, frame: Frame, path: string): Promise<void> {
       const text = expr(step.message, frame, "Failure message");
       throw new Aborted(String(text ?? "") || "The action failed");
     }
+    case "setField": {
+      if (!ctx.beforeChange) throw new Error("Set field steps only run in before-change triggers");
+      if (!step.field?.trim()) throw new Error("Field is not set");
+      const value = expr(step.value, frame, `Value for ${step.field}`);
+      ctx.beforeChange.set[step.field] = value;
+      scope.record = { ...(scope.record as Record<string, unknown> | null), [step.field]: value };
+      return;
+    }
     default:
       throw new Error(`Unknown step kind ${(step as { kind: string }).kind}`);
   }
+}
+
+/** A before-change trigger only computes fields or rejects: it never writes or touches the UI. */
+function refuseInBeforeChange(step: Step, config: DocumentConfig) {
+  const actionQuery =
+    step.kind === "runQuery" && config.savedQueries.some((q) => q.id === step.queryId && q.action);
+  if (BEFORE_CHANGE_STEPS.includes(step.kind) && !actionQuery) return;
+  const what = actionQuery ? "Run action query" : STEP_LABELS[step.kind];
+  throw new Aborted(`A before-change trigger cannot run "${what}" steps; use an after trigger`);
 }
 
 function exists(config: DocumentConfig, kind: string, id: string) {

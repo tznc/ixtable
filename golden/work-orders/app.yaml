@@ -2,7 +2,7 @@
 # Pure definition data: the same DocumentConfig YAML the Settings › YAML tab edits.
 # v2/app.yaml is the next version of this application (migration fixture).
 # Object ids are fixed UUIDv7 literals. A trailing comment names each top-level object.
-version: 4
+version: 5
 name: Work orders
 activeMode: run
 settings:

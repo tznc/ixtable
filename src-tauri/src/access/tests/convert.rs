@@ -541,6 +541,12 @@ fn action_queries_convert_and_run(m: &DocumentManager, config: &crate::archive::
         kind,
         watch: false,
         dry_run: false,
+        deleted: false,
+        before: Default::default(),
+        sqlite: true,
+        logical: vec![],
+        generated: vec![],
+        defaulted: vec![],
     };
     let Plan::Direct(sql) = plan(q("MakeCustomerTotals"), &make, "main", true)
         .unwrap()

@@ -12,6 +12,7 @@ export function TriggersPanel({ focusId }: { focusId?: string }) {
   const triggers = config.triggers ?? [];
   const [selected, setSelected] = useState<string | null>(focusId ?? triggers[0]?.id ?? null);
   const trigger = triggers.find((t) => t.id === selected) ?? null;
+  const before = trigger?.event === "beforeChange";
   const enabledId = useId();
   const tables = objects
     .filter((o) => o.objectType === "table" && !o.name.startsWith("_ixtable_"))
@@ -102,10 +103,14 @@ export function TriggersPanel({ focusId }: { focusId?: string }) {
             <SelectField
               label="Event"
               value={trigger.event}
-              onChange={(event) => edit({ event })}
+              onChange={(event) =>
+                edit(event === "beforeChange" ? { event, mode: "sync" } : { event })
+              }
               options={[
+                { value: "beforeChange", label: "Before a record is saved" },
                 { value: "created", label: "Record created" },
                 { value: "updated", label: "Record updated" },
+                { value: "deleted", label: "Record deleted" },
               ]}
             />
             <ActionPicker
@@ -128,33 +133,42 @@ export function TriggersPanel({ focusId }: { focusId?: string }) {
               { value: "user", label: "Signed-in user's role" },
             ]}
           />
-          <div className="ax-row">
-            <SelectField
-              label="Run"
-              value={trigger.mode}
-              onChange={(mode) => edit({ mode })}
-              options={[
-                { value: "sync", label: "Synchronously, inside the write" },
-                { value: "async", label: "Asynchronously, on the job queue" },
-              ]}
-            />
-            {trigger.mode === "async" && (
-              <>
-                <NumberField
-                  label="Max attempts"
-                  min={1}
-                  value={trigger.maxAttempts}
-                  onChange={(maxAttempts) => edit({ maxAttempts })}
-                />
-                <NumberField
-                  label="Retry backoff (ms)"
-                  value={trigger.backoffMs}
-                  onChange={(backoffMs) => edit({ backoffMs })}
-                />
-              </>
-            )}
-          </div>
-          {trigger.mode === "async" && (
+          {before ? (
+            <p>
+              Runs before each new or changed record is saved, including rows an action query
+              writes. Its action can set fields with Set field steps, read queries, and reject the
+              save with a Fail step; it cannot write records or open anything. In the condition and
+              action, <code>old</code> is the row before an update and empty for a new record.
+            </p>
+          ) : (
+            <div className="ax-row">
+              <SelectField
+                label="Run"
+                value={trigger.mode}
+                onChange={(mode) => edit({ mode })}
+                options={[
+                  { value: "sync", label: "Synchronously, inside the write" },
+                  { value: "async", label: "Asynchronously, on the job queue" },
+                ]}
+              />
+              {trigger.mode === "async" && (
+                <>
+                  <NumberField
+                    label="Max attempts"
+                    min={1}
+                    value={trigger.maxAttempts}
+                    onChange={(maxAttempts) => edit({ maxAttempts })}
+                  />
+                  <NumberField
+                    label="Retry backoff (ms)"
+                    value={trigger.backoffMs}
+                    onChange={(backoffMs) => edit({ backoffMs })}
+                  />
+                </>
+              )}
+            </div>
+          )}
+          {!before && trigger.mode === "async" && (
             <ExprInput
               label="Idempotency key"
               placeholder="trigger id : table : key : event : hash of values"
@@ -163,11 +177,12 @@ export function TriggersPanel({ focusId }: { focusId?: string }) {
             />
           )}
           <p>
-            Sync triggers run after the record is saved, as part of the same operation; a failing
-            action reports an error to whoever saved the record, but the save stays. Async triggers
-            run in the background while the app is open, with retries. Run as app lets the trigger
-            make its own writes even when the user's role cannot; run as the signed-in user refuses
-            the save up front when the user's role cannot run the trigger.
+            Created, updated and deleted triggers see the record as <code>record</code> (a deleted
+            record as it was). Sync triggers run after the record is saved, as part of the same
+            operation; a failing action reports an error to whoever saved the record, but the save
+            stays. Async triggers run in the background while the app is open, with retries. Run as
+            app lets the trigger make its own writes even when the user's role cannot; run as the
+            signed-in user refuses the save up front when the user's role cannot run the trigger.
           </p>
         </div>
       ) : (
