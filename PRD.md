@@ -594,7 +594,7 @@ Buttons may invoke declarative actions such as:
 
 ### 17.3 Record triggers
 
-The MVP supports record-created and record-updated triggers. Phase 7 adds before-change triggers, which run synchronously before a create or update is written and can reject it with a message, and record-deleted triggers.
+The MVP supports record-created and record-updated triggers. Phase 7 adds before-change triggers, which run synchronously before a create or update is written and can set field values on it or reject it with a message, and record-deleted triggers.
 
 Triggers may be:
 
@@ -1190,7 +1190,7 @@ Exit criteria:
 
 Deliver:
 
-- data export to CSV, XLSX, and JSON from any table, saved query, and query result, honoring the current filter and sort, with report output to XLSX;
+- data export to CSV, XLSX, and JSON from any table, saved query, and query result: every row matching the current filter and sort, as raw typed values, allowed for any role that can read the source; and report output to XLSX;
 - datasheet tools: filter by selection, multi-column sort, find and replace, freeze and hide columns, a totals row, and multi-cell paste from spreadsheets;
 - continuous and split form modes and a record navigation bar (first, previous, next, last, new);
 - popup and modal forms opened by an action, returning values to the caller;
@@ -1214,7 +1214,7 @@ Deliver:
 
 - form events: on load, on current, before update (can veto), and after update (§17.4);
 - before-change and record-deleted triggers (§17.3);
-- nested subforms;
+- nested subforms, up to three levels deep;
 - subreports for invoices and statements; and
 - label and mail-merge report layouts.
 
