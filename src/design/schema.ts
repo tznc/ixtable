@@ -31,7 +31,10 @@ export type ControlKind =
   | "section"
   | "tabs"
   | "relatedList"
-  | "image";
+  | "image"
+  | "richText"
+  | "attachment"
+  | "multiSelect";
 
 export type FormMode = "list" | "detail" | "create" | "edit";
 export const FORM_MODES: FormMode[] = ["list", "detail", "create", "edit"];
@@ -117,6 +120,8 @@ export type DesignControl = {
   related?: RelatedList | null;
   assetId?: string | null;
   readOnly?: boolean;
+  /** Access-style input mask for text entry (`src/fields/mask.ts`). */
+  inputMask?: string | null;
   variant?: string | null;
   /** Conditional styles; the first rule whose `when` holds sets the tone. */
   styles?: ConditionalStyle[];
@@ -208,6 +213,9 @@ const LABELS: Record<ControlKind, string> = {
   tabs: "Tabs",
   relatedList: "Related records",
   image: "Image",
+  richText: "Rich text",
+  attachment: "Attachments",
+  multiSelect: "Multiple choices",
 };
 export const controlKindLabel = (kind: ControlKind) => LABELS[kind];
 export const CONTROL_KINDS = Object.keys(LABELS) as ControlKind[];
@@ -228,6 +236,9 @@ export const isInputKind = (kind: ControlKind) =>
     "datetime",
     "select",
     "relationship",
+    "richText",
+    "attachment",
+    "multiSelect",
   ].includes(kind);
 export const isContainerKind = (kind: ControlKind) => kind === "section" || kind === "tabs";
 
@@ -249,7 +260,7 @@ export const newControl = (
     parent: parent ?? null,
   };
   if (kind === "label") control.text = "Text";
-  if (kind === "select") control.options = [];
+  if (kind === "select" || kind === "multiSelect") control.options = [];
   if (kind === "computed") control.computed = "";
   if (kind === "section") control.layout = containerGrid();
   if (kind === "tabs") {

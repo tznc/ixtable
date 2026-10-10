@@ -3,6 +3,7 @@ import { inspectTable, listDatabaseObjects } from "../lib/api";
 import { useDocumentConfig } from "../lib/config-store";
 import type { TableSchema } from "../lib/types";
 import { newId } from "../lib/utils";
+import type { EntitySettings } from "../schema/types";
 import { generateCrudForms, humanize } from "./generate";
 import {
   type DesignForm,
@@ -26,6 +27,7 @@ export function addGeneratedApp(
   design: DesignSchema,
   schemas: TableSchema[],
   only?: string[],
+  entities?: EntitySettings[],
 ): DesignSchema {
   const wanted = schemas.filter((schema) => !only || only.includes(schema.name));
   const covered = new Set(design.forms.map(formTable).filter(Boolean));
@@ -35,6 +37,7 @@ export function addGeneratedApp(
     schema,
     crud: generateCrudForms(schema, {
       targets,
+      entities,
       children: schemas.filter((other) =>
         other.foreignKeys.some((fk) => fk.targetTable === schema.name),
       ),
@@ -50,7 +53,7 @@ export function addGeneratedApp(
     const schema = targets[table];
     if (!schema) return null;
     if (!plain.has(table)) {
-      const { detail } = generateCrudForms(schema, { targets });
+      const { detail } = generateCrudForms(schema, { targets, entities });
       plain.set(table, { ...detail, name: `${humanize(table)} (related)` });
     }
     return plain.get(table)?.id ?? null;
@@ -127,12 +130,12 @@ export function useGenerateApp() {
       const schemas = await tableSchemas();
       // Nothing missing: no config write, so no empty undo step.
       const before = upgradeDesign(config.design);
-      if (addGeneratedApp(before, schemas, only) === before) return 0;
+      if (addGeneratedApp(before, schemas, only, config.entities) === before) return 0;
       let added = 0;
       await update(
         (draft) => {
           const design = upgradeDesign(draft.design);
-          const next = addGeneratedApp(design, schemas, only);
+          const next = addGeneratedApp(design, schemas, only, draft.entities);
           added =
             next.forms.length -
             design.forms.length +
@@ -144,6 +147,6 @@ export function useGenerateApp() {
       );
       return added;
     },
-    [config.design, update],
+    [config.design, config.entities, update],
   );
 }

@@ -279,6 +279,7 @@ fn updates_of_custom_action_entities_declare_the_routed_action() {
         table: "inventory".into(),
         concurrency: "customAction".into(),
         action_id: Some("a-guard".into()),
+        ..Default::default()
     });
     assert!(check(&c).is_ok());
     let needed = needed_grants(&c, &c.triggers[1]);

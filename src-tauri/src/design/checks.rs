@@ -266,6 +266,9 @@ fn check_control(config: &DocumentConfig, form: &Form, control: &Control, out: &
             | ControlKind::Datetime
             | ControlKind::Select
             | ControlKind::Relationship
+            | ControlKind::RichText
+            | ControlKind::Attachment
+            | ControlKind::MultiSelect
     );
     if needs_binding
         && control.binding.as_ref().is_none_or(|b| b.column.is_empty())

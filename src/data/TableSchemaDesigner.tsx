@@ -1,5 +1,6 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { FieldSettingsEditor } from "../fields/FieldSettingsEditor";
 import { asTauriError } from "../lib/api";
 import { useDocumentConfig } from "../lib/config-store";
 import type { AlterTableOperation, TableSchema } from "../lib/types";
@@ -266,6 +267,7 @@ export function TableSchemaDesigner({
           </button>
         </div>
       </section>
+      <FieldSettingsEditor table={schema.name} columns={schema.columns} />
       <section aria-label="Primary key">
         <h3>Primary key</h3>
         <ColumnPicker

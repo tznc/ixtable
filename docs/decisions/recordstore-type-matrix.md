@@ -90,5 +90,8 @@ prebuilt libduckdb (see `duckdb-read-path.md`).
 
 ## Audit log
 
+- 2026-10-10: field formats (rich text, attachments, multiple choices, input
+  masks) layer on `text` and `json` columns without new logical types; see
+  [field formats](./field-formats.md).
 - 2026-10-05: Proof now names `conformance_more.rs`, which holds the
   optimistic, schema change, and migration scenarios.

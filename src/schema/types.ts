@@ -1,3 +1,5 @@
+import type { FieldSettings } from "../fields/types";
+
 /** The application's record store (PRD §9). The password lives in the local secret store; `passwordRef` names it. */
 export interface DatasourceConfig {
   kind: "sqlite" | "postgres" | (string & {});
@@ -23,6 +25,8 @@ export interface EntitySettings {
   table: string;
   concurrency?: ConcurrencyPolicy | (string & {});
   actionId?: string | null;
+  /** Per-column field settings (rich text, attachments, multi-select, input masks). */
+  fields?: FieldSettings[];
 }
 
 export type ChangeMode = "inPlace" | "rebuild" | "unsupported";

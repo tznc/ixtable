@@ -3,11 +3,20 @@ import { useEffect, useMemo, useState } from "react";
 import { asTauriError, inspectTable, readTablePage } from "../lib/api";
 import { CreateFormsOffer } from "../design/CreateFormsOffer";
 import { ImportWizard } from "../import";
+import { datasheetText, datasheetValue } from "../fields/datasheet";
+import { fieldSettingsFor } from "../fields/values";
 import { useDocumentConfig } from "../lib/config-store";
 import { deleteRecord, insertRecord, updateRecord } from "../lib/records";
-import type { CreateTableSpec, DbPage, NamedValue, Sort, TableSchema } from "../lib/types";
+import type {
+  CreateTableSpec,
+  DataValue,
+  DbPage,
+  NamedValue,
+  Sort,
+  TableSchema,
+} from "../lib/types";
 import { storeCapabilities } from "../schema/api";
-import { logicalOf, valueFromText } from "../schema/logical";
+import { logicalOf } from "../schema/logical";
 import type { StoreCapabilities } from "../schema/types";
 import { useShell } from "../shell/context";
 import { createDatabaseTable } from "./api";
@@ -61,6 +70,9 @@ export function DatabaseWorkbench() {
     [offset, setOffset] = useState(0),
     [revision, setRevision] = useState(0);
   const selected = active?.kind === "table" || active?.kind === "view" ? active.id : "";
+  const fieldFor = (column: string) => fieldSettingsFor(config, selected, column);
+  const shown = (v: DataValue, column: string) =>
+    datasheetText(v, fieldFor(column)) ?? showValue(v);
   const readOnly = active?.kind === "view";
   const creating = active?.kind === "new-table";
   const [sorts, setSorts] = useState<Sort[]>([]),
@@ -139,7 +151,7 @@ export function DatabaseWorkbench() {
     if (!page) return;
     const meta = page.columns[column];
     try {
-      const value = valueFromText(text, meta.name, logicalOf(meta));
+      const value = datasheetValue(text, meta, fieldFor(meta.name));
       await updateRecord(selected, [{ column: meta.name, value }], page.identities[row], {
         expected: original(row),
       });
@@ -173,7 +185,7 @@ export function DatabaseWorkbench() {
           const column = page.columns[Number(index)];
           return {
             column: column.name,
-            value: valueFromText(text, column.name, logicalOf(column)),
+            value: datasheetValue(text, column, fieldFor(column.name)),
           };
         });
       await insertRecord(selected, values);
@@ -371,12 +383,14 @@ export function DatabaseWorkbench() {
                               key={j}
                               className={page.columns[j].primaryKeyPosition ? "primary" : ""}
                             >
-                              {readOnly || page.columns[j].generated ? (
-                                <span>{showValue(v)}</span>
+                              {readOnly ||
+                              page.columns[j].generated ||
+                              fieldFor(page.columns[j].name)?.format ? (
+                                <span>{shown(v, page.columns[j].name)}</span>
                               ) : (
                                 <input
                                   key={`${revision}:${showValue(v)}`}
-                                  defaultValue={showValue(v)}
+                                  defaultValue={shown(v, page.columns[j].name)}
                                   aria-label={`${page.columns[j].name}, row ${offset + i + 1}`}
                                   onKeyDown={(e) => {
                                     navigateDraft(e, j);
@@ -385,7 +399,7 @@ export function DatabaseWorkbench() {
                                     }
                                   }}
                                   onBlur={(e) => {
-                                    if (e.currentTarget.value !== showValue(v))
+                                    if (e.currentTarget.value !== shown(v, page.columns[j].name))
                                       void commit(i, j, e.currentTarget.value);
                                   }}
                                 />
@@ -409,8 +423,8 @@ export function DatabaseWorkbench() {
                           <td className="rownum">+</td>
                           {page.columns.map((column, j) => (
                             <td key={column.name}>
-                              {column.generated ? (
-                                <span>Generated</span>
+                              {column.generated || fieldFor(column.name)?.format ? (
+                                <span>{column.generated ? "Generated" : "Use a form"}</span>
                               ) : (
                                 <input
                                   data-draft-index={j}
