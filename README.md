@@ -31,10 +31,12 @@ npm ci
 bash scripts/prepare-duckdb-artifacts.sh linux-x64   # or macos-universal, windows-x64
 ```
 
-The script downloads the DuckDB `sqlite_scanner` and `postgres_scanner`
-extensions that match the pinned DuckDB version. It checks each file against
+The script downloads the official prebuilt libduckdb (the app links it
+instead of compiling DuckDB) and the DuckDB `sqlite_scanner` and
+`postgres_scanner` extensions that match the pinned DuckDB version. It checks each file against
 a SHA-256 in the script and writes them to
-`src-tauri/resources/duckdb/<platform>/`, both compressed (what the app
+`src-tauri/resources/duckdb/lib/` (the library) and
+`src-tauri/resources/duckdb/<platform>/` (the extensions), both compressed (what the app
 bundles) and unpacked (what dev builds load). The app checks the hash again
 before loading an extension and refuses to start reads on a mismatch. The
 files are gitignored, so run the script once per checkout. Builds fail until

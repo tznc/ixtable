@@ -37,8 +37,9 @@ uuid = { version = "1", features = ["v4", "v7", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 base64 = "0.22"
-# json and parquet are compiled into DuckDB itself (not loadable extensions) for file sources and imports.
-duckdb = { version = "=1.10505.0", features = ["bundled", "json", "parquet"] }
+# Links the official prebuilt libduckdb (DUCKDB_LIB_DIR, .cargo/config.toml), which already
+# includes the json and parquet readers used by file sources and imports.
+duckdb = "=1.10505.0"
 # Reads XLSX files in the import wizard (import/).
 calamine = { version = "0.36", default-features = false }
 tauri-plugin-dialog = "2"

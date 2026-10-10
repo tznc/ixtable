@@ -10,7 +10,7 @@ subsystem, and update it in the same change).
 
 ```bash
 npm ci
-bash scripts/prepare-duckdb-artifacts.sh linux-x64   # pinned DuckDB extensions, once per checkout
+bash scripts/prepare-duckdb-artifacts.sh linux-x64   # pinned prebuilt libduckdb + extensions, once per checkout
 npm run tauri:dev                                    # run the app
 ```
 

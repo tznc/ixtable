@@ -1,7 +1,7 @@
 name: Set up desktop toolchain
 description: >
   Node + npm ci, stable Rust with a shared cargo cache, Linux WebKitGTK
-  build deps, and the pinned DuckDB extensions for the runner's platform.
+  build deps, and the pinned prebuilt libduckdb and DuckDB extensions for the runner's platform.
 inputs:
   cache-key:
     description: Shared rust-cache key (jobs that build the same artifacts share one).
@@ -57,9 +57,10 @@ runs:
           src-tauri/resources/duckdb/linux-x64
           src-tauri/resources/duckdb/macos-*
           src-tauri/resources/duckdb/windows-x64
+          src-tauri/resources/duckdb/lib
         key: duckdb-ext-${{ steps.duckdb.outputs.platform }}-${{ hashFiles('scripts/prepare-duckdb-artifacts.sh') }}
 
-    - name: Download pinned DuckDB extensions
+    - name: Download pinned libduckdb and DuckDB extensions
       if: steps.duckdb-cache.outputs.cache-hit != 'true'
       shell: bash
       run: bash scripts/prepare-duckdb-artifacts.sh "${{ steps.duckdb.outputs.platform }}"

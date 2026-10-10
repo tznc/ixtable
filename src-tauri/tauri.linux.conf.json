@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "resources": {
+      "resources/duckdb/linux-x64/*.duckdb_extension.gz": "resources/duckdb/linux-x64/",
+      "resources/duckdb/lib/libduckdb.so": "libduckdb.so"
+    }
+  }
+}

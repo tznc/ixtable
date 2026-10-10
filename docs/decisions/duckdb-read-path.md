@@ -72,9 +72,9 @@ clones, in the PostgreSQL CI jobs.
 
 ### External files
 
-DuckDB reads CSV, JSON, and Parquet with its own readers. The `json` and
-`parquet` crate features compile them into the bundled DuckDB, so they are
-part of the pinned binary and not loadable extensions: the extension
+DuckDB reads CSV, JSON, and Parquet with its own readers. The official
+prebuilt libduckdb includes them, so they are part of the pinned library and
+not loadable extensions: the extension
 allowlist stays `sqlite_scanner` and `postgres_scanner`, and nothing is
 installed at runtime. XLSX is read in Rust with `calamine`. Global external
 access stays off in both uses below; each connection may open only the files
@@ -196,13 +196,26 @@ the page `params`, which TypeScript evaluates (`sourceParams` in
 
 ### Pinned extensions
 
-- `duckdb` is pinned to `=1.10505.0` with the `bundled`, `json`, and
-  `parquet` features, which embed DuckDB 1.5.5 and its JSON and Parquet
-  readers. Extensions are ABI-specific, so the crate version and the
-  extension version move together.
+- `duckdb` is pinned to `=1.10505.0`, which binds DuckDB 1.5.5. The app
+  links the official prebuilt shared libduckdb 1.5.5 instead of compiling
+  DuckDB from source (the `bundled` feature took most of a clean build).
+  `.cargo/config.toml` sets `DUCKDB_LIB_DIR` to
+  `src-tauri/resources/duckdb/lib`. Extensions are ABI-specific, so the
+  crate, library, and extension versions move together.
+- Bundles ship the library where the loader finds it (`build.rs` sets the
+  rpaths): Linux in the resource dir `../lib/ixtable` next to `bin/`
+  (`tauri.linux.conf.json`), macOS in `Contents/Frameworks`
+  (`tauri.macos.conf.json`), Windows next to the exe
+  (`tauri.windows.conf.json`). On Linux the binary links with
+  `--exclude-libs,ALL`: WebKitGTK references `sqlite3_*`, so the linker would
+  export rusqlite's bundled SQLite, and `sqlite_scanner`, which carries its
+  own SQLite, crashes on close when some of its calls bind to ours. The NAPI
+  test bridge skips the flag because node needs its registration symbol.
 - `scripts/prepare-duckdb-artifacts.sh <linux-x64|macos-universal|windows-x64>`
   downloads `sqlite_scanner` and `postgres_scanner` v1.5.5 from
-  `extensions.duckdb.org`. It checks each `.gz` against a pinned SHA-256 and
+  `extensions.duckdb.org`, and the platform's libduckdb archive from the
+  DuckDB GitHub release into `resources/duckdb/lib`. It checks each download
+  against a pinned SHA-256 and
   writes `src-tauri/resources/duckdb/<platform>/`: the archive as downloaded
   and an unpacked copy for dev builds and tests. The binaries are gitignored.
   `resources/duckdb/manifest.json` records both hashes, and the Rust code
@@ -317,6 +330,8 @@ Linux for extensions that do.
 
 ## Audit log
 
+- 2026-10-06: Link the official prebuilt libduckdb instead of the `bundled`
+  source build, and ship it in each bundle.
 - 2026-10-05: Added the failed-attach behavior and the guard's allowed leading
   keywords, and added `queries/tests_page.rs` and the paging, search, and dev
   copy tests to Evidence. Status unchanged: the macOS and Windows CI jobs have

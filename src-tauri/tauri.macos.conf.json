@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "macOS": {
+      "frameworks": ["resources/duckdb/lib/libduckdb.dylib"]
+    }
+  }
+}

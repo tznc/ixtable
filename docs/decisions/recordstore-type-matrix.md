@@ -85,8 +85,8 @@ IXTABLE_TEST_POSTGRES_URL=postgres://postgres@127.0.0.1:54329/ixtable_test \
 ```
 
 Without `IXTABLE_TEST_POSTGRES_URL`, PostgreSQL scenarios are skipped with a
-message. On Linux the binaries export DuckDB symbols (`build.rs`,
-`--export-dynamic`) so the signed scanner extensions can load.
+message. The scanner extensions resolve DuckDB symbols from the shared
+prebuilt libduckdb (see `duckdb-read-path.md`).
 
 ## Audit log
 

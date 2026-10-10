@@ -1,4 +1,4 @@
 [env]
-# libduckdb-sys reuses this deterministic cache when preparing desktop builds.
-DUCKDB_DOWNLOAD_LIB = "1"
-DUCKDB_DOWNLOAD_DIR = { value = "target/duckdb-download", relative = true }
+# libduckdb-sys links the official prebuilt DuckDB that
+# scripts/prepare-duckdb-artifacts.sh downloads (SHA-256 pinned) into this directory.
+DUCKDB_LIB_DIR = { value = "src-tauri/resources/duckdb/lib", relative = true }

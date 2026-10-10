@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "resources": {
+      "resources/duckdb/windows-x64/*.duckdb_extension.gz": "resources/duckdb/windows-x64/",
+      "resources/duckdb/lib/duckdb.dll": "duckdb.dll"
+    }
+  }
+}
