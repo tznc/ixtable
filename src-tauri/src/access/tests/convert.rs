@@ -400,7 +400,14 @@ fn binary_databases_get_generated_forms_and_working_queries() {
             .iter()
             .find(|i| i.name == "Unpaid Orders")
             .unwrap();
-        assert_eq!(unpaid.status, Status::Skipped);
+        // DLookup with criteria built from the row is a correlated subquery.
+        assert_eq!(unpaid.status, Status::Converted, "{:?}", unpaid.notes);
+        let unpaid = config
+            .saved_queries
+            .iter()
+            .find(|q| q.name == "Unpaid Orders")
+            .unwrap();
+        rows(m, &window, &format!("SELECT count(*) FROM ({})", unpaid.sql));
         m.close(&window, true).unwrap();
     }
 }
