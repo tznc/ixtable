@@ -2,7 +2,7 @@ import Editor from "@monaco-editor/react";
 import { Blocks, Code2, Play, Save } from "lucide-react";
 import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
 import type { DbObject } from "../lib/types";
-import { runQuerySql } from "./api";
+import { runQuerySql, toNamedValues } from "./api";
 import { BuilderEditor } from "./builder/BuilderEditor";
 import { tryCompile } from "./builder/compile";
 import {
@@ -16,6 +16,7 @@ import { ActionRunButtons, QueryTypeFields } from "./ActionQuery";
 import { ParametersPanel, ParameterValues } from "./ParametersPanel";
 import { effectiveSql, placeholderNames, runParams } from "./sql";
 import type { SavedQuery } from "./types";
+import { QueryExport } from "./QueryExport";
 import { RunResults } from "./RunStatus";
 import { useQueryRun } from "./useQueryRun";
 
@@ -29,6 +30,7 @@ export function QueryEditor({
   query,
   objects,
   dirty,
+  saved = false,
   saving,
   onChange,
   onSave,
@@ -36,6 +38,8 @@ export function QueryEditor({
   query: SavedQuery;
   objects: DbObject[];
   dirty: boolean;
+  // True once the query exists in the document (not a fresh draft).
+  saved?: boolean;
   saving: boolean;
   onChange: (query: SavedQuery) => void;
   onSave: () => void;
@@ -231,6 +235,15 @@ export function QueryEditor({
         </section>
       ) : (
         <section className="query-results" aria-label={visual ? "Preview" : "Results"}>
+          {run.result && !run.running && (
+            <QueryExport
+              query={query}
+              sql={compiled.sql}
+              exactSaved={saved && !dirty}
+              params={toNamedValues(runParams(values))}
+              parameters={parameters}
+            />
+          )}
           <RunResults run={run} />
         </section>
       )}

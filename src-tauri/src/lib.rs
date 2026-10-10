@@ -12,6 +12,7 @@ pub mod cloud;
 pub mod dashboards;
 pub mod data;
 pub mod design;
+pub mod export;
 pub mod import;
 pub mod installation;
 pub mod installation_checks;
@@ -385,6 +386,10 @@ pub fn run() {
             asset_data::read_asset_data_url,
             asset_data::read_asset_text,
             // dashboards commands
+            // export commands
+            export::export_table,
+            export::export_saved_query,
+            export::export_sql_query,
             // import commands
             import::preview_import_file,
             import::import_file,

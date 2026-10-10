@@ -2,6 +2,8 @@ import { Columns3, FileUp, GitBranch, Plus, Rows3, Search, Table2, Trash2 } from
 import { useEffect, useMemo, useState } from "react";
 import { asTauriError, inspectTable, readTablePage } from "../lib/api";
 import { CreateFormsOffer } from "../design/CreateFormsOffer";
+import { firstColumnFilter } from "../export/filters";
+import { TableExport } from "../export/TableExport";
 import { ImportWizard } from "../import";
 import { useDocumentConfig } from "../lib/config-store";
 import { deleteRecord, insertRecord, updateRecord } from "../lib/records";
@@ -92,16 +94,7 @@ export function DatabaseWorkbench() {
       return;
     }
     setLoading(true);
-    const filters =
-      filter && page?.columns[0]
-        ? [
-            {
-              column: page.columns[0].name,
-              operator: "contains" as const,
-              value: { type: "text" as const, value: filter },
-            },
-          ]
-        : [];
+    const filters = firstColumnFilter(page?.columns[0]?.name, filter);
     readTablePage(selected, { offset, limit: PAGE_SIZE, sorts, filters })
       .then(setPage)
       .catch((e) => setError(asTauriError(e).message))
@@ -314,6 +307,12 @@ export function DatabaseWorkbench() {
                       <Search />
                       Refresh
                     </button>
+                    <TableExport
+                      table={selected}
+                      sorts={sorts}
+                      filterText={filter}
+                      firstColumn={page?.columns[0]?.name}
+                    />
                     {!readOnly && (
                       <button onClick={() => setDesigningSelected(true)}>
                         <Columns3 />

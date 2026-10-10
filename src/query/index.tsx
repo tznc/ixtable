@@ -204,6 +204,7 @@ export function QueryMode() {
               query={draft}
               objects={objects}
               dirty={dirty}
+              saved={!isNew}
               saving={saving}
               onChange={setDraft}
               onSave={() => void save()}
