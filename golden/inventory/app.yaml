@@ -3,7 +3,7 @@
 # {{asset:<file>}} placeholders are replaced with the ids of the template's assets
 # when a document is created from the template.
 # Object ids are fixed UUIDv7 literals. A trailing comment names each top-level object.
-version: 4
+version: 5
 name: Inventory
 activeMode: run
 settings:
