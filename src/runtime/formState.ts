@@ -1,6 +1,9 @@
 import type { DesignControl, DesignForm } from "../design/schema";
 import { hasEnabledState, isInputKind } from "../design/schema";
 import { check, evaluate, evaluateBoolean, formatValue } from "../expr";
+import { maskProblem } from "../fields/mask";
+import { richTextPlain } from "../fields/richtext";
+import { fieldText } from "../fields/values";
 import type { RecordValues } from "./values";
 
 /** Expression scope for forms: `record`, `form` (form state), `app` (app state incl. user/role), `value`. */
@@ -96,9 +99,11 @@ export function validateControl(
   const rules = control.validation ?? { required: false };
   const custom = rules.message?.trim();
   const label = control.label || control.binding?.column || "This field";
-  if (isBlank(value)) {
+  if (isBlank(control.kind === "richText" ? richTextPlain(value) : value)) {
     return rules.required ? custom || `${label} is required.` : null;
   }
+  const masked = control.inputMask ? maskProblem(control.inputMask, value, label) : null;
+  if (masked) return custom || masked;
   const number = typeof value === "number" ? value : Number(value);
   if (rules.min != null && Number.isFinite(number) && number < rules.min)
     return custom || `${label} must be at least ${rules.min}.`;
@@ -120,9 +125,13 @@ function matchesPattern(pattern: string, value: unknown): boolean {
   }
 }
 
-/** Text of a value for list cells, using a control's format when one is given. */
-export const cellText = (value: unknown, control?: DesignControl) =>
-  formatted(value, control?.format);
+/** Text of a value for list cells: a field format's text, else the control's format. */
+export function cellText(value: unknown, control?: DesignControl, fieldFormat?: string | null) {
+  const kind = fieldFormat || control?.kind;
+  return kind && FIELD_KINDS.has(kind) ? fieldText(value, kind) : formatted(value, control?.format);
+}
+
+const FIELD_KINDS = new Set(["richText", "attachment", "multiSelect"]);
 
 /**
  * Controls for which `own(control)` holds and holds for every ancestor container, so a hidden

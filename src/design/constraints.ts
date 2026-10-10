@@ -20,6 +20,9 @@ const MINIMUMS: Record<ControlKind, number> = {
   tabs: 4,
   relatedList: 6,
   image: 2,
+  richText: 4,
+  attachment: 3,
+  multiSelect: 3,
 };
 
 /**

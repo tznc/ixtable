@@ -1,7 +1,9 @@
 import { defaultGridLayout } from "../grid/engine";
 import type { DbColumn, DbForeignKey, TableSchema } from "../lib/types";
 import { newId } from "../lib/utils";
+import { withFieldDefaults } from "../fields/defaults";
 import { parseLogical } from "../schema/logical";
+import type { EntitySettings } from "../schema/types";
 import {
   type ControlKind,
   type DesignControl,
@@ -91,6 +93,8 @@ export type GenerateOptions = {
   children?: TableSchema[];
   /** Child table → form used to add and edit its rows in the related list. */
   childForms?: Record<string, string>;
+  /** Entity settings; field formats and input masks of the table's columns shape controls. */
+  entities?: EntitySettings[];
 };
 
 export type GeneratedCrud = { list: DesignForm; detail: DesignForm; navigation: NavigationItem };
@@ -142,6 +146,16 @@ function columnControl(
     placement: nextPlacement(form, null, { columnSpan: kind === "multiline" ? 12 : 6 }),
   };
   if (auto) control.readOnly = true;
+  if (!foreignKey) {
+    const fields = options.entities?.find((e) => e.table === table.name)?.fields;
+    const formatted = withFieldDefaults(
+      { ...form, source: { kind: "table", table: table.name }, controls: [control] },
+      { entities: [{ id: "", table: table.name, fields }] },
+    ).controls[0];
+    const wide = formatted.kind === "richText" || formatted.kind === "attachment";
+    if (wide) formatted.placement = nextPlacement(form, null, { columnSpan: 12 });
+    return formatted;
+  }
   if (foreignKey) {
     const keys = keyPairs(foreignKey, options.targets?.[foreignKey.targetTable]);
     const valueColumn = keys[0].target;
@@ -150,8 +164,7 @@ function columnControl(
       valueColumn,
       displayColumn: displayColumnFor(options.targets?.[foreignKey.targetTable], valueColumn),
     };
-    if (composite)
-      control.relationship.keys = keys;
+    if (composite) control.relationship.keys = keys;
   }
   return control;
 }

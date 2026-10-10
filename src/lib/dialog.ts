@@ -43,3 +43,7 @@ export const choosePdfDestination = (name: string) =>
     defaultPath: name.toLowerCase().endsWith(".pdf") ? name : `${name}.pdf`,
     filters: [pdfFilter],
   });
+
+/** Save dialog for one file of an attachment field. */
+export const chooseAttachmentDestination = (name: string) =>
+  save({ title: "Save attachment", defaultPath: name });

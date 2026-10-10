@@ -14,6 +14,7 @@ import {
   tableSchema,
 } from "./data";
 import { pageLabel, TRUNCATED_NOTICE, toneClass, toneFor } from "./conditions";
+import { fieldSettingsFor } from "../fields/values";
 import { cellText } from "./formState";
 import { BooleanCell } from "./BooleanCell";
 import { useLookupLabels } from "./lookups";
@@ -145,7 +146,8 @@ export function ListView({ form, onOpen, onCreate, params = NO_PARAMS }: Props) 
     booleans.has(column) ? (
       <BooleanCell value={record[column]} />
     ) : (
-      (lookup(column, record) ?? cellText(record[column], controlFor(column)))
+      (lookup(column, record) ??
+      cellText(record[column], controlFor(column), fieldSettingsFor(config, table, column)?.format))
     );
   const subject = isDesignedForm(config, detail)
     ? { kind: "form", id: detail.id }

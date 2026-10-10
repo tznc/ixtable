@@ -153,6 +153,12 @@ pub enum ControlKind {
     Tabs,
     RelatedList,
     Image,
+    /// Formatted text stored as sanitized HTML.
+    RichText,
+    /// Files of an attachment field.
+    Attachment,
+    /// Several choices stored as a JSON array.
+    MultiSelect,
 }
 impl ControlKind {
     pub fn is_container(self) -> bool {
@@ -208,6 +214,9 @@ pub struct Control {
     pub asset_id: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub read_only: bool,
+    /// Access-style input mask for text entry (`src/fields/mask.ts`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_mask: Option<String>,
     /// Presentation variant, e.g. "toggle" for booleans.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub variant: Option<String>,

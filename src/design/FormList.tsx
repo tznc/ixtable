@@ -1,7 +1,9 @@
 import { Copy, Pencil, Plus, Trash2, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { inspectTable } from "../lib/api";
+import { useDocumentConfig } from "../lib/config-store";
 import type { DbObject, TableSchema } from "../lib/types";
+import type { EntitySettings } from "../schema/types";
 import { generateCrudForms } from "./generate";
 import { useGenerateApp } from "./generateApp";
 import { deleteForm, duplicateForm } from "./operations";
@@ -9,7 +11,7 @@ import { newForm } from "./schema";
 import { useDesignEditor } from "./useDesignEditor";
 
 /** Builds list + detail forms for a table, with lookups and related lists from the live schema. */
-async function generateFor(table: string, objects: DbObject[]) {
+async function generateFor(table: string, objects: DbObject[], entities: EntitySettings[]) {
   const schema = await inspectTable(table);
   const others: TableSchema[] = [];
   for (const object of objects) {
@@ -20,7 +22,7 @@ async function generateFor(table: string, objects: DbObject[]) {
   const known = others;
   const targets = Object.fromEntries(known.map((t) => [t.name, t]));
   const children = known.filter((t) => t.foreignKeys.some((fk) => fk.targetTable === table));
-  return generateCrudForms(schema, { targets, children });
+  return generateCrudForms(schema, { targets, children, entities });
 }
 
 /** Form list: select, new, rename, duplicate, delete, and "Generate form from table". */
@@ -34,6 +36,7 @@ export function FormList({
   objects: DbObject[];
 }) {
   const { design, editDesign, editForm } = useDesignEditor();
+  const { config } = useDocumentConfig();
   const [renaming, setRenaming] = useState<string | null>(null);
   const [table, setTable] = useState("");
   const [error, setError] = useState("");
@@ -63,7 +66,7 @@ export function FormList({
     const name = table || tables[0]?.name;
     if (!name) return;
     try {
-      const { list, detail, navigation } = await generateFor(name, objects);
+      const { list, detail, navigation } = await generateFor(name, objects, config.entities);
       setError("");
       onSelect(detail.id);
       editDesign(
