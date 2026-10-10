@@ -1,4 +1,13 @@
-import { Calculator, Image, Minus, Square, Table2, TextCursorInput, Type } from "lucide-react";
+import {
+  Calculator,
+  ChartColumn,
+  Image,
+  Minus,
+  Square,
+  Table2,
+  TextCursorInput,
+  Type,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import type { SavedQuery } from "../../query/types";
 import { type AssetSummary, listAssets } from "../api";
@@ -27,6 +36,7 @@ const PALETTE: [ComponentKind, string, typeof Type][] = [
   ["line", "Add line", Minus],
   ["rectangle", "Add rectangle", Square],
   ["table", "Add table", Table2],
+  ["chart", "Add chart", ChartColumn],
 ];
 
 type Change = (fn: (report: Report) => Report, label?: string) => void;

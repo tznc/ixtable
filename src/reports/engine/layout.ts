@@ -1,6 +1,13 @@
 import { evaluate } from "../../expr";
 import { pageDimensions } from "../model";
-import type { Band, Report, ReportGroup, TableComponent } from "../types";
+import type {
+  Band,
+  CalculatedComponent,
+  FieldComponent,
+  Report,
+  ReportGroup,
+  TableComponent,
+} from "../types";
 import type {
   LayoutOptions,
   Page,
@@ -11,6 +18,7 @@ import type {
 } from "./document";
 import { type Growth, grown, growBand } from "./grow";
 import { cutAt, sliceItems } from "./split";
+import { accumulate, type RunningValue } from "./values";
 import {
   componentItems,
   measureTable,
@@ -40,7 +48,15 @@ interface Block {
   section: boolean;
   /** Open group headers (outer first) to repeat at the top of continuation pages. */
   repeat: Block[];
+  /** Running-sum values of this instance (detail and group bands). */
+  running?: Map<string, RunningValue>;
 }
+
+type RunningComponent = FieldComponent | CalculatedComponent;
+const runningOf = (band: Band) =>
+  band.components.filter(
+    (c): c is RunningComponent => (c.kind === "field" || c.kind === "calculated") && !!c.runningSum,
+  );
 
 interface Prepared extends Block {
   table?: { comp: TableComponent; geo: TableGeometry };
@@ -110,12 +126,16 @@ export function layoutReport(
     groupPage: null,
     groupPages: null,
   };
-  const context = (scope: Record<string, unknown>): RenderContext => ({
+  const context = (
+    scope: Record<string, unknown>,
+    running?: Map<string, RunningValue>,
+  ): RenderContext => ({
     scope,
     now: options.now,
     tables: options.tables ?? {},
     assets: options.assets ?? {},
     diagnose,
+    running,
   });
 
   // 1. Sort rows by group keys (stable).
@@ -157,13 +177,32 @@ export function layoutReport(
   };
   const reportBand = (band: Band, scope: Record<string, unknown>) =>
     push(block(band, scope, { repeat: [] }));
+  // Running sums: totals so far by component id. A "group" sum restarts at
+  // each instance of the enclosing group (see `restart`).
+  const sums = new Map<string, RunningValue>();
+  const counted = (b: Block): Block => {
+    const comps = runningOf(b.band);
+    if (!comps.length) return b;
+    const running = new Map<string, RunningValue>();
+    for (const c of comps) {
+      const next = accumulate(sums.get(c.id), c, b.scope, options.now);
+      sums.set(c.id, next);
+      running.set(c.id, next);
+    }
+    return { ...b, running };
+  };
+  const restart = (band: Band) => {
+    for (const c of runningOf(band)) if (c.runningSum === "group") sums.delete(c.id);
+  };
   reportBand(bands.reportHeader, { rows, record: rows[0] ?? null });
   let rowNumber = 0;
   const emit = (level: number, slice: typeof keyed) => {
     if (level === groups.length) {
       const sliceRows = slice.map((k) => k.row);
       for (const k of slice)
-        push(block(bands.detail, { record: k.row, rows: sliceRows, rowNumber: ++rowNumber }));
+        push(
+          counted(block(bands.detail, { record: k.row, rows: sliceRows, rowNumber: ++rowNumber })),
+        );
       return;
     }
     const g = groups[level];
@@ -178,20 +217,28 @@ export function layoutReport(
       const run = slice.slice(start, end);
       const runRows = run.map((k) => k.row);
       const group = { key: run[0].keys[level], level: level + 1, count: run.length };
-      const header = block(
-        g.header,
-        { rows: runRows, record: runRows[0], group },
-        {
-          keepWithNext: g.header.keepTogether,
-          breakBefore: !!(g.header.pageBreakBefore || g.newPage || g.resetPageNumber),
-          section: !!g.resetPageNumber,
-        },
+      // Bands one level down start their "group" running sums again.
+      const inner = groups[level + 1];
+      if (inner) {
+        restart(inner.header);
+        restart(inner.footer);
+      } else restart(bands.detail);
+      const header = counted(
+        block(
+          g.header,
+          { rows: runRows, record: runRows[0], group },
+          {
+            keepWithNext: g.header.keepTogether,
+            breakBefore: !!(g.header.pageBreakBefore || g.newPage || g.resetPageNumber),
+            section: !!g.resetPageNumber,
+          },
+        ),
       );
       push(header);
       const repeats = !!g.repeatHeader && !isEmptyBand(g.header);
       if (repeats) open.push(header);
       emit(level + 1, run);
-      push(block(g.footer, { rows: runRows, record: runRows[runRows.length - 1], group }));
+      push(counted(block(g.footer, { rows: runRows, record: runRows[runRows.length - 1], group })));
       if (repeats) open.pop();
       start = end;
     }
@@ -209,7 +256,7 @@ export function layoutReport(
     b.repeat.reduce((sum, h) => sum + repeatedHeight(prepareOnce(h)), 0);
   const prepare = (block: Block): Prepared => {
     const comp = block.band.components.find((c): c is TableComponent => c.kind === "table");
-    const growth = growBand(block.band, context(block.scope));
+    const growth = growBand(block.band, context(block.scope, block.running));
     if (!comp) {
       const h = block.band.height + (growth?.extra ?? 0);
       // Grown text splits between lines unless keepTogether holds and the band fits a page.
@@ -223,7 +270,7 @@ export function layoutReport(
         minFirst: splittable ? block.band.height : h,
       };
     }
-    const geo = measureTable(comp, context(block.scope));
+    const geo = measureTable(comp, context(block.scope, block.running));
     const h = block.band.height + Math.max(0, geo.height - comp.h);
     const splittable = !block.band.keepTogether || h > bodyHeight - repeatHeight(block) + EPS;
     const minFirst = splittable ? comp.y + geo.headerHeight + (geo.rowHeights[0] ?? 0) : h;
@@ -431,10 +478,10 @@ function bandItems(
   left: number,
   oy: number,
   page: PageContext,
-  context: (scope: Record<string, unknown>) => RenderContext,
+  context: (scope: Record<string, unknown>, running?: Map<string, RunningValue>) => RenderContext,
   part: "all" | "above" | "below" | "repeat",
 ): PositionedItem[] {
-  const ctx = context({ ...p.scope, ...page });
+  const ctx = context({ ...p.scope, ...page }, p.running);
   const table = p.table;
   const belowStart = table ? table.comp.y + table.comp.h : Number.POSITIVE_INFINITY;
   const growth = table ? Math.max(0, table.geo.height - table.comp.h) : 0;

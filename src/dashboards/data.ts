@@ -54,12 +54,15 @@ export function foldSeries(series: Series[]): Series[] {
   return [...kept, { name: OTHER_LABEL, values: other }];
 }
 
+/** The columns chart data reads; dashboards and report charts both supply them. */
+export type SeriesSpec = Pick<DashboardComponent, "x" | "y" | "groupBy">;
+
 /**
  * Category chart data. Without `groupBy`, each y column is a series and rows with the
  * same x are summed. With `groupBy`, the first y column is split into one series per
  * group value. Categories and series keep first-appearance order.
  */
-export function chartData(component: DashboardComponent, rows: Row[]): CategoryData {
+export function chartData(component: SeriesSpec, rows: Row[]): CategoryData {
   const x = component.x ?? "";
   const ys = (component.y ?? []).filter(Boolean);
   const categories: string[] = [];
@@ -102,7 +105,7 @@ export function chartData(component: DashboardComponent, rows: Row[]): CategoryD
 }
 
 /** Scatter data: numeric x against each y column, or the first y split by `groupBy`. */
-export function scatterData(component: DashboardComponent, rows: Row[]): ScatterData {
+export function scatterData(component: SeriesSpec, rows: Row[]): ScatterData {
   const x = component.x ?? "";
   const ys = (component.y ?? []).filter(Boolean);
   const point = (row: Row, y: string): Point | null => {
