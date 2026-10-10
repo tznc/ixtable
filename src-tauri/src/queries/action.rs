@@ -3,17 +3,19 @@
 //! the datasource attached read-write (`data::write`), in one transaction.
 //!
 //! A run checks the role's table permission and the user-mode trigger
-//! precheck, like a record write. When the target table has enabled `created`
-//! or `updated` triggers, the run copies the table before the statement and
-//! compares it after, by primary key, so the caller can fire those triggers
-//! once per changed row. The run returns the created identities, the updated
-//! identities with their old values, and one sync-trigger grant per event.
+//! precheck, like a record write. When the target table has enabled
+//! `created`, `updated` or `deleted` triggers, the run copies the table before
+//! the statement and compares it after, by primary key, so the caller can fire
+//! those triggers once per changed row. The run returns the created
+//! identities, the updated identities with their old values, the deleted rows
+//! with their values, and one sync-trigger grant per event. Before-change
+//! triggers take a second call (`action_before`).
 use super::{resolve_params, rewrite_placeholders};
 use crate::archive::{ActionKind, ActionSpec, DocumentConfig, SavedQuery};
 use crate::automation::TriggerEvent;
 use crate::data::{self, sqltext, DataValue, NamedValue};
 use crate::manager::AppError;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Words an action statement may not contain: DDL, catalog, settings and file access.
 const FORBIDDEN: [&str; 37] = [
@@ -235,13 +237,60 @@ pub fn target<'a>(sql: &'a str, spec: &ActionSpec, schema: &str) -> Result<Guard
     })
 }
 
-/// Created and updated rows, for firing triggers once per row.
+/// Created, updated and deleted rows, for firing triggers once per row.
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ChangedRows {
     /// Identities (primary key values, or rowid) of new rows.
     pub created: Vec<Vec<DataValue>>,
     pub updated: Vec<UpdatedRow>,
+    pub deleted: Vec<DeletedRow>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DeletedRow {
+    pub identity: Vec<DataValue>,
+    /// Every column's value before the statement.
+    pub values: Vec<NamedValue>,
+}
+
+/// A row before-change triggers decide on: its identity after the statement,
+/// every column's new value, and the old values of an updated row.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingRow {
+    pub identity: Vec<DataValue>,
+    pub values: Vec<NamedValue>,
+    pub old: Option<Vec<NamedValue>>,
+}
+
+/// The rows a run would create or update, for before-change triggers.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Pending {
+    /// Hash of `rows` (without the defaulted columns of new rows); the second call must reproduce it.
+    pub fingerprint: String,
+    pub rows: Vec<PendingRow>,
+}
+
+/// What the caller's before-change triggers decided, for the second call.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BeforeChange {
+    pub fingerprint: String,
+    /// Fields the triggers set, per row.
+    #[serde(default)]
+    pub overrides: Vec<Override>,
+}
+
+/// Fields set on one pending row, found by its position in `Pending::rows`
+/// (a new row's key can differ between the calls, e.g. a PostgreSQL sequence).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Override {
+    pub row: usize,
+    pub values: Vec<NamedValue>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -264,17 +313,22 @@ pub struct ActionRun {
     pub table: String,
     #[serde(flatten)]
     pub rows: ChangedRows,
-    /// Sync app-mode trigger grants for the `created` and `updated` rows.
+    /// Sync app-mode trigger grants for the `created`, `updated` and `deleted` rows.
     pub created_grant: Option<String>,
     pub updated_grant: Option<String>,
+    pub deleted_grant: Option<String>,
+    /// Rows awaiting before-change triggers; nothing was written (see `action_before`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pending: Option<Pending>,
 }
 
 /// The trigger events a kind of action query can raise.
 fn events(kind: ActionKind) -> &'static [TriggerEvent] {
     match kind {
-        ActionKind::Insert | ActionKind::Replace => &[TriggerEvent::Created],
+        ActionKind::Insert => &[TriggerEvent::Created],
+        ActionKind::Replace => &[TriggerEvent::Deleted, TriggerEvent::Created],
         ActionKind::Update => &[TriggerEvent::Updated],
-        ActionKind::Delete => &[],
+        ActionKind::Delete => &[TriggerEvent::Deleted],
     }
 }
 
@@ -365,12 +419,15 @@ pub fn plan(
     Ok((plan, rewritten.names))
 }
 
-/// Runs an action query. `dry_run` rolls the transaction back and reports the counts.
+/// Runs an action query. `dry_run` rolls the transaction back and reports the
+/// counts. On a table with before-change triggers, a run without `before`
+/// returns the pending rows instead of writing (see `ActionRun::pending`).
 pub fn run(
     window: &str,
     id: &str,
     supplied: &[NamedValue],
     dry_run: bool,
+    before: Option<BeforeChange>,
 ) -> Result<ActionRun, AppError> {
     let manager = crate::manager()?;
     let config = manager.config(window)?;
@@ -389,6 +446,11 @@ pub fn run(
     for &event in events(spec.kind) {
         crate::trigger_auth::precheck(window, &spec.table, event)?;
     }
+    let before_change = spec.kind != ActionKind::Delete
+        && has_triggers(&config, &spec.table, TriggerEvent::BeforeChange);
+    if before_change {
+        crate::trigger_auth::precheck(window, &spec.table, TriggerEvent::BeforeChange)?;
+    }
     let custom = crate::recordstore::entity_policy(&config, &spec.table)
         .is_some_and(|e| e.concurrency == "customAction");
     if custom && spec.kind != ActionKind::Insert {
@@ -403,9 +465,17 @@ pub fn run(
     let schema = schema_of(&config);
     let (plan, names) = plan(query, &spec, &schema, sqlite)?;
     let values = resolve_params(&names, &query.parameters, supplied, true)?;
-    let watch = events(spec.kind)
-        .iter()
-        .any(|&e| has_triggers(&config, &spec.table, e));
+    let watch = [TriggerEvent::Created, TriggerEvent::Updated]
+        .into_iter()
+        .any(|e| events(spec.kind).contains(&e) && has_triggers(&config, &spec.table, e));
+    let deleted = events(spec.kind).contains(&TriggerEvent::Deleted)
+        && has_triggers(&config, &spec.table, TriggerEvent::Deleted);
+    let (before, dry_run) = match (before_change, dry_run, before) {
+        (false, _, _) | (true, true, _) => (super::action_exec::Before::Off, dry_run),
+        (true, false, None) => (super::action_exec::Before::Collect, true),
+        (true, false, Some(decided)) => (super::action_exec::Before::Apply(decided), false),
+    };
+    let collecting = matches!(before, super::action_exec::Before::Collect);
     let (workspace, extension, def) = manager.with_session(window, |s| {
         let def = s
             .reader
@@ -423,7 +493,20 @@ pub fn run(
         .iter()
         .map(|c| (c.name.clone(), c.logical_type.clone()))
         .collect();
-    if watch && keys.is_empty() && !matches!(plan, Plan::Copy(_)) {
+    let generated = def
+        .columns
+        .iter()
+        .filter(|c| c.generated_expression.is_some())
+        .map(|c| c.name.clone())
+        .collect();
+    let defaulted = def
+        .columns
+        .iter()
+        .filter(|c| c.identity || c.default_expression.is_some())
+        .map(|c| c.name.clone())
+        .collect();
+    let needs_rows = watch || deleted || !matches!(before, super::action_exec::Before::Off);
+    if needs_rows && keys.is_empty() && !matches!(plan, Plan::Copy(_)) {
         return Err(invalid(format!(
             "The table \"{}\" has triggers but no primary key, so an action query cannot tell which rows changed",
             spec.table
@@ -436,7 +519,13 @@ pub fn run(
         rowid: sqlite && !def.without_rowid,
         kind: spec.kind,
         watch,
+        deleted,
+        before,
         dry_run,
+        sqlite,
+        logical: logical.clone(),
+        generated,
+        defaulted,
     };
     let outcome = crate::recordstore::blocking(|| {
         let _gate = if sqlite {
@@ -479,7 +568,13 @@ pub fn run(
         rows: outcome.rows,
         created_grant: None,
         updated_grant: None,
+        deleted_grant: None,
+        pending: outcome.pending,
     };
+    if collecting {
+        // Nothing was written: the caller runs the before-change triggers first.
+        run.rows = ChangedRows::default();
+    }
     if !dry_run {
         crate::recordstore::commands::after_write(window)?;
         let now = std::time::Instant::now();
@@ -501,6 +596,15 @@ pub fn run(
                 now,
             );
         }
+        if !run.rows.deleted.is_empty() {
+            run.deleted_grant = crate::trigger_auth::issue(
+                window,
+                &config,
+                &spec.table,
+                TriggerEvent::Deleted,
+                now,
+            );
+        }
     }
     Ok(run)
 }
@@ -513,8 +617,18 @@ pub async fn run_action_query(
     id: String,
     params: Vec<crate::data::NamedValue>,
     dry_run: Option<bool>,
+    before: Option<crate::queries::action::BeforeChange>,
 ) -> Result<crate::queries::action::ActionRun, AppError> {
-    super::blocking(move || run(&window_label, &id, &params, dry_run.unwrap_or(false))).await
+    super::blocking(move || {
+        run(
+            &window_label,
+            &id,
+            &params,
+            dry_run.unwrap_or(false),
+            before,
+        )
+    })
+    .await
 }
 
 /// Checks an action query's SQL before it is saved (the guard and placeholders).

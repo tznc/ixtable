@@ -45,12 +45,16 @@ pub struct ActionDef {
     pub on_error: OnError,
 }
 
+/// `beforeChange` runs before a create or update is written and may set its
+/// fields or reject it; the others run after the write commits.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum TriggerEvent {
     #[default]
     Created,
     Updated,
+    Deleted,
+    BeforeChange,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -138,7 +142,13 @@ const STEP_KINDS: &[&str] = &[
     "condition",
     "runAction",
     "fail",
+    "setField",
 ];
+
+/// The step kinds a before-change trigger's action may use: it computes field
+/// values or rejects the save, and never writes records or touches the UI.
+pub const BEFORE_CHANGE_STEPS: &[&str] =
+    &["setField", "condition", "fail", "runQuery", "runAction"];
 
 fn text<'a>(fields: &'a Map<String, Value>, key: &str) -> &'a str {
     fields.get(key).and_then(Value::as_str).unwrap_or("")
@@ -311,6 +321,10 @@ fn check_step(config: &DocumentConfig, action: &ActionDef, step: &Step, issues: 
         "confirm" => need(issues, "message", "message expression"),
         "message" => need(issues, "text", "text expression"),
         "fail" => need(issues, "message", "message expression"),
+        "setField" => {
+            need(issues, "field", "field");
+            need(issues, "value", "value expression");
+        }
         "runAction" => {
             let set = config.actions.iter().map(|a| a.id.as_str()).collect();
             missing(issues, "action", text(f, "actionId"), &set);
@@ -386,6 +400,27 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
         }
         if t.max_attempts == 0 {
             err("max attempts must be at least 1".into());
+        }
+        let steps = crate::trigger_auth::action_steps(config, &t.action_id);
+        if t.event == TriggerEvent::BeforeChange {
+            if t.mode == TriggerMode::Async {
+                err("a before-change trigger runs before the save, so it cannot be async".into());
+            }
+            for step in &steps {
+                let action_query = step.kind == "runQuery"
+                    && config.saved_queries.iter().any(|q| {
+                        Some(q.id.as_str()) == step.fields.get("queryId").and_then(Value::as_str)
+                            && q.action.is_some()
+                    });
+                if !BEFORE_CHANGE_STEPS.contains(&step.kind.as_str()) || action_query {
+                    err(format!(
+                        "a before-change trigger can only set fields, check conditions, fail, read queries and run actions, not {} steps",
+                        if action_query { "action query" } else { step.kind.as_str() }
+                    ));
+                }
+            }
+        } else if steps.iter().any(|s| s.kind == "setField") {
+            err("setField steps only run in before-change triggers".into());
         }
         if t.condition.as_deref().is_some_and(|c| c.trim().is_empty()) {
             err("condition expression is empty".into());
@@ -537,6 +572,56 @@ mod tests {
                 "missing {expected:?} in {all:#?}"
             );
         }
+    }
+
+    #[test]
+    fn before_change_triggers_only_set_fields_check_and_read() {
+        let mut c = config(
+            json!([
+                {"id": "stamp", "name": "Stamp", "steps": [
+                    {"id": "1", "kind": "setField", "field": "status", "value": "upper(record.status)"},
+                    {"id": "2", "kind": "fail", "message": "'no'", "when": "record.total < 0"},
+                    {"id": "3", "kind": "runAction", "actionId": "log"}
+                ]},
+                {"id": "log", "name": "Log", "steps": [
+                    {"id": "4", "kind": "createRecord", "table": "audit", "values": {"m": "'x'"}},
+                    {"id": "5", "kind": "setField", "field": " ", "value": ""}
+                ]}
+            ]),
+            json!([
+                {"id": "b", "name": "B", "table": "orders", "event": "beforeChange", "actionId": "stamp", "mode": "async"},
+                {"id": "d", "name": "D", "table": "orders", "event": "deleted", "actionId": "log"}
+            ]),
+        );
+        let all = messages(&validate(&c));
+        for expected in [
+            "trigger \"B\": a before-change trigger runs before the save, so it cannot be async",
+            "trigger \"B\": a before-change trigger can only set fields, check conditions, fail, read queries and run actions, not createRecord steps",
+            "trigger \"D\": setField steps only run in before-change triggers",
+            "setField step: field is empty",
+            "setField step: value expression is empty",
+        ] {
+            assert!(all.iter().any(|m| m == expected || m.ends_with(expected)), "missing {expected:?} in {all:#?}");
+        }
+        c.actions[1]
+            .steps
+            .retain(|s| s.kind != "createRecord" && s.kind != "setField");
+        c.actions[1].steps.push(
+            serde_json::from_value(
+                json!({"id": "6", "kind": "condition", "when": "true", "then": [], "else": []}),
+            )
+            .unwrap(),
+        );
+        c.triggers.retain(|t| t.id == "b");
+        c.triggers[0].mode = TriggerMode::Sync;
+        assert!(validate(&c).is_empty(), "{:#?}", validate(&c));
+        let t: Trigger =
+            serde_json::from_value(json!({"id": "t", "name": "T", "event": "beforeChange"}))
+                .unwrap();
+        assert_eq!(
+            serde_json::to_value(t.event).unwrap(),
+            json!("beforeChange")
+        );
     }
 
     #[test]

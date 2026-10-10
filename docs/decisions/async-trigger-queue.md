@@ -1,13 +1,14 @@
 # Record triggers and the local async job queue
 
-Status: accepted. Covers PRD §17.3 and the Phase 0 local async trigger queue
-spike.
+Status: accepted. Covers PRD §17.3 (including the Phase 7 before-change and
+record-deleted triggers) and the Phase 0 local async trigger queue spike.
 
 ## Context
 
-The MVP supports record-created and record-updated triggers. A trigger runs an
-action either inside the initiating workflow or later through a durable local
-queue. The queue only runs while the desktop app is open, and it must provide
+The MVP supports record-created and record-updated triggers. Phase 7 adds
+before-change triggers, which can set fields of a record or reject its save,
+and record-deleted triggers. A trigger runs an action either inside the
+initiating workflow or later through a durable local queue. The queue only runs while the desktop app is open, and it must provide
 retries, status, attempt history, cancellation, and idempotency keys.
 Schedules, webhooks, and always-on workers are deferred.
 
@@ -33,6 +34,38 @@ forms, grids, dashboards, and actions passes through trigger matching in
 - **Async triggers** enqueue a job and return at once.
 - Each write carries its trigger depth. A chain deeper than 5 fails, which
   stops trigger loops.
+- **Deleted triggers** (`event: "deleted"`) run after a delete commits, sync or
+  async. The hook reads the row before the delete (or takes `meta.old`), and
+  `record` and `old` are that row. Rust issues a grant for sync app-mode
+  deleted triggers like it does for created and updated ones.
+
+### Before-change triggers
+
+A trigger with `event: "beforeChange"` runs before a create or update is sent
+to Rust, from the `before` record hook. It is always sync (validation refuses
+async). `record` is the record about to be saved: the supplied values for a
+create, the stored row merged with the changed values for an update. `old` is
+the stored row, or null for a create. Triggers run in order, and each sees the
+fields earlier ones set.
+
+- Its action may only use `setField` (sets a field of the pending record;
+  later steps see it in `record`), `condition`, `fail`, `runQuery` on a read
+  query, and `runAction` with the same limits. This follows Access's Before
+  Change data macros. Validation flags other steps, and the runner fails them.
+  `setField` outside a before-change trigger fails.
+- A failing action rejects the save with `BeforeChangeRejected`: "Not saved:"
+  and the fail step's message, or the trigger's name and error. Nothing has
+  been sent, and the action cannot write, so a rejection never leaves a
+  partial write. In `writeRecordBatch` it aborts the whole batch.
+- The fields it sets replace or join the write's values. Rust applies the
+  same validation and permissions to them as to the caller's own values.
+- `runAs` keeps its meaning. App mode skips the role's checks in TypeScript
+  (reads still go through Rust's role checks) and needs no grant, since the
+  action writes nothing. User mode checks the role, and Rust refuses an
+  insert or update up front when the role could not run a user-mode
+  before-change trigger (`check_user_triggers` with `BeforeChange`).
+- Action queries hand each row they would create or update to the triggers
+  through the `beforeBulk` hook (see [action queries](./action-queries.md)).
 
 ### Execution identity
 
@@ -144,6 +177,15 @@ authorized against both the active role and the role it was enqueued under
 
 ## Evidence
 
+- `src-tauri/src/automation.rs` tests: before-change triggers limited to
+  their step kinds and to sync, `setField` refused elsewhere.
+- `tests/unit/before-change-triggers.test.ts`: fields set on inserts and
+  updates, rejections with no write (single and batch), refused steps,
+  chained triggers, deleted triggers sync and async, and the action query
+  two-call flow.
+- `tests/integration/before-change-triggers.test.tsx`: the same through the
+  real bridge, including a date set on every row of an embedded-SQLite update
+  query and a rejection that leaves the table unchanged.
 - `src-tauri/src/jobs.rs` tests: idempotent enqueue per store, atomic and
   exclusive claims, exponential backoff until failed, completion with log,
   cancel and retry, expired leases recovered after restart, `active_lease`
@@ -176,3 +218,4 @@ authorized against both the active role and the role it was enqueued under
 - 2026-10-05: Stated the worker's polling and wake conditions, the role check
   for user-mode jobs, and silent `STALE_LEASE` handling; added the
   `active_lease` test to Evidence.
+- 2026-10-10: Phase 7 before-change and record-deleted triggers.

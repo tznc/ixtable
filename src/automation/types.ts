@@ -33,7 +33,9 @@ export type StepBody =
   | { kind: "condition"; then: Step[]; else: Step[] }
   | { kind: "runAction"; actionId: string }
   /** Business-rule abort: ends the action with ok: false and this message (nothing commits under rollback). */
-  | { kind: "fail"; message: Expr };
+  | { kind: "fail"; message: Expr }
+  /** Before-change triggers only: sets a field of the record about to be saved. */
+  | { kind: "setField"; field: string; value: Expr };
 
 export type StepKind = StepBody["kind"];
 
@@ -55,14 +57,31 @@ export interface ActionDef {
   onError: OnError;
 }
 
-export type TriggerEvent = "created" | "updated";
+/**
+ * created/updated/deleted run after the write commits. beforeChange runs before a
+ * create or update is written (always sync): its action may set fields of the
+ * record (setField) or reject the save (fail, or any failing step).
+ */
+export type TriggerEvent = "created" | "updated" | "deleted" | "beforeChange";
+
+/** The step kinds a before-change trigger's action may use (mirrors automation.rs). */
+export const BEFORE_CHANGE_STEPS: readonly StepKind[] = [
+  "setField",
+  "condition",
+  "fail",
+  "runQuery",
+  "runAction",
+];
 
 export interface Trigger {
   id: string;
   name: string;
   table: string;
   event: TriggerEvent;
-  /** Optional expression over `record` (and `old` for updates); false/null skips the trigger. */
+  /**
+   * Optional expression over `record` (and `old`: the row before an update, the
+   * deleted row, null on a before-change create); false/null skips the trigger.
+   */
   condition?: Expr;
   actionId: string;
   /** sync: runs inside the initiating write workflow. async: enqueued on the durable local job queue. */
@@ -138,4 +157,5 @@ export const STEP_KINDS: StepKind[] = [
   "condition",
   "runAction",
   "fail",
+  "setField",
 ];

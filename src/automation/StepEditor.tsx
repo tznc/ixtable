@@ -389,6 +389,19 @@ function StepFields({
           {when}
         </div>
       );
+    case "setField":
+      return (
+        <div className="ax-row">
+          <TextField label="Field" value={step.field} onChange={(v) => set({ field: v })} />
+          <ExprInput
+            label="Value"
+            required
+            value={step.value}
+            onChange={(v) => set({ value: v })}
+          />
+          {when}
+        </div>
+      );
     case "condition":
       return (
         <>

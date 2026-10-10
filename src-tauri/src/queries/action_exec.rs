@@ -7,15 +7,16 @@
 //! returns the changed rows, joined to the live table by rowid, so even a
 //! changed primary key is found; it never writes the file. `write_back` then
 //! writes them in one DuckDB transaction (see `write_back`).
-use super::action::{ChangedRows, UpdatedRow, WORK};
+use super::action::{BeforeChange, ChangedRows, DeletedRow, Pending, UpdatedRow, WORK};
+use super::action_before;
 use crate::archive::ActionKind;
 use crate::data::logical::LogicalType;
 use crate::data::{self, DataValue, NamedValue};
 use crate::manager::AppError;
 use duckdb::types::Value as DuckValue;
 
-const BEFORE: &str = "temp.main.__ixtable_before";
-const ROWID: &str = "__ixtable_rowid";
+pub(super) const BEFORE: &str = "temp.main.__ixtable_before";
+pub(super) const ROWID: &str = "__ixtable_rowid";
 
 /// What a run works on.
 pub struct Job {
@@ -28,9 +29,33 @@ pub struct Job {
     /// Whether the table has a rowid (SQLite tables not declared WITHOUT ROWID).
     pub rowid: bool,
     pub kind: ActionKind,
-    /// Collect the changed rows for triggers.
+    /// Collect the created and updated rows for triggers.
     pub watch: bool,
+    /// Collect the deleted rows, with their values, for `deleted` triggers.
+    pub deleted: bool,
+    /// What before-change triggers need from this run.
+    pub before: Before,
     pub dry_run: bool,
+    /// The embedded SQLite file (else PostgreSQL).
+    pub sqlite: bool,
+    /// Each column's logical type, for normalizing trigger values.
+    pub logical: Vec<(String, LogicalType)>,
+    /// Generated columns, which an insert never names.
+    pub generated: Vec<String>,
+    /// Columns with a default or identity: a new row's value can differ between calls.
+    pub defaulted: Vec<String>,
+}
+
+/// Before-change triggers' part in a run (`action_before`).
+#[derive(Debug, Clone, Default)]
+pub enum Before {
+    /// The table has none.
+    #[default]
+    Off,
+    /// Return the pending rows; the run is a dry run.
+    Collect,
+    /// Check the pending rows and apply the fields the triggers set.
+    Apply(BeforeChange),
 }
 
 #[derive(Debug, Default)]
@@ -38,6 +63,8 @@ pub struct Outcome {
     pub changed: u64,
     pub removed: u64,
     pub rows: ChangedRows,
+    /// Rows for before-change triggers (`Before::Collect`).
+    pub pending: Option<Pending>,
 }
 
 /// A computed embedded-SQLite UPDATE: the changes `write_back` still has to write.
@@ -67,7 +94,7 @@ pub fn database_error(message: &str) -> AppError {
     AppError::new(code, message.to_string())
 }
 
-fn failed(e: duckdb::Error) -> AppError {
+pub(super) fn failed(e: duckdb::Error) -> AppError {
     database_error(&e.to_string())
 }
 
@@ -92,7 +119,7 @@ fn in_transaction<T>(
     Ok(out)
 }
 
-fn run_statement(
+pub(super) fn run_statement(
     connection: &duckdb::Connection,
     sql: &str,
     values: &[DuckValue],
@@ -104,7 +131,7 @@ fn run_statement(
         .map_err(failed)? as u64)
 }
 
-fn select_rows(
+pub(super) fn select_rows(
     connection: &duckdb::Connection,
     sql: &str,
 ) -> Result<(Vec<String>, Vec<Vec<DataValue>>), AppError> {
@@ -124,7 +151,7 @@ fn select_rows(
     Ok((columns, rows))
 }
 
-fn list(columns: &[String], alias: &str) -> String {
+pub(super) fn list(columns: &[String], alias: &str) -> String {
     columns
         .iter()
         .map(|c| format!("{alias}.{}", data::q(c)))
@@ -132,14 +159,14 @@ fn list(columns: &[String], alias: &str) -> String {
         .join(", ")
 }
 
-fn same_keys(keys: &[String]) -> String {
+pub(super) fn same_keys(keys: &[String]) -> String {
     keys.iter()
         .map(|k| format!("t.{0} IS NOT DISTINCT FROM b.{0}", data::q(k)))
         .collect::<Vec<_>>()
         .join(" AND ")
 }
 
-fn any_differs(columns: &[String], new: &str, old: &str) -> String {
+pub(super) fn any_differs(columns: &[String], new: &str, old: &str) -> String {
     columns
         .iter()
         .map(|c| format!("{new}.{0} IS DISTINCT FROM {old}.{0}", data::q(c)))
@@ -160,12 +187,15 @@ pub fn direct(
 ) -> Result<Outcome, AppError> {
     in_transaction(connection, !job.dry_run, || {
         let table = &job.table;
-        if job.watch && matches!(job.kind, ActionKind::Insert | ActionKind::Update) {
-            // Updates compare every column; inserts only need the keys that existed.
-            let snapshot = match job.kind {
-                ActionKind::Update => "*".to_string(),
-                _ => list(&job.keys, "t"),
-            };
+        let before = !matches!(job.before, Before::Off);
+        // Updates and deletes keep every column; inserts only need the keys that existed.
+        let snapshot = match job.kind {
+            ActionKind::Update if job.watch || before => Some("*".to_string()),
+            ActionKind::Delete | ActionKind::Replace if job.deleted => Some("*".to_string()),
+            ActionKind::Insert if job.watch || before => Some(list(&job.keys, "t")),
+            _ => None,
+        };
+        if let Some(snapshot) = snapshot {
             connection
                 .execute_batch(&format!(
                     "CREATE OR REPLACE TEMP TABLE __ixtable_before AS SELECT {snapshot} FROM {table} t"
@@ -181,7 +211,7 @@ pub fn direct(
             [n] => (0, *n),
             _ => (0, 0),
         };
-        let rows = match (job.watch, job.kind) {
+        let mut rows = match (job.watch, job.kind) {
             (false, _) | (_, ActionKind::Delete) => ChangedRows::default(),
             (true, ActionKind::Update) => updated_since_snapshot(connection, job)?,
             (true, ActionKind::Replace) => ChangedRows {
@@ -190,7 +220,7 @@ pub fn direct(
                     &format!("SELECT {} FROM {table} t", list(&job.keys, "t")),
                 )?
                 .1,
-                updated: vec![],
+                ..Default::default()
             },
             (true, ActionKind::Insert) => ChangedRows {
                 created: select_rows(
@@ -202,15 +232,58 @@ pub fn direct(
                     ),
                 )?
                 .1,
-                updated: vec![],
+                ..Default::default()
             },
+        };
+        if job.deleted {
+            rows.deleted = deleted_since_snapshot(connection, job)?;
+        }
+        let pending = match &job.before {
+            Before::Off => None,
+            Before::Collect => Some(action_before::pending_direct(connection, job)?),
+            Before::Apply(decided) => {
+                let pending = action_before::pending_direct(connection, job)?;
+                action_before::verify(decided, &pending)?;
+                action_before::apply_direct(connection, job, decided, &pending)?;
+                None
+            }
         };
         Ok(Outcome {
             changed,
             removed,
             rows,
+            pending,
         })
     })
+}
+
+/// Rows of the snapshot that are gone after a delete (every row, for a replace).
+fn deleted_since_snapshot(
+    connection: &duckdb::Connection,
+    job: &Job,
+) -> Result<Vec<DeletedRow>, AppError> {
+    let columns = columns_of(connection, BEFORE)?;
+    let sql = match job.kind {
+        ActionKind::Replace => format!("SELECT {} FROM {BEFORE} b", list(&columns, "b")),
+        _ => format!(
+            "SELECT {} FROM {BEFORE} b ANTI JOIN {} t ON {}",
+            list(&columns, "b"),
+            job.table,
+            same_keys(&job.keys)
+        ),
+    };
+    Ok(select_rows(connection, &sql)?
+        .1
+        .into_iter()
+        .map(|row| DeletedRow {
+            identity: job
+                .keys
+                .iter()
+                .filter_map(|k| columns.iter().position(|c| c == k).map(|i| row[i].clone()))
+                .collect(),
+            values: named(&columns, &row),
+        })
+        .collect())
 }
 
 /// Rows with the same key and some different column, with their old values.
@@ -239,12 +312,12 @@ fn updated_since_snapshot(
         })
         .collect();
     Ok(ChangedRows {
-        created: vec![],
         updated,
+        ..Default::default()
     })
 }
 
-fn named(columns: &[String], values: &[DataValue]) -> Vec<NamedValue> {
+pub(super) fn named(columns: &[String], values: &[DataValue]) -> Vec<NamedValue> {
     columns
         .iter()
         .zip(values)
@@ -287,6 +360,16 @@ pub fn compute_update(
             ))
             .map_err(failed)?;
         let changed = run_statement(connection, sql, values)?;
+        let pending = match &job.before {
+            Before::Off => None,
+            Before::Collect => Some(action_before::pending_copy(connection, job, &columns)?),
+            Before::Apply(decided) => {
+                let pending = action_before::pending_copy(connection, job, &columns)?;
+                action_before::verify(decided, &pending)?;
+                action_before::apply_copy(connection, job, decided, &pending)?;
+                None
+            }
+        };
         // The key that finds the row: its rowid, else its old primary key.
         let type_of = |c: &str| {
             columns
@@ -363,8 +446,8 @@ pub fn compute_update(
         };
         let rows = if job.watch {
             ChangedRows {
-                created: vec![],
                 updated,
+                ..Default::default()
             }
         } else {
             ChangedRows::default()
@@ -374,13 +457,14 @@ pub fn compute_update(
                 changed,
                 removed: 0,
                 rows,
+                pending,
             },
             changes,
         })
     })
 }
 
-fn column_types(
+pub(super) fn column_types(
     connection: &duckdb::Connection,
     table: &str,
 ) -> Result<(Vec<String>, Vec<String>), AppError> {
