@@ -1,8 +1,10 @@
+import { join } from "node:path";
 import { invoke } from "@tauri-apps/api/core";
 import { screen, waitFor, within } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
 import { createTable, insertRow, renderNewDocument, value } from "./helpers";
+import { dialogMock } from "./setup";
 
 const LONG = { timeout: 20_000 };
 type User = ReturnType<typeof userEvent.setup>;
@@ -40,6 +42,14 @@ it("designs a running sum with conditional formatting and a chart, and previews 
     sql: "SELECT * FROM orders ORDER BY id",
     filterState: null,
   });
+  const archive = join(process.env.IXTABLE_STATE_DIR!, "phase6.ixt");
+  dialogMock.save.mockResolvedValueOnce(archive);
+  await user.click(screen.getByRole("button", { name: "Save project" }));
+  await screen.findByText("Saved archive", {}, LONG);
+  await user.click(screen.getByRole("button", { name: "Close project" }));
+  dialogMock.open.mockResolvedValueOnce(archive);
+  await user.click(await screen.findByRole("button", { name: /Open document/i }, LONG));
+  await screen.findByText("Saved archive", {}, LONG);
 
   await user.click(screen.getByRole("button", { name: "Reports" }));
   const create = await screen.findByRole("button", { name: "New report" }, LONG);
