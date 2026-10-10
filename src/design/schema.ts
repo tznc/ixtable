@@ -33,8 +33,22 @@ export type ControlKind =
   | "relatedList"
   | "image";
 
-export type FormMode = "list" | "detail" | "create" | "edit";
-export const FORM_MODES: FormMode[] = ["list", "detail", "create", "edit"];
+export type FormMode = "list" | "detail" | "create" | "edit" | "continuous" | "split";
+export const FORM_MODES: FormMode[] = ["list", "detail", "create", "edit", "continuous", "split"];
+/** Modes a new form (or a stored form without `modes`) gets. */
+export const DEFAULT_FORM_MODES: FormMode[] = ["list", "detail", "create", "edit"];
+/** Modes that show many records at once; the rest show one record. */
+export const COLLECTION_MODES: FormMode[] = ["list", "continuous", "split"];
+export const isCollectionMode = (mode: FormMode) => COLLECTION_MODES.includes(mode);
+const MODE_LABELS: Record<FormMode, string> = {
+  list: "List",
+  detail: "Detail",
+  create: "Create",
+  edit: "Edit",
+  continuous: "Continuous",
+  split: "Split",
+};
+export const formModeLabel = (mode: FormMode) => MODE_LABELS[mode];
 
 export type {
   Breakpoint,
@@ -135,6 +149,8 @@ export type DesignForm = {
   rules: FormRule[];
   /** List mode row filter: an expression over `record`, `app` and `params`. */
   filter?: string | null;
+  /** Shows first, previous, next, last and new record buttons on single-record views. */
+  navigationBar?: boolean;
 };
 export type NavKind = "form" | "report" | "dashboard" | "table" | "group";
 export type NavigationItem = {
@@ -266,13 +282,14 @@ export const newForm = (name: string, source: FormSource | null = null): DesignF
   id: newId(),
   name,
   source,
-  modes: source?.kind === "query" ? ["list", "detail"] : [...FORM_MODES],
+  modes: source?.kind === "query" ? ["list", "detail"] : [...DEFAULT_FORM_MODES],
   controls: [],
   layout: defaultGridLayout(),
   listColumns: [],
   pageSize: 25,
   detailFormId: null,
   rules: [],
+  navigationBar: true,
 });
 
 const rec = (value: unknown): Record<string, unknown> =>
@@ -309,7 +326,7 @@ function upgradeForm(raw: unknown): DesignForm {
     id: str(form.id),
     name: str(form.name),
     source,
-    modes: form.modes === undefined ? [...FORM_MODES] : modes,
+    modes: form.modes === undefined ? [...DEFAULT_FORM_MODES] : modes,
     controls: arr(form.controls).map(upgradeControl),
     layout: normalizeLayout(form.layout ?? {}),
     listColumns: arr(form.listColumns).map((c) => str(c)),
@@ -317,6 +334,7 @@ function upgradeForm(raw: unknown): DesignForm {
     detailFormId: (form.detailFormId as string | null | undefined) ?? null,
     rules: arr(form.rules).map((r) => ({ id: "", expression: "", message: "", ...rec(r) })),
     ...(typeof form.filter === "string" ? { filter: form.filter } : {}),
+    ...(typeof form.navigationBar === "boolean" ? { navigationBar: form.navigationBar } : {}),
   };
 }
 

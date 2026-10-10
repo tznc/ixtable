@@ -494,3 +494,41 @@ fn multi_column_keys_round_trip_and_are_checked() {
         .iter()
         .any(|e| e.contains("key column without a target")));
 }
+
+#[test]
+fn continuous_and_split_modes_round_trip_and_need_a_source() {
+    let form: Form = serde_json::from_value(serde_json::json!({
+        "id": "tasks",
+        "name": "Tasks",
+        "modes": ["continuous", "split", "detail"],
+        "navigationBar": true
+    }))
+    .unwrap();
+    assert_eq!(
+        form.modes,
+        vec![FormMode::Continuous, FormMode::Split, FormMode::Detail]
+    );
+    assert!(form.navigation_bar);
+    let json = serde_json::to_value(&form).unwrap();
+    assert_eq!(
+        json["modes"],
+        serde_json::json!(["continuous", "split", "detail"])
+    );
+    assert_eq!(json["navigationBar"], serde_json::json!(true));
+    // An absent bar stays absent when saved.
+    let plain: Form = serde_json::from_value(serde_json::json!({"id": "a", "name": "A"})).unwrap();
+    assert!(!plain.navigation_bar);
+    assert!(serde_json::to_value(&plain)
+        .unwrap()
+        .get("navigationBar")
+        .is_none());
+
+    let issues = validate(&config_with(form));
+    assert!(
+        issues
+            .iter()
+            .any(|i| i.severity == Severity::Warning && i.message.contains("continuous and split")),
+        "{issues:?}"
+    );
+    assert!(DesignSchema::default().forms[0].navigation_bar);
+}

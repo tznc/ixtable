@@ -21,7 +21,8 @@ Choose **New action** on the Actions tab, then give the action a name and add st
 | Delete record | Deletes the current record or the matching rows |
 | Run query | Runs a saved query with parameters and stores its rows, under `rows` by default |
 | Navigate | Opens a form, report, dashboard, or table, with an optional mode and record id |
-| Open form | Opens a form in list, detail, create, or edit mode, with an optional record id |
+| Open form | Opens a form in any of its modes, with an optional record id. **Open as popup** shows it in a dialog and waits for it to close (see [Popup forms](#popup-forms)) |
+| Close popup form | Closes the popup form on top and returns its **Return value** to the step that opened it |
 | Open report | Opens a report with parameter values |
 | Open dashboard | Opens a dashboard. Its parameters become the dashboard's initial filter values |
 | Set state | Sets a key in the application state or the form state. Later steps see the new value |
@@ -32,6 +33,18 @@ Choose **New action** on the Actions tab, then give the action a name and add st
 | Fail with message | Stops the action with an error message |
 
 Step expressions can read `record`, `old`, `form`, `app`, `params`, and `results`. `results` holds the values that earlier steps stored by name, so a Run query step that stores `rows` makes `results.rows` available. To change a field on the record on screen, use Update record with **The current record**.
+
+## Popup forms
+
+An Open form step with **Open as popup and wait for it to close** shows the form in a dialog over the page, like an Access modal form. The action waits until the dialog closes, then stores what the popup returned under **Store result as**:
+
+- the saved record's values, when the user saves in create or edit mode;
+- the **Return value** of a Close popup form step that a button in the popup ran;
+- null, when the user closes the dialog or presses Escape.
+
+For example, a button can open a customer form as a popup in create mode and store the result as `customer`. A later step then uses `results.customer.id`. To pick a record, open a popup in detail mode with a button that runs Close popup form with the value `record.id`.
+
+A popup opens as soon as its step runs, even in rollback mode, because the action needs its result. Saves inside the popup commit on their own. Outside the Runtime, the form opens as a page and the result is null. A Close popup form step with no popup open returns to the previous page.
 
 ## Errors and transactions
 
