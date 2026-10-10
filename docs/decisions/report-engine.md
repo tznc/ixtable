@@ -209,7 +209,62 @@ Print renders every page as an SVG sized in points into a container appended to
 
 Styles carry gray levels, not colors: text gray, border width, and fill gray.
 Table headers use a 0.9 gray fill with black text, which stays readable on a
-monochrome printer.
+monochrome printer. Chart marks are the one exception (see Charts).
+
+### Running sums (Phase 6)
+
+A field or calculated component with `runningSum` prints the sum of its
+expression over every instance printed so far instead of the current value,
+like Access's Running Sum property. In the detail band an instance is a row.
+In a group header or footer it is one group instance, so
+`sum(rows.amount)` with a running sum in a group footer gives a cumulative
+subtotal. `"all"` never restarts. `"group"` restarts at each instance of the
+enclosing group: the innermost group for the detail band, the next outer group
+for a group band, and never for the outermost group's bands. The format
+applies to the sum. Null adds nothing and booleans add 1 or 0. Any other
+non-number prints `#Error` with a diagnostic, and the sum stays an error until
+it restarts. Sums add to 15 significant digits like `src/expr`.
+
+Sums are computed once while bands are flattened, in print order, so
+pagination, repeated headers and split bands never count a row twice. In
+report and page bands `runningSum` has no effect and the component prints its
+plain value; the designer hides the option on page bands.
+
+### Conditional formatting (Phase 6)
+
+Static text, field and calculated components hold `conditions`: an ordered
+list of rules, each a boolean expression and a style of bold, text gray and
+fill gray. The first rule that holds applies its style on top of the
+component's own. Rules see the band's scope plus `value`, the component's value
+(after a running sum, before formatting; the text for static text). A rule
+that fails to evaluate counts as false and adds a diagnostic. Styles stay gray
+levels so conditional output prints on a monochrome printer. The style applies
+before can-grow measuring, so a rule that makes text bold can make its box
+grow.
+
+### Charts (Phase 6)
+
+A `chart` component draws bar, line, area, pie, donut and scatter charts with
+the dashboard chart code (PRD §15, §16): `chartData`/`scatterData` from
+`src/dashboards/data.ts` for series, `src/dashboards/charts/geometry.ts` for
+bars, lines and areas, and the dashboard palette. Rows come from a saved query
+(`queryId`, loaded with the report like table queries) or the band's `rows`,
+so a chart in a group header charts that group. `xField`, `yFields`, `groupBy`
+and `stacked` mean what `x`, `y`, `groupBy` and `stacked` mean on a dashboard
+chart; `x` and `y` are a component's position, hence the different names.
+
+`engine/chart.ts` turns that geometry into one `chart` item holding `path`
+marks (move, line, cubic Bézier and close, in page points) and ordinary text
+items, sized to the component. Pie and donut arcs are cubic Béziers of at most
+a quarter turn each, since PDF has no arc operator. The preview draws the item
+as an SVG group labelled with the chart title, and the PDF writes the paths
+with RGB fill and stroke operators; text goes through the same font runs as
+other text. A chart never grows and never splits: split pagination treats it
+like an image and moves the whole chart to the next piece.
+
+Series are drawn in the dashboard palette, in color in the preview and the
+PDF. Labels, legend text and gridlines stay gray, and every chart with two or
+more series has a legend; pie and donut legends list each slice's share.
 
 ## Deferred
 
@@ -223,7 +278,8 @@ arbitrary HTML or CSS. This engine also leaves these for later:
   band
 - caching font subsets between exports
 - image formats other than JPEG and PNG, which print as placeholders in the PDF
-- color
+- color outside chart marks
+- summary charts, and running sums in table columns
 - content stream compression and PDF/A
 
 ## Proof
@@ -263,8 +319,20 @@ arbitrary HTML or CSS. This engine also leaves these for later:
   previews it, prints it, and exports two identical PDFs through the Rust
   command. It also sets the pagination options in the designer and checks that
   Add table is blocked on page header and footer bands.
+- `tests/unit/report-phase6.test.ts`: running sums over all rows, per group
+  and across group footers, formats, nulls and errors; first-match
+  conditional styles, conditions in grown text, failing conditions; charts of
+  every type from band rows and saved queries, legends, "No data", a chart
+  moving whole to the next page, RGB paths in the PDF, and the Bézier arc
+  helpers.
+- `tests/integration/report-phase6.test.tsx`: sets a running sum, a
+  conditional bold rule and a bar chart in the designer and checks the
+  preview.
 
 ## Audit log
 
+- 2026-10-10: Added running sums, conditional formatting and charts (PRD
+  Phase 6), with `tests/unit/report-phase6.test.ts` and
+  `tests/integration/report-phase6.test.tsx` as proof.
 - 2026-10-05: Said which options are omitted when off (`keepTogether` is
   always stored) and added the page-band table checks to the proof.

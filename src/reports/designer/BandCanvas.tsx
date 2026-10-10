@@ -25,6 +25,8 @@ function summary(c: ReportComponent): string {
       return `Table (${c.columns.length} columns)`;
     case "image":
       return c.assetId ? "Image" : "Image (none)";
+    case "chart":
+      return `(${c.chartType}${c.yFields.length ? `: ${c.yFields.filter(Boolean).join(", ")}` : ""})`;
     default:
       return "";
   }

@@ -5,7 +5,8 @@ import type {
   ReportComponent,
   StaticTextComponent,
 } from "../types";
-import { componentText, type RenderContext, textHeight } from "./render";
+import { type RenderContext, textHeight } from "./render";
+import { styledComponent } from "./values";
 
 const EPS = 1e-6;
 
@@ -41,7 +42,8 @@ export function growBand(band: Band, ctx: RenderContext): Growth | null {
   }
   const growth = new Map<ReportComponent, number>();
   for (const c of growing) {
-    const need = textHeight(c, componentText(c, ctx));
+    const { component, text } = styledComponent(c, ctx);
+    const need = textHeight(component, text);
     if (need > c.h + EPS) growth.set(c, need - c.h);
   }
   if (!growth.size) return null;
