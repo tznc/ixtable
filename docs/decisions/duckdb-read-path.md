@@ -170,7 +170,7 @@ statement with an optional trailing `;` that starts with `SELECT`, `WITH`,
 `VALUES`, `SHOW`, or `DESCRIBE`, and rejects writes, DDL, `ATTACH`,
 `INSTALL`, `LOAD`, `COPY`, `PRAGMA`, `SET`, and file or scanner table
 functions such as `read_csv_auto`, any `read_*(...)` or `*_scan(...)` call,
-`postgres_query`, and `duckdb_databases` (which would show the PostgreSQL
+`postgres_query`, `sqlite_query`, and `duckdb_databases` (which would show the PostgreSQL
 connection string). Saved queries
 use `$name` placeholders. `queries::params` rewrites them to DuckDB
 parameters and binds the values, so values are never spliced into SQL text.
@@ -337,3 +337,5 @@ second writer that attaches the file with `sqlite_all_varchar`, because
 - 2026-10-05 (later): the data gate now lets waiting readers in after each write (cherry-picked a487178). The gate paragraph and Evidence describe it.
 - 2026-10-09: added the action-query writer (`data/write.rs`) and its section.
   SQLite UPDATEs are written back through a text attachment, not the RecordStore.
+- 2026-10-10: `read_only_guard` also rejects `sqlite_query`, which runs SQLite
+  statements on the attachment.

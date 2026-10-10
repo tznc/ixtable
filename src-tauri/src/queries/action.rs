@@ -16,7 +16,7 @@ use crate::manager::AppError;
 use serde::Serialize;
 
 /// Words an action statement may not contain: DDL, catalog, settings and file access.
-const FORBIDDEN: [&str; 36] = [
+const FORBIDDEN: [&str; 37] = [
     "CREATE",
     "DROP",
     "ALTER",
@@ -42,6 +42,7 @@ const FORBIDDEN: [&str; 36] = [
     "PARQUET_SCAN",
     "SQLITE_SCAN",
     "SQLITE_ATTACH",
+    "SQLITE_QUERY",
     "READ_BLOB",
     "READ_TEXT",
     "GLOB",

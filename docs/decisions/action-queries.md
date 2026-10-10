@@ -31,7 +31,8 @@ as [the archive format](./archive-format.md) requires.
 **The guard.** `queries::action::target` accepts exactly one statement of the
 declared kind writing to the declared table, optionally qualified by `data`
 or the datasource schema, with no DDL, catalog, settings or file-reading
-word. It works lexically on masked SQL (`data::sqltext::mask`), like the read
+word (`sqlite_query` among them, since it would run SQLite statements on the
+writable attachment). It works lexically on masked SQL (`data::sqltext::mask`), like the read
 guard, because the DuckDB crate does not expose statement types.
 
 **The writer.** `data::write::open_writer` opens a short-lived in-memory DuckDB
@@ -65,8 +66,17 @@ Two `sqlite_scanner` limits shape the SQLite path:
   writer defines `current_date()` and `get_current_time()` as temporary
   macros that return the same UTC values SQLite would.
 
+- It has no option for `PRAGMA foreign_keys`, which is off by default in the
+  copy of SQLite it bundles. On Linux it binds to rusqlite's SQLite, which
+  turns it on, but on macOS and Windows it does not. Its `JOURNAL_MODE`
+  attach option is run as `PRAGMA journal_mode=<value>` through
+  `sqlite3_exec`, so the writer passes the file's own journal mode followed
+  by `PRAGMA foreign_keys=ON`. The extension is pinned by hash, and the
+  action tests check foreign keys and cascades on all three CI platforms.
+
 INSERT, DELETE and replace run on the attachment directly. Constraints,
-foreign keys and `ON DELETE CASCADE` are enforced by SQLite. PostgreSQL runs
+foreign keys and `ON DELETE CASCADE` are enforced by SQLite on every
+platform. PostgreSQL runs
 every kind directly, `postgres_scanner` handles every type.
 
 **Triggers.** When the target has enabled `created` or `updated` triggers, the
@@ -125,7 +135,8 @@ becomes a `runQuery` step.
 - `src-tauri/src/queries/action_tests.rs`: the guard, planning, the copy
   path with DATE and TIMESTAMP columns, a changed key and a table without a
   key, inserts with date defaults, dry runs and constraint rollback on a
-  real SQLite file, validation, and (ignored, CI runs it) the PostgreSQL path.
+  real SQLite file, foreign keys and cascades with the journal mode kept,
+  validation, and (ignored, CI runs it) the PostgreSQL path.
 - `src-tauri/src/trigger_auth_tests.rs`: a grant extended by each use.
 - `src-tauri/src/access/tests/translate.rs` and `convert.rs`: Access action
   statements translated and run in DuckDB. An imported template's append,
@@ -140,3 +151,6 @@ becomes a `runQuery` step.
 - 2026-10-09: record created with the feature.
 - 2026-10-09: the SQLite UPDATE write-back moved from the RecordStore to
   DuckDB (a text attachment), so every action query runs in DuckDB.
+- 2026-10-10: the writer turns on SQLite foreign keys itself, because the
+  scanner's own SQLite (macOS and Windows) leaves them off. Both guards
+  refuse `sqlite_query`.

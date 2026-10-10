@@ -71,6 +71,7 @@ fn read_only_guard_rejects_writes_and_scanner_functions() {
         "DELETE FROM item",
         "SELECT * FROM read_csv('/tmp/x.csv')",
         "SELECT * FROM postgres_query('data', 'DELETE FROM t')",
+        "SELECT * FROM sqlite_query('data', 'PRAGMA journal_mode=off')",
         "SELECT 1; SELECT 2",
     ] {
         assert!(read_only_guard(sql).is_err(), "{sql}");

@@ -65,6 +65,10 @@ fn the_guard_refuses_other_tables_kinds_ddl_and_files() {
         ),
         ("CREATE TABLE orders AS SELECT 1", "cannot use CREATE"),
         ("ATTACH 'x.db' AS y", "cannot use ATTACH"),
+        (
+            "UPDATE orders SET x = (SELECT 1 FROM sqlite_query('data', 'DELETE FROM customers RETURNING id'))",
+            "cannot use SQLITE_QUERY",
+        ),
     ];
     for (sql, message) in refused {
         let err = guard(sql, &update, "main").unwrap_err();
@@ -353,6 +357,40 @@ fn inserts_report_new_keys_and_replace_reports_every_row() {
         rows(&dir, "SELECT id, customer, paid FROM orders"),
         [[1, 2, 0]]
     );
+}
+
+#[test]
+fn foreign_keys_cascade_and_the_journal_mode_is_kept() {
+    let dir = workspace();
+    rusqlite::Connection::open(dir.join("data.db"))
+        .unwrap()
+        .execute_batch(
+            "PRAGMA journal_mode=WAL;
+             CREATE TABLE notes(id INTEGER PRIMARY KEY, customer INTEGER REFERENCES customers(id) ON DELETE CASCADE);
+             INSERT INTO notes VALUES (1, 1), (2, 2);",
+        )
+        .unwrap();
+    for text in [false, true] {
+        let extension = data::extensions::sqlite_extension_path().unwrap();
+        let c = data::write::open_writer(&dir, &extension, &data::read::ReadTarget::Sqlite, text)
+            .unwrap();
+        let err = c
+            .execute_batch("INSERT INTO notes VALUES (9, 99)")
+            .unwrap_err();
+        assert!(err.to_string().contains("FOREIGN KEY"), "{err}");
+    }
+    let c = writer(&dir);
+    let delete = vec!["DELETE FROM orders WHERE customer = 2".to_string()];
+    direct(&c, &delete, &[], &job(ActionKind::Delete, false, false)).unwrap();
+    let delete = vec!["DELETE FROM customers WHERE id = 2".to_string()];
+    direct(&c, &delete, &[], &job(ActionKind::Delete, false, false)).unwrap();
+    drop(c);
+    assert_eq!(rows(&dir, "SELECT id, customer FROM notes"), [[1, 1]]);
+    let c = rusqlite::Connection::open(dir.join("data.db")).unwrap();
+    let mode: String = c
+        .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(mode, "wal");
 }
 
 #[test]
