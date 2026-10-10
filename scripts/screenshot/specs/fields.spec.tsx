@@ -28,7 +28,10 @@ it("sets field formats in the table designer and enters each kind in the Runtime
     within(fields).getByRole("textbox", { name: /phone input mask/ }),
     "(000) 000-0000",
   );
-  await user.selectOptions(within(fields).getByRole("combobox", { name: "notes format" }), "richText");
+  await user.selectOptions(
+    within(fields).getByRole("combobox", { name: "notes format" }),
+    "richText",
+  );
   await user.selectOptions(
     within(fields).getByRole("combobox", { name: "interests format" }),
     "multiSelect",
