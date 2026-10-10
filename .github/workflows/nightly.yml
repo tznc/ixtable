@@ -1,11 +1,11 @@
 name: Nightly
 
 # Unsigned desktop builds of main, published to the rolling `nightly` GitHub
-# prerelease on every push to main. A newer push cancels a build in progress.
+# prerelease. A newer run cancels a build in progress.
+# Automatic runs on push to main are disabled until the Windows/Linux bundles
+# have real icons; re-enable the push trigger then. Manual runs still work.
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       force:
