@@ -17,7 +17,8 @@ through DuckDB, and to write through the RecordStore so triggers run.
 
 - **Modes.** `FormMode` gains `continuous` and `split` (`src/design/schema.ts`,
   `src-tauri/src/design/mod.rs`). They are opt-in: `DEFAULT_FORM_MODES` and Rust
-  `default_modes()` keep the four classic modes, so stored forms are unchanged.
+  `default_modes()` keep the four classic modes, so stored forms are unchanged. Config
+  version 5, because an older build would drop `navigationBar` and reject the new modes.
   `checks.rs` warns when a form without a source offers either mode.
 - **Continuous** (`src/runtime/ContinuousView.tsx`, `ContinuousRow.tsx`). One page
   from `loadPage`, the list reader, with each record drawn by `ControlGrid` on the
