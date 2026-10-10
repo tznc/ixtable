@@ -2,7 +2,8 @@ import React, { useEffect, useState, type ReactNode } from "react";
 import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
 import { useAuth } from "@site/src/contexts/AuthContext";
-import { formatPrice, useCloudApi, type Plan } from "@site/src/lib/cloud";
+import { planPrice, useCloudApi, type BillingInterval, type Plan } from "@site/src/lib/cloud";
+import IntervalToggle from "@site/src/components/cloud/IntervalToggle";
 import catalog from "@site/src/data/plans.json";
 
 const STATIC_PLANS = catalog.plans as Plan[];
@@ -24,6 +25,7 @@ export default function PricingPage(): ReactNode {
   const { user, loading } = useAuth();
   const api = useCloudApi();
   const [plans, setPlans] = useState<Plan[]>(STATIC_PLANS);
+  const [interval, setInterval] = useState<BillingInterval>("month");
   const [live, setLive] = useState(false);
 
   useEffect(() => {
@@ -53,11 +55,16 @@ export default function PricingPage(): ReactNode {
           app. Each plan includes a number of runtime users: the people you invite to run the app.
           You, the app's developer, are not counted.
         </p>
+        <p data-testid="pricing-terms">
+          Billed per app. Annual billing: 2 months free. No free trial.
+        </p>
+        <IntervalToggle name="pricing-interval" value={interval} onChange={setInterval} />
         <div className="pricing-grid">
           {plans.map((plan) => (
             <section key={plan.id} className="pricing-card" aria-label={`${plan.name} plan`}>
               <h2>{plan.name}</h2>
-              <div className="pricing-price">{formatPrice(plan.price_cents, plan.interval)}</div>
+              <div className="pricing-price">{planPrice(plan, interval)}</div>
+              {interval === "year" && <p className="cloud-muted">2 months free</p>}
               <ul>
                 <li>{plan.runtime_user_allowance} runtime users</li>
                 <li>{plan.storage_gb} GB archive storage</li>

@@ -433,18 +433,29 @@ export async function orgRole(orgId: string, userId: string): Promise<string | n
   return row?.role ?? null;
 }
 
-/** Owner, or org owner/admin (same rule as SQL `is_app_admin`). */
+/** Owner, org owner/admin, or per-app admin (same rule as SQL `is_app_admin`). */
 export async function isAppAdmin(app: AppRow, userId: string): Promise<boolean> {
   if (app.owner_id === userId) return true;
-  const role = await orgRole(app.org_id, userId);
-  return role === "owner" || role === "admin";
+  return (await appCapabilitiesFor(app.id, userId)).includes("admin");
+}
+
+/** The user's capabilities on a live app (SQL `app_capabilities_for`). */
+export async function appCapabilitiesFor(appId: string, userId: string): Promise<string[]> {
+  const result = await serviceClient().rpc("app_capabilities_for", {
+    p_app_id: appId,
+    p_user_id: userId,
+  });
+  return (must(
+    result as { data: string[] | null; error: DbError | null },
+    "load app capabilities",
+  ) ?? []) as string[];
 }
 
 export async function requireAppAdmin(app: AppRow, userId: string): Promise<void> {
   if (!(await isAppAdmin(app, userId)))
     throw new HttpError(
       "FORBIDDEN",
-      "Only the app's Developer or an organization admin can do this",
+      "Only the app's Developer, an organization admin or an app admin can do this",
     );
 }
 

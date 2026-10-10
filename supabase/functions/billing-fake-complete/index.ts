@@ -5,7 +5,7 @@
 // so the subscription is written only by the webhook. 404 with any other
 // provider, and unless IXTABLE_ALLOW_FAKE_BILLING=1.
 import { buildFakeEvent, fakeBillingAllowed } from "../_shared/billing.ts";
-import { getSubscription, postSignedEvent } from "../_shared/commercial.ts";
+import { getSubscription, orgBillingCustomerId, postSignedEvent } from "../_shared/commercial.ts";
 import { serviceClient } from "../_shared/db.ts";
 import { handler, HttpError, readJson, requireUser } from "../_shared/http.ts";
 import { enforceNamedRateLimit } from "../_shared/rateLimit.ts";
@@ -26,7 +26,7 @@ Deno.serve(
     const db = serviceClient();
     const { data: session } = await db
       .from("billing_checkout_sessions")
-      .select("id, app_id, plan_id, user_id, provider, status, expires_at")
+      .select("id, app_id, plan_id, billing_interval, user_id, provider, status, expires_at")
       .eq("id", sessionId)
       .maybeSingle();
     if (
@@ -55,13 +55,19 @@ Deno.serve(
       });
     }
 
+    const { data: app } = await db.from("cloud_apps").select("org_id").eq("id", appId).single();
     const existing = await getSubscription(appId);
-    const customerId = existing?.stripe_customer_id ?? `cus_fake_${randomToken(9)}`;
+    // billing-checkout created the org's customer; older rows fall back.
+    const customerId =
+      (app ? await orgBillingCustomerId(app.org_id) : null) ??
+      existing?.stripe_customer_id ??
+      `cus_fake_${randomToken(9)}`;
+    const interval = session.billing_interval as "month" | "year";
     // Every checkout creates a new subscription, as Stripe does.
     const subscriptionId = `sub_fake_${randomToken(9)}`;
     for (const type of ["checkout.session.completed", "customer.subscription.created"] as const) {
       const result = await postSignedEvent(
-        buildFakeEvent({ type, appId, planId, customerId, subscriptionId }),
+        buildFakeEvent({ type, appId, planId, interval, customerId, subscriptionId }),
       );
       if (result.status !== 200) {
         throw new Error(`stripe-webhook rejected the fake ${type} event (${result.status})`);

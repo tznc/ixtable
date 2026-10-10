@@ -78,7 +78,7 @@ function InviteUser({
 }
 
 /** Runtime users: role changes, revoke and restore, invitations. Seats count active users only. */
-export default function UsersTab({ app, entitlement, reloadApp }: AppTabProps): ReactNode {
+export default function UsersTab({ app, entitlement, isAdmin, reloadApp }: AppTabProps): ReactNode {
   const api = useCloudApi();
   const state = useAsync(async () => {
     const q = api.q();
@@ -116,7 +116,9 @@ export default function UsersTab({ app, entitlement, reloadApp }: AppTabProps): 
       >
         <ErrorNotice error={state.error ?? update.error ?? revokeInvite.error} />
         {data && data.members.length === 0 && (
-          <Empty>No runtime users yet. Invite someone below.</Empty>
+          <Empty>
+            {isAdmin ? "No runtime users yet. Invite someone below." : "No runtime users yet."}
+          </Empty>
         )}
         {data && data.members.length > 0 && (
           <TableWrap label="Runtime users">
@@ -126,7 +128,7 @@ export default function UsersTab({ app, entitlement, reloadApp }: AppTabProps): 
                 <th scope="col">Role</th>
                 <th scope="col">Status</th>
                 <th scope="col">Added</th>
-                <th scope="col">Access</th>
+                {isAdmin && <th scope="col">Access</th>}
               </tr>
             </thead>
             <tbody>
@@ -137,18 +139,22 @@ export default function UsersTab({ app, entitlement, reloadApp }: AppTabProps): 
                   <tr key={member.user_id}>
                     <th scope="row">{email}</th>
                     <td>
-                      <select
-                        aria-label={`Role for ${email}`}
-                        value={member.role_id}
-                        disabled={update.pending}
-                        onChange={(event) => update.run(member, { roleId: event.target.value })}
-                      >
-                        {data.roles.map((role) => (
-                          <option key={role.id} value={role.id}>
-                            {role.name}
-                          </option>
-                        ))}
-                      </select>
+                      {isAdmin ? (
+                        <select
+                          aria-label={`Role for ${email}`}
+                          value={member.role_id}
+                          disabled={update.pending}
+                          onChange={(event) => update.run(member, { roleId: event.target.value })}
+                        >
+                          {data.roles.map((role) => (
+                            <option key={role.id} value={role.id}>
+                              {role.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        (data.roles.find((role) => role.id === member.role_id)?.name ?? "Unknown")
+                      )}
                     </td>
                     <td>
                       <Badge tone={active ? "success" : "danger"}>
@@ -159,18 +165,20 @@ export default function UsersTab({ app, entitlement, reloadApp }: AppTabProps): 
                       )}
                     </td>
                     <td>{formatDate(member.created_at)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className={`button button--sm ${active ? "button--outline button--danger" : "button--secondary"}`}
-                        disabled={update.pending}
-                        onClick={() =>
-                          update.run(member, { status: active ? "revoked" : "active" })
-                        }
-                      >
-                        {active ? `Revoke ${email}` : `Restore ${email}`}
-                      </button>
-                    </td>
+                    {isAdmin && (
+                      <td>
+                        <button
+                          type="button"
+                          className={`button button--sm ${active ? "button--outline button--danger" : "button--secondary"}`}
+                          disabled={update.pending}
+                          onClick={() =>
+                            update.run(member, { status: active ? "revoked" : "active" })
+                          }
+                        >
+                          {active ? `Revoke ${email}` : `Restore ${email}`}
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -183,7 +191,7 @@ export default function UsersTab({ app, entitlement, reloadApp }: AppTabProps): 
           app copy or a credential the user already received.
         </p>
       </Section>
-      {data && data.invitations.length > 0 && (
+      {isAdmin && data && data.invitations.length > 0 && (
         <Section title="Pending invitations">
           <ul>
             {data.invitations.map((invitation) => (
@@ -203,12 +211,14 @@ export default function UsersTab({ app, entitlement, reloadApp }: AppTabProps): 
           </ul>
         </Section>
       )}
-      <Section
-        title="Invite a runtime user"
-        description="The invitation email links to a page where they sign in and accept."
-      >
-        {data && <InviteUser appId={app.id} roles={data.roles} onInvited={state.reload} />}
-      </Section>
+      {isAdmin && (
+        <Section
+          title="Invite a runtime user"
+          description="The invitation email links to a page where they sign in and accept."
+        >
+          {data && <InviteUser appId={app.id} roles={data.roles} onInvited={state.reload} />}
+        </Section>
+      )}
     </>
   );
 }
