@@ -2506,6 +2506,7 @@ dependencies = [
  "rand_core 0.6.4",
  "reqwest",
  "rusqlite",
+ "rust_xlsxwriter",
  "rustls",
  "semver",
  "serde",
@@ -4144,6 +4145,16 @@ dependencies = [
  "hashlink 0.9.1",
  "libsqlite3-sys",
  "smallvec",
+]
+
+[[package]]
+name = "rust_xlsxwriter"
+version = "0.99.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34f2d2cda7223168a14fb86bc7411dbc3379bd7d49749ecc53b91ed98585b6b0"
+dependencies = [
+ "tempfile",
+ "zip 8.6.0",
 ]
 
 [[package]]

@@ -2,9 +2,37 @@
 use super::{
     duck_value, like_pattern, q,
     read::{duck_bind, ReadRuntime, ReadTarget},
-    DataValue, Filter, FilterOperator, LogicalType, Page, Sort,
+    Column, DataValue, Filter, FilterOperator, LogicalType, Page, Sort,
 };
 use std::collections::HashSet;
+
+/// The filtered, stably ordered SELECT behind a table page, without paging.
+/// `sql` selects `columns` (plus a trailing `rowid` when `rowid`); `count_sql`
+/// counts the filtered rows. Both bind `binds`.
+pub struct PagePlan {
+    pub columns: Vec<Column>,
+    pub sql: String,
+    pub count_sql: String,
+    pub binds: Vec<duckdb::types::Value>,
+    pub rowid: bool,
+    pub identity: Vec<String>,
+}
+
+impl PagePlan {
+    /// Converts a raw result row to typed values (the trailing rowid stays raw).
+    pub fn read_row(&self, r: &duckdb::Row) -> duckdb::Result<Vec<DataValue>> {
+        let count = self.columns.len() + usize::from(self.rowid);
+        (0..count)
+            .map(|i| {
+                let v = duck_value(r.get::<_, duckdb::types::Value>(i)?);
+                Ok(match self.columns.get(i) {
+                    Some(c) => c.logical_type.coerce_read(v),
+                    None => v,
+                })
+            })
+            .collect()
+    }
+}
 
 impl ReadRuntime {
     pub fn page(
@@ -19,6 +47,63 @@ impl ReadRuntime {
             return Err("Page size must be between 1 and 1000".into());
         }
         let _gate = self.read_gate()?;
+        let plan = self.page_plan(table, sorts, filters)?;
+        let total = self
+            .connection
+            .query_row(
+                &plan.count_sql,
+                duckdb::params_from_iter(plan.binds.iter()),
+                |r| r.get::<_, u64>(0),
+            )
+            .map_err(|e| e.to_string())?;
+        let mut all = plan.binds.clone();
+        all.push(duckdb::types::Value::BigInt(limit as i64));
+        all.push(duckdb::types::Value::BigInt(offset as i64));
+        let mut stmt = self
+            .connection
+            .prepare(&format!("{} LIMIT ? OFFSET ?", plan.sql))
+            .map_err(|e| e.to_string())?;
+        let raw = stmt
+            .query_map(duckdb::params_from_iter(all.iter()), |r| plan.read_row(r))
+            .map_err(|e| e.to_string())?;
+        let mut rows = vec![];
+        let mut identities = vec![];
+        for row in raw {
+            let mut row = row.map_err(|e| e.to_string())?;
+            if plan.rowid {
+                identities.push(vec![row.pop().unwrap()])
+            } else {
+                identities.push(
+                    plan.identity
+                        .iter()
+                        .filter_map(|name| {
+                            plan.columns
+                                .iter()
+                                .position(|c| &c.name == name)
+                                .map(|i| row[i].clone())
+                        })
+                        .collect(),
+                )
+            }
+            rows.push(row)
+        }
+        Ok(Page {
+            columns: plan.columns,
+            rows,
+            identities,
+            total,
+            offset,
+            limit,
+        })
+    }
+
+    /// Builds the page query of `table` (see `PagePlan`). The caller holds the read gate.
+    pub fn page_plan(
+        &self,
+        table: &str,
+        sorts: &[Sort],
+        filters: &[Filter],
+    ) -> Result<PagePlan, String> {
         let mut meta = self.schema(table)?;
         let visible = self.duckdb_columns(table)?;
         meta.columns.retain(|c| visible.contains(&c.name));
@@ -85,14 +170,6 @@ impl ReadRuntime {
             format!(" WHERE {}", predicates.join(" AND "))
         };
         let from = self.from(table);
-        let total = self
-            .connection
-            .query_row(
-                &format!("SELECT count(*) FROM {from}{wh}"),
-                duckdb::params_from_iter(binds.iter()),
-                |r| r.get::<_, u64>(0),
-            )
-            .map_err(|e| e.to_string())?;
         let rowid = matches!(self.target, ReadTarget::Sqlite)
             && meta.object_type == "table"
             && !meta.without_rowid
@@ -140,62 +217,13 @@ impl ReadRuntime {
         } else {
             format!(" ORDER BY {order}")
         };
-        let mut all = binds;
-        all.push(duckdb::types::Value::BigInt(limit as i64));
-        all.push(duckdb::types::Value::BigInt(offset as i64));
-        let mut stmt = self
-            .connection
-            .prepare(&format!(
-                "SELECT {select} FROM {from}{wh}{order} LIMIT ? OFFSET ?"
-            ))
-            .map_err(|e| e.to_string())?;
-        let count = meta.columns.len() + usize::from(rowid);
-        let types: Vec<LogicalType> = meta
-            .columns
-            .iter()
-            .map(|c| c.logical_type.clone())
-            .collect();
-        let raw = stmt
-            .query_map(duckdb::params_from_iter(all.iter()), |r| {
-                Ok((0..count)
-                    .map(|i| {
-                        let v = duck_value(r.get::<_, duckdb::types::Value>(i).unwrap());
-                        match types.get(i) {
-                            Some(t) => t.coerce_read(v),
-                            None => v,
-                        }
-                    })
-                    .collect::<Vec<_>>())
-            })
-            .map_err(|e| e.to_string())?;
-        let mut rows = vec![];
-        let mut identities = vec![];
-        for row in raw {
-            let mut row = row.map_err(|e| e.to_string())?;
-            if rowid {
-                identities.push(vec![row.pop().unwrap()])
-            } else {
-                identities.push(
-                    identity
-                        .iter()
-                        .filter_map(|name| {
-                            meta.columns
-                                .iter()
-                                .position(|c| &c.name == name)
-                                .map(|i| row[i].clone())
-                        })
-                        .collect(),
-                )
-            }
-            rows.push(row)
-        }
-        Ok(Page {
+        Ok(PagePlan {
+            sql: format!("SELECT {select} FROM {from}{wh}{order}"),
+            count_sql: format!("SELECT count(*) FROM {from}{wh}"),
             columns: meta.columns,
-            rows,
-            identities,
-            total,
-            offset,
-            limit,
+            binds,
+            rowid,
+            identity,
         })
     }
 }

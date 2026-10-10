@@ -2593,3 +2593,10 @@ td.tone-warning::before,
 .rt-field.tone-muted :is(input, select, textarea) {
   border-left-style: dotted;
 }
+.export-status,
+.export-error {
+  font-size: 11px;
+}
+.export-error {
+  color: var(--ix-danger);
+}

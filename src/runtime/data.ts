@@ -456,3 +456,27 @@ export async function queryChoices(config: DocumentConfig, queryId: string): Pro
     return { value, label: String(fromDataValue(row[1] ?? row[0]) ?? "") };
   });
 }
+
+/**
+ * The DuckDB filters that reproduce a form's row filter, for exports that read the source
+ * in Rust: [] without a filter, null when part of it runs only in TypeScript (the export
+ * would then include rows the list hides).
+ */
+export async function exportFilters(
+  form: DesignForm,
+  scope: SourceScope,
+): Promise<Filter[] | null> {
+  if (!form.filter?.trim()) return [];
+  const table = form.source?.kind === "table" ? form.source.table : null;
+  if (!table) return null;
+  try {
+    const split = pushdown(
+      parse(form.filter),
+      filterScope(scope),
+      (await tableSchema(table)).columns,
+    );
+    return split.rest || !split.filters.length ? null : split.filters;
+  } catch {
+    return null;
+  }
+}

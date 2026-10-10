@@ -89,6 +89,48 @@ fn predicates(filters: &[Filter], first: usize) -> Result<(String, Vec<DuckValue
     Ok((wh, binds))
 }
 
+/// ` ORDER BY ...` for `sorts`, or nothing.
+fn order_by(sorts: &[Sort]) -> String {
+    let order = sorts
+        .iter()
+        .map(|s| {
+            format!(
+                "{} {}",
+                q(&s.column),
+                if s.descending { "DESC" } else { "ASC" }
+            )
+        })
+        .collect::<Vec<_>>();
+    if order.is_empty() {
+        String::new()
+    } else {
+        format!(" ORDER BY {}", order.join(", "))
+    }
+}
+
+/// Every row of `sql` (a read-only query with `$name` parameters) that
+/// `filters` match, in `sorts` order: the SQL to run and the values it binds.
+/// Exports run it; `page_on` adds paging to the same shape.
+pub fn filtered_sql(
+    sql: &str,
+    declared: &[QueryParameter],
+    supplied: &[NamedValue],
+    sorts: &[Sort],
+    filters: &[Filter],
+) -> Result<(String, Vec<DuckValue>), AppError> {
+    let rewritten = prepare_sql(sql)?;
+    let mut values = resolve_params(&rewritten.names, declared, supplied, true)?;
+    let (wh, binds) = predicates(filters, values.len() + 1)?;
+    values.extend(binds);
+    // The newline keeps a trailing `-- comment` from swallowing the parenthesis.
+    let sql = format!(
+        "SELECT * FROM (\n{}\n) AS ixt_page{wh}{}",
+        rewritten.sql,
+        order_by(sorts)
+    );
+    Ok((sql, values))
+}
+
 /// Runs one page of `sql` (a read-only query with `$name` parameters) on
 /// `connection`, with cancellation registered under `window`/`run_id`.
 #[allow(clippy::too_many_arguments)]
@@ -148,22 +190,7 @@ pub fn page_on(
     let query_values = values.clone();
     let (wh, binds) = predicates(spec.filters, values.len() + 1)?;
     values.extend(binds);
-    let order = spec
-        .sorts
-        .iter()
-        .map(|s| {
-            format!(
-                "{} {}",
-                q(&s.column),
-                if s.descending { "DESC" } else { "ASC" }
-            )
-        })
-        .collect::<Vec<_>>();
-    let order = if order.is_empty() {
-        String::new()
-    } else {
-        format!(" ORDER BY {}", order.join(", "))
-    };
+    let order = order_by(spec.sorts);
     let n = values.len();
     values.push(DuckValue::BigInt(spec.limit as i64));
     values.push(DuckValue::BigInt(spec.offset as i64));
