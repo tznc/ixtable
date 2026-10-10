@@ -412,6 +412,18 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
                 format!("form \"{}\" has an empty list filter", form.name),
             ));
         }
+        for (event, action) in form.events.bound() {
+            if !config.actions.iter().any(|a| a.id == action) {
+                out.push(Issue::error(
+                    "form",
+                    id,
+                    format!(
+                        "form \"{}\" runs an action that does not exist on {event}",
+                        form.name
+                    ),
+                ));
+            }
+        }
         let nested = form
             .controls
             .iter()

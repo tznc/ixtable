@@ -23,6 +23,7 @@ every risk-retirement spike. This index maps each spike to its record.
 | [Windows support](./windows-support.md) | none. Windows-only failures in Rust tests and the NAPI test bridge | accepted, pending Windows CI (no run has reached a runner yet) |
 | [Action queries](./action-queries.md) | none. Saved queries that change rows: DuckDB SQL through a writable attach, per-row triggers | accepted |
 | [Access import](./access-import.md) | none. One-way import of Access databases and templates. Format spec in [`docs/access-format.md`](../access-format.md) | accepted |
+| [Form events](./form-events.md) | none. Form events run declarative actions (PRD §17.4) | accepted |
 
 The Phase 0 item "signed personalized bundle and envelope-encryption threat
 model" is covered by the [cloud security model](./cloud-security-model.md)

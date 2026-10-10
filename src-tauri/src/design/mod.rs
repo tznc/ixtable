@@ -118,6 +118,40 @@ pub struct Form {
     /// List mode row filter expression (evaluated in TypeScript, `src/runtime/conditions.ts`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filter: Option<String>,
+    /// Actions run on form events (PRD §17.4, `docs/decisions/form-events.md`).
+    #[serde(default, skip_serializing_if = "FormEvents::is_empty")]
+    pub events: FormEvents,
+}
+
+/// Form event → action id. The runtime (`src/runtime/formEvents.ts`) runs them.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FormEvents {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub on_load: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub on_current: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub before_update: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub after_update: Option<String>,
+}
+
+impl FormEvents {
+    pub fn is_empty(&self) -> bool {
+        self.bound().next().is_none()
+    }
+    /// Bound events as (label, action id), in firing order.
+    pub fn bound(&self) -> impl Iterator<Item = (&'static str, &str)> {
+        [
+            ("on load", &self.on_load),
+            ("on current", &self.on_current),
+            ("before update", &self.before_update),
+            ("after update", &self.after_update),
+        ]
+        .into_iter()
+        .filter_map(|(label, id)| Some((label, id.as_deref()?)))
+    }
 }
 pub fn default_modes() -> Vec<FormMode> {
     vec![
