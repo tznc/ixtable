@@ -155,3 +155,42 @@ fn domain_functions_with_criteria_from_the_row_are_correlated() {
     // DCount with a literal criteria (was translated as a VBA function before).
     assert_eq!(value(&db, "DCount(\"ID\", \"Orders\", \"Paid = False\")").as_deref(), Some("2"));
 }
+
+/// Form and report expressions; tests/unit/access-expressions.test.ts
+/// evaluates the same ixtable expressions.
+#[test]
+fn more_access_expressions_become_ixtable_expressions() {
+    use crate::access::translate::expr::{field, translate, Target};
+    let fields = |n: &str| {
+        ["Amount", "Due", "Status", "Find", "Priority"]
+            .iter()
+            .find(|f| f.eq_ignore_ascii_case(n))
+            .map(|f| field("record", f))
+    };
+    let form =
+        |e: &str| translate(e, Target::Form, &fields).unwrap_or_else(|err| panic!("{e}: {err}"));
+    let cases = [
+        ("[Status] Like \"*\" & [Find] & \"*\"", "contains(record.Status, record.Find)"),
+        ("[Status] Like [Find] & \"*\"", "startswith(record.Status, record.Find)"),
+        ("[Status] Like \"*\" & [Find]", "endswith(record.Status, record.Find)"),
+        ("StrConv([Status], 1)", "upper(record.Status)"),
+        ("MonthName(Month([Due]))", "format(date(2000, month(record.Due), 1), 'MMMM')"),
+        ("MonthName(3, True)", "format(date(2000, 3, 1), 'MMM')"),
+        ("DatePart(\"q\", [Due])", "floor((month(record.Due) - 1) / 3) + 1"),
+        ("DatePart(\"yyyy\", [Due])", "year(record.Due)"),
+        (
+            "Switch([Amount] > 100, \"High\", [Amount] > 10, \"Mid\", True, \"Low\")",
+            "if(record.Amount > 100, 'High', if(record.Amount > 10, 'Mid', if(true, 'Low', null)))",
+        ),
+        (
+            "Choose([Priority], \"Low\", \"Normal\", \"High\")",
+            "if(record.Priority = 1, 'Low', if(record.Priority = 2, 'Normal', if(record.Priority = 3, 'High', null)))",
+        ),
+        ("Sgn([Amount])", "if(record.Amount > 0, 1, if(record.Amount < 0, -1, 0))"),
+    ];
+    for (access, expected) in cases {
+        assert_eq!(form(access), expected, "{access}");
+    }
+    assert!(translate("[Status] Like [Find]", Target::Form, &fields).is_err());
+    assert!(translate("StrConv([Status], 3)", Target::Form, &fields).is_err());
+}

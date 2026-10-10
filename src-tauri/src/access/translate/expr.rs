@@ -202,7 +202,7 @@ impl<'a> ExprWriter<'a> {
     fn like(&mut self, expr: &Expr, pattern: &Expr) -> Result<String, String> {
         let e = self.write(expr)?;
         let Expr::Str(p) = pattern else {
-            return Err("Like with a computed pattern".into());
+            return self.computed_like(&e, pattern);
         };
         let inner = p.trim_matches('*');
         let plain = !inner.contains(['*', '?', '#', '[']);
@@ -229,6 +229,26 @@ impl<'a> ExprWriter<'a> {
                 ))
             }
         }
+    }
+
+    /// `Like "*" & [Find] & "*"`: a search box's pattern around a value.
+    fn computed_like(&mut self, e: &str, pattern: &Expr) -> Result<String, String> {
+        let star = |x: &Expr| matches!(x, Expr::Str(s) if s == "*");
+        let (lead, middle, trail) = match pattern {
+            Expr::Bin(BinOp::Concat, l, r) => match (&**l, &**r) {
+                (Expr::Bin(BinOp::Concat, a, b), c) if star(a) && star(c) => (true, &**b, true),
+                (a, b) if star(a) => (true, b, false),
+                (a, b) if star(b) => (false, a, true),
+                _ => return Err("Like with a computed pattern".into()),
+            },
+            _ => return Err("Like with a computed pattern".into()),
+        };
+        let v = self.write(middle)?;
+        Ok(match (lead, trail) {
+            (true, true) => format!("contains({e}, {v})"),
+            (true, false) => format!("endswith({e}, {v})"),
+            _ => format!("startswith({e}, {v})"),
+        })
     }
 
     fn aggregate(&mut self, f: &str, args: &[Expr]) -> Result<String, String> {
@@ -280,6 +300,55 @@ impl<'a> ExprWriter<'a> {
                     format!("({}) * {mult}", a[0])
                 };
                 return Ok(format!("{lower}('{unit}', {n}, {})", a[1]));
+            }
+            "datepart" => {
+                let Some(Expr::Str(code)) = args.first() else {
+                    return Err("DatePart needs a literal interval".into());
+                };
+                let d = self.write(args.get(1).ok_or("DatePart needs 2 arguments")?)?;
+                return Ok(match code.to_ascii_lowercase().as_str() {
+                    "yyyy" => format!("year({d})"),
+                    "q" => format!("floor((month({d}) - 1) / 3) + 1"),
+                    "m" => format!("month({d})"),
+                    "d" => format!("day({d})"),
+                    "w" => format!("weekday({d})"),
+                    "h" => format!("hour({d})"),
+                    "n" => format!("minute({d})"),
+                    other => return Err(format!("DatePart \"{other}\" is not supported")),
+                });
+            }
+            "strconv" => {
+                let v = self.write(args.first().ok_or("StrConv needs 2 arguments")?)?;
+                return match args.get(1) {
+                    Some(Expr::Num(n)) if n == "1" => Ok(format!("upper({v})")),
+                    Some(Expr::Num(n)) if n == "2" => Ok(format!("lower({v})")),
+                    _ => Err("StrConv supports only vbUpperCase and vbLowerCase".into()),
+                };
+            }
+            "monthname" => {
+                let m = self.write(args.first().ok_or("MonthName needs a month")?)?;
+                let abbreviated = matches!(args.get(1), Some(Expr::Bool(true)))
+                    || matches!(args.get(1), Some(Expr::Num(n)) if n != "0");
+                let p = if abbreviated { "MMM" } else { "MMMM" };
+                return Ok(format!("format(date(2000, {m}, 1), '{p}')"));
+            }
+            "switch" => {
+                if args.len() < 2 || args.len() % 2 != 0 {
+                    return Err("Switch needs condition/value pairs".into());
+                }
+                let mut out = "null".to_string();
+                for pair in args.chunks(2).rev() {
+                    out = format!("if({}, {}, {out})", self.write(&pair[0])?, self.write(&pair[1])?);
+                }
+                return Ok(out);
+            }
+            "choose" => {
+                let index = self.write(args.first().ok_or("Choose needs an index")?)?;
+                let mut out = "null".to_string();
+                for (i, v) in args.iter().enumerate().skip(1).rev() {
+                    out = format!("if({index} = {i}, {}, {out})", self.write(v)?);
+                }
+                return Ok(out);
             }
             "format" => {
                 let value = self.write(args.first().ok_or("Format needs a value")?)?;
@@ -347,6 +416,8 @@ impl<'a> ExprWriter<'a> {
             "cdbl" | "csng" | "ccur" | "cdec" | "val" => format!("number({})", a[0]),
             "cdate" | "datevalue" => a[0].clone(),
             "coalesce" => format!("coalesce({})", a.join(", ")),
+            "sgn" => format!("if({0} > 0, 1, if({0} < 0, -1, 0))", a[0]),
+            "iserror" => "false".into(),
             _ => return Err(format!("{name}() is not supported")),
         })
     }

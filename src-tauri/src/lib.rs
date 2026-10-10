@@ -439,6 +439,7 @@ pub fn run() {
             // access commands
             access::inspect_access_file,
             access::import_access_file,
+            access::write_access_report,
             // templates commands
             templates::list_templates,
             templates::read_template_config,
