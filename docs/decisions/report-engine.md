@@ -127,6 +127,40 @@ past its box.
   grown text follow its last piece. When not even one line fits an empty page
   body, the band is cut at the body bottom.
 
+### Subreports
+
+A `subreport` component prints another report inside a band (PRD Phase 7,
+invoices and statements). Layout expands it while it flattens band instances
+(`engine/subreport.ts`), so pagination sees only ordinary bands:
+
+- The band splits at the subreport. The head holds the other components that
+  start above the subreport's bottom edge, at a height of the subreport's top,
+  so components beside it print with the head. Then come the subreport's
+  report header, group headers, detail, group footers and report footer,
+  offset by the subreport's x. The tail holds the components below it, moved
+  up to start where the subreport's last band ends. The subreport takes the
+  height its rows need, not its designed height.
+- The subreport's rows are its dataset filtered by `links`: a row prints when
+  every `child` column equals the parent row's `master` column. Values compare
+  as text, so `1` matches `'1'`, and null never matches. Without links every
+  row prints. With no matching rows the subreport prints nothing.
+- Its bands paginate like the run report's: they move, split, break pages, and
+  repeat group headers, and the run report's open group headers repeat above
+  them. Its page header and footer don't print, its page setup is ignored, and
+  `resetPageNumber` in it starts a new page without a new numbering section.
+- Its expressions see its own `record`, `rows`, `group` and `rowNumber`, the
+  run report's `params` over its own defaults, and `parent`, the row of the
+  band that holds it.
+- `loadReportData` loads each subreport's dataset once, in full, and its
+  tables and images. Layout filters the rows per parent row.
+- Subreports nest up to three levels below the run report. A deeper one, or
+  one that prints a report containing it, prints nothing and reports a
+  diagnostic, so a bad definition can't recurse. `reports::validate` rejects
+  loops, nesting deeper than three levels, a missing report, two subreports in
+  one band, and a band with both a table and a subreport, and warns about a
+  subreport in a page header or footer, which layout leaves out. The designer
+  only offers reports that keep the chain within three levels without a loop.
+
 ### Determinism guarantees and tolerances
 
 The engine uses only integer metric sums and IEEE-754 arithmetic, which
@@ -213,8 +247,8 @@ monochrome printer.
 
 ## Deferred
 
-PRD §15 defers nested subreports, report scripts, barcodes, label layouts, and
-arbitrary HTML or CSS. This engine also leaves these for later:
+PRD §15 defers report scripts, barcodes, label layouts, and arbitrary HTML or
+CSS. This engine also leaves these for later:
 
 - fonts other than Helvetica and the bundled fallbacks, italic text, a true
   bold fallback face, Hangul syllables, and scripts that need shaping or
@@ -259,6 +293,11 @@ arbitrary HTML or CSS. This engine also leaves these for later:
   rewrite the fixtures after an intended change. Asset ids, which are minted
   when the template is created, are replaced by `{{asset:N}}` in the layout
   JSON. `.gitattributes` keeps the fixtures out of line-ending conversion.
+- `tests/unit/report-subreport.test.ts`: subreport positions and links, a
+  subreport split across pages, three levels of nesting, loop and depth
+  diagnostics, and the designer's nesting checks.
+- `tests/integration/nested-subforms.test.tsx`: an invoice report previews
+  each order's lines through a subreport loaded from DuckDB.
 - `tests/integration/report.test.tsx`: builds a grouped report in the UI,
   previews it, prints it, and exports two identical PDFs through the Rust
   command. It also sets the pagination options in the designer and checks that
@@ -268,3 +307,4 @@ arbitrary HTML or CSS. This engine also leaves these for later:
 
 - 2026-10-05: Said which options are omitted when off (`keepTogether` is
   always stored) and added the page-band table checks to the proof.
+- 2026-10-10: Added subreports, nested up to three levels (PRD Phase 7).

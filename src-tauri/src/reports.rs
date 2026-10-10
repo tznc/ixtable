@@ -7,10 +7,10 @@ use crate::archive::{check_named_ids, DocumentConfig, Issue};
 use crate::manager::AppError;
 use base64::Engine as _;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Component kinds the canvas supports. Anything else is rejected by `validate`.
-pub const COMPONENT_KINDS: [&str; 7] = [
+pub const COMPONENT_KINDS: [&str; 8] = [
     "staticText",
     "field",
     "calculated",
@@ -18,7 +18,11 @@ pub const COMPONENT_KINDS: [&str; 7] = [
     "line",
     "rectangle",
     "table",
+    "subreport",
 ];
+
+/// Levels of subreports a report may nest below itself (PRD Phase 7).
+pub const MAX_SUBREPORT_DEPTH: usize = 3;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -237,6 +241,78 @@ fn band_issues(
     if tables > 1 {
         issues.push(err(format!("{label} has more than one table")));
     }
+    let subreports: Vec<&Component> = band
+        .components
+        .iter()
+        .filter(|c| c.kind == "subreport")
+        .collect();
+    for c in &subreports {
+        let what = format!("{label} component {}", c.id);
+        if page_band {
+            // Layout leaves it out, like a table in a page band.
+            issues.push(Issue::warning(
+                "report",
+                id,
+                format!(
+                    "{}: {what}: subreports are not supported in page headers or footers and are left out",
+                    report.name
+                ),
+            ));
+        }
+        let target = c
+            .extra
+            .get("reportId")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if !target.is_empty() && !config.reports.iter().any(|r| r.id == target) {
+            issues.push(err(format!("{what} prints a report that does not exist")));
+        }
+    }
+    if subreports.len() > 1 {
+        issues.push(err(format!("{label} has more than one subreport")));
+    }
+    if !subreports.is_empty() && tables > 0 {
+        issues.push(err(format!("{label} has both a table and a subreport")));
+    }
+}
+
+/// Report ids a report's subreports print.
+fn subreport_ids(report: &Report) -> Vec<&str> {
+    let b = &report.bands;
+    let groups = b.groups.iter().flat_map(|g| [&g.header, &g.footer]);
+    [
+        &b.report_header,
+        &b.page_header,
+        &b.detail,
+        &b.page_footer,
+        &b.report_footer,
+    ]
+    .into_iter()
+    .chain(groups)
+    .flat_map(|band| band.components.iter())
+    .filter(|c| c.kind == "subreport")
+    .filter_map(|c| c.extra.get("reportId")?.as_str())
+    .filter(|id| !id.is_empty())
+    .collect()
+}
+
+/// Levels of subreports below `id` (0 without any); `None` when they loop.
+fn subreport_depth<'a>(
+    reports: &HashMap<&'a str, Vec<&'a str>>,
+    id: &'a str,
+    path: &mut Vec<&'a str>,
+) -> Option<usize> {
+    if path.contains(&id) {
+        return None;
+    }
+    let children = reports.get(id).map(Vec::as_slice).unwrap_or_default();
+    path.push(id);
+    let mut depth = 0;
+    for child in children {
+        depth = depth.max(1 + subreport_depth(reports, child, path)?);
+    }
+    path.pop();
+    Some(depth)
 }
 
 /// Checks every report: dataset exists, unique component ids, components
@@ -249,9 +325,21 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
             .iter()
             .map(|r| (r.id.as_str(), r.name.as_str())),
     );
+    let nesting: HashMap<&str, Vec<&str>> = config
+        .reports
+        .iter()
+        .map(|r| (r.id.as_str(), subreport_ids(r)))
+        .collect();
     for report in &config.reports {
         let id = report.id.as_str();
         let err = |m: &str| Issue::error("report", id, format!("{}: {m}", report.name));
+        match subreport_depth(&nesting, id, &mut Vec::new()) {
+            None => issues.push(err("its subreports print each other in a loop")),
+            Some(depth) if depth > MAX_SUBREPORT_DEPTH => issues.push(err(&format!(
+                "its subreports nest {depth} levels deep (at most {MAX_SUBREPORT_DEPTH})"
+            ))),
+            Some(_) => {}
+        }
         // A report without a dataset is allowed: it renders its bands once, with no rows.
         if let Some(q) = report.dataset_query_id.as_ref().filter(|q| !q.is_empty()) {
             if !config.saved_queries.iter().any(|s| &s.id == q) {
@@ -528,6 +616,77 @@ mod tests {
         assert!(has("group 1 has no group-by expression"), "{text:?}");
         assert!(has("t1 uses a saved query that does not exist"), "{text:?}");
         assert!(has("Report footer has more than one table"), "{text:?}");
+    }
+
+    /// A report `id` whose detail band prints the report `child` as a subreport.
+    fn printing(id: &str, child: Option<&str>) -> Report {
+        let mut r = valid_report();
+        r.id = id.into();
+        r.name = id.into();
+        if let Some(child) = child {
+            let mut sub = component("s1", "subreport", 0.0, 20.0, 100.0, 40.0);
+            sub.extra.insert("reportId".into(), json!(child));
+            sub.extra.insert(
+                "links".into(),
+                json!([{"child": "order_id", "master": "id"}]),
+            );
+            r.bands.detail.height = 60.0;
+            r.bands.detail.components.push(sub);
+        }
+        r
+    }
+
+    #[test]
+    fn reports_subreports_nest_three_levels_without_loops() {
+        // a → b → c → d: three levels below a.
+        let mut config = config_with(printing("a", Some("b")));
+        config.reports.push(printing("b", Some("c")));
+        config.reports.push(printing("c", Some("d")));
+        config.reports.push(printing("d", None));
+        assert!(validate(&config).is_empty(), "{:?}", validate(&config));
+        let back: Report =
+            serde_json::from_value(serde_json::to_value(&config.reports[0]).unwrap()).unwrap();
+        assert_eq!(back, config.reports[0]);
+        // A fourth level is too deep for a only.
+        config.reports[3] = printing("d", Some("e"));
+        config.reports.push(printing("e", None));
+        let deep: Vec<String> = validate(&config).into_iter().map(|i| i.message).collect();
+        assert_eq!(deep, ["a: its subreports nest 4 levels deep (at most 3)"]);
+        // A loop is reported on every report that reaches it.
+        let mut config = config_with(printing("a", Some("b")));
+        config.reports.push(printing("b", Some("c")));
+        config.reports.push(printing("c", Some("b")));
+        let looped = validate(&config);
+        assert_eq!(looped.len(), 3, "{looped:?}");
+        assert!(looped.iter().all(|i| i.message.contains("in a loop")));
+    }
+
+    #[test]
+    fn reports_validate_subreport_placement_and_target() {
+        let mut r = printing("a", Some("missing"));
+        let mut second = component("s2", "subreport", 0.0, 0.0, 50.0, 10.0);
+        second.extra.insert("reportId".into(), json!(""));
+        r.bands.detail.components.push(second);
+        r.bands
+            .detail
+            .components
+            .push(component("t1", "table", 50.0, 0.0, 50.0, 10.0));
+        r.bands.page_footer = Band {
+            height: 20.0,
+            components: vec![component("s3", "subreport", 0.0, 0.0, 50.0, 10.0)],
+            ..Default::default()
+        };
+        let issues = validate(&config_with(r));
+        let text: Vec<String> = issues.iter().map(|i| i.message.clone()).collect();
+        let has = |s: &str| text.iter().any(|m| m.contains(s));
+        assert!(has("s1 prints a report that does not exist"), "{text:?}");
+        assert!(has("Detail has more than one subreport"), "{text:?}");
+        assert!(has("Detail has both a table and a subreport"), "{text:?}");
+        let warning = issues
+            .iter()
+            .find(|i| i.message.contains("s3: subreports are not supported"))
+            .expect("page band warning");
+        assert_eq!(warning.severity, crate::archive::Severity::Warning);
     }
 
     #[test]

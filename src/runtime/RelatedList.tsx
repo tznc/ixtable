@@ -1,5 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { humanize } from "../design/generate";
+import { MAX_SUBFORM_DEPTH } from "../design/nesting";
 import { type DesignControl, type DesignForm, type FormMode, relatedKeys } from "../design/schema";
 import { readTablePage } from "../lib/api";
 import { useDocumentConfig } from "../lib/config-store";
@@ -28,8 +37,11 @@ import {
 type Rows = { records: RecordValues[]; identities: DataValue[][]; total: number };
 type Editing = { mode: FormMode; recordId?: unknown } | null;
 
+/** Related-list levels above the current form: 0 in a top-level form. */
+const SubformDepth = createContext(0);
+
 /**
- * One-level master/detail: child rows whose key columns match the current record, kept by
+ * Master/detail, nested up to `MAX_SUBFORM_DEPTH` levels: child rows whose key columns match the current record, kept by
  * the related list's `filter` expression (`record` is the child, `parent` the parent).
  * `disabled` (the control's or a container's `enabledWhen`) makes the list read-only.
  */
@@ -43,6 +55,7 @@ export function RelatedRecords({
   disabled?: boolean;
 }) {
   const related = control.related;
+  const depth = useContext(SubformDepth);
   const { config } = useDocumentConfig();
   const { roleId } = useRuntimeNavigation();
   const [schema, setSchema] = useState<TableSchema | null>(null);
@@ -104,7 +117,7 @@ export function RelatedRecords({
   );
 
   const load = useCallback(async () => {
-    if (!related || !saved) return;
+    if (!related || !saved || depth >= MAX_SUBFORM_DEPTH) return;
     try {
       const child = await tableSchema(related.table);
       const values = JSON.parse(linkSignature) as Record<string, unknown>;
@@ -145,13 +158,24 @@ export function RelatedRecords({
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     }
-  }, [related, saved, linkSignature, filterScope, offset, limit]);
+  }, [related, saved, depth, linkSignature, filterScope, offset, limit]);
   useEffect(() => {
     load().catch(() => undefined);
   }, [load]);
 
   if (!related) return null;
   const label = control.label || humanize(related.table);
+  // Validation rejects deeper designs; this guard also stops a form that embeds itself.
+  if (depth >= MAX_SUBFORM_DEPTH)
+    return (
+      <section ref={section} tabIndex={-1} className="rt-related" aria-label={label}>
+        <h3>{label}</h3>
+        <p className="rt-muted">
+          Related records nest at most {MAX_SUBFORM_DEPTH} levels deep, so {label.toLowerCase()} are
+          not shown here.
+        </p>
+      </section>
+    );
   if (!saved)
     return (
       <section ref={section} tabIndex={-1} className="rt-related" aria-label={label}>
@@ -313,21 +337,23 @@ export function RelatedRecords({
       )}
       {editing && childForm && !disabled && (
         <div className="rt-embedded" role="group" aria-label={`${label} record`}>
-          <FormRenderer
-            formId={childForm.id}
-            mode={editing.mode}
-            recordId={editing.recordId}
-            link={link}
-            embedded
-            onNotify={(text, tone) => {
-              if (tone === "error") setError(text);
-              else setMessage(`${label}: ${text}`);
-            }}
-            onDone={() => {
-              setEditing(null);
-              load().catch(() => undefined);
-            }}
-          />
+          <SubformDepth.Provider value={depth + 1}>
+            <FormRenderer
+              formId={childForm.id}
+              mode={editing.mode}
+              recordId={editing.recordId}
+              link={link}
+              embedded
+              onNotify={(text, tone) => {
+                if (tone === "error") setError(text);
+                else setMessage(`${label}: ${text}`);
+              }}
+              onDone={() => {
+                setEditing(null);
+                load().catch(() => undefined);
+              }}
+            />
+          </SubformDepth.Provider>
         </div>
       )}
       {dialog}

@@ -337,7 +337,8 @@ pub struct RelatedList {
     pub keys: Vec<KeyPair>,
     #[serde(default)]
     pub columns: Vec<String>,
-    /// Form used to add and edit child rows (embedded; it may not hold related lists).
+    /// Form used to add and edit child rows (embedded; related lists nest up to
+    /// `checks::MAX_SUBFORM_DEPTH` levels).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub form_id: Option<String>,
     /// Row filter over the child rows (`record` is a child row, `parent` the parent record).

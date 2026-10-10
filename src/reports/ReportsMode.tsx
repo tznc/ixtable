@@ -189,6 +189,7 @@ export function ReportsMode() {
                 key={`${report.id}:${focus.seq}`}
                 focusId={focus.id}
                 report={report}
+                reports={config.reports}
                 queries={readQueries(config.savedQueries)}
                 columns={columns}
                 change={change}

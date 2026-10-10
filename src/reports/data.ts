@@ -4,8 +4,9 @@ import { cancelQuery, runSavedQuery, runQuerySql } from "../query/api";
 import type { QueryRunResult, SavedQuery } from "../query/types";
 import { readReportAssets } from "./api";
 import { newId } from "../lib/utils";
-import { bandEntries } from "./model";
-import type { Row } from "./engine";
+import { bandEntries, subreportIds } from "./model";
+import type { Row, SubreportData } from "./engine";
+import { MAX_SUBREPORT_DEPTH } from "./engine/subreport";
 import type { Report } from "./types";
 
 /** Converts a backend cell to the plain JS value expressions see. */
@@ -104,13 +105,15 @@ export interface ReportData {
   rows: Row[];
   tables: Record<string, Row[]>;
   assets: Record<string, { mediaType: string; dataBase64: string }>;
+  /** Subreport definitions and rows, by report id. */
+  subreports: Record<string, SubreportData>;
   /** True when a query returned only the first `REPORT_ROW_LIMIT` rows. */
   truncated: boolean;
 }
 
 /**
  * Loads everything a report needs: dataset rows, rows of table components'
- * saved queries, and image assets. Aborting `signal` interrupts the running
+ * saved queries, subreports and their rows, and image assets. Aborting `signal` interrupts the running
  * query in DuckDB (`cancelQuery`) and rejects with `ReportCancelled`.
  */
 export async function loadReportData(
@@ -137,7 +140,23 @@ export async function loadReportData(
       return resultRows(result);
     };
     const dataset = await step(() => loadDataset(report, config, params, runId));
-    const components = bandEntries(report).flatMap((entry) => entry.band.components);
+    // Each subreport's rows load once, in full; layout filters them per parent row.
+    const subreports: Record<string, SubreportData> = {};
+    const printed = [report];
+    const queue = subreportIds(report).map((id) => ({ id, level: 1 }));
+    for (let next = queue.shift(); next; next = queue.shift()) {
+      const { id, level } = next;
+      const sub = config.reports.find((r) => r.id === id);
+      if (!sub || subreports[id] || id === report.id || level > MAX_SUBREPORT_DEPTH) continue;
+      const values = { ...sub.params, ...params };
+      const result = await step(() => loadDataset(sub, config, values, runId));
+      subreports[id] = { report: sub, rows: result ? rowsOf(result) : [] };
+      printed.push(sub);
+      queue.push(...subreportIds(sub).map((child) => ({ id: child, level: level + 1 })));
+    }
+    const components = printed.flatMap((r) =>
+      bandEntries(r).flatMap((entry) => entry.band.components),
+    );
     const tables: Record<string, Row[]> = {};
     for (const c of components) {
       if (c.kind !== "table" || !c.queryId || tables[c.queryId]) continue;
@@ -155,7 +174,7 @@ export async function loadReportData(
     if (ids.length)
       for (const a of await step(() => readReportAssets(ids)))
         assets[a.id] = { mediaType: a.mediaType, dataBase64: a.dataBase64 };
-    return { rows: dataset ? rowsOf(dataset) : [], tables, assets, truncated };
+    return { rows: dataset ? rowsOf(dataset) : [], tables, assets, subreports, truncated };
   } finally {
     signal?.removeEventListener("abort", onAbort);
   }

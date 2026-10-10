@@ -316,15 +316,45 @@ fn check_navigation(
     }
 }
 
+/// Levels of related lists a form may nest below itself (PRD Phase 7).
+pub const MAX_SUBFORM_DEPTH: usize = 3;
+
+/// Forms a form's related lists open (only lists that name a form).
+fn embedded_forms(form: &Form) -> Vec<&str> {
+    form.controls
+        .iter()
+        .filter(|c| c.kind == ControlKind::RelatedList)
+        .filter_map(|c| c.related.as_ref()?.form_id.as_deref())
+        .collect()
+}
+
+/// Levels of related lists below `id` (0 when it opens no form); `None` on a cycle.
+fn subform_depth<'a>(
+    embeds: &HashMap<&'a str, Vec<&'a str>>,
+    id: &'a str,
+    path: &mut Vec<&'a str>,
+) -> Option<usize> {
+    if path.contains(&id) {
+        return None;
+    }
+    let children = embeds.get(id).map(Vec::as_slice).unwrap_or_default();
+    path.push(id);
+    let mut depth = 0;
+    for child in children {
+        depth = depth.max(1 + subform_depth(embeds, child, path)?);
+    }
+    path.pop();
+    Some(depth)
+}
+
 /// Dependency validation over forms, controls, and navigation (non-blocking issues).
 pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
     let design = &config.design;
     let mut out = vec![];
-    let embedded: HashSet<&str> = design
+    let embeds: HashMap<&str, Vec<&str>> = design
         .forms
         .iter()
-        .flat_map(|f| f.controls.iter())
-        .filter_map(|c| c.related.as_ref()?.form_id.as_deref())
+        .map(|f| (f.id.as_str(), embedded_forms(f)))
         .collect();
     for form in &design.forms {
         let id = &form.id;
@@ -412,12 +442,10 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
                 format!("form \"{}\" has an empty list filter", form.name),
             ));
         }
-        let nested = form
-            .controls
-            .iter()
-            .any(|c| c.kind == ControlKind::RelatedList);
-        if nested && embedded.contains(id.as_str()) {
-            out.push(Issue::error("form", id, format!("form \"{}\" is embedded in a related list and cannot hold its own related list (one level of master/detail only)", form.name)));
+        match subform_depth(&embeds, id, &mut Vec::new()) {
+            None => out.push(Issue::error("form", id, format!("form \"{}\" has related lists that open each other in a loop", form.name))),
+            Some(depth) if depth > MAX_SUBFORM_DEPTH => out.push(Issue::error("form", id, format!("form \"{}\" nests related lists {depth} levels deep (at most {MAX_SUBFORM_DEPTH})", form.name))),
+            Some(_) => {}
         }
         for control in &form.controls {
             check_control(config, form, control, &mut out);

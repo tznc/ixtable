@@ -1,4 +1,5 @@
 import { newId } from "../lib/utils";
+import { MAX_SUBREPORT_DEPTH } from "./engine/subreport";
 import type { Band, ComponentKind, PageSetup, Report, ReportComponent, ReportGroup } from "./types";
 
 /** Page width and height in points. A4 is rounded to whole points (595 × 842). */
@@ -45,6 +46,7 @@ const KIND_SIZE: Record<ComponentKind, [number, number]> = {
   line: [200, 4],
   rectangle: [120, 40],
   table: [300, 40],
+  subreport: [300, 60],
 };
 
 /** A new component of `kind`, placed at (x, y) and clamped into a band of `bandWidth`. */
@@ -71,6 +73,8 @@ export function newComponent(
       return { ...base, kind, style: { borderWidth: 1 } };
     case "table":
       return { ...base, kind, queryId: "", columns: [] };
+    case "subreport":
+      return { ...base, kind, reportId: "", links: [] };
   }
 }
 
@@ -194,6 +198,7 @@ export const REPORT_SCOPE_NAMES = [
   "report",
   "group",
   "rowNumber",
+  "parent",
 ];
 
 /** `record.<column>` with bracket quoting for names that are not plain identifiers. */
@@ -209,20 +214,82 @@ export const KIND_LABELS: Record<ComponentKind, string> = {
   line: "Line",
   rectangle: "Rectangle",
   table: "Table",
+  subreport: "Subreport",
 };
 
 export const isPageBand = (key: BandKey) => key === "pageHeader" || key === "pageFooter";
 
+/** Ids of the reports a report's subreports print. */
+export const subreportIds = (report: Report): string[] =>
+  bandEntries(report).flatMap((e) =>
+    e.band.components.flatMap((c) => (c.kind === "subreport" && c.reportId ? [c.reportId] : [])),
+  );
+
+/** Levels of subreports below report `id` (0 without any); a loop is infinitely deep. */
+export function subreportDepth(reports: Report[], id: string, path = new Set<string>()): number {
+  if (path.has(id)) return Number.POSITIVE_INFINITY;
+  const report = reports.find((r) => r.id === id);
+  const ids = report ? subreportIds(report) : [];
+  if (!ids.length) return 0;
+  const inner = new Set(path).add(id);
+  return 1 + Math.max(...ids.map((child) => subreportDepth(reports, child, inner)));
+}
+
+/** Levels of subreports above report `id`: the longest chain of reports that print it. */
+function subreportHeight(reports: Report[], id: string, path = new Set<string>()): number {
+  if (path.has(id)) return Number.POSITIVE_INFINITY;
+  const inner = new Set(path).add(id);
+  const parents = reports.filter((r) => subreportIds(r).includes(id));
+  return Math.max(0, ...parents.map((p) => 1 + subreportHeight(reports, p.id, inner)));
+}
+
+/**
+ * Reports a subreport in `report` may print: never `report` itself or one that
+ * prints it, and only while the whole chain stays within `MAX_SUBREPORT_DEPTH`.
+ */
+export function embeddableReports(reports: Report[], report: Report): Report[] {
+  const above = subreportHeight(reports, report.id);
+  return reports.filter(
+    (r) =>
+      r.id !== report.id &&
+      above + 1 + subreportDepth(reports, r.id, new Set([report.id])) <= MAX_SUBREPORT_DEPTH,
+  );
+}
+
 /** Definition problems the designer shows; mirrors `reports::validate` in Rust. */
-export function reportProblems(report: Report): string[] {
-  return bandEntries(report)
-    .filter((e) => isPageBand(e.key))
-    .flatMap((e) =>
-      e.band.components
-        .filter((c) => c.kind === "table")
-        .map(
-          (c) =>
-            `${e.label} component ${c.id}: tables are not supported in page headers or footers`,
+export function reportProblems(report: Report, reports: Report[] = []): string[] {
+  const subreportOf = (c: ReportComponent) =>
+    c.kind === "subreport" ? reports.find((r) => r.id === c.reportId) : undefined;
+  const depth = subreportDepth(reports, report.id);
+  const nesting =
+    depth === Number.POSITIVE_INFINITY
+      ? ["its subreports print each other in a loop"]
+      : depth > MAX_SUBREPORT_DEPTH
+        ? [`its subreports nest ${depth} levels deep (at most ${MAX_SUBREPORT_DEPTH})`]
+        : [];
+  return [
+    ...nesting,
+    ...bandEntries(report).flatMap((e) => {
+      const page = isPageBand(e.key);
+      const subs = e.band.components.filter((c) => c.kind === "subreport");
+      return [
+        ...e.band.components.flatMap((c) =>
+          page && (c.kind === "table" || c.kind === "subreport")
+            ? [
+                `${e.label} component ${c.id}: ${c.kind === "table" ? "tables" : "subreports"} are not supported in page headers or footers`,
+              ]
+            : [],
         ),
-    );
+        ...(subs.length > 1 ? [`${e.label} has more than one subreport`] : []),
+        ...(subs.length && e.band.components.some((c) => c.kind === "table")
+          ? [`${e.label} has both a table and a subreport`]
+          : []),
+        ...subs.flatMap((c) =>
+          c.kind === "subreport" && c.reportId && reports.length && !subreportOf(c)
+            ? [`${e.label} component ${c.id}: the subreport's report does not exist`]
+            : [],
+        ),
+      ];
+    }),
+  ];
 }

@@ -106,6 +106,25 @@ export interface TableComponent extends ComponentBase {
   columns: TableColumn[];
 }
 
+/** Child rows print when the child row's `child` column equals the parent row's `master` column. */
+export interface SubreportLink {
+  child: string;
+  master: string;
+}
+/**
+ * Another report printed inside this band, once per band instance (PRD Phase 7).
+ * It prints its report header, groups, detail and report footer at the
+ * component's x position and takes the height its rows need: components
+ * below it move down, and it splits across pages band by band. Its page
+ * header and footer are not printed. With no matching rows it prints nothing.
+ * Subreports nest up to three levels deep.
+ */
+export interface SubreportComponent extends ComponentBase {
+  kind: "subreport";
+  reportId: string;
+  links: SubreportLink[];
+}
+
 export type ReportComponent =
   | StaticTextComponent
   | FieldComponent
@@ -113,7 +132,8 @@ export type ReportComponent =
   | ImageComponent
   | LineComponent
   | RectangleComponent
-  | TableComponent;
+  | TableComponent
+  | SubreportComponent;
 export type ComponentKind = ReportComponent["kind"];
 
 export interface Band {

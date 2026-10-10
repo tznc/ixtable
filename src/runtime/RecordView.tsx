@@ -380,7 +380,6 @@ export function RecordView({
     errors: errors.fields,
     readOnly,
     locked,
-    embedded,
     identity,
     setField,
     blur,

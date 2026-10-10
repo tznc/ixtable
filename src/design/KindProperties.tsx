@@ -2,6 +2,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { newId } from "../lib/utils";
 import { filterNames } from "../runtime/conditions";
 import { ExpressionField } from "./ExpressionField";
+import { embeddableForms } from "./nesting";
 import { removeTab } from "./operations";
 import type { DesignControl, DesignForm } from "./schema";
 import { useColumns } from "./useColumns";
@@ -93,6 +94,8 @@ export function RelatedListProperties({
   const { design, editControl } = useDesignEditor();
   const change = (patch: Partial<DesignControl>) => editControl(form.id, control.id, patch);
   const childColumns = useColumns(control.related?.table);
+  // Nested forms stay within three levels and never embed a form that embeds this one.
+  const options = new Set(embeddableForms(design.forms, form).map((f) => f.id));
   return (
     <fieldset className="fd-fieldset">
       <legend>Related records</legend>
@@ -154,7 +157,7 @@ export function RelatedListProperties({
         >
           <option value="">Generated from the table</option>
           {design.forms
-            .filter((f) => f.id !== form.id && !f.controls.some((c) => c.kind === "relatedList"))
+            .filter((f) => f.id === control.related?.formId || options.has(f.id))
             .map((f) => (
               <option key={f.id} value={f.id}>
                 {f.name}
