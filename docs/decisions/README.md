@@ -24,6 +24,7 @@ every risk-retirement spike. This index maps each spike to its record.
 | [Action queries](./action-queries.md) | none. Saved queries that change rows: DuckDB SQL through a writable attach, per-row triggers | accepted |
 | [Access import](./access-import.md) | none. One-way import of Access databases and templates. Format spec in [`docs/access-format.md`](../access-format.md) | accepted |
 | [Data export](./data-export.md) | none. CSV, XLSX and JSON export streamed from DuckDB (PRD Phase 6) | accepted |
+| [Datasheet tools](./datasheet-tools.md) | none. Filter by selection, find and replace, frozen and hidden columns, totals row, spreadsheet paste (PRD Phase 6) | accepted |
 
 The Phase 0 item "signed personalized bundle and envelope-encryption threat
 model" is covered by the [cloud security model](./cloud-security-model.md)

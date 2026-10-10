@@ -1,4 +1,4 @@
-import { Columns3, FileUp, GitBranch, Plus, Rows3, Search, Table2, Trash2 } from "lucide-react";
+import { Columns3, FileUp, GitBranch, Plus, Search, Table2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { asTauriError, inspectTable, readTablePage } from "../lib/api";
 import { CreateFormsOffer } from "../design/CreateFormsOffer";
@@ -6,16 +6,14 @@ import { firstColumnFilter } from "../export/filters";
 import { TableExport } from "../export/TableExport";
 import { ImportWizard } from "../import";
 import { useDocumentConfig } from "../lib/config-store";
-import { deleteRecord, insertRecord, updateRecord } from "../lib/records";
-import type { CreateTableSpec, DbPage, NamedValue, Sort, TableSchema } from "../lib/types";
+import type { CreateTableSpec, DbPage, Filter, Sort, TableSchema } from "../lib/types";
 import { storeCapabilities } from "../schema/api";
-import { logicalOf, valueFromText } from "../schema/logical";
 import type { StoreCapabilities } from "../schema/types";
 import { useShell } from "../shell/context";
 import { createDatabaseTable } from "./api";
 import { CreateTableForm } from "./CreateTableForm";
 import { RelateDialog } from "./RelateDialog";
-import { showValue } from "./format";
+import { Datasheet } from "./sheet/Datasheet";
 import {
   type DrawnRelationship,
   type NodePositions,
@@ -24,6 +22,7 @@ import {
 import { TableSchemaDesigner } from "./TableSchemaDesigner";
 
 const PAGE_SIZE = 100;
+const NO_FILTERS: Filter[] = [];
 
 export function DatabaseWorkbench() {
   const { objects, selection: active, select: onSelect, reloadMetadata, markDirty } = useShell();
@@ -69,8 +68,18 @@ export function DatabaseWorkbench() {
     [filter, setFilter] = useState(""),
     [designingSelected, setDesigningSelected] = useState(false),
     [created, setCreated] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Record<number, string>>({}),
-    [draftError, setDraftError] = useState("");
+  // Filters applied from the datasheet (filter by selection), on top of the search box.
+  const [applied, setApplied] = useState<{ table: string; filters: Filter[] }>({
+    table: "",
+    filters: [],
+  });
+  const sheetFilters = applied.table === selected ? applied.filters : NO_FILTERS;
+  const setSheetFilters = (filters: Filter[]) => setApplied({ table: selected, filters });
+  const readFilters = useMemo(
+    () => [...firstColumnFilter(page?.columns[0]?.name, filter), ...sheetFilters],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [page?.columns[0]?.name, filter, sheetFilters],
+  );
   const refresh = () => setRevision((x) => x + 1);
   useEffect(() => {
     let live = true;
@@ -94,13 +103,11 @@ export function DatabaseWorkbench() {
       return;
     }
     setLoading(true);
-    const filters = firstColumnFilter(page?.columns[0]?.name, filter);
-    readTablePage(selected, { offset, limit: PAGE_SIZE, sorts, filters })
+    readTablePage(selected, { offset, limit: PAGE_SIZE, sorts, filters: readFilters })
       .then(setPage)
       .catch((e) => setError(asTauriError(e).message))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, offset, sorts, filter, revision]);
+  }, [selected, offset, sorts, readFilters, revision]);
   /**
    * After DDL: entities may have changed in the backend config, and metadata is stale.
    * The reload adds no undo step: undo cannot revert the schema, so it must not
@@ -120,62 +127,6 @@ export function DatabaseWorkbench() {
     await createDatabaseTable(spec);
     await afterSchemaChange(spec.name);
     setCreated(spec.name);
-  };
-  /** The row as read, sent back as `expected` so optimistic entities detect concurrent edits. */
-  const original = (row: number): NamedValue[] =>
-    page
-      ? page.columns
-          .map((c, j) => ({ column: c.name, value: page.rows[row][j] }))
-          .filter((_, j) => !page.columns[j].generated && logicalOf(page.columns[j]) !== "blob")
-      : [];
-  const commit = async (row: number, column: number, text: string) => {
-    if (!page) return;
-    const meta = page.columns[column];
-    try {
-      const value = valueFromText(text, meta.name, logicalOf(meta));
-      await updateRecord(selected, [{ column: meta.name, value }], page.identities[row], {
-        expected: original(row),
-      });
-      setError("");
-      markDirty();
-      refresh();
-    } catch (e) {
-      const failure = asTauriError(e);
-      setError(failure.message);
-      if (failure.code === "CONFLICT") refresh();
-    }
-  };
-  const remove = async (row: number) => {
-    if (!page || !window.confirm("Delete this row?")) return;
-    try {
-      await deleteRecord(selected, page.identities[row], { expected: original(row) });
-      markDirty();
-      if (page.rows.length === 1 && offset) setOffset(Math.max(0, offset - PAGE_SIZE));
-      else refresh();
-    } catch (e) {
-      setError(asTauriError(e).message);
-    }
-  };
-  const insert = async () => {
-    if (!page) return;
-    setDraftError("");
-    try {
-      const values = Object.entries(draft)
-        .filter(([, text]) => text !== "")
-        .map(([index, text]) => {
-          const column = page.columns[Number(index)];
-          return {
-            column: column.name,
-            value: valueFromText(text, column.name, logicalOf(column)),
-          };
-        });
-      await insertRecord(selected, values);
-      setDraft({});
-      markDirty();
-      refresh();
-    } catch (e) {
-      setDraftError(asTauriError(e).message);
-    }
   };
   const selectedSchema = schemas.find((schema) => schema.name === selected);
   const schemasFresh = schemasFor === objects;
@@ -307,12 +258,7 @@ export function DatabaseWorkbench() {
                       <Search />
                       Refresh
                     </button>
-                    <TableExport
-                      table={selected}
-                      sorts={sorts}
-                      filterText={filter}
-                      firstColumn={page?.columns[0]?.name}
-                    />
+                    <TableExport table={selected} sorts={sorts} filters={readFilters} />
                     {!readOnly && (
                       <button onClick={() => setDesigningSelected(true)}>
                         <Columns3 />
@@ -329,127 +275,30 @@ export function DatabaseWorkbench() {
                     {error}
                   </div>
                 )}
-                {draftError && (
-                  <div className="error" role="alert">
-                    {draftError}
-                  </div>
+                {page && (
+                  <Datasheet
+                    table={selected}
+                    page={page}
+                    pageSize={PAGE_SIZE}
+                    readOnly={readOnly}
+                    revision={revision}
+                    sorts={sorts}
+                    onSorts={setSorts}
+                    readFilters={readFilters}
+                    filters={sheetFilters}
+                    onFilters={(next) => {
+                      setSheetFilters(next);
+                      setOffset(0);
+                    }}
+                    onOffset={setOffset}
+                    onWritten={() => {
+                      markDirty();
+                      refresh();
+                    }}
+                    onRefresh={refresh}
+                    onError={setError}
+                  />
                 )}
-                <div className="data-grid">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th className="rownum">#</th>
-                        {page?.columns.map((c) => (
-                          <th key={c.name}>
-                            <button
-                              onClick={() =>
-                                setSorts((old) => [
-                                  {
-                                    column: c.name,
-                                    descending:
-                                      old[0]?.column === c.name ? !old[0].descending : false,
-                                  },
-                                ])
-                              }
-                            >
-                              {c.name}{" "}
-                              {sorts[0]?.column === c.name ? (sorts[0].descending ? "↓" : "↑") : ""}
-                            </button>
-                            <small>{logicalOf(c)}</small>
-                          </th>
-                        ))}
-                        {!readOnly && <th />}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {page?.rows.map((row, i) => (
-                        <tr key={JSON.stringify(page.identities[i])}>
-                          <td className="rownum">{offset + i + 1}</td>
-                          {row.map((v, j) => (
-                            <td
-                              key={j}
-                              className={page.columns[j].primaryKeyPosition ? "primary" : ""}
-                            >
-                              {readOnly || page.columns[j].generated ? (
-                                <span>{showValue(v)}</span>
-                              ) : (
-                                <input
-                                  key={`${revision}:${showValue(v)}`}
-                                  defaultValue={showValue(v)}
-                                  aria-label={`${page.columns[j].name}, row ${offset + i + 1}`}
-                                  onKeyDown={(e) => {
-                                    navigateDraft(e, j);
-                                    if (e.key === "Enter") {
-                                      e.currentTarget.blur();
-                                    }
-                                  }}
-                                  onBlur={(e) => {
-                                    if (e.currentTarget.value !== showValue(v))
-                                      void commit(i, j, e.currentTarget.value);
-                                  }}
-                                />
-                              )}
-                            </td>
-                          ))}
-                          {!readOnly && (
-                            <td>
-                              <button
-                                aria-label={`Delete row ${offset + i + 1}`}
-                                onClick={() => void remove(i)}
-                              >
-                                <Trash2 />
-                              </button>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                      {page && !readOnly && (
-                        <tr className="draft-row">
-                          <td className="rownum">+</td>
-                          {page.columns.map((column, j) => (
-                            <td key={column.name}>
-                              {column.generated ? (
-                                <span>Generated</span>
-                              ) : (
-                                <input
-                                  data-draft-index={j}
-                                  aria-label={`New ${column.name}`}
-                                  placeholder={column.defaultValue ? "Default" : "Enter value"}
-                                  value={draft[j] ?? ""}
-                                  onChange={(e) => setDraft((x) => ({ ...x, [j]: e.target.value }))}
-                                  onKeyDown={(e) => {
-                                    navigateDraft(e, j);
-                                    if (e.key === "Enter") void insert();
-                                    if (e.key === "Escape") {
-                                      setDraft({});
-                                      setDraftError("");
-                                    }
-                                  }}
-                                />
-                              )}
-                            </td>
-                          ))}
-                          <td>
-                            <button aria-label="Insert row" onClick={() => void insert()}>
-                              <Plus />
-                            </button>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                  {page && !page.rows.length && (
-                    <div className="empty-recent">
-                      <Rows3 />
-                      <b>No records yet</b>
-                      <span>
-                        {readOnly
-                          ? "This view returned no records."
-                          : "Use the new row above to add the first record."}
-                      </span>
-                    </div>
-                  )}
-                </div>
                 <div className="grid-footer">
                   <span>
                     {page?.total
@@ -480,20 +329,4 @@ export function DatabaseWorkbench() {
       )}
     </section>
   );
-}
-
-function navigateDraft(event: React.KeyboardEvent<HTMLInputElement>, index: number) {
-  const input = event.currentTarget;
-  let next = index;
-  if (event.key === "ArrowRight" && input.selectionStart === input.value.length) next = index + 1;
-  if (event.key === "ArrowLeft" && input.selectionStart === 0) next = index - 1;
-  if (event.key === "ArrowDown") next = index + 1;
-  if (event.key === "ArrowUp") next = index - 1;
-  if (next === index) return;
-  const target = document.querySelector<HTMLInputElement>(`[data-draft-index="${next}"]`);
-  if (target) {
-    event.preventDefault();
-    target.focus();
-    target.select();
-  }
 }

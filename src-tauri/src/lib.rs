@@ -191,6 +191,17 @@ fn read_table_page(
     trigger_auth::authorize(&window_label, &table, authz::Op::Read, trigger.as_ref())?;
     manager()?.table_page(&window_label, &table, offset, limit, &sorts, &filters)
 }
+/// The datasheet totals row (src/data/sheet): one aggregate per column over the filtered rows.
+#[tauri::command]
+fn read_table_totals(
+    window_label: String,
+    table: String,
+    filters: Vec<data::Filter>,
+    totals: Vec<data::totals::TotalSpec>,
+) -> Result<Vec<data::DataValue>, AppError> {
+    trigger_auth::authorize(&window_label, &table, authz::Op::Read, None)?;
+    manager()?.table_totals(&window_label, &table, &filters, &totals)
+}
 #[tauri::command]
 fn execute_read_query(window_label: String, sql: String) -> Result<data::QueryResult, AppError> {
     authz::require_unrestricted(&window_label, "run ad hoc SQL")?;
@@ -354,6 +365,7 @@ pub fn run() {
             list_database_objects,
             inspect_table,
             read_table_page,
+            read_table_totals,
             execute_read_query,
             recordstore::commands::insert_row,
             recordstore::commands::update_row,

@@ -1,0 +1,141 @@
+/* Datasheet tools (src/data/sheet): toolbar, filter chips, find panel, frozen columns, totals row. */
+.sheet-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #e0e3df;
+  background: #fafbf9;
+  font-size: 10px;
+}
+.sheet-toolbar > button,
+.find-replace button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid #ccd4cb;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 10px;
+}
+.sheet-toolbar button svg,
+.find-replace button svg {
+  width: 12px;
+}
+.sheet-toolbar button[aria-pressed="true"] {
+  background: #e3efe5;
+  border-color: var(--ix-focus);
+}
+.sheet-toolbar button:disabled {
+  color: var(--ix-disabled);
+}
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+}
+.filter-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 8px;
+  border-radius: 10px;
+  background: #e3efe5;
+  color: var(--ix-accent);
+}
+.filter-chips button {
+  border: 0;
+  background: none;
+  color: var(--ix-accent);
+  padding: 0 2px;
+}
+.filter-chips svg {
+  width: 10px;
+}
+.find-replace {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e3df;
+  background: #f4f8f4;
+  font-size: 10px;
+}
+.find-replace label {
+  display: grid;
+  gap: 2px;
+  color: var(--ix-subtle);
+}
+.find-replace label.check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.find-replace input:not([type="checkbox"]),
+.find-replace select {
+  padding: 4px 6px;
+  border: 1px solid #ccd4cb;
+  border-radius: 4px;
+}
+.find-replace [role="status"],
+.sheet-notice {
+  color: var(--ix-subtle);
+}
+.sheet-notice {
+  margin: 0;
+  padding: 4px 12px;
+  font-size: 10px;
+}
+.data-grid th.frozen,
+.data-grid td.frozen {
+  position: sticky;
+  z-index: 1;
+  background: #fff;
+}
+.data-grid th.frozen {
+  background: #f0f2ef;
+}
+.data-grid .rownum.frozen {
+  background: #f6f7f5;
+}
+.data-grid .frozen-edge {
+  box-shadow: 2px 0 0 #c9d0c8;
+}
+.data-grid th .column-menu {
+  margin-left: 4px;
+  vertical-align: middle;
+  color: var(--ix-subtle);
+}
+.data-grid th .column-menu svg {
+  float: none;
+  width: 11px;
+}
+.data-grid th sup {
+  font-size: 7px;
+}
+.data-grid .totals-row th,
+.data-grid .totals-row td {
+  position: sticky;
+  bottom: 0;
+  background: #f0f2ef;
+  border-top: 2px solid #c9d0c8;
+}
+.data-grid .totals-row .frozen {
+  z-index: 2;
+}
+.data-grid .totals-row select {
+  border: 0;
+  background: transparent;
+  color: var(--ix-subtle);
+  font-size: 9px;
+}
+.data-grid .totals-row output {
+  margin-left: 6px;
+  font-weight: 600;
+}
