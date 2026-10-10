@@ -1,3 +1,4 @@
+pub mod access;
 pub mod archive;
 pub mod archive_io;
 pub mod asset_data;
@@ -382,6 +383,7 @@ pub fn run() {
             report_pdf::prepare_report_pdf,
             // asset_data commands
             asset_data::read_asset_data_url,
+            asset_data::read_asset_text,
             // dashboards commands
             // import commands
             import::preview_import_file,
@@ -432,6 +434,11 @@ pub fn run() {
             queries::run_saved_query_page,
             queries::cancel_query,
             queries::check_query_sql,
+            queries::action::run_action_query,
+            queries::action::check_action_query_sql,
+            // access commands
+            access::inspect_access_file,
+            access::import_access_file,
             // templates commands
             templates::list_templates,
             templates::read_template_config,

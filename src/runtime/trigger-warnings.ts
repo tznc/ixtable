@@ -1,5 +1,6 @@
 import type { Step } from "../automation/types";
 import type { DocumentConfig } from "../lib/types";
+import { ACTION_QUERY_OPS } from "../query/types";
 import { can } from "./rbac";
 import type { Operation } from "./types";
 
@@ -15,7 +16,10 @@ const routedTo = (config: Pick<DocumentConfig, "entities">, table: string) => {
  * Permissions a trigger's action needs, following branches, runAction calls and
  * the custom actions its updates and deletes are routed to (trigger_auth.rs).
  */
-function needed(config: Pick<DocumentConfig, "actions" | "entities">, actionId: string): Needed[] {
+function needed(
+  config: Pick<DocumentConfig, "actions" | "entities" | "savedQueries">,
+  actionId: string,
+): Needed[] {
   const out: Needed[] = [{ kind: "action", id: actionId, op: "execute" }];
   const seen = new Set<string>();
   const queue = [actionId];
@@ -30,7 +34,14 @@ function needed(config: Pick<DocumentConfig, "actions" | "entities">, actionId: 
       if (step.kind === "createRecord") out.push({ kind: "table", id: step.table, op: "create" });
       if (step.kind === "updateRecord") out.push({ kind: "table", id: step.table, op: "update" });
       if (step.kind === "deleteRecord") out.push({ kind: "table", id: step.table, op: "delete" });
-      if (step.kind === "runQuery") out.push({ kind: "query", id: step.queryId, op: "read" });
+      if (step.kind === "runQuery") {
+        const action = config.savedQueries?.find((q) => q.id === step.queryId)?.action;
+        // An action query needs the table operations it performs, not query read.
+        if (action)
+          for (const op of ACTION_QUERY_OPS[action.kind])
+            out.push({ kind: "table", id: action.table, op });
+        else out.push({ kind: "query", id: step.queryId, op: "read" });
+      }
       if (step.kind === "runAction") {
         out.push({ kind: "action", id: step.actionId, op: "execute" });
         queue.push(step.actionId);

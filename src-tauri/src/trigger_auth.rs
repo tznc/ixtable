@@ -225,14 +225,16 @@ pub fn verify(
         )));
     }
     if let Some(token) = &auth.grant {
-        let map = grants().lock().unwrap_or_else(|e| e.into_inner());
-        let live = map.get(token).is_some_and(|g| {
+        let mut map = grants().lock().unwrap_or_else(|e| e.into_inner());
+        let grant = map.get_mut(token).filter(|g| {
             g.window == window
                 && g.expires > now
                 && g.triggers.contains(&trigger.id)
                 && g.table == trigger.table
                 && g.event == trigger.event
         });
+        // Each use extends the grant, so one grant can serve the rows of an action query in turn.
+        let live = grant.map(|g| g.expires = now + GRANT_TTL).is_some();
         return if live {
             Ok(())
         } else {
@@ -300,7 +302,23 @@ pub fn needed_grants(config: &DocumentConfig, trigger: &Trigger) -> Vec<(String,
             "createRecord" => out.push(("table".into(), field("table"), Op::Create)),
             "updateRecord" => out.push(("table".into(), field("table"), Op::Update)),
             "deleteRecord" => out.push(("table".into(), field("table"), Op::Delete)),
-            "runQuery" => out.push(("query".into(), field("queryId"), Op::Read)),
+            "runQuery" => {
+                let id = field("queryId");
+                let action = config
+                    .saved_queries
+                    .iter()
+                    .find(|q| q.id == id)
+                    .and_then(|q| q.action.as_ref());
+                match action {
+                    // An action query needs the table operations it performs.
+                    Some(spec) => out.extend(
+                        action_query_ops(spec.kind)
+                            .iter()
+                            .map(|&op| ("table".into(), spec.table.clone(), op)),
+                    ),
+                    None => out.push(("query".into(), id, Op::Read)),
+                }
+            }
             "runAction" => out.push(("action".into(), field("actionId"), Op::Execute)),
             _ => {}
         }
@@ -309,6 +327,17 @@ pub fn needed_grants(config: &DocumentConfig, trigger: &Trigger) -> Vec<(String,
         }
     }
     out
+}
+
+/// The table operations an action query of `kind` performs.
+pub fn action_query_ops(kind: crate::archive::ActionKind) -> &'static [Op] {
+    use crate::archive::ActionKind::*;
+    match kind {
+        Insert => &[Op::Create],
+        Update => &[Op::Update],
+        Delete => &[Op::Delete],
+        Replace => &[Op::Delete, Op::Create],
+    }
 }
 
 fn op_label(op: Op) -> &'static str {

@@ -26,6 +26,7 @@ pub mod support;
 #[cfg(test)]
 mod tests;
 pub mod values;
+pub mod write;
 
 pub use ddl::{
     parse_sqlite_create_index, parse_sqlite_create_table, CheckDef, ColumnDef, ForeignKeyDef,
@@ -406,7 +407,7 @@ pub fn read_only_guard(sql: &str) -> Result<&str, String> {
         .filter(|t| !t.is_empty())
         .collect();
     let first = words.first().copied().unwrap_or("");
-    const FORBIDDEN: [&str; 43] = [
+    const FORBIDDEN: [&str; 44] = [
         "INSERT",
         "UPDATE",
         "DELETE",
@@ -437,6 +438,7 @@ pub fn read_only_guard(sql: &str) -> Result<&str, String> {
         "PARQUET_SCHEMA",
         "SQLITE_SCAN",
         "SQLITE_ATTACH",
+        "SQLITE_QUERY",
         "READ_BLOB",
         "READ_TEXT",
         "READ_XLSX",

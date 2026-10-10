@@ -1,0 +1,6 @@
+Option Compare Database
+Option Explicit
+
+Public Function Greeting(name As String) As String
+    Greeting = "Hello, " & name
+End Function

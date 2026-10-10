@@ -176,7 +176,7 @@ pub fn prepare_sql(sql: &str) -> Result<Rewritten, AppError> {
             .find(|t| MUTATING.contains(t));
         let message = match found {
             Some(word) => format!(
-                "Saved queries are read-only and cannot run {word}. Change the schema with a migration, or change records with an action."
+                "Read queries are read-only and cannot run {word}. Change the schema with a migration, or make this an action query to change rows."
             ),
             None => message,
         };
@@ -188,6 +188,10 @@ pub fn prepare_sql(sql: &str) -> Result<Rewritten, AppError> {
     Ok(rewritten)
 }
 
+pub mod action;
+pub(crate) mod action_exec;
+#[cfg(test)]
+pub(crate) mod action_tests;
 mod page;
 mod params;
 mod run;
@@ -201,12 +205,23 @@ pub use params::*;
 pub use run::*;
 pub use validate::validate;
 
+/// A saved read query by id; action queries run only through `run_action_query`.
 fn find_saved<'a>(config: &'a DocumentConfig, id: &str) -> Result<&'a SavedQuery, AppError> {
-    config
+    let query = config
         .saved_queries
         .iter()
         .find(|q| q.id == id)
-        .ok_or_else(|| AppError::new("NOT_FOUND", format!("Saved query {id} not found")))
+        .ok_or_else(|| AppError::new("NOT_FOUND", format!("Saved query {id} not found")))?;
+    if query.action.is_some() {
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            format!(
+                "\"{}\" is an action query: it changes rows and returns none",
+                query.name
+            ),
+        ));
+    }
+    Ok(query)
 }
 
 async fn blocking<T: Send + 'static>(

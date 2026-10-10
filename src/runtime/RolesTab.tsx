@@ -2,6 +2,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { flattenNavigation } from "../design/schema";
 import { useDocumentConfig } from "../lib/config-store";
+import { readQueries } from "../query/types";
 import type { DocumentConfig } from "../lib/types";
 import { newId } from "../lib/utils";
 import { useShell } from "../shell/context";
@@ -37,7 +38,12 @@ function objectRows(config: DocumentConfig, tables: string[]): Row[] {
       name: d.name,
     })),
     ...tables.map((t) => ({ kind: "table" as const, id: t, name: t })),
-    ...(config.savedQueries ?? []).map((q) => ({ kind: "query" as const, id: q.id, name: q.name })),
+    // Action queries are governed by their target table's permissions.
+    ...readQueries(config.savedQueries).map((q) => ({
+      kind: "query" as const,
+      id: q.id,
+      name: q.name,
+    })),
   ];
 }
 

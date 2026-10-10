@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:od="urn:schemas-microsoft-com:officedata">
+<dataroot generated="2026-01-01T00:00:00">
+<Customers><ID>1</ID><Company>Contoso Ltd</Company><Category>Retail</Category><First_x0020_Name>Ana</First_x0020_Name><Last_x0020_Name>Diaz</Last_x0020_Name><Contact>Ana Diaz</Contact><Website>Contoso#https://contoso.example/#</Website>
+<Logo><FileData>FAAAAAEAAAAEAAAAdAB4AHQAAABoZWxsbw==</FileData><FileName>hello.txt</FileName><FileType>txt</FileType></Logo>
+<Tags><Value>vip</Value></Tags><Tags><Value>north</Value></Tags></Customers>
+<Customers><ID>2</ID><Company>Fabrikam, Inc.</Company><Category>Wholesale</Category><First_x0020_Name>Bo</First_x0020_Name><Last_x0020_Name>Lee</Last_x0020_Name><Contact>Bo Lee</Contact></Customers>
+<Customers><ID>3</ID><Company>Northwind Café</Company><Category>Online</Category></Customers>
+</dataroot>
+</root>

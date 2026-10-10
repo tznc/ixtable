@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { DbObject } from "../lib/types";
+import { readQueries } from "../query/types";
 import { newId } from "../lib/utils";
 import { filterNames } from "../runtime/conditions";
 import { ExpressionField } from "./ExpressionField";
@@ -23,7 +24,7 @@ export function FormProperties({
   const change = (patch: Partial<DesignForm>, label = "Edit form") =>
     editForm(form.id, (f) => ({ ...f, ...patch }), label);
   const source = form.source;
-  const queries = config.savedQueries ?? [];
+  const queries = readQueries(config.savedQueries);
   const boundQuery =
     source?.kind === "query" ? queries.find((q) => q.id === source.queryId) : undefined;
   // Bindings left behind by a renamed or removed parameter; checks.rs flags them.

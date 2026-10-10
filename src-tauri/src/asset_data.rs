@@ -1,4 +1,5 @@
-//! Image assets as `data:` URLs for the Runtime image control.
+//! Image assets as `data:` URLs for the Runtime image control, and text assets
+//! for the Studio preview (Settings › Assets).
 //!
 //! Read-only: uses the asset list and path helpers from assets.rs.
 use crate::archive::Attachment;
@@ -57,6 +58,49 @@ pub fn read_asset_data_url(window_label: String, id: String) -> Result<String, A
     })
 }
 
+/// Largest text asset Studio previews.
+pub const MAX_TEXT_BYTES: u64 = 2 * 1024 * 1024;
+
+/// The text of a `text/*` asset, invalid UTF-8 replaced, refusing other media types and large files.
+pub fn asset_text(
+    asset: &Attachment,
+    read: impl FnOnce() -> Result<Vec<u8>, AppError>,
+) -> Result<String, AppError> {
+    let media = asset.media_type.trim().to_ascii_lowercase();
+    if !media.starts_with("text/") {
+        return Err(AppError::new(
+            "UNSUPPORTED_ASSET",
+            format!("{} is not text ({media})", asset.display_name),
+        ));
+    }
+    if asset.size > MAX_TEXT_BYTES {
+        return Err(AppError::new(
+            "ASSET_TOO_LARGE",
+            format!(
+                "{} is larger than {} MB; export it to read it",
+                asset.display_name,
+                MAX_TEXT_BYTES / 1024 / 1024
+            ),
+        ));
+    }
+    Ok(String::from_utf8_lossy(&read()?).into_owned())
+}
+
+/// A text asset of the open document, for the Studio preview (developers only).
+#[tauri::command]
+pub fn read_asset_text(window_label: String, id: String) -> Result<String, AppError> {
+    crate::authz::require_unrestricted(&window_label, "read assets")?;
+    let m = crate::manager()?;
+    let asset = m
+        .asset_list(&window_label)?
+        .into_iter()
+        .find(|a| a.id == id)
+        .ok_or_else(|| AppError::new("ATTACHMENT_FAILURE", "Attachment not found"))?;
+    asset_text(&asset, || {
+        std::fs::read(m.asset_path(&window_label, &id)?).map_err(|e| AppError::new("IO_ERROR", e))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -86,6 +130,19 @@ mod tests {
         let err = image_data_url(&asset("application/pdf", 3), never).unwrap_err();
         assert_eq!(err.code, "UNSUPPORTED_ASSET");
         let err = image_data_url(&asset("image/png", MAX_IMAGE_BYTES + 1), never).unwrap_err();
+        assert_eq!(err.code, "ASSET_TOO_LARGE");
+    }
+
+    #[test]
+    fn text_assets_are_read_and_others_refused() {
+        let text = asset("text/plain; charset=utf-8", 3);
+        assert_eq!(
+            asset_text(&text, || Ok(b"ab\xff".to_vec())).unwrap(),
+            "ab\u{fffd}"
+        );
+        let err = asset_text(&asset("image/png", 3), || Ok(vec![])).unwrap_err();
+        assert_eq!(err.code, "UNSUPPORTED_ASSET");
+        let err = asset_text(&asset("text/plain", MAX_TEXT_BYTES + 1), || Ok(vec![])).unwrap_err();
         assert_eq!(err.code, "ASSET_TOO_LARGE");
     }
 }

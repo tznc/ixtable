@@ -50,3 +50,5 @@ export const readLogs = (limit = 200) => call<LogEntry[]>("read_logs", { limit }
 /** Appends a line to the local diagnostic log (redacted in Rust). */
 export const writeLog = (level: "info" | "warn" | "error", area: string, message: string) =>
   call<void>("write_log", { level, area, message });
+/** A text asset's content for the Studio preview (`text/*`, at most 2 MB). */
+export const readAssetText = (id: string) => call<string>("read_asset_text", { id });

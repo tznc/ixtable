@@ -1,0 +1,5 @@
+Operation =4
+dbMemo "SQL" ="PARAMETERS [Minimum] Currency;\015\012UPDATE Orders SET Orders.Amount = Orders.Amount * 1.1, Orders.[Order Date] = DateAdd(\"d\", 1, [Order Date])"
+    " WHERE Orders.Amount > [Minimum];\015\012"
+dbMemo "Connect" =""
+dbBoolean "ReturnsRecords" ="0"

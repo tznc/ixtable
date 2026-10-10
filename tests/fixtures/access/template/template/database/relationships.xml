@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?><dataroot xmlns:od="urn:schemas-microsoft-com:officedata" >
+<MSysRelationships>
+<ccolumn>1</ccolumn>
+<grbit>4096</grbit>
+<icolumn>0</icolumn>
+<szColumn>Customer</szColumn>
+<szObject>Orders</szObject>
+<szReferencedColumn>ID</szReferencedColumn>
+<szReferencedObject>Customers</szReferencedObject>
+<szRelationship>CustomersOrders</szRelationship>
+</MSysRelationships>
+</dataroot>

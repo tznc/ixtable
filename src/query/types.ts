@@ -21,6 +21,24 @@ export interface QueryParameter {
   required?: boolean;
 }
 
+/**
+ * What an action query changes (docs/decisions/action-queries.md). `insert`,
+ * `update` and `delete` run `sql` as that DuckDB statement on `table`;
+ * `replace` runs `sql` as a SELECT whose rows replace every row of `table`.
+ */
+export type ActionQueryKind = "insert" | "update" | "delete" | "replace";
+export interface ActionSpec {
+  kind: ActionQueryKind;
+  table: string;
+}
+/** The table operations an action query performs: what the role needs (trigger_auth.rs). */
+export const ACTION_QUERY_OPS: Record<ActionQueryKind, ("create" | "update" | "delete")[]> = {
+  insert: ["create"],
+  update: ["update"],
+  delete: ["delete"],
+  replace: ["delete", "create"],
+};
+
 export interface SavedQuery {
   id: string;
   name: string;
@@ -30,7 +48,13 @@ export interface SavedQuery {
   parameters?: QueryParameter[];
   // Visual builder model; absent for SQL-authored queries.
   builder?: BuilderModel | null;
+  // Set for an action query: `sql` changes rows instead of reading them.
+  action?: ActionSpec | null;
 }
+
+/** Action queries change rows and return none, so they are never a data source. */
+export const readQueries = <T extends Pick<SavedQuery, "action">>(queries: T[] = []) =>
+  queries.filter((q) => !q.action);
 
 /** `QueryResult` plus run metadata from `execute_parameterized_query` / `run_saved_query`. */
 export interface QueryRunResult extends QueryResult {

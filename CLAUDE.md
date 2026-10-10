@@ -62,9 +62,12 @@ the UI with `userEvent`, query by role/label, use `findBy*` with
 ## Rules
 
 - Reads go through DuckDB (`ReadRuntime`). Writes go through a RecordStore,
-  then `mark_data_dirty` refreshes the reader.
+  then `mark_data_dirty` refreshes the reader. Action queries are the one
+  exception: `queries::action` runs them on a separate writable DuckDB
+  connection (`docs/decisions/action-queries.md`).
 - Frontend record writes only via `src/lib/records.ts`
-  (`insertRecord`/`updateRecord`/`deleteRecord`). Triggers hook in there.
+  (`insertRecord`/`updateRecord`/`deleteRecord`, `runActionQuery`). Triggers
+  hook in there.
 - Definition edits only via `useDocumentConfig().update(mutator, label)`.
   A direct `invoke` config edit is overwritten by the next store update.
 - Tauri commands only via `call()` in `src/lib/api.ts`, wrapped per feature in

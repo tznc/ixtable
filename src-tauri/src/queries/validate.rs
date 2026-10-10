@@ -217,7 +217,11 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
                 format!("Query \"{}\" has no SQL", q.name),
             ));
         } else {
-            match prepare_sql(&q.sql) {
+            let checked = match &q.action {
+                Some(spec) => action::check_sql(&q.sql, spec, &action::schema_of(config)),
+                None => prepare_sql(&q.sql),
+            };
+            match checked {
                 Err(e) => issues.push(Issue::error(
                     KIND,
                     id,
@@ -287,6 +291,18 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
                 }
             }
         }
+        if q.action.is_some() {
+            for user in readers_of(config, id) {
+                issues.push(Issue::error(
+                    KIND,
+                    id,
+                    format!(
+                        "{user} reads \"{}\", but it is an action query and returns no rows",
+                        q.name
+                    ),
+                ));
+            }
+        }
         if let Some(builder) = &q.builder {
             for problem in check_builder(q, builder) {
                 issues.push(Issue::error(
@@ -298,4 +314,32 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
         }
     }
     issues
+}
+
+/// Forms, reports and dashboards that read saved query `id`, by name.
+fn readers_of(config: &DocumentConfig, id: &str) -> Vec<String> {
+    let forms = config
+        .design
+        .forms
+        .iter()
+        .filter(|f| crate::authz::form_queries(f).any(|q| q == id))
+        .map(|f| format!("Form \"{}\"", f.name));
+    let reports = config
+        .reports
+        .iter()
+        .filter(|r| {
+            r.dataset_query_id.as_deref() == Some(id)
+                || crate::authz::bands(r).iter().any(|b| {
+                    b.components
+                        .iter()
+                        .any(|c| c.extra.get("queryId").and_then(|v| v.as_str()) == Some(id))
+                })
+        })
+        .map(|r| format!("Report \"{}\"", r.name));
+    let dashboards = config
+        .dashboards
+        .iter()
+        .filter(|d| crate::authz::dashboard_queries(d).any(|q| q == id))
+        .map(|d| format!("Dashboard \"{}\"", d.name));
+    forms.chain(reports).chain(dashboards).collect()
 }

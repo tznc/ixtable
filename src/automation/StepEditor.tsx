@@ -208,7 +208,7 @@ function StepFields({
       return (
         <>
           <div className="ax-row">
-            <QueryPicker value={step.queryId} onChange={(v) => set({ queryId: v })} />
+            <QueryPicker value={step.queryId} onChange={(v) => set({ queryId: v })} actions />
             <TextField
               label="Store rows as"
               value={step.storeAs}

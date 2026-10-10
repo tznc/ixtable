@@ -69,6 +69,7 @@ export function QueryList({
                 >
                   <FileCode2 />
                   <span>{q.name || "Untitled query"}</span>
+                  {q.action && <small className="query-action-tag">action</small>}
                 </button>
                 <span className="query-list-actions">
                   <button

@@ -266,7 +266,9 @@ pub(crate) fn upload_file_with(
     attempts: u32,
     base: Duration,
 ) -> Result<(), AppError> {
-    with_retry(attempts, base, |_| upload_once(cfg, signed_url, path, progress_id))
+    with_retry(attempts, base, |_| {
+        upload_once(cfg, signed_url, path, progress_id)
+    })
 }
 
 fn upload_once(

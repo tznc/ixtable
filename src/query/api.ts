@@ -1,6 +1,6 @@
 import { call } from "../lib/api";
 import type { DataValue, Filter, NamedValue, Sort } from "../lib/types";
-import type { QueryParameter, QueryRunResult } from "./types";
+import type { ActionSpec, QueryParameter, QueryRunResult } from "./types";
 
 export interface RunOptions {
   // Maximum rows returned (default 10,000 in Rust). `truncated` reports whether more exist.
@@ -97,3 +97,7 @@ export const cancelQuery = (runId?: string) =>
 
 /** Checks read-only SQL without running it (DuckDB prepare). Resolves to the `$name` placeholders. */
 export const checkQuerySql = (sql: string) => call<string[]>("check_query_sql", { sql });
+
+/** Checks an action query's SQL against the action-query guard before it is saved. */
+export const checkActionQuerySql = (sql: string, action: ActionSpec) =>
+  call<void>("check_action_query_sql", { sql, action });

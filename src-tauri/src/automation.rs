@@ -272,6 +272,13 @@ fn check_step(config: &DocumentConfig, action: &ActionDef, step: &Step, issues: 
             let set = config.saved_queries.iter().map(|q| q.id.as_str()).collect();
             missing(issues, "query", id, &set);
             expr_map(issues, "params", false);
+            let action_query = config
+                .saved_queries
+                .iter()
+                .any(|q| q.id == id && q.action.is_some());
+            if action_query && action.on_error == OnError::Rollback {
+                err(issues, "an action query writes at once, so it cannot run in an action that rolls back on error".into());
+            }
         }
         "navigate" => {
             let target = f.get("target").and_then(Value::as_object);

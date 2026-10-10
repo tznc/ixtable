@@ -1,0 +1,4 @@
+dbMemo "SQL" ="SELECT Company AS Name, \"Company\" AS Kind FROM Customers\015\012UNION ALL SELECT"
+    " [Contact], \"Contact\" FROM Customers WHERE [Contact] Is Not Null\015\012ORDER BY Name;\015\012"
+dbMemo "Connect" =""
+dbBoolean "ReturnsRecords" ="-1"

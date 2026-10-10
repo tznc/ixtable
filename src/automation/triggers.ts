@@ -16,7 +16,12 @@
  */
 import { evaluate, evaluateBoolean } from "../expr";
 import { inspectTable, readTablePage } from "../lib/api";
-import { type RecordWrite, registerRecordHook, type WriteExtra } from "../lib/records";
+import {
+  type BulkChange,
+  type RecordWrite,
+  registerRecordHook,
+  type WriteExtra,
+} from "../lib/records";
 import { activeRoleId } from "../runtime/rbac";
 import type { DataValue, DocumentConfig, Filter } from "../lib/types";
 import { enqueueJob, notifyJobsChanged, releaseTriggerGrant } from "./api";
@@ -65,7 +70,9 @@ export function installTriggers(env: TriggerEnv): () => void {
       previous.set(write, await readRow(write.table, write.identity));
     },
     after: (write, result, extra) =>
-      dispatchTriggers(write, result, env, previous.get(write) ?? undefined, extra),
+      write.meta?.bulk
+        ? dispatchBulk(write, write.meta.bulk, env)
+        : dispatchTriggers(write, result, env, previous.get(write) ?? undefined, extra),
   });
 }
 
@@ -98,6 +105,54 @@ export async function dispatchTriggers(
     // The grant is single use: it ends with this trigger run.
     if (grant) await releaseTriggerGrant(grant).catch(() => undefined);
   }
+}
+
+/**
+ * Fires an action query's triggers once per created or updated row, in order,
+ * as if each row had been written alone. The rows of one event share Rust's
+ * grant, released when all of them have run. Failures are collected so one
+ * bad row does not stop the others' triggers.
+ */
+async function dispatchBulk(write: RecordWrite, bulk: BulkChange, env: TriggerEnv): Promise<void> {
+  const failures: string[] = [];
+  const base = { triggerDepth: write.meta?.triggerDepth ?? 0 };
+  const each = async (row: RecordWrite, result: unknown, grant: string | undefined) => {
+    try {
+      await dispatch(row, result, env, undefined, grant);
+    } catch (e) {
+      failures.push(e instanceof Error ? e.message : String(e));
+    }
+  };
+  try {
+    for (const [i, identity] of bulk.created.entries())
+      await each(
+        {
+          operation: "insert",
+          table: write.table,
+          values: [],
+          identity: null,
+          meta: { ...base, writeId: `${write.meta?.writeId}:c${i}` },
+        },
+        identity,
+        bulk.createdGrant ?? undefined,
+      );
+    for (const [i, row] of bulk.updated.entries())
+      await each(
+        {
+          operation: "update",
+          table: write.table,
+          values: [],
+          identity: row.identity,
+          meta: { ...base, writeId: `${write.meta?.writeId}:u${i}`, old: namedToObject(row.old) },
+        },
+        1,
+        bulk.updatedGrant ?? undefined,
+      );
+  } finally {
+    for (const grant of [bulk.createdGrant, bulk.updatedGrant])
+      if (grant) await releaseTriggerGrant(grant).catch(() => undefined);
+  }
+  if (failures.length) throw new Error(failures.join("; "));
 }
 
 async function dispatch(

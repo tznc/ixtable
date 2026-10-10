@@ -2248,6 +2248,32 @@ button {
   background: #e7efe6;
   color: var(--ix-accent);
 }
+.query-type {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #d9dcd7;
+  font-size: 12px;
+}
+.query-type label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.query-list li > button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.query-action-tag {
+  flex: none;
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: #fdf1e3;
+  color: var(--ix-warning);
+  font-size: 10px;
+}
 .query-tabs {
   display: flex;
   gap: 2px;

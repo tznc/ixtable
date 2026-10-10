@@ -1,6 +1,7 @@
 import { Copy, FilePlus2, FileText, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { inspectTable } from "../lib/api";
+import { readQueries } from "../query/types";
 import { useDocumentConfig } from "../lib/config-store";
 import type { DocumentConfig } from "../lib/types";
 import { useShell } from "../shell/context";
@@ -154,7 +155,7 @@ export function ReportsMode() {
               </label>
               <DatasetPicker
                 report={report}
-                queries={config.savedQueries}
+                queries={readQueries(config.savedQueries)}
                 objects={objects}
                 change={change}
               />
@@ -188,7 +189,7 @@ export function ReportsMode() {
                 key={`${report.id}:${focus.seq}`}
                 focusId={focus.id}
                 report={report}
-                queries={config.savedQueries}
+                queries={readQueries(config.savedQueries)}
                 columns={columns}
                 change={change}
               />

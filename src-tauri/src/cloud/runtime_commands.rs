@@ -187,11 +187,23 @@ pub(crate) fn open_credential(
     let aad = reply.envelope.aad.clone();
     let prefix = format!("ixtable-credential/1|{}|{}|", app_id, ds.id);
     if !aad.starts_with(&prefix) {
-        return Err(err("CREDENTIAL_DECRYPT", "The credential envelope is for another application or datasource"));
+        return Err(err(
+            "CREDENTIAL_DECRYPT",
+            "The credential envelope is for another application or datasource",
+        ));
     }
-    let plain = envelope::open(&reply.envelope.ciphertext, &reply.envelope.nonce, &aad, &reply.dek)?;
-    let cred: envelope::Credential = serde_json::from_slice(&plain)
-        .map_err(|_| err("CREDENTIAL_DECRYPT", "The decrypted credential is unreadable"))?;
+    let plain = envelope::open(
+        &reply.envelope.ciphertext,
+        &reply.envelope.nonce,
+        &aad,
+        &reply.dek,
+    )?;
+    let cred: envelope::Credential = serde_json::from_slice(&plain).map_err(|_| {
+        err(
+            "CREDENTIAL_DECRYPT",
+            "The decrypted credential is unreadable",
+        )
+    })?;
     drop(plain);
     if cred.target != datasource_target(ds) {
         return Err(err(
@@ -202,7 +214,10 @@ pub(crate) fn open_credential(
     let user = cred.user.filter(|u| !u.is_empty());
     if let Some(u) = &user {
         crate::recordstore::secrets::validate_login_user(u).map_err(|_| {
-            err("CREDENTIAL_DECRYPT", "The delivered credential names an invalid database user")
+            err(
+                "CREDENTIAL_DECRYPT",
+                "The delivered credential names an invalid database user",
+            )
         })?;
     }
     Ok((user, cred.password))

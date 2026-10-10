@@ -25,7 +25,7 @@ The commercial MVP is deliberately **not** a hosted database platform or browser
 - ixtable Cloud does not provide managed PostgreSQL.
 - PostgreSQL connections are supplied and operated by the application developer.
 - Cloud stores versioned application archives and distributes personalized runtime bundles.
-- Browser runtime, cloud SQLite execution, record synchronization, Access interoperability, AI, and self-hosted cloud features are excluded.
+- Browser runtime, cloud SQLite execution, record synchronization, Access interoperability beyond one-way import, AI, and self-hosted cloud features are excluded. One-way import of Access databases and templates into a new document is in scope ([decision record](docs/decisions/access-import.md)).
 
 > **Build complete relational applications locally. Privately distribute them when ready.**
 
@@ -1230,7 +1230,7 @@ The following are not part of commercial MVP:
 - nested subreports or report scripting;
 - semantic Git export/import;
 - MySQL or SQL Server RecordStores;
-- Microsoft Access import or interoperability;
+- Microsoft Access interoperability beyond one-way import (linked tables, export back to Access, VBA execution or conversion);
 - AI application building or migration; and
 - application-specific hard-coded product modes.
 
@@ -1242,7 +1242,7 @@ These exclusions are release constraints, not missing acceptance criteria.
 
 Separate PRDs are required before implementation for:
 
-1. Microsoft Access interoperability, inventory, import, conversion, and validation
+1. Microsoft Access interoperability beyond the one-way import in `docs/decisions/access-import.md`: linked tables, export, and VBA conversion
 2. SQLite multi-user synchronization and conflict resolution
 3. Browser and mobile runtimes
 4. AI-assisted application building and migration

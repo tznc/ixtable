@@ -12,6 +12,7 @@ import {
   isEmptyModel,
   normalizeModel,
 } from "./builder/model";
+import { ActionRunButtons, QueryTypeFields } from "./ActionQuery";
 import { ParametersPanel, ParameterValues } from "./ParametersPanel";
 import { effectiveSql, placeholderNames, runParams } from "./sql";
 import type { SavedQuery } from "./types";
@@ -46,6 +47,8 @@ export function QueryEditor({
   const [tab, setTab] = useState<Tab>(model ? "builder" : "sql");
   const [values, setValues] = useState<Record<string, string>>({});
   const run = useQueryRun();
+  const [actionResult, setActionResult] = useState<{ text: string; error: boolean } | null>(null);
+  const action = query.action ?? null;
   const parameters = useMemo(() => query.parameters ?? [], [query.parameters]);
   const compiled = useMemo(() => effectiveSql(query), [query]);
   const referenced = model ? builderParameterNames(model) : placeholderNames(query.sql);
@@ -54,6 +57,7 @@ export function QueryEditor({
   useEffect(() => {
     setTab(query.builder ? "builder" : "sql");
     setValues({});
+    setActionResult(null);
     run.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.id]);
@@ -123,43 +127,55 @@ export function QueryEditor({
             onChange={(e) => onChange({ ...query, name: e.target.value })}
           />
           <b className="query-mode-badge" title="Authoring mode">
-            {visual ? "Visual builder" : "SQL"}
+            {action ? "Action query" : visual ? "Visual builder" : "SQL"}
           </b>
           {dirty && <small>Unsaved changes</small>}
-          <button className="save" disabled={run.running || !!compiled.error} onClick={execute}>
-            <Play />
-            Run
-          </button>
+          {action ? (
+            <ActionRunButtons
+              query={query}
+              dirty={dirty}
+              params={runParams(values)}
+              onResult={setActionResult}
+            />
+          ) : (
+            <button className="save" disabled={run.running || !!compiled.error} onClick={execute}>
+              <Play />
+              Run
+            </button>
+          )}
           <button disabled={saving} onClick={onSave}>
             <Save />
             Save query
           </button>
         </div>
       </div>
-      <div className="query-tabs" role="tablist" aria-label="Query editor" onKeyDown={onTabKey}>
-        {(["builder", "sql"] as const).map((id) => (
-          <button
-            key={id}
-            id={`query-tab-${id}`}
-            role="tab"
-            aria-selected={tab === id}
-            aria-controls="query-tab-panel"
-            tabIndex={tab === id ? 0 : -1}
-            className={tab === id ? "active" : ""}
-            onClick={() => setTab(id)}
-          >
-            {id === "builder" ? <Blocks /> : <Code2 />}
-            {id === "builder" ? "Builder" : "SQL"}
-          </button>
-        ))}
-      </div>
+      <QueryTypeFields query={query} objects={objects} onChange={onChange} />
+      {!action && (
+        <div className="query-tabs" role="tablist" aria-label="Query editor" onKeyDown={onTabKey}>
+          {(["builder", "sql"] as const).map((id) => (
+            <button
+              key={id}
+              id={`query-tab-${id}`}
+              role="tab"
+              aria-selected={tab === id}
+              aria-controls="query-tab-panel"
+              tabIndex={tab === id ? 0 : -1}
+              className={tab === id ? "active" : ""}
+              onClick={() => setTab(id)}
+            >
+              {id === "builder" ? <Blocks /> : <Code2 />}
+              {id === "builder" ? "Builder" : "SQL"}
+            </button>
+          ))}
+        </div>
+      )}
       <div
         id="query-tab-panel"
         role="tabpanel"
         aria-labelledby={`query-tab-${tab}`}
         className="query-tab-panel"
       >
-        {tab === "builder" ? (
+        {tab === "builder" && !action ? (
           model ? (
             <BuilderEditor
               model={model}
@@ -202,9 +218,22 @@ export function QueryEditor({
         onChange={(next) => onChange({ ...query, parameters: next })}
       />
       <ParameterValues parameters={parameters} values={values} onChange={setValues} />
-      <section className="query-results" aria-label={visual ? "Preview" : "Results"}>
-        <RunResults run={run} />
-      </section>
+      {action ? (
+        <section className="query-results" aria-label="Action query result">
+          {actionResult && (
+            <div
+              className={actionResult.error ? "error" : "query-status"}
+              role={actionResult.error ? "alert" : "status"}
+            >
+              {actionResult.text}
+            </div>
+          )}
+        </section>
+      ) : (
+        <section className="query-results" aria-label={visual ? "Preview" : "Results"}>
+          <RunResults run={run} />
+        </section>
+      )}
     </div>
   );
 }

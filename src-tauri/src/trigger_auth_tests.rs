@@ -53,8 +53,20 @@ fn grants_cover_only_declared_steps_of_app_mode_triggers_until_released_or_expir
         verify("w1", &c, auth, table, op, at, &no_job)
     };
     // Nested branch and called-action steps are declared.
-    assert!(ok(&step(&token, "t-app", "s-upd"), "inventory", Op::Update, now).is_ok());
-    assert!(ok(&step(&token, "t-app", "s-log"), "audit_log", Op::Create, now).is_ok());
+    assert!(ok(
+        &step(&token, "t-app", "s-upd"),
+        "inventory",
+        Op::Update,
+        now
+    )
+    .is_ok());
+    assert!(ok(
+        &step(&token, "t-app", "s-log"),
+        "audit_log",
+        Op::Create,
+        now
+    )
+    .is_ok());
     assert!(ok(&step(&token, "t-app", "s-upd"), "inventory", Op::Read, now).is_ok());
     // Wrong table, wrong op, wrong step.
     for (table, op, s) in [
@@ -67,8 +79,20 @@ fn grants_cover_only_declared_steps_of_app_mode_triggers_until_released_or_expir
         assert_eq!(e.code, "FORBIDDEN", "{table} {op:?} {s}");
     }
     // Wrong trigger, a user-mode trigger, another window, a forged token.
-    assert!(ok(&step(&token, "t-async", "s-log"), "audit_log", Op::Create, now).is_err());
-    assert!(ok(&step(&token, "t-user", "s-upd"), "inventory", Op::Update, now).is_err());
+    assert!(ok(
+        &step(&token, "t-async", "s-log"),
+        "audit_log",
+        Op::Create,
+        now
+    )
+    .is_err());
+    assert!(ok(
+        &step(&token, "t-user", "s-upd"),
+        "inventory",
+        Op::Update,
+        now
+    )
+    .is_err());
     assert!(verify(
         "w2",
         &c,
@@ -79,7 +103,13 @@ fn grants_cover_only_declared_steps_of_app_mode_triggers_until_released_or_expir
         &no_job
     )
     .is_err());
-    assert!(ok(&step("forged", "t-app", "s-upd"), "inventory", Op::Update, now).is_err());
+    assert!(ok(
+        &step("forged", "t-app", "s-upd"),
+        "inventory",
+        Op::Update,
+        now
+    )
+    .is_err());
     let bare = TriggerWrite {
         trigger_id: "t-app".into(),
         step_id: "s-upd".into(),
@@ -88,12 +118,54 @@ fn grants_cover_only_declared_steps_of_app_mode_triggers_until_released_or_expir
     assert!(ok(&bare, "inventory", Op::Update, now).is_err());
     // Expiry.
     let later = now + GRANT_TTL + Duration::from_secs(1);
-    assert!(ok(&step(&token, "t-app", "s-upd"), "inventory", Op::Update, later).is_err());
+    assert!(ok(
+        &step(&token, "t-app", "s-upd"),
+        "inventory",
+        Op::Update,
+        later
+    )
+    .is_err());
     // Single use: released by its own window only.
     release("w2", &token);
-    assert!(ok(&step(&token, "t-app", "s-upd"), "inventory", Op::Update, now).is_ok());
+    assert!(ok(
+        &step(&token, "t-app", "s-upd"),
+        "inventory",
+        Op::Update,
+        now
+    )
+    .is_ok());
     release("w1", &token);
-    assert!(ok(&step(&token, "t-app", "s-upd"), "inventory", Op::Update, now).is_err());
+    assert!(ok(
+        &step(&token, "t-app", "s-upd"),
+        "inventory",
+        Op::Update,
+        now
+    )
+    .is_err());
+}
+
+#[test]
+fn each_use_extends_a_grant_so_it_can_serve_many_rows_in_turn() {
+    let c = config();
+    let now = Instant::now();
+    let token = issue("w1", &c, "orders", TriggerEvent::Created, now).unwrap();
+    let at = |t: Instant| {
+        verify(
+            "w1",
+            &c,
+            &step(&token, "t-app", "s-upd"),
+            "inventory",
+            Op::Update,
+            t,
+            &no_job,
+        )
+    };
+    let first = now + GRANT_TTL - Duration::from_secs(1);
+    assert!(at(first).is_ok());
+    // Past the original expiry, but within a TTL of the last use.
+    assert!(at(first + GRANT_TTL - Duration::from_secs(1)).is_ok());
+    assert!(at(first + GRANT_TTL * 3).is_err());
+    release("w1", &token);
 }
 
 #[test]
@@ -148,14 +220,32 @@ fn async_jobs_authorize_with_their_live_lease() {
             }
         }
     };
-    assert!(verify("w", &c, &auth, "audit_log", Op::Create, now, &job("t-async")).is_ok());
+    assert!(verify(
+        "w",
+        &c,
+        &auth,
+        "audit_log",
+        Op::Create,
+        now,
+        &job("t-async")
+    )
+    .is_ok());
     assert!(verify("w", &c, &auth, "audit_log", Op::Create, now, &job("t-app")).is_err());
     assert!(verify("w", &c, &auth, "audit_log", Op::Create, now, &no_job).is_err());
     let stale = TriggerWrite {
         lease_token: Some("1:old".into()),
         ..auth.clone()
     };
-    assert!(verify("w", &c, &stale, "audit_log", Op::Create, now, &job("t-async")).is_err());
+    assert!(verify(
+        "w",
+        &c,
+        &stale,
+        "audit_log",
+        Op::Create,
+        now,
+        &job("t-async")
+    )
+    .is_err());
 }
 
 #[test]
@@ -173,7 +263,15 @@ fn updates_of_custom_action_entities_declare_the_routed_action() {
     let token = issue("w-custom", &c, "orders", TriggerEvent::Created, now).unwrap();
     let guard = step(&token, "t-app", "s-guard");
     let check = |c: &DocumentConfig| {
-        verify("w-custom", c, &guard, "stock_audit", Op::Create, now, &no_job)
+        verify(
+            "w-custom",
+            c,
+            &guard,
+            "stock_audit",
+            Op::Create,
+            now,
+            &no_job,
+        )
     };
     assert_eq!(check(&c).unwrap_err().code, "FORBIDDEN");
     c.entities.push(crate::recordstore::EntitySettings {
@@ -225,7 +323,10 @@ fn user_mode_triggers_refuse_the_initiating_write_up_front() {
     let check = |event| m.with_session("w", |s| check_user_triggers(s, "orders", event));
     set(None);
     assert!(check(TriggerEvent::Updated).is_ok());
-    set(Some(clerk(vec![grant("table", "orders", true)], &["a-stock"])));
+    set(Some(clerk(
+        vec![grant("table", "orders", true)],
+        &["a-stock"],
+    )));
     // App-mode triggers (created) never block; the user-mode one needs grants.
     assert!(check(TriggerEvent::Created).is_ok());
     let e = check(TriggerEvent::Updated).unwrap_err();

@@ -200,3 +200,44 @@
 .recovery-section {
   margin-bottom: 28px;
 }
+.asset-preview {
+  display: grid;
+  gap: 8px;
+}
+.asset-preview-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.asset-preview-title h3 {
+  margin: 0;
+}
+.asset-preview nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+.asset-preview nav a {
+  padding: 2px 8px;
+  border: 1px solid #d3d7d1;
+  border-radius: 999px;
+  color: inherit;
+  text-decoration: none;
+}
+.asset-preview h4 {
+  margin: 8px 0 4px;
+  font-size: 13px;
+}
+.asset-preview pre {
+  margin: 0;
+  max-height: 360px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid #e1e4df;
+  border-radius: 6px;
+  background: #fafbf9;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  white-space: pre;
+}

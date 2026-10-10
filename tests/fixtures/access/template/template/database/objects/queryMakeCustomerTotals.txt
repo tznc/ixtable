@@ -1,0 +1,4 @@
+Operation =2
+dbMemo "SQL" ="SELECT Orders.Customer, Sum(Orders.Amount) AS Total INTO [Customer Totals] FROM Orders GROUP BY Orders.Customer;\015\012"
+dbMemo "Connect" =""
+dbBoolean "ReturnsRecords" ="0"

@@ -4,7 +4,7 @@
 # work_orders.due_on, and the definitions that use it. Applying this YAML to a
 # version 1 document and running pending migrations upgrades it in place.
 # Object ids are fixed UUIDv7 literals. A trailing comment names each top-level object.
-version: 3
+version: 4
 name: Work orders
 activeMode: run
 settings:

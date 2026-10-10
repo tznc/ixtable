@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:od="urn:schemas-microsoft-com:officedata">
+<dataroot generated="2026-01-01T00:00:00">
+<Orders><ID>1</ID><Customer>1</Customer><Order_x0020_Date>2024-01-05T00:00:00</Order_x0020_Date><Amount>120.5</Amount><Paid>1</Paid><Shipped>2024-01-07T10:30:00</Shipped></Orders>
+<Orders><ID>2</ID><Customer>1</Customer><Order_x0020_Date>2024-02-11T00:00:00</Order_x0020_Date><Amount>75</Amount><Paid>0</Paid></Orders>
+<Orders><ID>3</ID><Customer>2</Customer><Order_x0020_Date>2024-02-14T00:00:00</Order_x0020_Date><Amount>1999.99</Amount><Paid>1</Paid><Shipped>2024-02-20T08:00:00</Shipped><Notes>Rush order</Notes></Orders>
+</dataroot>
+</root>

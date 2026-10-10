@@ -18,7 +18,7 @@ pub use crate::archive_io::{
     read_archive, read_header, write_archive, ArchiveHeader, FORMAT_VERSION, MIN_FORMAT_VERSION,
 };
 /// Current `DocumentConfig.version`. Version 2 configs load through serde defaults.
-pub const CONFIG_VERSION: u32 = 3;
+pub const CONFIG_VERSION: u32 = 4;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ArchiveError {
@@ -101,6 +101,29 @@ pub struct SavedQuery {
     pub parameters: Vec<QueryParameter>,
     #[serde(default)]
     pub builder: Option<serde_json::Value>,
+    /// Set for an action query: `sql` changes rows of `action.table` instead of
+    /// reading (`queries::action`, docs/decisions/action-queries.md). Config version 4.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub action: Option<ActionSpec>,
+}
+
+/// What an action query changes.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionSpec {
+    pub kind: ActionKind,
+    pub table: String,
+}
+
+/// `insert`, `update` and `delete` run `sql` as that statement. `replace` runs
+/// `sql` as a SELECT whose rows replace every row of the table (Access make-table).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum ActionKind {
+    Insert,
+    Update,
+    Delete,
+    Replace,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]

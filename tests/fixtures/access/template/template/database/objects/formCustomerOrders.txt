@@ -1,0 +1,41 @@
+Version =20
+Begin Form
+    DefaultView =2
+    Width =8000
+    RecordSource ="SELECT Orders.* FROM Orders;"
+    Begin
+        Begin Section
+            Height =400
+            Name ="Detail"
+            Begin
+                Begin TextBox
+                    Left =0
+                    Top =0
+                    Width =2000
+                    Height =300
+                    TabIndex =0
+                    Name ="Order Date"
+                    ControlSource ="Order Date"
+                End
+                Begin TextBox
+                    Left =2100
+                    Top =0
+                    Width =2000
+                    Height =300
+                    TabIndex =1
+                    Name ="Amount"
+                    ControlSource ="Amount"
+                End
+                Begin CheckBox
+                    Left =4200
+                    Top =0
+                    Width =300
+                    Height =300
+                    TabIndex =2
+                    Name ="Paid"
+                    ControlSource ="Paid"
+                End
+            End
+        End
+    End
+End

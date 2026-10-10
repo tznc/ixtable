@@ -53,7 +53,7 @@ including PostgreSQL reads and the cloned connections `read_connection` hands
 to long queries. For SQLite the gate also keeps reads off the file while a
 RecordStore write is open. For PostgreSQL it orders the cache clear against
 reads. Cloned connections share one DuckDB database and so one attached
-catalog; before the in-place clear, a rebuild swapped in a new database and
+catalog. Before the in-place clear, a rebuild swapped in a new database and
 clones kept the old one. In the pinned postgres_scanner (commit `41223e5`,
 built for DuckDB 1.5.5) the clear is memory-safe on its own: each
 PostgreSQL transaction holds a `shared_ptr` to every catalog entry it looked
@@ -77,7 +77,7 @@ prebuilt libduckdb includes them, so they are part of the pinned library and
 not loadable extensions: the extension
 allowlist stays `sqlite_scanner` and `postgres_scanner`, and nothing is
 installed at runtime. XLSX is read in Rust with `calamine`. Global external
-access stays off in both uses below; each connection may open only the files
+access stays off in both uses below. Each connection may open only the files
 listed in its `allowed_paths`, set before the lock.
 
 **Import** (`import/`, `data::files::sandbox`). The wizard parses the chosen
@@ -93,11 +93,11 @@ streaming cell reader: the preview reads the sheet once for the narrowest
 logical type that holds every cell (whole numbers are integers, Excel dates
 are dates, or timestamps when any has a time, and mixed columns are text),
 the first 50 rows, and the count. Only cells that exist are read, so a huge
-declared used range costs nothing; a sheet whose cells span more than 1600
+declared used range costs nothing. A sheet whose cells span more than 1600
 columns (PostgreSQL's table limit) is refused.
 
 The sniffed types are only suggestions for the mapping. The import reads CSV
-with `all_varchar=true` and streams rows from the file; it never holds the
+with `all_varchar=true` and streams rows from the file. It never holds the
 file in memory and never writes through DuckDB. Each mapped value is
 converted with `LogicalType::normalize` for its target field, the same check
 every store write uses, so a value that does not fit (say `n/a` at row 30,002
@@ -106,7 +106,7 @@ A row that leaves a required field empty is skipped the same way. The
 remaining rows go to the RecordStore (SQLite or PostgreSQL) in batches of 500,
 one transaction each. A batch the store rejects with a constraint or
 validation error is retried row by row, so only the rows at fault are
-reported; any other store error (a lost connection, a busy or full database)
+reported. Any other store error (a lost connection, a busy or full database)
 or a file read error stops the import. A stop after anything was written
 (including a new table being created) is not a command error: the report
 comes back with `aborted` and the counts so far, the committed batches stay,
@@ -170,7 +170,7 @@ statement with an optional trailing `;` that starts with `SELECT`, `WITH`,
 `VALUES`, `SHOW`, or `DESCRIBE`, and rejects writes, DDL, `ATTACH`,
 `INSTALL`, `LOAD`, `COPY`, `PRAGMA`, `SET`, and file or scanner table
 functions such as `read_csv_auto`, any `read_*(...)` or `*_scan(...)` call,
-`postgres_query`, and `duckdb_databases` (which would show the PostgreSQL
+`postgres_query`, `sqlite_query`, and `duckdb_databases` (which would show the PostgreSQL
 connection string). Saved queries
 use `$name` placeholders. `queries::params` rewrites them to DuckDB
 parameters and binds the values, so values are never spliced into SQL text.
@@ -183,7 +183,7 @@ wrap it in DuckDB, and a `count(*) OVER ()` column returns the exact total with
 the page, so the saved query runs once per page (a separate count runs only
 for an empty page past the first). There is no row cap, and the total counts
 every matching row. Sort and filter columns must be result columns of the
-query and are quoted; an unknown name is reported after a `LIMIT 0` probe.
+query and are quoted. An unknown name is reported after a `LIMIT 0` probe.
 An `in` filter binds each candidate (`col IN ($n, …)`) and an empty list
 matches nothing, as on table pages.
 Text search on tables and saved queries is the same case-insensitive `ILIKE`,
@@ -247,14 +247,26 @@ The DuckDB extensions on Linux and Windows link DuckDB statically, so they do
 not import symbols from the host. `build.rs` still exports dynamic symbols on
 Linux for extensions that do.
 
+### Action queries write through their own connection
+
+[Action queries](./action-queries.md) are DuckDB statements that change rows.
+They never run on the reader. Each run opens a short-lived writer
+(`data::write::open_writer`) with the datasource attached read-write, locked
+down the same way, and holds the gate exclusively for the embedded file. An
+UPDATE of the embedded file is computed on a copy and written back by a
+second writer that attaches the file with `sqlite_all_varchar`, because
+`sqlite_scanner` cannot bind date and timestamp values in an UPDATE.
+
 ## Consequences
 
-- Reads cannot write. Writes cannot skip the RecordStore and its
-  capabilities, constraint mapping, and concurrency checks.
+- Reads cannot write. Record writes cannot skip the RecordStore and its
+  capabilities, constraint mapping, and concurrency checks. Action queries
+  write through their own connection under the same gate, and skip the
+  per-row concurrency checks (see the action-queries record).
 - An import holds the parsed rows in memory before writing them, which is
   fine for spreadsheet-sized files. A streaming import is a later change.
 - File sources are read in place on every query. A large Parquet file
-  costs no memory until a query scans it; a large CSV is parsed on each
+  costs no memory until a query scans it. A large CSV is parsed on each
   scan.
 - Reattaching after each SQLite write is simple and correct, and cheap for a
   local file. A PostgreSQL write costs one cache clear instead of loading the
@@ -271,11 +283,11 @@ Linux for extensions that do.
 ## Evidence
 
 - `src-tauri/src/data/extensions_tests.rs`: an archive is verified, unpacked
-  0600 into 0700 directories, and reused; a tampered archive (either hash) is
-  rejected; a tampered cache file is replaced; eight concurrent unpacks agree
-  and leave no temp files; override paths are still verified; every platform
-  has both pins in the manifest; an unpacked dev copy is preferred and still
-  verified; the official archive for the host platform
+  0600 into 0700 directories, and reused. A tampered archive (either hash) is
+  rejected. A tampered cache file is replaced. Eight concurrent unpacks agree
+  and leave no temp files. Override paths are still verified. Every platform
+  has both pins in the manifest. An unpacked dev copy is preferred and still
+  verified. The official archive for the host platform
   unpacks to a file DuckDB loads.
 - `src-tauri/src/data/files_tests.rs`: the import sandbox reads the chosen
   file and refuses other files, `COPY TO`, `glob`, `INSTALL`, and `SET`;
@@ -291,7 +303,7 @@ Linux for extensions that do.
   reads a bundled CSV source.
 - `tests/integration/file-import.test.tsx`: the wizard imports a CSV into a
   new table, an XLSX worksheet, and a CSV into an existing table with a row
-  error report; a bundled CSV source is queried, refuses writes, and still
+  error report. A bundled CSV source is queried, refuses writes, and still
   reads after save and reopen.
 - `src-tauri/src/data/tests.rs`: autoload is rejected, values convert
   losslessly to canonical forms, `read_only_guard` rejects writes and scanner
@@ -336,5 +348,9 @@ Linux for extensions that do.
   keywords, and added `queries/tests_page.rs` and the paging, search, and dev
   copy tests to Evidence. Status unchanged: the macOS and Windows CI jobs have
   not passed on main.
-- 2026-10-05 (after merging #36): re-checked the PostgreSQL refresh (`pg_clear_cache` in `data/read.rs`) that #36 added; it matches the code. No changes.
-- 2026-10-05 (later): the data gate now lets waiting readers in after each write (cherry-picked a487178); the gate paragraph and Evidence describe it.
+- 2026-10-05 (after merging #36): re-checked the PostgreSQL refresh (`pg_clear_cache` in `data/read.rs`) that #36 added. It matches the code. No changes.
+- 2026-10-05 (later): the data gate now lets waiting readers in after each write (cherry-picked a487178). The gate paragraph and Evidence describe it.
+- 2026-10-09: added the action-query writer (`data/write.rs`) and its section.
+  SQLite UPDATEs are written back through a text attachment, not the RecordStore.
+- 2026-10-10: `read_only_guard` also rejects `sqlite_query`, which runs SQLite
+  statements on the attachment.

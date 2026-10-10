@@ -97,7 +97,8 @@ mod tests {
 
     #[test]
     fn upload_url_reply_decodes() {
-        let reply: UploadUrlReply = decode("archive-upload-url", recorded("archive-upload-url")).unwrap();
+        let reply: UploadUrlReply =
+            decode("archive-upload-url", recorded("archive-upload-url")).unwrap();
         assert!(reply.signed_url.contains("/storage/v1/object/upload/sign/"));
         assert!(reply.path.ends_with(&format!("{}.ixt", reply.upload_id)));
         assert!(reply.token.is_some());

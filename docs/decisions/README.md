@@ -21,6 +21,8 @@ every risk-retirement spike. This index maps each spike to its record.
 | [Desktop signing and webview CSP](./desktop-updates.md) | none. Signed installers, webview CSP (PRD Phase 5). In-app updates removed from the MVP (2026-10-06) | accepted; release key gate in CI, production key ceremony pending |
 | [Performance budgets](./performance-budgets.md) | none. PRD §27.3 targets, reference hardware, fixture, and the report-only harness | accepted, report-only |
 | [Windows support](./windows-support.md) | none. Windows-only failures in Rust tests and the NAPI test bridge | accepted, pending Windows CI (no run has reached a runner yet) |
+| [Action queries](./action-queries.md) | none. Saved queries that change rows: DuckDB SQL through a writable attach, per-row triggers | accepted |
+| [Access import](./access-import.md) | none. One-way import of Access databases and templates. Format spec in [`docs/access-format.md`](../access-format.md) | accepted |
 
 The Phase 0 item "signed personalized bundle and envelope-encryption threat
 model" is covered by the [cloud security model](./cloud-security-model.md)

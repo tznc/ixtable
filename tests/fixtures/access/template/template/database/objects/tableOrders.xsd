@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:od="urn:schemas-microsoft-com:officedata">
+<xsd:element name="dataroot"><xsd:complexType><xsd:sequence><xsd:element ref="Orders" minOccurs="0" maxOccurs="unbounded"/></xsd:sequence></xsd:complexType></xsd:element>
+<xsd:element name="Orders">
+<xsd:annotation><xsd:appinfo>
+<od:index index-name="PrimaryKey" index-key="ID " primary="yes" unique="yes" clustered="no" order="asc"/>
+<od:index index-name="Customer" index-key="Customer " primary="no" unique="no" clustered="no" order="asc"/>
+<od:tableProperty name="ValidationRule" type="12" value="[Shipped] Is Null Or [Shipped]&gt;=[Order Date]"/>
+<od:tableProperty name="ValidationText" type="10" value="An order ships after it is placed."/>
+</xsd:appinfo></xsd:annotation>
+<xsd:complexType><xsd:sequence>
+<xsd:element name="ID" minOccurs="1" od:jetType="autonumber" od:sqlSType="int" od:autoUnique="yes" od:nonNullable="yes" type="xsd:int"/>
+<xsd:element name="Customer" minOccurs="1" od:jetType="longinteger" od:sqlSType="int" od:nonNullable="yes" type="xsd:int">
+<xsd:annotation><xsd:appinfo>
+<od:fieldProperty name="DisplayControl" type="3" value="111"/>
+<od:fieldProperty name="RowSourceType" type="10" value="Table/Query"/>
+<od:fieldProperty name="RowSource" type="12" value="SELECT Customers.ID, Customers.Company FROM Customers ORDER BY Customers.Company;"/>
+<od:fieldProperty name="BoundColumn" type="3" value="1"/>
+<od:fieldProperty name="ColumnCount" type="3" value="2"/>
+<od:fieldProperty name="ColumnWidths" type="10" value="0;1440"/>
+</xsd:appinfo></xsd:annotation>
+</xsd:element>
+<xsd:element name="Order_x0020_Date" minOccurs="0" od:jetType="datetime" od:sqlSType="datetime" type="xsd:dateTime">
+<xsd:annotation><xsd:appinfo><od:fieldProperty name="Format" type="10" value="Short Date"/><od:fieldProperty name="DefaultValue" type="12" value="=Date()"/></xsd:appinfo></xsd:annotation>
+</xsd:element>
+<xsd:element name="Amount" minOccurs="0" od:jetType="currency" od:sqlSType="money" type="xsd:double">
+<xsd:annotation><xsd:appinfo><od:fieldProperty name="ValidationRule" type="12" value="&gt;=0"/><od:fieldProperty name="ValidationText" type="10" value="Amount cannot be negative."/><od:fieldProperty name="Format" type="10" value="Currency"/></xsd:appinfo></xsd:annotation>
+</xsd:element>
+<xsd:element name="Paid" minOccurs="0" od:jetType="yesno" od:sqlSType="bit" type="xsd:boolean"/>
+<xsd:element name="Shipped" minOccurs="0" od:jetType="datetime" od:sqlSType="datetime" type="xsd:dateTime"/>
+<xsd:element name="Notes" minOccurs="0" od:jetType="memo" od:sqlSType="ntext"/>
+</xsd:sequence></xsd:complexType>
+</xsd:element>
+</xsd:schema>

@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { ActionPicker } from "../automation/ActionPicker";
 import type { DbObject } from "../lib/types";
+import { readQueries } from "../query/types";
 import { resizePlacement } from "../grid/engine";
 import { filterNames } from "../runtime/conditions";
 import { knownNames } from "../runtime/formState";
@@ -418,7 +419,7 @@ function OptionsQueries() {
   const { config } = useDesignEditor();
   return (
     <>
-      {(config.savedQueries ?? []).map((q) => (
+      {readQueries(config.savedQueries).map((q) => (
         <option key={q.id} value={q.id}>
           {q.name}
         </option>

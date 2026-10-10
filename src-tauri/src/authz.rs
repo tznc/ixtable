@@ -153,7 +153,7 @@ fn source_table(form: &Form) -> Option<&str> {
         .and_then(|s| s.table.as_deref())
 }
 
-fn bands(report: &Report) -> Vec<&Band> {
+pub(crate) fn bands(report: &Report) -> Vec<&Band> {
     let b = &report.bands;
     let mut out = vec![&b.report_header, &b.page_header, &b.detail];
     for g in &b.groups {
@@ -204,7 +204,7 @@ fn readable_tables(
 }
 
 /// Saved queries a form reads: a query source and option queries.
-fn form_queries(form: &Form) -> impl Iterator<Item = &str> {
+pub(crate) fn form_queries(form: &Form) -> impl Iterator<Item = &str> {
     let source = form.source.as_ref().and_then(|s| s.query_id.as_deref());
     let options = form
         .controls
@@ -217,7 +217,7 @@ fn form_queries(form: &Form) -> impl Iterator<Item = &str> {
 /// choices. Embedded forms are excluded: their queries need the form grant
 /// (`readable_query`'s `by_form`), since the dashboard refuses forms the role
 /// cannot open.
-fn dashboard_queries(dashboard: &Dashboard) -> impl Iterator<Item = &str> {
+pub(crate) fn dashboard_queries(dashboard: &Dashboard) -> impl Iterator<Item = &str> {
     let components = dashboard
         .components
         .iter()

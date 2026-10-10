@@ -34,6 +34,7 @@ import {
   insertRecord,
   type RecordWrite,
   type RecordWriteMeta,
+  runActionQuery,
   type TriggerAuth,
   type TriggerStepAuth,
   updateRecord,
@@ -41,6 +42,7 @@ import {
 } from "../lib/records";
 import type { DataValue, DocumentConfig, NamedValue, QueryResult } from "../lib/types";
 import * as queryApi from "../query/api";
+import { ACTION_QUERY_OPS, type ActionSpec } from "../query/types";
 import { customActionFor, customScope } from "./custom";
 import { afterWrite, currentRow, type FoundRow, matchRows, rowKey, withKeys } from "./rows";
 import type { ActionDef, MatchSpec, OnError, Step, StepLog, ValueMap } from "./types";
@@ -308,6 +310,30 @@ async function runCustom(
 /** The custom action an update or delete step routes to (none inside a custom action). */
 const routedTo = (frame: Frame, table: string) =>
   frame.ctx.directWrites ? null : customActionFor(frame.ctx.config, table);
+/**
+ * A runQuery step on an action query: it writes at once, so it cannot join a
+ * rollback-mode action's batch. `storeAs` holds `{ changed, removed }`.
+ */
+async function runActionQueryStep(
+  frame: Frame,
+  step: Extract<Step, { kind: "runQuery" }>,
+  action: ActionSpec,
+) {
+  if (frame.tx)
+    throw new Error(
+      "Action queries write at once, so they cannot run inside an action that rolls back on error",
+    );
+  for (const op of ACTION_QUERY_OPS[action.kind]) authorize(frame, "table", action.table, op);
+  const params = toNamedValues(evalMap(step.params, frame));
+  let run: { changed: number; removed: number } = { changed: 0, removed: 0 };
+  await direct(frame, async () => {
+    run = await runActionQuery(step.queryId, params, {
+      triggerDepth: frame.ctx.triggerDepth ?? 0,
+    });
+  });
+  if (step.storeAs?.trim())
+    frame.scope.results[step.storeAs] = { changed: run.changed, removed: run.removed };
+}
 /** Runs a UI effect now, or after the commit inside a transaction. */
 function effect(frame: Frame, run: () => void) {
   if (frame.tx) frame.tx.effects.push(run);
@@ -401,6 +427,11 @@ async function runStep(step: Step, frame: Frame, path: string): Promise<void> {
       return;
     }
     case "runQuery": {
+      const action = ctx.config.savedQueries.find((q) => q.id === step.queryId)?.action;
+      if (action) {
+        await runActionQueryStep(frame, step, action);
+        return;
+      }
       authorize(frame, "query", step.queryId, "read");
       const params = evalMap(step.params, frame);
       const result = await runQuery(ctx.config, step.queryId, params);

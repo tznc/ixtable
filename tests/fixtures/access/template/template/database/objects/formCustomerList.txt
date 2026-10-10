@@ -1,0 +1,65 @@
+Version =20
+VersionRequired =20
+Begin Form
+    DefaultView =2
+    Width =9000
+    RecordSource ="Customers"
+    Caption ="Customer List"
+    Begin
+        Begin Section
+            Height =400
+            Name ="Detail"
+            Begin
+                Begin TextBox
+                    Left =100
+                    Top =50
+                    Width =3000
+                    Height =300
+                    TabIndex =0
+                    Name ="Company"
+                    ControlSource ="Company"
+                    OnDblClickEmMacro = Begin
+                        Version =196611
+                        Begin
+                            Action ="OpenForm"
+                            Argument ="Customer Details"
+                            Argument ="0"
+                            Argument =""
+                            Argument ="=\"[ID]=\" & [ID]"
+                            Argument ="-1"
+                            Argument ="0"
+                        End
+                    End
+                    Begin
+                        Begin Label
+                            Left =100
+                            Top =50
+                            Width =1000
+                            Height =300
+                            Name ="Company_Label"
+                            Caption ="Company"
+                        End
+                    End
+                End
+                Begin ComboBox
+                    Left =3200
+                    Top =50
+                    Width =2000
+                    Height =300
+                    TabIndex =1
+                    Name ="Category"
+                    ControlSource ="Category"
+                End
+                Begin TextBox
+                    Left =5300
+                    Top =50
+                    Width =3000
+                    Height =300
+                    TabIndex =2
+                    Name ="Website"
+                    ControlSource ="Website"
+                End
+            End
+        End
+    End
+End

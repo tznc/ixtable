@@ -1,0 +1,31 @@
+Operation =1
+Option =0
+Begin InputTables
+    Name ="Customers"
+    Name ="Orders"
+End
+Begin OutputColumns
+    Expression ="Customers.Company"
+    Alias ="Total"
+    Expression ="Sum(Orders.Amount)"
+    Alias ="Unpaid"
+    Expression ="Sum(IIf([Paid],0,[Amount]))"
+    Alias ="Last order"
+    Expression ="Max(Orders.[Order Date])"
+End
+Begin Joins
+    LeftTable ="Customers"
+    RightTable ="Orders"
+    Expression ="Customers.ID = Orders.Customer"
+    Flag =2
+End
+Begin OrderBy
+    Expression ="Sum(Orders.Amount)"
+    Flag =1
+End
+Begin Groups
+    Expression ="Customers.Company"
+    GroupLevel =0
+End
+dbBoolean "ReturnsRecords" ="-1"
+dbInteger "ODBCTimeout" ="60"

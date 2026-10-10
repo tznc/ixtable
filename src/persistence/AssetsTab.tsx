@@ -1,4 +1,4 @@
-import { Download, FileUp, Trash2 } from "lucide-react";
+import { Download, Eye, FileUp, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { asTauriError, type TauriError } from "../lib/api";
 import { useDocumentConfig } from "../lib/config-store";
@@ -12,6 +12,8 @@ import {
   removeAsset,
 } from "./api";
 import { ArchiveSizePanel } from "./ArchiveSizePanel";
+import { AssetPreview } from "./AssetPreview";
+import { isTextAsset } from "./textSections";
 import { CheckpointsPanel } from "./CheckpointsPanel";
 import { chooseAssetDestination, chooseAssetToImport } from "./dialog";
 import { formatBytes } from "./format";
@@ -29,6 +31,7 @@ export function AssetsTab() {
   const [error, setError] = useState<TauriError | null>(null);
   const [status, setStatus] = useState("");
   const [revision, setRevision] = useState(0);
+  const [viewing, setViewing] = useState<Attachment | null>(null);
 
   const refresh = useCallback(async () => {
     const [all, unused] = await Promise.all([listAssets(), listOrphanAssets()]);
@@ -124,6 +127,15 @@ export function AssetsTab() {
                   <code title={asset.checksum}>{asset.checksum.slice(0, 12)}…</code>
                 </td>
                 <td className="asset-actions">
+                  {isTextAsset(asset) && (
+                    <button
+                      aria-label={`View ${asset.displayName}`}
+                      aria-pressed={viewing?.id === asset.id}
+                      onClick={() => setViewing(viewing?.id === asset.id ? null : asset)}
+                    >
+                      <Eye aria-hidden />
+                    </button>
+                  )}
                   <button
                     disabled={busy}
                     aria-label={`Export ${asset.displayName}`}
@@ -143,6 +155,9 @@ export function AssetsTab() {
             ))}
           </tbody>
         </table>
+      )}
+      {viewing && assets?.some((a) => a.id === viewing.id) && (
+        <AssetPreview asset={viewing} onClose={() => setViewing(null)} />
       )}
       <section className="settings-section" aria-labelledby="unused-assets">
         <h3 id="unused-assets">Unused assets</h3>

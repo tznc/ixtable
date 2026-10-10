@@ -1,0 +1,10 @@
+Operation =3
+Name ="Orders"
+Option =0
+Begin InputTables
+    Name ="Orders"
+End
+Begin OutputColumns
+    Name ="Customer"
+    Expression ="Orders.Customer"
+End

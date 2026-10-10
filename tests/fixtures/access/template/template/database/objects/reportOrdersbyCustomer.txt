@@ -1,0 +1,131 @@
+Version =20
+Begin Report
+    Width =9360
+    RecordSource ="Orders"
+    PrtMip = Begin
+        0xa0050000a0050000a0050000a005000000000000802500003c1c000001000000 ,
+        0x010000006801000000000000a10700000100000001000000
+    End
+    Begin
+        Begin BreakLevel
+            GroupHeader = NotDefault
+            GroupFooter = NotDefault
+            ControlSource ="Customer"
+        End
+        Begin BreakLevel
+            SortOrder = NotDefault
+            ControlSource ="Order Date"
+        End
+        Begin FormHeader
+            Height =800
+            Name ="ReportHeader"
+            Begin
+                Begin Label
+                    Left =0
+                    Top =100
+                    Width =5000
+                    Height =500
+                    FontSize =20
+                    FontWeight =700
+                    Name ="Title"
+                    Caption ="Orders by Customer"
+                End
+            End
+        End
+        Begin PageHeader
+            Height =400
+            Name ="PageHeaderSection"
+            Begin
+                Begin Label
+                    Left =0
+                    Top =50
+                    Width =2000
+                    Height =300
+                    Name ="DateLabel"
+                    Caption ="Order date"
+                End
+            End
+        End
+        Begin BreakHeader
+            Height =450
+            Name ="GroupHeader0"
+            Begin
+                Begin ComboBox
+                    Left =0
+                    Top =50
+                    Width =4000
+                    Height =350
+                    FontWeight =700
+                    Name ="Customer"
+                    ControlSource ="Customer"
+                    RowSourceType ="Table/Query"
+                    RowSource ="SELECT Customers.ID, Customers.Company FROM Customers;"
+                    ColumnCount =2
+                    ColumnWidths ="0;2880"
+                End
+            End
+        End
+        Begin Section
+            Height =350
+            Name ="Detail"
+            Begin
+                Begin TextBox
+                    Left =0
+                    Top =25
+                    Width =2000
+                    Height =300
+                    Name ="Order Date"
+                    ControlSource ="Order Date"
+                    Format ="Short Date"
+                End
+                Begin TextBox
+                    Left =2500
+                    Top =25
+                    Width =2000
+                    Height =300
+                    TextAlign =3
+                    Name ="Amount"
+                    ControlSource ="Amount"
+                    Format ="Currency"
+                End
+                Begin TextBox
+                    Left =5000
+                    Top =25
+                    Width =3000
+                    Height =300
+                    Name ="Age"
+                    ControlSource ="=DateDiff(\"d\",[Order Date],Date())"
+                End
+            End
+        End
+        Begin BreakFooter
+            Height =400
+            Name ="GroupFooter0"
+            Begin
+                Begin TextBox
+                    Left =2500
+                    Top =50
+                    Width =2000
+                    Height =300
+                    Name ="SumAmount"
+                    ControlSource ="=Sum([Amount])"
+                    Format ="Currency"
+                End
+            End
+        End
+        Begin PageFooter
+            Height =400
+            Name ="PageFooterSection"
+            Begin
+                Begin TextBox
+                    Left =6000
+                    Top =50
+                    Width =3000
+                    Height =300
+                    Name ="PageNumber"
+                    ControlSource ="=\"Page \" & [Page] & \" of \" & [Pages]"
+                End
+            End
+        End
+    End
+End

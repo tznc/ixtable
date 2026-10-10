@@ -42,6 +42,10 @@ base64 = "0.22"
 duckdb = "=1.10505.0"
 # Reads XLSX files in the import wizard (import/).
 calamine = { version = "0.36", default-features = false }
+# Access import (access/): template packages are OPC zips; Jet 3 text is windows-1252.
+zip = { version = "8", default-features = false, features = ["deflate"] }
+encoding_rs = "0.8"
+codepage = "0.1"
 tauri-plugin-dialog = "2"
 # One app process per user: a second launch forwards its file arguments (lib.rs run()).
 tauri-plugin-single-instance = "2"

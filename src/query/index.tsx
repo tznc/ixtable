@@ -4,7 +4,7 @@ import { asTauriError } from "../lib/api";
 import { useDocumentConfig } from "../lib/config-store";
 import { newId } from "../lib/utils";
 import { useShell } from "../shell/context";
-import { checkQuerySql } from "./api";
+import { checkActionQuerySql, checkQuerySql } from "./api";
 import { emptyModel } from "./builder/model";
 import { QueryEditor } from "./QueryEditor";
 import { QueryList } from "./QueryList";
@@ -98,7 +98,10 @@ export function QueryMode() {
       // An unfinished builder model may be saved (Problems lists it); SQL must be
       // one read-only statement DuckDB can prepare.
       const { sql, error: compileError } = effectiveSql(draft);
-      if (!draft.builder) await checkQuerySql(sql);
+      if (draft.action) {
+        if (!draft.action.table) throw new Error("Choose the table this action query changes");
+        await checkActionQuerySql(sql, draft.action);
+      } else if (!draft.builder) await checkQuerySql(sql);
       const query: SavedQuery = {
         filterState: null,
         ...draft,
@@ -209,7 +212,10 @@ export function QueryMode() {
             <div className="empty-recent">
               <FileCode2 />
               <b>Select or create a query</b>
-              <span>Build a query visually or write read-only SQL.</span>
+              <span>
+                Build a query visually, write read-only SQL, or write an action query that changes
+                rows.
+              </span>
               <button onClick={newQuery}>Create a query</button>
             </div>
           )}

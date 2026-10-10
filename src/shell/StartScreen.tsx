@@ -1,4 +1,12 @@
-import { Database, FilePlus2, FileText, FolderOpen, PackageOpen, X } from "lucide-react";
+import {
+  Database,
+  DatabaseZap,
+  FilePlus2,
+  FileText,
+  FolderOpen,
+  PackageOpen,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   asTauriError,
@@ -7,6 +15,7 @@ import {
   openDocument,
   type TauriError,
 } from "../lib/api";
+import { AccessImportWizard } from "../access";
 import { CloudApps } from "../cloud";
 import { chooseDocumentToOpen } from "../lib/dialog";
 import { isRuntimeBundle, type OpenRequest, useEachRequest } from "../lib/launch";
@@ -37,6 +46,7 @@ export function StartScreen({
   const [recents, setRecents] = useState<RecentFile[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [bundleRequest, setBundleRequest] = useState<OpenRequest | null>(null);
+  const [importingAccess, setImportingAccess] = useState(false);
 
   useEffect(() => {
     listRecentFiles()
@@ -101,6 +111,13 @@ export function StartScreen({
             <span>
               <b>Open document</b>
               <small>Choose an .ixt file</small>
+            </span>
+          </button>
+          <button disabled={!!pending} onClick={() => setImportingAccess(true)}>
+            <DatabaseZap />
+            <span>
+              <b>Import Access database…</b>
+              <small>Convert an .accdb, .mdb, or .accdt file</small>
             </span>
           </button>
           <BundleFileFlow
@@ -180,6 +197,15 @@ export function StartScreen({
           )}
         </section>
       </main>
+      {importingAccess && (
+        <AccessImportWizard
+          onClose={() => setImportingAccess(false)}
+          onOpened={(state) => {
+            setImportingAccess(false);
+            onOpened(state);
+          }}
+        />
+      )}
       <footer>
         ixtable <span>Local-first document database</span>
       </footer>

@@ -1,0 +1,6 @@
+Version =196611
+Begin
+    Action ="OpenForm"
+    Argument ="Customer List"
+    Argument ="0"
+End

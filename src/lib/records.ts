@@ -32,6 +32,27 @@ export interface RecordWriteMeta {
   direct?: boolean;
   /** Marks the write as a step of an app-mode trigger (see src-tauri/src/trigger_auth.rs). */
   trigger?: TriggerStepAuth;
+  /** Set on the one write that stands for a whole action query (see `runActionQuery`). */
+  bulk?: BulkChange;
+}
+
+/** The rows an action query created or updated, for firing triggers once per row. */
+export interface BulkChange {
+  created: DataValue[][];
+  updated: { identity: DataValue[]; old: NamedValue[] }[];
+  /** Sync app-mode trigger grants Rust issued for each event; shared by its rows. */
+  createdGrant?: string | null;
+  updatedGrant?: string | null;
+}
+
+/** What `run_action_query` returns (src-tauri/src/queries/action.rs). */
+export interface ActionQueryRun extends BulkChange {
+  /** Rows the statement matched (for `replace`: rows inserted). */
+  changed: number;
+  /** Rows a `replace` query removed first. */
+  removed: number;
+  dryRun: boolean;
+  table: string;
 }
 
 /** What an app-mode trigger presents to Rust: its sync grant, or its job lease. */
@@ -230,4 +251,36 @@ export async function writeRecordBatch(input: RecordWrite[]): Promise<unknown[]>
   });
   announceChange();
   return afterCommit(writes, outcomes, active);
+}
+
+/**
+ * Runs a saved action query (docs/decisions/action-queries.md). With `dryRun`
+ * the changes roll back and only the counts come back. Otherwise every record
+ * hook runs once with a single write that stands for the whole query (its
+ * `meta.bulk` lists the created and updated rows); the trigger hook fires the
+ * table's triggers once per row. A failing trigger rejects with a
+ * CommittedWriteError: the query's changes are saved.
+ */
+export async function runActionQuery(
+  queryId: string,
+  params: NamedValue[],
+  options: { dryRun?: boolean; triggerDepth?: number } = {},
+): Promise<ActionQueryRun> {
+  const run = await call<ActionQueryRun>("run_action_query", {
+    id: queryId,
+    params,
+    dryRun: options.dryRun ?? false,
+  });
+  if (run.dryRun) return run;
+  announceChange();
+  const operation: RecordOperation = run.updated.length ? "update" : "insert";
+  const record: RecordWrite = {
+    operation,
+    table: run.table,
+    values: [],
+    identity: null,
+    meta: { writeId: newId(), triggerDepth: options.triggerDepth ?? 0, bulk: run },
+  };
+  await afterCommit([record], [{ changed: run.changed }], [...hooks]);
+  return run;
 }

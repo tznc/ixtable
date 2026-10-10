@@ -106,7 +106,7 @@ it("edits config YAML, reports YAML errors, and undoes an applied YAML change", 
   expect(await screen.findByText("YAML applied.", {}, LONG)).toBeInTheDocument();
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   expect(await screen.findByText("Inventory")).toBeInTheDocument();
-  await waitFor(() => expect(editor).toHaveDisplayValue(/version: 3/));
+  await waitFor(() => expect(editor).toHaveDisplayValue(/version: 4/));
 
   await user.click(screen.getByRole("button", { name: "Undo" }));
   await waitFor(async () => expect((await readConfig()).name).toBe("Untitled"), LONG);

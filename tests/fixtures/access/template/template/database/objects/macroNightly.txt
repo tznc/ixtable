@@ -1,0 +1,10 @@
+Version =196611
+ColumnsShown =0
+Begin
+    Action ="RunSQL"
+    Argument ="DELETE FROM Orders WHERE Orders.Amount = 0"
+End
+Begin
+    Action ="OpenQuery"
+    Argument ="MakeCustomerTotals"
+End
