@@ -20,6 +20,16 @@ pub struct Item {
     pub name: String,
     pub status: Status,
     pub notes: Vec<String>,
+    /// The ixtable object it became, for links from the migration report.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<Target>,
+}
+
+/// An object of the document: `kind` is form, report, action or query.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Target {
+    pub kind: &'static str,
+    pub id: String,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -41,7 +51,68 @@ impl ImportReport {
             name: name.into(),
             status,
             notes,
+            target: None,
         });
+    }
+
+    /// Points each item at the object it became, matched by name.
+    pub fn link_targets(&mut self, config: &crate::archive::DocumentConfig) {
+        let find = |list: Vec<(&str, &str)>, name: &str| {
+            list.into_iter()
+                .find(|(n, _)| n.eq_ignore_ascii_case(name))
+                .map(|(_, id)| id.to_string())
+        };
+        for item in &mut self.items {
+            let (kind, id) = match item.kind.as_str() {
+                "form" => (
+                    "form",
+                    find(
+                        config
+                            .design
+                            .forms
+                            .iter()
+                            .map(|f| (f.name.as_str(), f.id.as_str()))
+                            .collect(),
+                        &item.name,
+                    ),
+                ),
+                "report" => (
+                    "report",
+                    find(
+                        config
+                            .reports
+                            .iter()
+                            .map(|r| (r.name.as_str(), r.id.as_str()))
+                            .collect(),
+                        &item.name,
+                    ),
+                ),
+                "macro" => (
+                    "action",
+                    find(
+                        config
+                            .actions
+                            .iter()
+                            .map(|a| (a.name.as_str(), a.id.as_str()))
+                            .collect(),
+                        &item.name,
+                    ),
+                ),
+                "query" => (
+                    "query",
+                    find(
+                        config
+                            .saved_queries
+                            .iter()
+                            .map(|q| (q.name.as_str(), q.id.as_str()))
+                            .collect(),
+                        &item.name,
+                    ),
+                ),
+                _ => continue,
+            };
+            item.target = id.map(|id| Target { kind, id });
+        }
     }
 
     /// Adds a note to an existing item (and downgrades a converted item to partial).

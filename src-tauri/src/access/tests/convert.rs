@@ -400,7 +400,18 @@ fn binary_databases_get_generated_forms_and_working_queries() {
             .iter()
             .find(|i| i.name == "Unpaid Orders")
             .unwrap();
-        assert_eq!(unpaid.status, Status::Skipped);
+        // DLookup with criteria built from the row is a correlated subquery.
+        assert_eq!(unpaid.status, Status::Converted, "{:?}", unpaid.notes);
+        let unpaid = config
+            .saved_queries
+            .iter()
+            .find(|q| q.name == "Unpaid Orders")
+            .unwrap();
+        rows(
+            m,
+            &window,
+            &format!("SELECT count(*) FROM ({})", unpaid.sql),
+        );
         m.close(&window, true).unwrap();
     }
 }
@@ -588,4 +599,46 @@ fn action_queries_convert_and_run(m: &DocumentManager, config: &crate::archive::
         let notes = item["notes"].to_string();
         assert!(!notes.contains("DuckDB rejects"), "{notes}");
     }
+}
+
+#[test]
+fn migration_report_links_objects_and_saves_as_text() {
+    let path = super::fixtures::template();
+    let (report, errs) = import(&path, "mig");
+    assert_eq!(errs, Vec::<String>::new());
+    let config = manager().config("mig").unwrap();
+    let stored = &config.settings["accessImport"];
+    assert!(stored["importedAt"]
+        .as_str()
+        .is_some_and(|t| t.ends_with('Z')));
+    assert!(stored["warnings"].is_array());
+    // Forms, reports, macros and queries point at what they became.
+    for item in report.items.iter().filter(|i| i.status != Status::Skipped) {
+        let Some(target) = &item.target else {
+            assert!(
+                !["form", "report", "query"].contains(&item.kind.as_str()),
+                "{item:?}"
+            );
+            continue;
+        };
+        let found = match target.kind {
+            "form" => config.design.forms.iter().any(|f| f.id == target.id),
+            "report" => config.reports.iter().any(|r| r.id == target.id),
+            "action" => config.actions.iter().any(|a| a.id == target.id),
+            _ => config.saved_queries.iter().any(|q| q.id == target.id),
+        };
+        assert!(found, "{item:?}");
+    }
+    let linked = stored["report"].as_array().unwrap();
+    assert!(linked.iter().any(|i| i["target"]["kind"] == "form"));
+    let dir = std::env::temp_dir().join(format!("ixtable-mig-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    crate::access::write_report_text(&dir.join("report.md"), "# Report").unwrap();
+    assert_eq!(
+        std::fs::read_to_string(dir.join("report.md")).unwrap(),
+        "# Report"
+    );
+    let err = crate::access::write_report_text(&dir.join("report.exe"), "x").unwrap_err();
+    assert_eq!(err.code, "VALIDATION_ERROR");
+    manager().close("mig", true).unwrap();
 }

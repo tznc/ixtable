@@ -8,3 +8,7 @@ export const inspectAccessFile = (path: string) =>
 /** A new untitled document converted from an Access file, with the import report. */
 export const importAccessFile = (path: string, options: AccessImportOptions) =>
   call<AccessImport>("import_access_file", { path, options });
+
+/** Saves migration report text (Markdown or CSV) to `path`. */
+export const writeAccessReport = (path: string, text: string) =>
+  call<void>("write_access_report", { path, text });

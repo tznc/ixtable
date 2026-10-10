@@ -5,7 +5,7 @@ use crate::access::translate::expr::{translate, Target};
 use crate::access::translate::format::format_pattern;
 use crate::access::translate::sql::{Dialect, Kind, Schema, SqlWriter};
 
-struct Fixture;
+pub(super) struct Fixture;
 
 impl Schema for Fixture {
     fn columns(&self, source: &str) -> Option<Vec<(String, Kind)>> {
@@ -99,7 +99,7 @@ fn functions_and_date_arithmetic() {
     let sql = duck("SELECT IIf(IsNull(Status),Nz(Amount),Len(Status)) AS a, DateAdd(\"m\",1,[Order Date]) AS b, DateDiff(\"d\",[Order Date],Date()) AS c, [Order Date]+7 AS d, Format([Order Date],\"yyyy\") AS e, Int(Now()) AS f FROM Orders");
     assert_eq!(
         sql,
-        "SELECT CASE WHEN (\"Status\" IS NULL) THEN coalesce(\"Amount\", 0) ELSE length(\"Status\") END AS \"a\", (\"Order Date\" + to_months(CAST(1 AS INTEGER))) AS \"b\", date_diff('day', \"Order Date\", CAST(CAST(now() AS TIMESTAMP) AS DATE)) AS \"c\", (CAST(\"Order Date\" AS TIMESTAMP) + to_seconds(CAST(round((7) * 86400) AS BIGINT))) AS \"d\", strftime(\"Order Date\", '%Y') AS \"e\", CAST(CAST(now() AS TIMESTAMP) AS DATE) AS \"f\" FROM \"Orders\""
+        "SELECT CASE WHEN (\"Status\" IS NULL) THEN coalesce(\"Amount\", 0) ELSE length(\"Status\") END AS \"a\", (\"Order Date\" + to_months(CAST(1 AS INTEGER))) AS \"b\", date_diff('day', \"Order Date\", CAST(CAST(now() AS TIMESTAMP) AS DATE)) AS \"c\", (CAST(\"Order Date\" AS TIMESTAMP) + to_seconds(CAST(round((7) * 86400) AS BIGINT))) AS \"d\", strftime(CAST(\"Order Date\" AS TIMESTAMP), '%Y') AS \"e\", CAST(CAST(now() AS TIMESTAMP) AS DATE) AS \"f\" FROM \"Orders\""
     );
     assert_eq!(
         duck("SELECT DLookup(\"Company\",\"Customers\",\"ID=1\") AS c FROM Orders"),

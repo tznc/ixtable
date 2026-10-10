@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it } from "vitest";
 import App from "../../src/App";
@@ -118,4 +118,50 @@ it("imports a template whose VBA is viewable and whose action queries run", asyn
     dryRun: true,
   });
   expect(run.changed).toBe((await readPage("Orders")).total);
+});
+
+it("keeps a migration report in Settings with links, review marks and export", async () => {
+  const dialog = await openWizard();
+  const dir = mkdtempSync(join(process.env.IXTABLE_STATE_DIR!, "access-"));
+  dialogMock.open.mockResolvedValueOnce(packTemplate(join(dir, "Order Desk.accdt")));
+  await user.click(within(dialog).getByRole("button", { name: /Choose file/ }));
+  await within(dialog).findByRole("table", { name: "Access tables" }, LONG);
+  await user.click(within(dialog).getByRole("button", { name: "Import" }));
+  await within(dialog).findByRole("region", { name: "Access import report" }, LONG);
+  expect(
+    within(dialog).getByText(/Settings › Access migration keeps this report/),
+  ).toBeInTheDocument();
+  await user.click(within(dialog).getByRole("button", { name: "Open document" }));
+
+  await user.click(await screen.findByRole("button", { name: "Settings" }, LONG));
+  await user.click(await screen.findByRole("tab", { name: "Access migration" }, LONG));
+  const panel = await screen.findByRole("tabpanel");
+  expect(within(panel).getByText(/Imported from Order Desk\.accdt/)).toBeInTheDocument();
+  const items = within(panel).getByRole("table", { name: "Migration items" });
+  const first = within(items).getAllByRole("row")[1];
+  const box = within(first).getByRole("checkbox", { name: /^Reviewed / });
+  const summary = within(panel).getByText(/still needs? review/);
+  const before = summary.textContent;
+  await user.click(box);
+  await waitFor(() => expect(summary.textContent).not.toBe(before), LONG);
+  expect(box).toBeChecked();
+
+  await user.selectOptions(within(panel).getByRole("combobox", { name: /Show/ }), "all");
+  await user.selectOptions(within(panel).getByRole("combobox", { name: /Kind/ }), "form");
+  const forms = within(panel).getByRole("table", { name: "Migration items" });
+  expect(within(forms).getAllByRole("row").length).toBeGreaterThan(1);
+
+  const target = join(dir, "report.md");
+  dialogMock.save.mockResolvedValueOnce(target);
+  await user.click(within(panel).getByRole("button", { name: /Export Markdown/ }));
+  await within(panel).findByText("Saved report.md", {}, LONG);
+  const md = readFileSync(target, "utf8");
+  expect(md).toMatch(/^# Access migration report: /);
+  expect(md).toContain("| Forms |");
+  expect(md).toContain("(reviewed)");
+
+  const open = within(forms).getAllByRole("button", { name: /^Open form / })[0];
+  const name = open.getAttribute("aria-label")!.replace("Open form ", "");
+  await user.click(open);
+  expect(await screen.findByDisplayValue(name, {}, LONG)).toBeInTheDocument();
 });

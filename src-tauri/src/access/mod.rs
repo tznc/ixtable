@@ -147,5 +147,32 @@ pub async fn import_access_file(
     .await
 }
 
+/// Saves the migration report text the Studio renders (Markdown or CSV).
+#[tauri::command]
+pub fn write_access_report(
+    window_label: String,
+    path: String,
+    text: String,
+) -> Result<(), AppError> {
+    crate::manager()?.state(&window_label)?;
+    crate::authz::require_unrestricted(&window_label, "export the migration report")?;
+    write_report_text(Path::new(&path), &text)
+}
+
+/// Writes report text to a `.md`, `.csv` or `.txt` file.
+pub fn write_report_text(path: &Path, text: &str) -> Result<(), AppError> {
+    let ext = path
+        .extension()
+        .map(|e| e.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    if !["md", "csv", "txt"].contains(&ext.as_str()) {
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "the migration report is saved as a .md, .csv or .txt file",
+        ));
+    }
+    std::fs::write(path, text).map_err(|e| AppError::new("IO_ERROR", e))
+}
+
 #[cfg(test)]
 mod tests;

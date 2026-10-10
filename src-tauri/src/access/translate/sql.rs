@@ -79,6 +79,11 @@ pub struct SqlWriter<'a> {
     inlining: Vec<String>,
     /// True while translating a column DEFAULT (SQLite keywords for now).
     pub in_default: bool,
+    /// Placeholder names standing for outer-query SQL in a domain function's
+    /// criteria (`DLookup(..., "ID=" & [ID])`): (name, SQL).
+    pub(super) outer: Vec<(String, String)>,
+    /// Qualify bare column names with their source (outer references).
+    pub(super) qualify: bool,
 }
 
 pub fn quote(name: &str) -> String {
@@ -139,6 +144,8 @@ impl<'a> SqlWriter<'a> {
             table_columns: vec![],
             inlining: vec![],
             in_default: false,
+            outer: vec![],
+            qualify: false,
         }
     }
 
@@ -220,7 +227,8 @@ impl<'a> SqlWriter<'a> {
                     "sum" | "avg" | "count" | "dcount" | "dsum" | "davg" | "year" | "month"
                     | "day" | "hour" | "minute" | "second" | "weekday" | "datediff"
                     | "datepart" | "len" | "instr" | "val" | "int" | "fix" | "abs" | "round"
-                    | "cint" | "clng" | "cdbl" | "csng" | "ccur" | "cdec" | "sgn" | "sqr" => {
+                    | "cint" | "clng" | "cdbl" | "csng" | "ccur" | "cdec" | "sgn" | "sqr"
+                    | "instrrev" | "strcomp" | "rnd" | "timer" | "atn" | "sin" | "cos" | "tan" => {
                         Kind::Number
                     }
                     "min" | "max" | "first" | "last" | "nz" | "dmin" | "dmax" | "dfirst"
@@ -234,7 +242,9 @@ impl<'a> SqlWriter<'a> {
                         _ => Kind::Other,
                     },
                     "format" | "left" | "right" | "mid" | "trim" | "ltrim" | "rtrim" | "ucase"
-                    | "lcase" | "cstr" | "replace" | "plaintext" => Kind::Text,
+                    | "lcase" | "cstr" | "replace" | "plaintext" | "strconv" | "monthname"
+                    | "weekdayname" | "formatcurrency" | "formatnumber" | "formatpercent"
+                    | "formatdatetime" | "partition" | "hex" | "oct" | "strreverse" => Kind::Text,
                     _ => Kind::Other,
                 }
             }
@@ -280,8 +290,11 @@ impl<'a> SqlWriter<'a> {
         match parts {
             [one] => {
                 for scope in self.scopes.iter().rev() {
-                    for (_, cols) in &scope.sources {
+                    for (src, cols) in &scope.sources {
                         if let Some((c, k)) = find(cols, &one.text) {
+                            if self.qualify {
+                                return Some((format!("{}.{}", quote(src), quote(&c)), k));
+                            }
                             return Some((quote(&c), k));
                         }
                     }
@@ -417,6 +430,11 @@ impl<'a> SqlWriter<'a> {
                     .collect::<Vec<_>>()
                     .join(".")
             ));
+        }
+        if let [one] = parts {
+            if let Some((_, sql)) = self.outer.iter().find(|(n, _)| *n == one.text) {
+                return Ok(sql.clone());
+            }
         }
         let original: Vec<String> = parts.iter().map(|p| p.text.clone()).collect();
         let first = parts[0].text.to_ascii_lowercase();

@@ -1,11 +1,14 @@
 import { type KeyboardEvent, useEffect, useState } from "react";
 import { appInfo } from "../lib/api";
-import { type SettingsTabId, settingsTabs } from "./settings-tabs";
+import { useDocumentConfig } from "../lib/config-store";
+import { type SettingsTabId, settingsTabs as allTabs } from "./settings-tabs";
 
 /** The `app` mode: application settings as a tab strip over `settingsTabs`. */
 export function AppSettings() {
   const [active, setActive] = useState<SettingsTabId>("assets");
   const [runtime, setRuntime] = useState("");
+  const { config } = useDocumentConfig();
+  const settingsTabs = allTabs.filter((tab) => !tab.visible || tab.visible(config));
   useEffect(() => {
     appInfo()
       .then((info) => setRuntime(`${info.name} · ${info.runtime} runtime`))
