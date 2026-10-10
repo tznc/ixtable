@@ -112,3 +112,8 @@ Platform signing secrets (Apple, Azure) are listed in
   gate is gone. Releases end as a draft GitHub release that a maintainer
   publishes. Signing, the cloud key gate and the CSP are unchanged. Retitled
   from "Desktop updates, signing, and webview CSP"; the filename is kept.
+- 2026-10-10: macOS notarization accepts an App Store Connect API key
+  (`APPLE_API_ISSUER`, `APPLE_API_KEY`, `APPLE_API_PRIVATE_KEY`) as the
+  preferred credential set, with the Apple ID set as the fallback
+  (`NOTARIZATION` in `scripts/release/signing.mjs`). The key text is written
+  to a file, never exported.
