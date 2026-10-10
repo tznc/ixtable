@@ -24,6 +24,7 @@ users cannot obtain new bundles or keys.
 | Runtime User | read app basics, own role, own membership, own installations and backups, published versions; request bundles and key grants while active and entitled | read other users, envelopes, grants, subscriptions, audit; change any cloud row directly |
 | Malicious Runtime User (authorized) | copy the archive, read displayed data, extract the decrypted datasource credential from process memory, keep using a credential they already obtained | evade fingerprint attribution in bundles they downloaded; obtain new grants after revocation |
 | App owner / org admin | manage their apps, members, invitations, settings; read audit for their apps | read envelope ciphertext or wrapped DEKs, forge audit rows, edit published versions |
+| Per-app admin / org billing / per-app billing / per-app viewer | act within their `app_capabilities` on the granted app only (admin: manage; billing: plan; viewer: read) | see other apps in the org, publish, manage credentials, grant access (org owners/admins only) |
 | Operator (`profiles.is_operator`) | diagnose through `admin-support`, which returns no secrets | read secrets through PostgREST (operators get no extra RLS) |
 | Compromised website session | act as that user within the rules above | escalate beyond the user's RLS scope |
 
@@ -269,3 +270,4 @@ computer.
 ## Audit log
 
 - 2026-10-05: Status notes implementation and keeps the external review pending; corrected the key override and single-key rotation, KEK re-wrap (no job yet), session storage (local secret store), exchange rate-limit subjects, attachment export, and the now-implemented revoked-installation check and approval-page warning; added production guards, `retention-sweep` and Evidence.
+- 2026-10-10: Added per-app console roles to the actor table (PRD §20.3).

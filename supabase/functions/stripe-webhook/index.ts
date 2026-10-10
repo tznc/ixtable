@@ -15,7 +15,9 @@ import {
   eventAppId,
   eventPlanHint,
   eventSubscriptionId,
+  eventCustomerId,
   parseStripeEvent,
+  type ResolvedPlan,
   type StripeEvent,
   verifyStripeSignature,
 } from "../_shared/billing.ts";
@@ -57,22 +59,40 @@ async function resolveAppId(event: StripeEvent): Promise<string | null> {
   return data?.app_id ?? null;
 }
 
-async function resolvePlanId(event: StripeEvent): Promise<string | null> {
-  const { planId, priceId } = eventPlanHint(event);
+/**
+ * Plan and interval of the event. The price wins over metadata because
+ * portal plan or interval switches change the price, not the metadata.
+ */
+async function resolvePlan(event: StripeEvent): Promise<ResolvedPlan | null> {
+  const { planId, interval, priceId } = eventPlanHint(event);
   const db = serviceClient();
+  if (priceId) {
+    for (const [column, interval] of [
+      ["stripe_price_id", "month"],
+      ["stripe_annual_price_id", "year"],
+    ] as const) {
+      const { data } = await db.from("plans").select("id").eq(column, priceId).maybeSingle();
+      if (data) return { planId: data.id, interval };
+    }
+  }
   if (planId) {
     const { data } = await db.from("plans").select("id").eq("id", planId).maybeSingle();
-    if (data) return data.id;
-  }
-  if (priceId) {
-    const { data } = await db
-      .from("plans")
-      .select("id")
-      .eq("stripe_price_id", priceId)
-      .maybeSingle();
-    if (data) return data.id;
+    if (data) return { planId: data.id, interval: interval ?? "month" };
   }
   return null;
+}
+
+/** Remembers the org's billing customer from a purchase (customers created before org billing). */
+async function rememberOrgCustomer(event: StripeEvent, orgId: string, provider: string) {
+  const customerId = eventCustomerId(event);
+  if (!customerId || event.type !== "checkout.session.completed") return;
+  const { error } = await serviceClient()
+    .from("org_billing_customers")
+    .upsert(
+      { org_id: orgId, provider, stripe_customer_id: customerId },
+      { onConflict: "org_id", ignoreDuplicates: true },
+    );
+  if (error) console.error("remember org customer failed", error.message);
 }
 
 async function apply(event: StripeEvent, appId: string | null): Promise<Outcome> {
@@ -86,7 +106,7 @@ async function apply(event: StripeEvent, appId: string | null): Promise<Outcome>
   if (!app) return { outcome: "ignored", reason: "app_not_found" };
 
   const existing = await getSubscription(appId);
-  const decision = decideSubscriptionEvent(event, existing, await resolvePlanId(event));
+  const decision = decideSubscriptionEvent(event, existing, await resolvePlan(event));
   if (decision.kind !== "apply") {
     return { outcome: decision.kind === "stale" ? "stale" : "ignored", reason: decision.reason };
   }
@@ -107,6 +127,8 @@ async function apply(event: StripeEvent, appId: string | null): Promise<Outcome>
     const { error } = await db.from("subscriptions").insert(row);
     if (error) throw new Error(`insert subscription failed: ${error.message}`);
   }
+
+  await rememberOrgCustomer(event, app.org_id, provider.name);
 
   if (decision.replacesSubscriptionId) {
     // A new checkout replaced the previous subscription: stop billing the old one.
@@ -135,10 +157,17 @@ async function apply(event: StripeEvent, appId: string | null): Promise<Outcome>
       details: {
         eventId: event.id,
         eventType: event.type,
-        from: existing ? { status: existing.status, planId: existing.plan_id } : null,
+        from: existing
+          ? {
+              status: existing.status,
+              planId: existing.plan_id,
+              interval: existing.billing_interval,
+            }
+          : null,
         to: {
           status: next.status,
           planId: next.plan_id,
+          interval: next.billing_interval,
           cancelAtPeriodEnd: next.cancel_at_period_end,
         },
         entitlement: entitlement

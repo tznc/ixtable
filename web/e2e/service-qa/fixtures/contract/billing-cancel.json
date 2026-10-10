@@ -9,6 +9,7 @@
     "subscription": {
       "app_id": "d5c5216b-2a16-48b4-86c4-488a9074a42d",
       "plan_id": "team",
+      "billing_interval": "month",
       "provider": "fake",
       "status": "active",
       "current_period_end": "2026-11-02T23:14:29+00:00",

@@ -143,6 +143,7 @@ export async function ensureSingleUserPlan(): Promise<string> {
       id: "qa_single",
       name: "QA single user",
       price_cents: 0,
+      annual_price_cents: 0,
       runtime_user_allowance: 1,
       storage_gb: 1,
       active: false,

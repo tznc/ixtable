@@ -156,6 +156,15 @@ ixtable Cloud provides:
 | Cloud archive backup/history | No | Yes |
 | Central audit history | No | Yes |
 
+### 4.5 Billing model
+
+- **Billed per cloud application.** Each cloud application has its own subscription and plan. An organization with three paid apps has three subscriptions.
+- **The organization pays.** Each organization is one billing customer (one Stripe customer, one card, one billing portal and invoice history). Every app subscription in the organization bills to it.
+- **Monthly or annual.** Every plan is sold monthly or annually. The annual price is ten times the monthly price (two months free). Customers switch interval through checkout; the change follows the same rules as a plan change.
+- **No free trial.** A cloud app is entitled only after its first successful payment. Checkout never creates a trial period. The free desktop edition is the evaluation path.
+- **Seats.** A plan's Runtime User allowance counts active Runtime Users of that app only. Organization members and per-app console access (§20.3) are free and unlimited.
+- **Seller.** ixtable Cloud is sold by a Singapore sole proprietorship. Prices are in USD; Stripe pays out in SGD. No GST is charged while the business is below the GST registration threshold; invoices show the business name and address.
+
 ---
 
 ## 5. Commercial MVP Contract
@@ -663,6 +672,34 @@ Runtime enforces ixtable RBAC in navigation, queries, forms, reports, dashboards
 For direct PostgreSQL connections, ixtable RBAC is not a defense against a malicious authorized user who extracts valid database credentials. Strong database-level isolation requires separate least-privileged credentials and database permissions supplied by the developer.
 
 This limitation must be documented in product UI and security documentation.
+
+### 20.3 Organizations and per-app access
+
+Cloud tenancy follows the Supabase model. An organization owns many cloud applications, and a user can belong to many organizations.
+
+Organization roles apply to every app in the organization:
+
+| Org role | Apps | Billing | Org members |
+|---|---|---|---|
+| Owner | Admin on every app | Yes | Manage, including owners; delete the org |
+| Admin | Admin on every app | Yes | Manage, except owners |
+| Billing | No console access by default | Every app's billing | No |
+| Member | None by default | No | No |
+
+Per-app access grants an organization member one role on one app, on top of their organization role. The two combine: a person can do everything either role allows.
+
+| App role | Can |
+|---|---|
+| Admin | Manage Runtime Users, roles, invitations, installations, backups, settings and billing of the app; read versions and audit history |
+| Billing | Manage the app's plan and billing; read the overview |
+| Viewer | Read the overview, versions, Runtime Users, roles, installations and audit history; change nothing |
+
+Rules:
+
+- Only organization owners and admins grant or remove per-app access, and only to members of the app's organization. Leaving or being removed from the organization removes every per-app grant in it.
+- Per-app access is console access. It never grants Runtime access; Runtime Users are still app members with a custom role (§20.1).
+- The app's single Developer/Owner (§20.1) is the only account that publishes versions and manages datasource credentials. Per-app Admin does not include either.
+- Every grant, change and removal is audited.
 
 ---
 
@@ -1207,6 +1244,7 @@ Commercial launch is blocked unless:
 
 ### Commercial conversion
 
+- Launch target: at least US$500 MRR from at least 5 paying customers.
 - Percentage of active local developers creating a cloud application.
 - Publish-to-invitation completion rate.
 - Invited-user activation rate.

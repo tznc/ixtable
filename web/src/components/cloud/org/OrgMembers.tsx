@@ -10,10 +10,10 @@ import { Badge, ErrorNotice, Loading, Notice, Section, TableWrap } from "../ui";
 import { useAction, useAsync } from "../useAsync";
 
 const ROLE_HELP: Record<OrgRole, string> = {
-  owner: "Full control, including deleting the organization",
-  admin: "Manages members, apps, and invitations",
-  billing: "Sees plans, subscriptions, and invoices",
-  member: "Belongs to the organization with no management rights",
+  owner: "Admin on every app; full control, including deleting the organization",
+  admin: "Admin on every app; manages members and invitations",
+  billing: "Manages billing of every app; no other app access",
+  member: "No app access until granted per app on its Access tab",
 };
 const INVITABLE: Exclude<OrgRole, "owner">[] = ["admin", "billing", "member"];
 

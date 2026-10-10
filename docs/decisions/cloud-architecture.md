@@ -40,8 +40,10 @@ Migrations: `supabase/migrations/20261003000000_cloud_core.sql` (tables),
 `20261003100000_distribution_functions.sql` and
 `20261003100100_distribution_withdraw.sql` (see Distribution functions),
 `20261003200000_credentials_desktop_auth.sql` (envelope supersede and erase,
-`credential_envelope_put`) and `20261003300000_commercial_billing.sql`
-(checkout sessions, webhook ordering and outcome columns).
+`credential_envelope_put`), `20261003300000_commercial_billing.sql`
+(checkout sessions, webhook ordering and outcome columns) and
+`20261010000000_org_app_access_billing.sql` (per-app access, capabilities,
+annual intervals, org billing customers).
 
 | Table | Purpose |
 |---|---|
@@ -50,6 +52,7 @@ Migrations: `supabase/migrations/20261003000000_cloud_core.sql` (tables),
 | `cloud_apps` | `org_id`, single `owner_id` (NOT NULL), `document_id`, `datasource_kind` sqlite/postgres, `backups_enabled`, `retention_versions`, `retention_days`, `head_version_id`, soft delete `deleted_at` |
 | `app_roles` | custom runtime roles, key `(app_id, id)` where `id` is the desktop role id; `permissions` mirrors `roles.rs` |
 | `app_members` | `(app_id, user_id)`, `role_id`, status active/revoked |
+| `app_collaborators` | per-app console role (admin, billing, viewer) of an org member, PRD §20.3; written only by `app-access-update`; rows go when the user leaves the org (trigger) |
 | `invitations` | org or app invitation; only `token_hash` (sha256 hex) is stored |
 | `app_versions` | published checkpoints; immutable except `status` pending→published/withdrawn and published→withdrawn (trigger `app_versions_immutable`) |
 | `archive_uploads` | signed upload sessions (expected size and sha256) |
@@ -57,15 +60,21 @@ Migrations: `supabase/migrations/20261003000000_cloud_core.sql` (tables),
 | `installation_backups` | per-installation backup stream |
 | `credential_envelopes` | datasource ciphertext + KEK-wrapped DEK, scope shared or per user |
 | `key_grants` | one row per issued key grant (no key material) |
-| `plans`, `subscriptions`, `billing_events` | catalog (starter 5, team 25, business 100 runtime users), one subscription per app, webhook idempotency on `event_id` |
+| `plans`, `subscriptions`, `billing_events` | catalog (starter 5, team 25, business 100 runtime users) with monthly and annual prices (`annual_price_cents` = 10 × monthly, enforced by a check), one subscription per app with `billing_interval` month/year, webhook idempotency on `event_id` |
+| `org_billing_customers` | function-only; one billing (Stripe) customer per organization, PRD §4.5 |
 | `billing_checkout_sessions` | function-only; checkout sessions handed out by `billing-checkout`, consumed once by `billing-fake-complete` |
 | `audit_events` | append-only (trigger blocks UPDATE and DELETE for every role) |
 | `rate_limits`, `service_metrics`, `desktop_auth_requests` | function-only operational tables |
 
 SQL helpers (security definer, `search_path = ''`):
 `is_org_member(org, roles[] default null)`, `is_app_owner(app)`,
-`is_app_admin(app)` (owner or org owner/admin), `is_app_member(app)` (active
-Runtime User), `can_view_profile(user)`, `app_entitlement(app) → jsonb
+`app_capabilities_for(app, user)` (service role) and `app_capabilities(app)`
+→ sorted `text[]` of `owner`, `admin`, `billing`, `view`, the union of the
+app owner, the org role (owner/admin → admin+billing+view, billing →
+billing) and the per-app role (admin → admin+billing+view, billing →
+billing, viewer → view); `is_app_admin(app)`, `can_view_app(app)` and
+`can_manage_app_billing(app)` test one capability; `is_app_member(app)`
+(active Runtime User), `can_view_profile(user)`, `app_entitlement(app) → jsonb
 {allowed, reason, allowance, used, status, planId}`, and the service-role-only
 `audit(action, actor, org, app, target, details, ip_hash)`,
 `rate_limit(bucket, max, window_seconds) → boolean`,
@@ -166,6 +175,26 @@ and fork, archive upload URLs, bundle download, key grant and backup commit. `st
 `IXTABLE_ALLOW_FAKE_BILLING=1`) returns website URLs; the flow completes
 with a Stripe-shaped event signed by the same secret.
 
+Billing model (PRD §4.5): the organization is the customer and each app has
+its own subscription. `billing-checkout` creates the org's provider customer
+on first use (`org_billing_customers`) and reuses it for every app, so the
+portal and invoices are per organization. It takes `interval` month or year
+and uses `stripe_price_id` or `stripe_annual_price_id`; buying the same plan
+at the other interval is a change, buying the same plan and interval again
+is 422. Checkout never sets a trial and always collects a payment method.
+The webhook resolves plan and interval from the price first (portal
+switches change the price, not the metadata), then from
+`metadata.plan_id`/`billing_interval`; an interval switch is audited as
+`billing.plan_changed`. Billing functions require the `billing` capability.
+
+Per-app access (PRD §20.3): `app-access-update {appId, userId, role|null}`
+grants, changes or removes an org member's per-app role. Only org
+owners/admins may call it; the target must be an org member and not the app
+owner. Audited `access.grant|change|remove`. Edge Function admin checks
+(`isAppAdmin` in `distribution.ts` and `credentialAccess.ts`) call
+`app_capabilities_for`, so SQL and functions share one rule. Credentials and
+publishing stay owner-only.
+
 Webhook ordering (`_shared/billing.ts` `decideSubscriptionEvent`): the
 subscription row keeps `provider_event_at` (the newest applied
 `event.created`); older events are recorded as `stale` and not applied, and
@@ -189,7 +218,7 @@ Per-endpoint limits live in `RATE_LIMITS` (`_shared/rateLimit.ts`).
 from explicit field lists, audited as `admin.lookup`. Operations:
 `docs/ops/`.
 
-Evidence: `web/e2e/service-qa/specs/{billing,account,admin,ratelimit}.spec.ts`,
+Evidence: `web/e2e/service-qa/specs/{billing,app-access,account,admin,ratelimit}.spec.ts`,
 `supabase/functions/_shared/billing_events_test.ts` (event ordering and
 outcomes) and `billing_test.ts`.
 
@@ -259,6 +288,7 @@ VALIDATION, IX423 VALIDATION with `details {requiresConfirm, installations}`).
 | invitations-create `{kind:"app", appId, email, roleId}` \| `{kind:"org", orgId, email, role}` → `{invitation, acceptUrl, delivery}` | app admin / org owner-admin | revokes older pending invitations for the same email and target | invitation.create |
 | invitations-accept `{token}` → `{membership}` | invitee with the verified invited email | single use, 7 days; app: entitlement with room for one more (402) | invitation.accept + member.add / org_member.add |
 | members-update `{appId, userId, roleId?, status?}` → `{member}` | app admin | re-activation needs allowance (402) | member.role_change / member.revoke / member.activate |
+| app-access-update `{appId, userId, role \| null}` → `{collaborator \| null}` | org owner/admin | target is an org member and not the app owner (422) | access.grant / access.change / access.remove |
 | archive-upload-url `{appId, kind, size, sha256, installationId?}` → `{uploadId, path, signedUrl, token, expiresAt}` | version: owner; backup: owner or active member, backups enabled | ≤ 500 MB (413), entitlement; backup registers the installation | archive.upload |
 | publish-checkpoint (contract fields) → `{version}` | owner | entitlement, head precondition (409), version > head (422), security summary, stored object size | version.publish |
 | versions-resolve overwrite / fork / withdraw | owner | see below | version.overwrite / version.fork (+ app.create) / version.withdraw |
@@ -443,13 +473,14 @@ website's `FunctionMap`).
 | `account-delete` | account-delete {confirmEmail, cancelSubscriptions?} → {} | UNAUTHENTICATED, FORBIDDEN, VALIDATION, RATE_LIMITED | 5 / 1 h |  |
 | `account-export` | account-export {} → {export, archives: string[]} | UNAUTHENTICATED, RATE_LIMITED | 5 / 1 h |  |
 | `admin-support` | admin-support {query:{email?\|appId?}} → {diagnostics} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VERSION_CONFLICT, ENTITLEMENT_REQUIRED, VALIDATION, RATE_LIMITED | 120 / 1 h |  |
+| `app-access-update` | POST {appId, userId, role: "admin"\|"billing"\|"viewer"\|null} → {collaborator \| null} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 120 / 1 h |  |
 | `apps-create` | POST {orgId, name, documentId, datasourceKind?:"sqlite"\|"postgres"} → {app} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 20 / 1 h | `app` |
 | `apps-delete` | POST {appId, confirm:<app name>, cancelSubscription?} → {appId, deletedAt, subscriptionStatus, subscriptionCanceled} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 10 / 1 h | `appId`, `deletedAt`, `subscriptionStatus`, `subscriptionCanceled` |
 | `apps-transfer` | POST {appId, newOwnerId, confirm:<app name>} → {app} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VERSION_CONFLICT, VALIDATION, RATE_LIMITED | 10 / 1 h |  |
 | `archive-upload-url` | POST {appId, kind, size, sha256, installationId?} → {uploadId, path, signedUrl, token, expiresAt} | UNAUTHENTICATED, FORBIDDEN, REVOKED, NOT_FOUND, TOO_LARGE, ENTITLEMENT_REQUIRED, VALIDATION, RATE_LIMITED | 60 / 1 h | `uploadId`, `path`, `signedUrl`, `token`, `expiresAt` |
 | `backup-commit` | POST {appId, uploadId, installationId} → {backup} | UNAUTHENTICATED, FORBIDDEN, REVOKED, NOT_FOUND, ENTITLEMENT_REQUIRED, VALIDATION, RATE_LIMITED | 60 / 1 h | `backup` |
 | `billing-cancel` | billing-cancel {appId, atPeriodEnd?=true} → {subscription} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 10 / 10 min | `subscription` |
-| `billing-checkout` | billing-checkout {appId, planId} → {url} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 10 / 10 min | `url`, `overAllowance` |
+| `billing-checkout` | billing-checkout {appId, planId, interval?: "month"\|"year"} → {url, overAllowance} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 10 / 10 min | `url`, `overAllowance` |
 | `billing-fake-complete` | billing-fake-complete {sessionId, appId, planId} → {ok, status} | UNAUTHENTICATED, NOT_FOUND, VALIDATION, RATE_LIMITED | 10 / 10 min | `ok`, `status` |
 | `billing-invoices` | billing-invoices {appId} → {invoices: Invoice[]} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 60 / 10 min | `invoices` |
 | `billing-portal` | billing-portal {appId} → {url} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 20 / 10 min | `url` |
@@ -477,3 +508,4 @@ website's `FunctionMap`).
 ## Audit log
 
 - 2026-10-05: Status now covers the implemented functions and desktop client; added the later migrations, `billing_checkout_sessions`, missing shared modules, `retention-sweep` in the `verify_jwt = false` list and the client org writes; corrected member-activation entitlement, upload retry count, manifest fields (dropped the missing PLAN reference), build-config overrides and the release key gate; added billing and desktop Evidence.
+- 2026-10-10: Added per-app console access (`app_collaborators`, `app_capabilities`, `app-access-update`), annual billing intervals, org-level billing customers and the no-trial checkout (PRD §4.5, §20.3).

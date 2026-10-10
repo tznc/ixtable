@@ -5,7 +5,7 @@ import { useAction, useAsync } from "../useAsync";
 import type { AppTabProps } from "./types";
 
 /** Runtime installations (devices) with last sync, installed version, and device revocation. */
-export default function InstallationsTab({ app }: AppTabProps): ReactNode {
+export default function InstallationsTab({ app, isAdmin }: AppTabProps): ReactNode {
   const api = useCloudApi();
   const [target, setTarget] = useState<Installation | null>(null);
   const state = useAsync(async () => {
@@ -44,7 +44,7 @@ export default function InstallationsTab({ app }: AppTabProps): ReactNode {
               <th scope="col">Version</th>
               <th scope="col">Last sync</th>
               <th scope="col">Status</th>
-              <th scope="col">Action</th>
+              {isAdmin && <th scope="col">Action</th>}
             </tr>
           </thead>
           <tbody>
@@ -64,17 +64,19 @@ export default function InstallationsTab({ app }: AppTabProps): ReactNode {
                       <Badge tone="success">Active</Badge>
                     )}
                   </td>
-                  <td>
-                    {!row.revoked_at && (
-                      <button
-                        type="button"
-                        className="button button--sm button--outline button--danger"
-                        onClick={() => setTarget(row)}
-                      >
-                        Revoke {device}
-                      </button>
-                    )}
-                  </td>
+                  {isAdmin && (
+                    <td>
+                      {!row.revoked_at && (
+                        <button
+                          type="button"
+                          className="button button--sm button--outline button--danger"
+                          onClick={() => setTarget(row)}
+                        >
+                          Revoke {device}
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
