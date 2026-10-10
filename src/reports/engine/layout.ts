@@ -1,6 +1,6 @@
 import { evaluate } from "../../expr";
 import { pageDimensions } from "../model";
-import type { Band, Report, ReportGroup, TableComponent } from "../types";
+import type { Band, Report, ReportGroup, SubreportComponent, TableComponent } from "../types";
 import type {
   LayoutOptions,
   Page,
@@ -11,6 +11,17 @@ import type {
 } from "./document";
 import { type Growth, grown, growBand } from "./grow";
 import { cutAt, sliceItems } from "./split";
+import {
+  isSubreport,
+  linkedRows,
+  MAX_SUBREPORT_DEPTH,
+  SUBREPORT_DEPTH,
+  SUBREPORT_EXTRA,
+  SUBREPORT_LOOP,
+  SUBREPORT_MISSING,
+  SUBREPORT_PAGE_BAND,
+  splitAtSubreport,
+} from "./subreport";
 import {
   componentItems,
   measureTable,
@@ -31,6 +42,8 @@ type Thunk = (ctx: PageContext) => PositionedItem[];
 interface Block {
   band: Band;
   scope: Record<string, unknown>;
+  /** Horizontal offset of the band in the body: a subreport's x position. */
+  x: number;
   /** Group header with keepTogether: keep it on the page of the next block. */
   keepWithNext: boolean;
   /** Start a new page before (band option, group `newPage` or `resetPageNumber`). */
@@ -105,6 +118,7 @@ export function layoutReport(
     record: null,
     group: null,
     rowNumber: null,
+    parent: null,
     page: null,
     pages: null,
     groupPage: null,
@@ -118,86 +132,140 @@ export function layoutReport(
     diagnose,
   });
 
-  // 1. Sort rows by group keys (stable).
-  const groups = bands.groups;
-  const keyed = inputRows.map((row, index) => ({
-    row,
-    index,
-    keys: groups.map((g) => groupKey(g, row, base, options.now, diagnose)),
-  }));
-  keyed.sort((a, b) => {
-    for (let i = 0; i < groups.length; i++) {
-      const c = compareKeys(a.keys[i], b.keys[i]);
-      if (c) return groups[i].descending ? -c : c;
-    }
-    return a.index - b.index;
-  });
-  const rows = keyed.map((k) => k.row);
-
-  // 2. Flatten into band instances.
+  // 1–2. Sort rows by group keys (stable) and flatten into band instances.
   const blocks: Block[] = [];
-  const open: Block[] = [];
-  const block = (
-    band: Band,
-    scope: Record<string, unknown>,
-    extra: Partial<Block> = {},
-  ): Block => ({
-    band,
-    scope: { ...base, ...scope },
-    keepWithNext: false,
-    breakBefore: !!band.pageBreakBefore,
-    breakAfter: !!band.pageBreakAfter,
-    section: false,
-    repeat: [...open],
-    ...extra,
-  });
-  const push = (b: Block) => {
-    // Empty bands are skipped unless they carry a page break or section start.
-    if (!isEmptyBand(b.band) || b.breakBefore || b.breakAfter || b.section) blocks.push(b);
+  /**
+   * Band instances of `source` over `sourceRows`: the run report, or a subreport
+   * printed at `x` below the open group headers `repeat`. `stack` holds the ids of
+   * the reports being printed, outermost first.
+   */
+  const flatten = (
+    source: Report,
+    sourceRows: Row[],
+    scopeBase: Record<string, unknown>,
+    frame: { x: number; repeat: Block[]; stack: string[] },
+  ) => {
+    const nested = frame.stack.length > 1;
+    const groups = source.bands.groups;
+    const keyed = sourceRows.map((row, index) => ({
+      row,
+      index,
+      keys: groups.map((g) => groupKey(g, row, scopeBase, options.now, diagnose)),
+    }));
+    keyed.sort((a, b) => {
+      for (let i = 0; i < groups.length; i++) {
+        const c = compareKeys(a.keys[i], b.keys[i]);
+        if (c) return groups[i].descending ? -c : c;
+      }
+      return a.index - b.index;
+    });
+    const rows = keyed.map((k) => k.row);
+    const open: Block[] = [...frame.repeat];
+    const block = (
+      band: Band,
+      scope: Record<string, unknown>,
+      extra: Partial<Block> = {},
+    ): Block => ({
+      band,
+      scope: { ...scopeBase, ...scope },
+      x: frame.x,
+      keepWithNext: false,
+      breakBefore: !!band.pageBreakBefore,
+      breakAfter: !!band.pageBreakAfter,
+      section: false,
+      repeat: [...open],
+      ...extra,
+    });
+    const push = (b: Block) => {
+      const [sub, ...extra] = b.band.components.filter(isSubreport);
+      if (sub) {
+        for (const c of extra) diagnose(c.id, SUBREPORT_EXTRA);
+        const { head, tail } = splitAtSubreport(b.band, sub);
+        push({ ...b, band: head, breakAfter: false });
+        const child = subreport(sub, b.scope.record, frame.stack);
+        if (child)
+          flatten(
+            child.report,
+            child.rows,
+            {
+              ...base,
+              params: { ...child.report.params, ...params },
+              report: { name: child.report.name },
+              parent: b.scope.record ?? null,
+            },
+            { x: b.x + sub.x, repeat: b.repeat, stack: [...frame.stack, child.report.id] },
+          );
+        push({ ...b, band: tail, keepWithNext: false, breakBefore: false, section: false });
+        return;
+      }
+      // Empty bands are skipped unless they carry a page break or section start.
+      if (!isEmptyBand(b.band) || b.breakBefore || b.breakAfter || b.section) blocks.push(b);
+    };
+    const reportBand = (band: Band, scope: Record<string, unknown>) =>
+      push(block(band, scope, { repeat: [...frame.repeat] }));
+    reportBand(source.bands.reportHeader, { rows, record: rows[0] ?? null });
+    let rowNumber = 0;
+    const emit = (level: number, slice: typeof keyed) => {
+      if (level === groups.length) {
+        const sliceRows = slice.map((k) => k.row);
+        for (const k of slice)
+          push(
+            block(source.bands.detail, { record: k.row, rows: sliceRows, rowNumber: ++rowNumber }),
+          );
+        return;
+      }
+      const g = groups[level];
+      let start = 0;
+      while (start < slice.length) {
+        let end = start + 1;
+        while (
+          end < slice.length &&
+          compareKeys(slice[end].keys[level], slice[start].keys[level]) === 0
+        )
+          end++;
+        const run = slice.slice(start, end);
+        const runRows = run.map((k) => k.row);
+        const group = { key: run[0].keys[level], level: level + 1, count: run.length };
+        // Page numbering sections belong to the run report, not its subreports.
+        const header = block(
+          g.header,
+          { rows: runRows, record: runRows[0], group },
+          {
+            keepWithNext: g.header.keepTogether,
+            breakBefore: !!(g.header.pageBreakBefore || g.newPage || g.resetPageNumber),
+            section: !nested && !!g.resetPageNumber,
+          },
+        );
+        push(header);
+        const repeats = !!g.repeatHeader && !isEmptyBand(g.header);
+        if (repeats) open.push(header);
+        emit(level + 1, run);
+        push(block(g.footer, { rows: runRows, record: runRows[runRows.length - 1], group }));
+        if (repeats) open.pop();
+        start = end;
+      }
+    };
+    emit(0, keyed);
+    reportBand(source.bands.reportFooter, { rows, record: rows[rows.length - 1] ?? null });
   };
-  const reportBand = (band: Band, scope: Record<string, unknown>) =>
-    push(block(band, scope, { repeat: [] }));
-  reportBand(bands.reportHeader, { rows, record: rows[0] ?? null });
-  let rowNumber = 0;
-  const emit = (level: number, slice: typeof keyed) => {
-    if (level === groups.length) {
-      const sliceRows = slice.map((k) => k.row);
-      for (const k of slice)
-        push(block(bands.detail, { record: k.row, rows: sliceRows, rowNumber: ++rowNumber }));
-      return;
-    }
-    const g = groups[level];
-    let start = 0;
-    while (start < slice.length) {
-      let end = start + 1;
-      while (
-        end < slice.length &&
-        compareKeys(slice[end].keys[level], slice[start].keys[level]) === 0
-      )
-        end++;
-      const run = slice.slice(start, end);
-      const runRows = run.map((k) => k.row);
-      const group = { key: run[0].keys[level], level: level + 1, count: run.length };
-      const header = block(
-        g.header,
-        { rows: runRows, record: runRows[0], group },
-        {
-          keepWithNext: g.header.keepTogether,
-          breakBefore: !!(g.header.pageBreakBefore || g.newPage || g.resetPageNumber),
-          section: !!g.resetPageNumber,
-        },
-      );
-      push(header);
-      const repeats = !!g.repeatHeader && !isEmptyBand(g.header);
-      if (repeats) open.push(header);
-      emit(level + 1, run);
-      push(block(g.footer, { rows: runRows, record: runRows[runRows.length - 1], group }));
-      if (repeats) open.pop();
-      start = end;
-    }
+  /** The report and linked rows a subreport prints, or null (with a diagnostic) when it can't. */
+  const subreport = (sub: SubreportComponent, parent: unknown, stack: string[]) => {
+    const data = options.subreports?.[sub.reportId];
+    const problem = !sub.reportId
+      ? null
+      : stack.includes(sub.reportId)
+        ? SUBREPORT_LOOP
+        : stack.length > MAX_SUBREPORT_DEPTH
+          ? SUBREPORT_DEPTH
+          : !data
+            ? SUBREPORT_MISSING
+            : null;
+    if (problem) diagnose(sub.id, problem);
+    if (problem || !data) return null;
+    const rows = linkedRows(sub, data.rows, parent);
+    return rows.length ? { report: data.report, rows } : null;
   };
-  emit(0, keyed);
-  reportBand(bands.reportFooter, { rows, record: rows[rows.length - 1] ?? null });
+  flatten(report, inputRows, base, { x: 0, repeat: [], stack: [report.id] });
 
   // 3. Measure.
   const bodyTop = m.top + bands.pageHeader.height;
@@ -337,8 +405,8 @@ export function layoutReport(
         y += geo.rowHeights[row++];
       const last = row;
       add(() => [
-        ...tableRowItems(comp, geo, -1, left + comp.x, top),
-        ...rowsBetween(comp, geo, first, last, left + comp.x, top + geo.headerHeight),
+        ...tableRowItems(comp, geo, -1, left + p.x + comp.x, top),
+        ...rowsBetween(comp, geo, first, last, left + p.x + comp.x, top + geo.headerHeight),
       ]);
       if (row >= geo.rowHeights.length) break;
       newPage(p.repeat);
@@ -363,8 +431,9 @@ export function layoutReport(
   const total = pages.length;
   const pageBand = (band: Band, oy: number, ctx: PageContext) =>
     band.components.flatMap((c) => {
-      if (c.kind !== "table") return componentItems(c, left, oy, context({ ...base, ...ctx }));
-      diagnose(c.id, PAGE_BAND_TABLE);
+      if (c.kind === "subreport") diagnose(c.id, SUBREPORT_PAGE_BAND);
+      else if (c.kind === "table") diagnose(c.id, PAGE_BAND_TABLE);
+      else return componentItems(c, left, oy, context({ ...base, ...ctx }));
       return [];
     });
   const out: Page[] = pages.map((thunks, index) => {
@@ -435,29 +504,32 @@ function bandItems(
   part: "all" | "above" | "below" | "repeat",
 ): PositionedItem[] {
   const ctx = context({ ...p.scope, ...page });
+  const ox = left + p.x;
   const table = p.table;
   const belowStart = table ? table.comp.y + table.comp.h : Number.POSITIVE_INFINITY;
   const growth = table ? Math.max(0, table.geo.height - table.comp.h) : 0;
   return p.band.components.flatMap((c) => {
-    if (c.kind !== "table" && p.growth) return componentItems(grown(c, p.growth), left, oy, ctx);
-    if (part === "repeat") return c.kind === "table" ? [] : componentItems(c, left, oy, ctx);
+    // Subreports were expanded into blocks of their own.
+    if (c.kind === "subreport") return [];
+    if (c.kind !== "table" && p.growth) return componentItems(grown(c, p.growth), ox, oy, ctx);
+    if (part === "repeat") return c.kind === "table" ? [] : componentItems(c, ox, oy, ctx);
     if (c.kind === "table") {
       if (part !== "all" || c !== table?.comp) return [];
       return [
-        ...tableRowItems(c, table.geo, -1, left + c.x, oy + c.y),
+        ...tableRowItems(c, table.geo, -1, ox + c.x, oy + c.y),
         ...rowsBetween(
           c,
           table.geo,
           0,
           table.geo.rowHeights.length,
-          left + c.x,
+          ox + c.x,
           oy + c.y + table.geo.headerHeight,
         ),
       ];
     }
     const below = c.y >= belowStart - EPS;
     if (part === "above" && below) return [];
-    if (part === "below") return below ? componentItems(c, left, oy, ctx) : [];
-    return componentItems(c, left, oy + (below && part === "all" ? growth : 0), ctx);
+    if (part === "below") return below ? componentItems(c, ox, oy, ctx) : [];
+    return componentItems(c, ox, oy + (below && part === "all" ? growth : 0), ctx);
   });
 }

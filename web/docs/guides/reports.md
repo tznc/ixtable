@@ -45,14 +45,26 @@ The component toolbar adds components to the selected band.
 | Line | A horizontal or vertical line |
 | Rectangle | A box with a border and optional fill |
 | Table | Rows as a table with headers, from the band's rows or from another saved query |
+| Subreport | Another report printed inside the band, such as the lines of an invoice |
 
 Drag a component to move it and drag its corner to resize it. With a component focused, the arrow keys move it by 1 point, or 10 with Shift. Alt and the arrow keys resize it, and Delete removes it. **Position and size** sets exact values in points.
 
-Field and calculated components take an optional **Format**, such as `#,##0.00` or `MMM d, yyyy`. Text components can set the font size, alignment, and bold. Shapes can set the border width and a gray fill. A band holds at most one table, and page headers and footers cannot hold tables.
+Field and calculated components take an optional **Format**, such as `#,##0.00` or `MMM d, yyyy`. Text components can set the font size, alignment, and bold. Shapes can set the border width and a gray fill. A band holds at most one table, and page headers and footers cannot hold tables or subreports.
 
 **Can grow** on a text, field, or calculated component lets its box grow to fit its text. Without it, lines beyond the box's height are cut off. A growing box pushes the components below it down, and the band grows with it. Components beside the box stay where they are.
 
 Can grow has no effect in page headers and footers, which keep their height, or in a band that holds a table. In a band with a table, the preview lists a problem. Page numbers do not make a box grow, because the box is measured before pages are counted.
+
+## Subreports
+
+A **subreport** prints another report inside a band, once for each instance of the band. Use it for invoices and statements: an invoice report prints each order, and a subreport in its detail band prints that order's lines.
+
+- **Report** picks the report to print. Studio offers only reports that keep the nesting within three levels and never print the report that contains them.
+- **Links** match the subreport's rows to the band's row. Each link names a child field in the subreport's rows and a parent field in the band's row, such as `order_id` and `id`. A row prints when every child field equals its parent field. Without links, every row prints.
+
+The subreport prints its report header, groups, detail band, and report footer at the subreport's left edge. Its page header and page footer don't print, and its page setup is ignored. The subreport takes the height its rows need, and components below it in the band move up or down to follow it. When no rows match, it prints nothing.
+
+Expressions in a subreport read its own `record`, `rows`, and `group`, and `parent` is the row of the band that holds it. A long subreport splits across pages between its bands. A band holds at most one subreport, can't hold both a subreport and a table, and page headers and footers can't hold subreports. Subreports nest up to three levels deep.
 
 ## Expressions in reports
 
@@ -65,6 +77,7 @@ Report expressions read these names:
 | `group` | The current group's `key`, `level`, and `count` |
 | `rowNumber` | The detail row's number, from 1 |
 | `params` | The report's parameter values |
+| `parent` | In a subreport, the row of the band that holds it |
 | `page`, `pages` | The page number and the total pages |
 | `groupPage`, `groupPages` | The page number within the group and the group's total pages |
 

@@ -1,4 +1,5 @@
 /** Laid-out report pages. All coordinates are points from the top-left page corner. */
+import type { Report } from "../types";
 
 export interface TextLine {
   text: string;
@@ -86,6 +87,13 @@ export interface LayoutOptions {
   tables?: Record<string, Row[]>;
   /** Known application assets by id (images). Missing assets render as a labelled box. */
   assets?: Record<string, { mediaType: string }>;
+  /** Subreport definitions and all their rows, by report id (each instance filters by its links). */
+  subreports?: Record<string, SubreportData>;
+}
+
+export interface SubreportData {
+  report: Report;
+  rows: Row[];
 }
 
 /** Rounds to 1/100 pt so golden layouts don't carry floating-point noise. */

@@ -67,6 +67,8 @@ function LoadedPreview({
   const definition = JSON.stringify(report);
   const paramKey = JSON.stringify(params ?? null);
   const queriesKey = JSON.stringify(config.savedQueries);
+  // Subreports print other reports, so their edits refresh the preview too.
+  const reportsKey = JSON.stringify(config.reports);
 
   useEffect(() => {
     const abort = new AbortController();
@@ -87,6 +89,7 @@ function LoadedPreview({
           now: generated,
           tables: data.tables,
           assets,
+          subreports: data.subreports,
         });
         setStatus({
           kind: "ready",
@@ -100,7 +103,7 @@ function LoadedPreview({
       });
     return () => abort.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the JSON keys capture every input
-  }, [definition, paramKey, queriesKey, attempt]);
+  }, [definition, paramKey, queriesKey, reportsKey, attempt]);
 
   const loading = status.kind === "loading";
   useEffect(() => {
