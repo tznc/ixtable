@@ -13,6 +13,7 @@ import {
   sourceParams,
   tableSchema,
 } from "./data";
+import type { RecordCursor } from "./cursor";
 import { pageLabel, TRUNCATED_NOTICE, toneClass, toneFor } from "./conditions";
 import { cellText } from "./formState";
 import { BooleanCell } from "./BooleanCell";
@@ -24,10 +25,15 @@ import { isBooleanColumn } from "./values";
 
 type Props = {
   form: DesignForm;
-  onOpen: (recordId: unknown) => void;
+  /** Opens a row; `cursor` is its place in the list's order (for record navigation). */
+  onOpen: (recordId: unknown, cursor: RecordCursor) => void;
   onCreate: () => void;
   /** Page parameters (navigation or dashboard), in scope for query source bindings. */
   params?: Record<string, unknown>;
+  /** Position (across pages) of the row shown as selected (split forms). */
+  selected?: number | null;
+  /** Changing it re-reads the current page (split forms, after a save in the detail pane). */
+  refresh?: number;
 };
 
 const NO_PARAMS: Record<string, unknown> = {};
@@ -37,7 +43,14 @@ const NO_PARAMS: Record<string, unknown> = {};
  * The form's `filter` expression runs on fetched rows (see `loadPage`); cells take the
  * conditional tone of the control bound to their column.
  */
-export function ListView({ form, onOpen, onCreate, params = NO_PARAMS }: Props) {
+export function ListView({
+  form,
+  onOpen,
+  onCreate,
+  params = NO_PARAMS,
+  selected = null,
+  refresh = 0,
+}: Props) {
   const { config } = useDocumentConfig();
   const { roleId, app } = useRuntimeNavigation();
   const [sorts, setSorts] = useState<Sort[]>([]);
@@ -115,7 +128,7 @@ export function ListView({ form, onOpen, onCreate, params = NO_PARAMS }: Props) 
       live = false;
       clearTimeout(timer);
     };
-  }, [config, form, request, search, bound, scope]);
+  }, [config, form, request, search, bound, scope, refresh]);
 
   useEffect(() => {
     if (table)
@@ -169,12 +182,13 @@ export function ListView({ form, onOpen, onCreate, params = NO_PARAMS }: Props) 
     // Rows are not native controls, so a disabled (inert) container must be checked here.
     if (!page || row.closest("[inert], [aria-disabled='true']")) return;
     const record = page.rows[index];
-    if (!table || !page.identities) return onOpen(record);
+    const cursor: RecordCursor = { formId: form.id, index: offset + index, sorts, filters, params };
+    if (!table || !page.identities) return onOpen(record, cursor);
     const identity = page.identities[index];
-    if (schema) return onOpen(recordIdFor(schema, record, identity));
+    if (schema) return onOpen(recordIdFor(schema, record, identity), cursor);
     // The schema can still be loading after a database change cleared the cache; never open by row.
     tableSchema(table)
-      .then((def) => onOpen(recordIdFor(def, record, identity)))
+      .then((def) => onOpen(recordIdFor(def, record, identity), cursor))
       .catch(() => undefined);
   };
   const total = page?.total ?? 0;
@@ -263,7 +277,8 @@ export function ListView({ form, onOpen, onCreate, params = NO_PARAMS }: Props) 
             <tr
               key={index}
               tabIndex={0}
-              className="rt-row"
+              className={selected === offset + index ? "rt-row rt-row-selected" : "rt-row"}
+              aria-current={selected === offset + index ? "true" : undefined}
               aria-label={`Open ${record[columns[0]] == null ? `row ${offset + index + 1}` : (lookup(columns[0], record) ?? String(record[columns[0]]))}`}
               onClick={(event) => open(index, event.currentTarget)}
               onKeyDown={(event) => {

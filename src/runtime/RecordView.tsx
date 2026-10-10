@@ -33,7 +33,7 @@ type Notice = { text: string; tone: "info" | "error" };
 
 type Props = {
   form: DesignForm;
-  mode: Exclude<FormMode, "list">;
+  mode: Exclude<FormMode, "list" | "continuous" | "split">;
   recordId?: unknown;
   link?: Link;
   embedded?: boolean;
@@ -43,6 +43,8 @@ type Props = {
   onNotify?: (text: string, tone: Notice["tone"]) => void;
   /** Told whether edit mode holds unsaved changes. */
   onDirty?: (dirty: boolean) => void;
+  /** Receives the saved values after a create or edit commits (popup forms return them). */
+  onSaved?: (record: RecordValues) => void;
 };
 
 const message = (reason: unknown) => {
@@ -63,6 +65,7 @@ export function RecordView({
   onNavigate,
   onNotify,
   onDirty,
+  onSaved,
 }: Props) {
   const { config } = useDocumentConfig();
   const runtime = useRuntimeNavigation();
@@ -305,6 +308,7 @@ export function RecordView({
           if (saved[name] == null) saved[name] = fromDataValue(id[i]);
         });
         announce(problem ?? "Record created.", problem ? "error" : "info");
+        onSaved?.(saved);
         if (embedded) onClose();
         else onMode("detail", recordIdFor(def, saved, id));
       } else {
@@ -322,6 +326,7 @@ export function RecordView({
             )
           : {};
         announce(problem ?? "Changes saved.", problem ? "error" : "info");
+        onSaved?.({ ...original, ...values });
         if (embedded) onClose();
         else onMode("detail", recordId);
       }

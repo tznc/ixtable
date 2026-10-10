@@ -22,7 +22,20 @@ export type StepBody =
   | { kind: "deleteRecord"; table: string; match: MatchSpec }
   | { kind: "runQuery"; queryId: string; params: ValueMap; storeAs: string }
   | { kind: "navigate"; target: NavigateTarget }
-  | { kind: "openForm"; formId: string; mode?: string; recordId?: Expr }
+  /**
+   * `popup`: shows the form in a modal dialog and waits for it to close; `storeAs` then
+   * holds what it returned (the saved record, a `closeForm` value, or null if dismissed).
+   */
+  | {
+      kind: "openForm";
+      formId: string;
+      mode?: string;
+      recordId?: Expr;
+      popup?: boolean;
+      storeAs?: string;
+    }
+  /** Closes the topmost popup form, returning `value` to the step that opened it. */
+  | { kind: "closeForm"; value?: Expr }
   | { kind: "openReport"; reportId: string; params?: ValueMap }
   /** `params` become the dashboard's initial filter values (by parameter name) and `params` scope. */
   | { kind: "openDashboard"; dashboardId: string; params?: ValueMap }
@@ -130,6 +143,7 @@ export const STEP_KINDS: StepKind[] = [
   "runQuery",
   "navigate",
   "openForm",
+  "closeForm",
   "openReport",
   "openDashboard",
   "setState",

@@ -2,7 +2,7 @@
 # Pure definition data: the same DocumentConfig YAML the Settings › YAML tab edits.
 # Records come from seed.sql, applied as the "Seed sample data" migration.
 # Object ids are fixed UUIDv7 literals. A trailing comment names each top-level object.
-version: 4
+version: 5
 name: CRM
 activeMode: run
 settings:

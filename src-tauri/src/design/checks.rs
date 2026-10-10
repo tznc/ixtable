@@ -396,6 +396,21 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
                 ));
             }
         }
+        if form.source.is_none()
+            && form
+                .modes
+                .iter()
+                .any(|m| matches!(m, FormMode::Continuous | FormMode::Split))
+        {
+            out.push(Issue::warning(
+                "form",
+                id,
+                format!(
+                    "form \"{}\" has no source, so its continuous and split modes show no records",
+                    form.name
+                ),
+            ));
+        }
         for rule in &form.rules {
             if rule.expression.trim().is_empty() {
                 out.push(Issue::error(

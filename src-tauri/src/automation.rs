@@ -130,6 +130,7 @@ const STEP_KINDS: &[&str] = &[
     "runQuery",
     "navigate",
     "openForm",
+    "closeForm",
     "openReport",
     "openDashboard",
     "setState",
@@ -492,6 +493,22 @@ mod tests {
         let all = messages(&validate(&c)).join("\n");
         assert!(all.contains("params.region expression is empty"), "{all}");
         assert!(all.contains("dashboard none does not exist"), "{all}");
+    }
+
+    #[test]
+    fn accepts_popup_open_form_and_close_form_steps() {
+        let mut c = config(json!([]), json!([]));
+        let form = c.design.forms[0].id.clone();
+        c.actions = serde_json::from_value(json!([{
+            "id": "a1", "name": "Pick", "steps": [
+                {"id": "1", "kind": "openForm", "formId": form, "popup": true, "storeAs": "picked"},
+                {"id": "2", "kind": "closeForm", "value": "results.picked"},
+                {"id": "3", "kind": "closeForm"}
+            ]
+        }]))
+        .unwrap();
+        let all = messages(&validate(&c));
+        assert!(all.is_empty(), "{all:?}");
     }
 
     #[test]

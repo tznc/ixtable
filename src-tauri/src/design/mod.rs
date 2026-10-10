@@ -58,6 +58,10 @@ pub enum FormMode {
     Detail,
     Create,
     Edit,
+    /// Every record of a page as an inline-editable row on the form's own grid. Config version 5.
+    Continuous,
+    /// A datasheet of the records above the selected record's detail view.
+    Split,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -118,6 +122,9 @@ pub struct Form {
     /// List mode row filter expression (evaluated in TypeScript, `src/runtime/conditions.ts`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filter: Option<String>,
+    /// First/previous/next/last/new record buttons on single-record views. Config version 5.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub navigation_bar: bool,
 }
 pub fn default_modes() -> Vec<FormMode> {
     vec![
@@ -409,6 +416,7 @@ impl Default for DesignSchema {
                 name: "Main form".into(),
                 modes: default_modes(),
                 page_size: default_page_size(),
+                navigation_bar: true,
                 ..Default::default()
             }],
             navigation: vec![NavigationItem {

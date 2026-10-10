@@ -5,7 +5,13 @@ import { readQueries } from "../query/types";
 import { newId } from "../lib/utils";
 import { filterNames } from "../runtime/conditions";
 import { ExpressionField } from "./ExpressionField";
-import { type DesignForm, FORM_MODES, type FormMode } from "./schema";
+import {
+  type DesignForm,
+  FORM_MODES,
+  type FormMode,
+  formModeLabel,
+  isCollectionMode,
+} from "./schema";
 import { useDesignEditor } from "./useDesignEditor";
 
 /** Properties of the selected form: source, modes, list settings, validation rules, grid. */
@@ -156,11 +162,19 @@ export function FormProperties({
               disabled={source?.kind === "query" && (mode === "create" || mode === "edit")}
               onChange={(e) => toggleMode(mode, e.target.checked)}
             />
-            {mode[0].toUpperCase() + mode.slice(1)} mode
+            {formModeLabel(mode)} mode
           </label>
         ))}
+        <label className="fd-check">
+          <input
+            type="checkbox"
+            checked={!!form.navigationBar}
+            onChange={(e) => change({ navigationBar: e.target.checked }, "Toggle navigation bar")}
+          />
+          Record navigation bar
+        </label>
       </fieldset>
-      {form.modes.includes("list") && (
+      {form.modes.some(isCollectionMode) && (
         <fieldset className="fd-fieldset">
           <legend>List</legend>
           <label>

@@ -1,0 +1,121 @@
+/* Continuous, split and popup forms, and the record navigation bar (PRD §14, Phase 6). */
+.rt-recnav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--ix-subtle);
+}
+.rt-recnav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  border: 1px solid #d9dce1;
+  background: #fff;
+  border-radius: 5px;
+  padding: 0;
+}
+.rt-recnav button:disabled {
+  opacity: 0.45;
+}
+.rt-recnav svg {
+  width: 15px;
+  height: 15px;
+}
+.rt-recnav-position {
+  min-width: 110px;
+  text-align: center;
+}
+.rt-continuous {
+  background: #fff;
+  border: 1px solid #dadde1;
+  border-radius: 7px;
+  padding: 20px;
+}
+.rt-crows {
+  display: flex;
+  flex-direction: column;
+}
+.rt-crow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: start;
+  padding: 10px 6px;
+  border-bottom: 1px solid #eceef1;
+}
+.rt-crow:focus-within {
+  background: #f7f9fc;
+}
+.rt-crow-dirty {
+  box-shadow: inset 3px 0 0 #d8a23d;
+}
+.rt-crow-new {
+  background: #fafbfc;
+}
+.rt-crow > .rt-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.rt-crow-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding-top: 18px;
+}
+.rt-crow-actions button {
+  border: 1px solid #d9dce1;
+  background: #fff;
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.rt-crow-actions .primary {
+  background: var(--ix-primary);
+  color: var(--ix-on-primary);
+  border-color: var(--ix-primary);
+}
+.rt-split {
+  display: grid;
+  grid-template-rows: minmax(160px, auto) auto;
+  gap: 14px;
+}
+.rt-split > .rt-list {
+  max-height: 45vh;
+  overflow: auto;
+}
+.rt-split-detail > .rt-muted {
+  padding: 18px;
+  background: #fff;
+  border: 1px dashed #dadde1;
+  border-radius: 7px;
+}
+.rt-row-selected,
+.rt-row-selected:hover {
+  background: #e8effc;
+}
+.rt-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 6vh 16px;
+  background: #20242a40;
+  overflow: auto;
+}
+.rt-popup {
+  width: min(760px, 100%);
+  background: #f4f5f6;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 16px 40px #20242a40;
+}
+.rt-popup-footer {
+  justify-content: flex-end;
+  margin-top: 10px;
+}
