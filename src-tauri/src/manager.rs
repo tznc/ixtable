@@ -432,6 +432,20 @@ impl DocumentManager {
             AppError::new(code, e)
         })
     }
+    pub fn table_totals(
+        &self,
+        window: &str,
+        table: &str,
+        filters: &[data::Filter],
+        specs: &[data::totals::TotalSpec],
+    ) -> Result<Vec<data::DataValue>, AppError> {
+        let all = self.sessions.lock().unwrap();
+        all.get(window)
+            .ok_or_else(|| AppError::new("NO_DOCUMENT", "No document is open"))?
+            .reader
+            .totals(table, filters, specs)
+            .map_err(|e| AppError::new("IO_ERROR", e))
+    }
     pub fn table_page(
         &self,
         window: &str,

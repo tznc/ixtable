@@ -25,6 +25,9 @@ pub mod sqltext;
 pub mod support;
 #[cfg(test)]
 mod tests;
+pub mod totals;
+#[cfg(test)]
+mod totals_tests;
 pub mod values;
 pub mod write;
 
