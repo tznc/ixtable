@@ -34,7 +34,7 @@ function StyleSelect({
           )
         }
       >
-        <option value="keep">Unchanged</option>
+        <option value="keep">As is</option>
         {options.map(([name, v]) => (
           <option key={name} value={v === null ? "" : String(v)}>
             {name}
