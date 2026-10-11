@@ -138,7 +138,9 @@ export function TriggersPanel({ focusId }: { focusId?: string }) {
               Runs before each new or changed record is saved, including rows an action query
               writes. Its action can set fields with Set field steps, read queries, and reject the
               save with a Fail step; it cannot write records or open anything. In the condition and
-              action, <code>old</code> is the row before an update and empty for a new record.
+              action, <code>old</code> is the row before an update and empty for a new record. Run
+              as app skips the user's role checks; run as the signed-in user refuses the save up
+              front when the user's role cannot run the trigger.
             </p>
           ) : (
             <div className="ax-row">
@@ -176,14 +178,17 @@ export function TriggersPanel({ focusId }: { focusId?: string }) {
               onChange={(idempotencyKey) => edit({ idempotencyKey: idempotencyKey || undefined })}
             />
           )}
-          <p>
-            Created, updated and deleted triggers see the record as <code>record</code> (a deleted
-            record as it was). Sync triggers run after the record is saved, as part of the same
-            operation; a failing action reports an error to whoever saved the record, but the save
-            stays. Async triggers run in the background while the app is open, with retries. Run as
-            app lets the trigger make its own writes even when the user's role cannot; run as the
-            signed-in user refuses the save up front when the user's role cannot run the trigger.
-          </p>
+          {!before && (
+            <p>
+              Created, updated and deleted triggers see the record as <code>record</code> (a deleted
+              record as it was). Sync triggers run after the record is saved, as part of the same
+              operation; a failing action reports an error to whoever saved the record, but the save
+              stays. Async triggers run in the background while the app is open, with retries. Run
+              as app lets the trigger make its own writes even when the user's role cannot; run as
+              the signed-in user refuses the save up front when the user's role cannot run the
+              trigger.
+            </p>
+          )}
         </div>
       ) : (
         <div className="ax-editor">
