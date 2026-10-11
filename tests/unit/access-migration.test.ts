@@ -13,7 +13,7 @@ const settings = {
   theme: "keep",
   accessImport: {
     source: "Orders.accdb",
-    format: "ace",
+    format: "accdt",
     importedAt: "2026-10-10T12:00:00Z",
     warnings: ["page 9 could not be read"],
     report: [
@@ -43,6 +43,7 @@ describe("Access migration report", () => {
   it("reads the report from settings and ignores anything malformed", () => {
     const m = readMigration(settings)!;
     expect(m.source).toBe("Orders.accdb");
+    expect(m.format).toBe("template");
     expect(m.report).toHaveLength(4);
     expect(m.reviewed).toEqual([]);
     expect(readMigration({})).toBeNull();

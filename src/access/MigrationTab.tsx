@@ -101,8 +101,8 @@ export function AccessMigrationTab() {
     <div className="settings-panel access-migration">
       <h2>Access migration</h2>
       <p>
-        Imported from {migration.source || "an Access file"} (
-        {FORMAT_LABELS[migration.format] ?? migration.format})
+        Imported from {migration.source || "an Access file"},{" "}
+        {(FORMAT_LABELS[migration.format] ?? migration.format).replace(/^Access/, "an Access")}
         {migration.importedAt ? ` on ${migration.importedAt.slice(0, 10)}` : ""}.{" "}
         {open === 0
           ? "Every item that needs attention is reviewed."

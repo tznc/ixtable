@@ -46,3 +46,19 @@
   align-items: center;
   gap: 8px;
 }
+.access-migration-filters input[type="search"] {
+  background: #fff;
+  border: 1px solid #d3d7d1;
+  border-radius: 5px;
+  padding: 4px 8px;
+  min-width: 160px;
+}
+.access-migration-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.access-migration-filters button svg {
+  width: 16px;
+  height: 16px;
+}

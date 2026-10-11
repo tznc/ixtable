@@ -21,6 +21,10 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 const strings = (v: unknown) =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
 
+/** The stored format name; the importer writes "accdt" for templates. */
+const formatOf = (v: unknown): AccessFormat =>
+  v === "jet3" || v === "jet4" || v === "ace" ? v : "template";
+
 /** The migration report of a document, or null when it was not imported from Access. */
 export function readMigration(settings: unknown): AccessMigration | null {
   const access = isRecord(settings) ? settings.accessImport : null;
@@ -30,7 +34,7 @@ export function readMigration(settings: unknown): AccessMigration | null {
   );
   return {
     source: typeof access.source === "string" ? access.source : "",
-    format: (typeof access.format === "string" ? access.format : "template") as AccessFormat,
+    format: formatOf(access.format),
     report: report.map((i) => ({ ...i, notes: strings(i.notes) })),
     warnings: strings(access.warnings),
     importedAt: typeof access.importedAt === "string" ? access.importedAt : null,

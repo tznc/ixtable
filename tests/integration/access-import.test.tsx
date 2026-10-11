@@ -136,7 +136,7 @@ it("keeps a migration report in Settings with links, review marks and export", a
   await user.click(await screen.findByRole("button", { name: "Settings" }, LONG));
   await user.click(await screen.findByRole("tab", { name: "Access migration" }, LONG));
   const panel = await screen.findByRole("tabpanel");
-  expect(within(panel).getByText(/Imported from Order Desk\.accdt/)).toBeInTheDocument();
+  expect(within(panel).getByText(/Imported from Order Desk\.accdt, an Access template/)).toBeInTheDocument();
   const items = within(panel).getByRole("table", { name: "Migration items" });
   const first = within(items).getAllByRole("row")[1];
   const box = within(first).getByRole("checkbox", { name: /^Reviewed / });
