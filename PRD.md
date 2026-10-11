@@ -635,7 +635,7 @@ Requirements:
 
 Studio must show how much of archive size comes from assets.
 
-Record-linked or object-storage attachments are deferred.
+Record-linked attachments are attachment fields (Phase 6): files stored in the record store's hidden `_ixtable_attachments` table, read through DuckDB, up to 20 MB each (`docs/decisions/field-formats.md`). Object-storage attachments are deferred.
 
 ---
 
@@ -1195,7 +1195,7 @@ Deliver:
 - continuous and split form modes and a record navigation bar (first, previous, next, last, new);
 - popup and modal forms opened by an action, returning values to the caller;
 - report running sums, conditional formatting, and charts;
-- attachment, rich-text memo, multi-select fields, and input masks;
+- attachment, rich-text memo, multi-select fields (built in #64), and input masks;
 - crosstab, union, and subquery sources in the visual query builder;
 - an object search and command palette, documented keyboard shortcuts, in-app help links, and app icon and branding for runtime bundles; and
 - an Access-converted golden application that exercises export and continuous forms.
