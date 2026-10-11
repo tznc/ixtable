@@ -64,8 +64,13 @@ export function ContinuousRow({
   const runtime = useRuntimeNavigation();
   const { app, roleId } = runtime;
   const creating = !stored;
-  const [original] = useState<RecordValues>(() => stored ?? defaultRecord(form, { form: {}, app }));
+  const [original, setOriginal] = useState<RecordValues>(
+    () => stored ?? defaultRecord(form, { form: {}, app }),
+  );
   const [record, setRecord] = useState<RecordValues>(original);
+  // A re-read page brings new stored values; a row with unsaved edits keeps them (and its
+  // original values, so the optimistic check still sees a concurrent change).
+  const [synced, setSynced] = useState(stored);
   const [formState, setFormState] = useState<Record<string, unknown>>({});
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS);
   const [problem, setProblem] = useState("");
@@ -77,6 +82,13 @@ export function ContinuousRow({
   const editable = creating ? !!table : canUpdate;
   const dirty = Object.keys(record).some((k) => !sameValue(record[k], original[k]));
   const locked = useMemo(() => new Set<string>(), []);
+  if (stored && stored !== synced) {
+    setSynced(stored);
+    if (!dirty) {
+      setOriginal(stored);
+      setRecord(stored);
+    }
+  }
 
   const save = async () => {
     if (!table || busy || !dirty) return;
@@ -100,6 +112,8 @@ export function ContinuousRow({
         if (!canUpdate) throw new PermissionError("This role cannot change records here.");
         if (!identity) throw new Error("This record cannot be identified for saving.");
         const outcome = await updateRow(table, schema, identity, values, original);
+        setOriginal(outcome.record);
+        setRecord(outcome.record);
         onChanged(outcome.problem ?? "Changes saved.", outcome.problem ? "error" : "info");
       }
     } catch (reason) {

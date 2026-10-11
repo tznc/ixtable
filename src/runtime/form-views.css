@@ -41,7 +41,8 @@
 }
 .rt-crow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  /* A fixed actions column keeps every row's fields aligned, whichever buttons show. */
+  grid-template-columns: minmax(0, 1fr) 200px;
   gap: 4px 12px;
   align-items: start;
   padding: 10px 6px;
@@ -62,6 +63,7 @@
 }
 .rt-crow-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 6px;
   align-items: center;
   padding-top: 18px;

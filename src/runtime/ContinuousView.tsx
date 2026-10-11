@@ -30,7 +30,7 @@ export function ContinuousView({ form, params = NO_PARAMS }: Props) {
   const [page, setPage] = useState<RecordPage | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState<Notice | null>(null);
-  // Bumped after a write so the page is read again (rows remount with stored values).
+  // Bumped after a write so the page is read again; unchanged rows take the new values.
   const [version, setVersion] = useState(0);
   const [dialog, confirm] = useConfirm();
   const table = form.source?.kind === "table" ? (form.source.table ?? null) : null;
@@ -92,7 +92,7 @@ export function ContinuousView({ form, params = NO_PARAMS }: Props) {
       <div className="rt-crows">
         {page?.rows.map((record, index) => (
           <ContinuousRow
-            key={`${version}:${offset + index}`}
+            key={JSON.stringify(page.identities?.[index] ?? offset + index)}
             form={form}
             table={table}
             record={record}
@@ -107,7 +107,6 @@ export function ContinuousView({ form, params = NO_PARAMS }: Props) {
         {page && !page.rows.length && <p className="rt-muted">No records.</p>}
         {page && allowed("create", "create") && (
           <ContinuousRow
-            key={`new:${version}`}
             form={form}
             table={table}
             label="New record"

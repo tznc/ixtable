@@ -394,3 +394,36 @@ it("returns null and keeps the opener usable when a popup is dismissed", async (
   await within(planner).findByText("Nothing added", {}, LONG);
   expect(screen.queryByRole("dialog")).toBeNull();
 });
+
+it("saves a continuous row when focus leaves it and keeps edits in other rows", async () => {
+  const user = await renderNewDocument();
+  await seedTasks(["Draft plan", "Review budget"]);
+  await seedDesign(user, "continuous-leave.ixt", (config, formId) =>
+    taskForm(config, formId, { modes: ["continuous", "create", "edit"] }),
+  );
+  const page = await openRuntime(user);
+  const view = await within(page).findByRole("region", { name: "Task" }, LONG);
+  const second = await within(view).findByRole("group", { name: "Record 2" }, LONG);
+  const title = within(second).getByRole("textbox", { name: /Title/ });
+  await waitFor(() => expect(title).toHaveValue("Review budget"), LONG);
+  await user.clear(title);
+  await user.type(title, "Approve budget");
+  // Typing in the new-record row moves focus out of Record 2, which saves it.
+  const fresh = within(view).getByRole("group", { name: "New record" });
+  await user.type(within(fresh).getByRole("textbox", { name: /Title/ }), "Hire help");
+  await within(view).findByText("Changes saved.", {}, LONG);
+  await waitFor(async () => expect(await titles()).toEqual(["Draft plan", "Approve budget"]), LONG);
+  await waitFor(() =>
+    expect(
+      within(within(view).getByRole("group", { name: "Record 2" })).getByRole("textbox", {
+        name: /Title/,
+      }),
+    ).toHaveValue("Approve budget"),
+  );
+  expect(within(view).getByRole("group", { name: "Record 2" })).not.toHaveClass("rt-crow-dirty");
+  expect(
+    within(within(view).getByRole("group", { name: "New record" })).getByRole("textbox", {
+      name: /Title/,
+    }),
+  ).toHaveValue("Hire help");
+});
