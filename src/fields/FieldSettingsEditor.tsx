@@ -93,7 +93,7 @@ export function FieldSettingsEditor({ table, columns }: { table: string; columns
             </label>
             {!field?.format && base === "text" && (
               <MaskField
-                label={`${column.name} input mask`}
+                name={`${column.name} input mask`}
                 value={field?.inputMask}
                 onChange={(inputMask) => save(column.name, { inputMask })}
               />
