@@ -26,6 +26,7 @@ test("owner grants an org member the Viewer role and the viewer sees a read-only
   const row = page.getByRole("row").filter({ hasText: viewer.email });
   await expect(row).toContainText("Reads the console; changes nothing");
   await expect(row.getByLabel(`App role for ${viewer.email}`)).toHaveValue("viewer");
+  await page.evaluate(() => window.scrollTo(0, 0));
   await captureOutcome(page, "ui-app-access-01-owner-grant", {
     expectations: [
       "The Access tab lists the owner as Developer/Owner and the new member with the Viewer role.",
