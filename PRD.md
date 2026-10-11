@@ -506,7 +506,9 @@ The form designer supports:
 - one-level master/detail forms; and
 - related-record lists.
 
-Arbitrarily nested subforms, absolute pixel layouts, and custom scripted controls are excluded.
+Phase 6 adds continuous (inline-editable list) and split (datasheet plus detail) form modes, a record navigation bar, and popup or modal forms opened by an action that can return values to the caller. Phase 7 adds nested subforms (§28, Phase 7) and form events (§17.4).
+
+Absolute pixel layouts and custom scripted controls are excluded.
 
 Generated CRUD forms must use the same public form primitives as manually designed forms.
 
@@ -531,12 +533,15 @@ Supported components are limited to:
 Outputs:
 
 - preview;
-- print; and
-- PDF.
+- print;
+- PDF; and
+- XLSX (Phase 6).
 
 The report engine must use a deterministic layout and pagination model across all supported platforms.
 
-Nested subreports, report scripts, barcodes, label-specific tooling, and arbitrary HTML/CSS are deferred.
+Phase 6 adds running sums, conditional formatting, and charts that reuse the dashboard chart components. Phase 7 adds subreports and label/mail-merge layouts.
+
+Report scripts, barcodes, and arbitrary HTML/CSS are deferred.
 
 ---
 
@@ -589,7 +594,7 @@ Buttons may invoke declarative actions such as:
 
 ### 17.3 Record triggers
 
-The MVP supports record-created and record-updated triggers.
+The MVP supports record-created and record-updated triggers. Phase 7 adds before-change triggers, which run synchronously before a create or update is written and can set field values on it or reject it with a message, and record-deleted triggers.
 
 Triggers may be:
 
@@ -599,6 +604,17 @@ Triggers may be:
 The asynchronous queue runs only while the desktop application is running. It provides retries, status, attempt history, cancellation, and idempotency keys.
 
 Schedules, webhooks, cloud workers, email integrations, and always-on execution are deferred.
+
+### 17.4 Form events (Phase 7)
+
+Forms raise events that run declarative action steps (§17.2). An event never runs a script.
+
+- **On load**: the form opens.
+- **On current**: the form moves to a record.
+- **Before update**: a record edit is about to be saved. A failed condition or an explicit cancel step vetoes the save and shows a message.
+- **After update**: a record edit was saved.
+
+Events run in the Studio preview and in Runtime with the same semantics, and are subject to the role's permissions on every record or object they touch.
 
 ---
 
@@ -619,7 +635,7 @@ Requirements:
 
 Studio must show how much of archive size comes from assets.
 
-Record-linked or object-storage attachments are deferred.
+Record-linked attachments are attachment fields (Phase 6): files stored in the record store's hidden `_ixtable_attachments` table, read through DuckDB, up to 20 MB each (`docs/decisions/field-formats.md`). Object-storage attachments are deferred.
 
 ---
 
@@ -1168,6 +1184,49 @@ Exit criteria:
 
 ---
 
+### Phase 6 — Access-Feel Parity
+
+**Objective:** Close the gaps an Access user notices on day one, inside the existing scope. Phase 6 is desktop work and does not depend on Phases 4 and 5.
+
+Deliver:
+
+- data export to CSV, XLSX, and JSON from any table, saved query, and query result: every row matching the current filter and sort, as raw typed values, allowed for any role that can read the source; and report output to XLSX;
+- datasheet tools: filter by selection, multi-column sort, find and replace, freeze and hide columns, a totals row, and multi-cell paste from spreadsheets;
+- continuous and split form modes and a record navigation bar (first, previous, next, last, new);
+- popup and modal forms opened by an action, returning values to the caller;
+- report running sums, conditional formatting, and charts;
+- attachment, rich-text memo, multi-select fields (built in #64), and input masks;
+- crosstab, union, and subquery sources in the visual query builder;
+- an object search and command palette, documented keyboard shortcuts, in-app help links, and app icon and branding for runtime bundles; and
+- an Access-converted golden application that exercises export and continuous forms.
+
+Exit criteria:
+
+- Every export reads through DuckDB, honors runtime-role read permissions, and round-trips through the import wizard without loss for supported types.
+- Continuous, split, and popup forms reuse the shared grid and form primitives (§13).
+- The Access-converted golden application passes CI on all supported OSes.
+
+### Phase 7 — Logic Parity
+
+**Objective:** Give Access-style logic a declarative home, without arbitrary scripting.
+
+Deliver:
+
+- form events: on load, on current, before update (can veto), and after update (§17.4);
+- before-change and record-deleted triggers (§17.3);
+- nested subforms, up to three levels deep;
+- subreports for invoices and statements; and
+- label and mail-merge report layouts.
+
+Exit criteria:
+
+- Form events and new triggers run only declarative action steps and pass the same permission checks as manual actions.
+- A before-change rejection leaves no partial write on SQLite or PostgreSQL.
+- Subreport pagination stays deterministic and passes report golden files.
+- The Access-converted golden application exercises form events, triggers, and subforms.
+
+---
+
 ## 29. Commercial Launch Acceptance Criteria
 
 Commercial launch is blocked unless:
@@ -1243,8 +1302,7 @@ The following are not part of commercial MVP:
 - arbitrary DuckDB extensions;
 - always-on cloud automation;
 - schedules or webhooks;
-- arbitrary nested subforms;
-- nested subreports or report scripting;
+- report scripting;
 - semantic Git export/import;
 - MySQL or SQL Server RecordStores;
 - Microsoft Access interoperability beyond one-way import (linked tables, export back to Access, VBA execution or conversion);
@@ -1281,7 +1339,7 @@ Separate PRDs are required before implementation for:
 | Direct PostgreSQL credentials are extracted | Trusted-user threat model and per-user credentials | Block claims that Runtime protects against malicious authorized users |
 | Non-TLS PostgreSQL leaks credentials/data | Severe warning and recorded override | Do not allow silent insecure configuration |
 | Transactions are mistaken for conflict handling | Required entity conflict-policy configuration | Publishing validation blocks unresolved shared entities |
-| Async triggers expand into workflow SaaS | Local queue only; two record triggers | Defer schedules, webhooks, integrations, and cloud workers |
+| Async triggers expand into workflow SaaS | Local queue only; record and form events run declarative actions | Defer schedules, webhooks, integrations, and cloud workers |
 | Public self-service consumes product roadmap | Dedicated Phase 5 gate | Do not label private manual pilots as public commercial readiness |
 | Apache forks remove UI gates | Monetize hosted operations, not artificial lock-in | Do not spend MVP effort on DRM for editable local apps |
 | Three-platform matrix slows delivery | Shared contracts and golden CI | A platform is supported only when the full release gate passes |

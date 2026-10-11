@@ -206,7 +206,10 @@ pub use run::*;
 pub use validate::validate;
 
 /// A saved read query by id; action queries run only through `run_action_query`.
-fn find_saved<'a>(config: &'a DocumentConfig, id: &str) -> Result<&'a SavedQuery, AppError> {
+pub(crate) fn find_saved<'a>(
+    config: &'a DocumentConfig,
+    id: &str,
+) -> Result<&'a SavedQuery, AppError> {
     let query = config
         .saved_queries
         .iter()

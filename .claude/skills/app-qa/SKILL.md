@@ -37,6 +37,7 @@ One spec per critical local flow lives in `scripts/screenshot/specs/`:
 | `settings` | datasource, entities, migrations dry run, YAML, problems (`settings-*`) |
 | `templates` | start from CRM, Inventory, Work orders (`templates-*`) |
 | `access-import` | Access template import: inventory, conversion report, imported app in the Runtime (`access-*`) |
+| `export` | Export menu in Data, Query and Runtime lists; CSV/XLSX/JSON written with sort and filters (`export-*`) |
 
 Shared helpers (seeding through the bridge, Save As, settings tabs, templates) are in `specs/fixtures.tsx`.
 

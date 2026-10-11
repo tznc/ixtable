@@ -105,6 +105,22 @@ export async function captureDocument(
   try {
     const page = await browser.newPage({ viewport });
     await page.goto(`file://${htmlPath}`);
+    // jsdom has no layout, so Radix popper content (menus) is serialized at 0,0.
+    // Place each open menu under its trigger using the browser's layout.
+    await page.evaluate(() => {
+      for (const wrapper of document.querySelectorAll<HTMLElement>(
+        "[data-radix-popper-content-wrapper]",
+      )) {
+        const id = wrapper.firstElementChild?.getAttribute("aria-labelledby");
+        const trigger = id ? document.getElementById(id) : null;
+        if (!trigger) continue;
+        const anchor = trigger.getBoundingClientRect();
+        wrapper.style.transform = "none";
+        wrapper.style.zIndex = "50";
+        wrapper.style.top = `${anchor.bottom + 6}px`;
+        wrapper.style.left = `${Math.max(8, anchor.right - wrapper.getBoundingClientRect().width)}px`;
+      }
+    });
     if (expand) {
       const count = await page.locator(expand).count();
       if (count !== 1) throw new Error(`Expand selector ${expand} must match exactly one element.`);

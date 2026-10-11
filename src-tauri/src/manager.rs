@@ -448,6 +448,24 @@ impl DocumentManager {
             .page(table, offset, limit, sorts, filters)
             .map_err(|e| AppError::new("IO_ERROR", e))
     }
+    /// The unpaged page query of `table` (exports stream it on `read_connection`).
+    pub fn table_plan(
+        &self,
+        window: &str,
+        table: &str,
+        sorts: &[data::Sort],
+        filters: &[data::Filter],
+    ) -> Result<data::page::PagePlan, AppError> {
+        let all = self.sessions.lock().unwrap();
+        let reader = &all
+            .get(window)
+            .ok_or_else(|| AppError::new("NO_DOCUMENT", "No document is open"))?
+            .reader;
+        let _gate = reader.read_gate().map_err(|e| AppError::new("BUSY", e))?;
+        reader
+            .page_plan(table, sorts, filters)
+            .map_err(|e| AppError::new("IO_ERROR", e))
+    }
     pub fn read_query(&self, window: &str, sql: &str) -> Result<data::QueryResult, AppError> {
         let all = self.sessions.lock().unwrap();
         all.get(window)
