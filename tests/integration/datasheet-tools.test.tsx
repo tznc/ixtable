@@ -49,6 +49,7 @@ it("filters by selection, excludes a selection, and clears filters", async () =>
   await waitFor(() => expect(cellValues("name")).toEqual(["Bolt Ltd", "Core Inc"]), LONG);
   await user.click(screen.getByRole("button", { name: "Clear filters" }));
   await waitFor(() => expect(cellValues("name")).toHaveLength(3), LONG);
+  expect(screen.getByRole("button", { name: "Filter by selection" })).toBeDisabled();
 });
 
 it("finds the next match and replaces every match in one batch", async () => {

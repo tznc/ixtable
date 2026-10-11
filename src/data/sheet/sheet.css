@@ -105,11 +105,22 @@
   background: #f6f7f5;
 }
 .data-grid .frozen-edge {
-  box-shadow: 2px 0 0 #c9d0c8;
+  border-right: 2px solid #8f9b8f;
+}
+.data-grid th .sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.data-grid th .sheet-head > button {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 2px;
 }
 .data-grid th .column-menu {
-  margin-left: 4px;
-  vertical-align: middle;
+  align-items: center;
+  margin-left: auto;
   color: var(--ix-subtle);
 }
 .data-grid th .column-menu svg {
@@ -126,8 +137,12 @@
   background: #f0f2ef;
   border-top: 2px solid #c9d0c8;
 }
-.data-grid .totals-row .frozen {
+.data-grid .totals-row th,
+.data-grid .totals-row td {
   z-index: 2;
+}
+.data-grid .totals-row .frozen {
+  z-index: 3;
 }
 .data-grid .totals-row select {
   border: 0;
@@ -138,4 +153,8 @@
 .data-grid .totals-row output {
   margin-left: 6px;
   font-weight: 600;
+}
+/* The selected cell stays marked while focus is in the toolbar or find panel. */
+.data-grid td.active-cell {
+  box-shadow: inset 0 0 0 2px var(--ix-focus);
 }

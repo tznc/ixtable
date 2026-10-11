@@ -101,13 +101,14 @@ export function Datasheet({
     if (target instanceof HTMLInputElement) target.select();
     setActive(cell);
   };
+  // A new table, filter, sort or page puts other records under the old cell position.
+  useEffect(() => setActive(null), [table, readFilters, sorts, page.offset]);
   useEffect(() => {
     if (pending && pending.offset === page.offset) {
       focusCell(pending.cell);
       setPending(null);
     }
   }, [pending, page]);
-  useEffect(() => setActive(null), [table]);
 
   const fail = (e: unknown) => {
     const failure = asTauriError(e);
@@ -277,31 +278,33 @@ export function Datasheet({
                       at === 0 ? (sorts[0].descending ? "descending" : "ascending") : undefined
                     }
                   >
-                    <button
-                      type="button"
-                      title="Click to sort, Shift-click to add to the sort"
-                      onClick={(e) => onSorts(nextSorts(sorts, c.name, e.shiftKey))}
-                    >
-                      {c.name} {at >= 0 && (sorts[at].descending ? "↓" : "↑")}
-                      {at >= 0 && sorts.length > 1 && <sup>{at + 1}</sup>}
-                    </button>
-                    <ColumnMenu
-                      name={c.name}
-                      frozen={frozen.includes(j)}
-                      canHide={visible.length > 1}
-                      onSort={(descending) => onSorts([{ column: c.name, descending }])}
-                      onHide={() =>
-                        void saveLayout(hideColumn(layout, page.columns, c.name), "Hide column")
-                      }
-                      onFreeze={() =>
-                        void saveLayout(
-                          frozen.includes(j)
-                            ? { ...layout, frozen: 0 }
-                            : freezeThrough(layout, page.columns, c.name),
-                          frozen.includes(j) ? "Unfreeze columns" : "Freeze columns",
-                        )
-                      }
-                    />
+                    <div className="sheet-head">
+                      <button
+                        type="button"
+                        title="Click to sort, Shift-click to add to the sort"
+                        onClick={(e) => onSorts(nextSorts(sorts, c.name, e.shiftKey))}
+                      >
+                        {c.name} {at >= 0 && (sorts[at].descending ? "↓" : "↑")}
+                        {at >= 0 && sorts.length > 1 && <sup>{at + 1}</sup>}
+                      </button>
+                      <ColumnMenu
+                        name={c.name}
+                        frozen={frozen.includes(j)}
+                        canHide={visible.length > 1}
+                        onSort={(descending) => onSorts([{ column: c.name, descending }])}
+                        onHide={() =>
+                          void saveLayout(hideColumn(layout, page.columns, c.name), "Hide column")
+                        }
+                        onFreeze={() =>
+                          void saveLayout(
+                            frozen.includes(j)
+                              ? { ...layout, frozen: 0 }
+                              : freezeThrough(layout, page.columns, c.name),
+                            frozen.includes(j) ? "Unfreeze columns" : "Freeze columns",
+                          )
+                        }
+                      />
+                    </div>
                     <small>{logicalOf(c)}</small>
                   </th>
                 );
@@ -323,7 +326,13 @@ export function Datasheet({
                   return (
                     <td
                       key={j}
-                      className={[primary, props.className].filter(Boolean).join(" ")}
+                      className={[
+                        primary,
+                        props.className,
+                        active?.row === i && active.column === j && "active-cell",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
                       style={props.style}
                     >
                       {editable(j) ? (
