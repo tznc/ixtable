@@ -49,6 +49,7 @@ export function ExportMenu({
         <DropdownMenu.Trigger asChild>
           <button
             type="button"
+            className="export-button"
             aria-label="Export"
             aria-busy={busy}
             disabled={disabled || busy}

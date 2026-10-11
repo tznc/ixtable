@@ -2593,6 +2593,17 @@ td.tone-warning::before,
 .rt-field.tone-muted :is(input, select, textarea) {
   border-left-style: dotted;
 }
+.export-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.export-button svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
 .export-status,
 .export-error {
   font-size: 11px;
