@@ -31,7 +31,7 @@ it("imports an Access template with its forms, report, and data", async () => {
   await captureDocument(document, {
     name: "access-02-report",
     expectations: [
-      "The report says how many tables and rows the new document has.",
+      "The report says how many tables and rows the new document has, and that Settings › Access migration keeps it.",
       "A table counts converted, partly converted, and not converted objects per kind.",
       "The expanded notes explain each loss, such as the VBA module kept as an asset.",
     ],
@@ -77,6 +77,52 @@ it("imports an Access template with its forms, report, and data", async () => {
       "The imported Access update query opens in Query mode as an action query (Update rows on Orders); action tags in the list sit inside their rows.",
       "The minimum parameter declared in Access is a typed query parameter with a value to run with.",
       "Preview changes reports how many rows it would update, and that nothing was changed.",
+    ],
+  });
+
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(await screen.findByRole("tab", { name: "Access migration" }, LONG));
+  const panel = await screen.findByRole("tabpanel");
+  expect(within(panel).getByRole("table", { name: "Migration items" })).toBeVisible();
+  expect(within(panel).getByText(/Imported from Order Desk\.accdt, an Access template/)).toBeInTheDocument();
+  await captureDocument(document, {
+    name: "access-06-migration",
+    expectations: [
+      "Settings has an Access migration tab naming the source file and how many items still need review.",
+      "A summary table counts converted, partly converted and not converted objects per kind.",
+      "The item list shows only what needs attention, worst first, with notes, Open links and Reviewed checkboxes.",
+    ],
+  });
+
+  const summary = within(panel).getByText(/still needs? review/);
+  const before = summary.textContent;
+  await user.selectOptions(within(panel).getByRole("combobox", { name: /Show/ }), "all");
+  await user.selectOptions(within(panel).getByRole("combobox", { name: /Kind/ }), "form");
+  const forms = within(panel).getByRole("table", { name: "Migration items" });
+  const box = within(forms)
+    .getAllByRole("checkbox", { name: /^Reviewed form / })
+    .find((b) => !b.closest("tr")?.textContent?.includes("Converted"))!;
+  await user.click(box);
+  await waitFor(() => expect(summary.textContent).not.toBe(before));
+  expect(box).toBeChecked();
+  await captureDocument(document, {
+    name: "access-07-migration-filtered",
+    expectations: [
+      "Show is set to Everything and Kind to Forms, so only forms are listed, converted ones included.",
+      "The form marked reviewed has its checkbox ticked and the review count above went down by one.",
+      "Each converted form has an Open form link.",
+    ],
+  });
+
+  const open = within(forms).getAllByRole("button", { name: /^Open form / })[0];
+  const name = open.getAttribute("aria-label")!.replace("Open form ", "");
+  await user.click(open);
+  await screen.findByDisplayValue(name, {}, LONG);
+  await captureDocument(document, {
+    name: "access-08-open-form",
+    expectations: [
+      "Open form switched to Design mode with the converted Access form selected.",
+      "The form's name field shows the Access form's name.",
     ],
   });
 });

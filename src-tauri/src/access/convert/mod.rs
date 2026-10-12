@@ -373,8 +373,12 @@ pub fn create(
         check_queries(m, window, &config, &mut report);
         actions::check_statements(m, window, &config, &mut report)?;
         // The report stays with the document (Settings › YAML shows it).
+        report.link_targets(&config);
         config.settings["accessImport"]["report"] =
             serde_json::to_value(&report.items).unwrap_or_default();
+        config.settings["accessImport"]["warnings"] = serde_json::json!(report.warnings);
+        config.settings["accessImport"]["importedAt"] =
+            serde_json::json!(chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string());
         m.update_config(window, config)
     })();
     match result {

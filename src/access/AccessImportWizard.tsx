@@ -222,6 +222,7 @@ function ReportView({ result }: { result: AccessImport }) {
       <p role="status">
         Created a document with {plural(report.tables, "table")} and {plural(report.rows, "row")}.
       </p>
+      <p>Settings › Access migration keeps this report, with links, review marks and export.</p>
       <table className="asset-table" aria-label="Converted objects">
         <thead>
           <tr>

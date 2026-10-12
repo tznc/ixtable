@@ -64,6 +64,14 @@ staged copy of the data, in this order:
    (`translate::dml`). A make-table target the file lacks is created by
    migration 002 once the data is in. Data-definition and pass-through
    queries keep their Access SQL in `settings.accessImport.actionQueries`.
+   Built-ins without a DuckDB function of the same name (`StrConv`,
+   `MonthName`, `FormatCurrency`, `Partition`, `InStrRev`, `Eval` of a
+   literal and others) are written out in `translate::builtins`, and custom
+   `Format` patterns become `strftime` or `format` calls there. Domain
+   functions (`translate::domain`) whose criteria are built from the row,
+   such as `DLookup("Price", "Products", "ID=" & [ProductID])`, become
+   correlated subqueries: the text pieces are parsed as one WHERE clause and
+   each computed piece is the outer SQL, not text.
 4. Reports (`reports.rs`), macros (`macros.rs`), then forms (`forms.rs`,
    `controls.rs`) convert, in that order so buttons only point at objects that
    exist. Expressions go through `translate::expr` into the ixtable expression
@@ -85,6 +93,17 @@ Settings › Assets previews. The conversion report, with a status and notes
 for every object, is stored in `settings.accessImport.report` and returned to
 the wizard.
 
+**Migration report.** Every report item names the object it became
+(`target`: form, report, action or query, matched by name), and the
+document keeps the items, reader warnings and import time in
+`settings.accessImport`. Settings › Access migration, shown only for
+imported documents, lists them by status, kind and text, opens the
+converted object, and records review marks in
+`settings.accessImport.reviewed` (`kind:name` keys) through the config store,
+so they save and undo like any edit. It exports Markdown or CSV, rendered in
+`src/access/migration.ts` and written by `write_access_report`, which accepts
+only `.md`, `.csv` and `.txt` paths and refuses restricted runtime roles.
+
 **Commands and UI.** `inspect_access_file` returns an inventory (tables, row
 counts, objects, compiled objects, warnings) without changing anything.
 `import_access_file` runs the conversion. Both run on a blocking thread. The
@@ -102,7 +121,11 @@ whether to import data, import, read the report, open the document.
 - Access SQL is translated, not emulated. A call to a VBA function defined in a
   module yields an empty column, with a note. A built-in function with no
   DuckDB equivalent makes the query fail translation, and the report names
-  it.
+  it. `Format` follows Access for dates and numbers in US English; the
+  weekday and month names are English whatever the user's locale.
+- A domain function's criteria must be text pieces joined with values. A
+  criteria held in a variable or built by a VBA function still fails, and the
+  report names the query.
 - Text comparison in translated queries is case-insensitive, as in Access,
   through `lower()`. This costs index use in large tables.
 - An Access rule the data already breaks is not enforced after import. The
@@ -115,14 +138,16 @@ whether to import data, import, read the report, open the document.
 
 - `src-tauri/src/access/tests/`: SaveAsText parsing (`text_format.rs`), template
   reading and the fixture package in `tests/fixtures/access/template/`
-  (`accdt.rs`), page-file decoding of `orders.accdb`, `orders.mdb`, and the
+  (`accdt.rs`), the wider SQL and expression coverage run in DuckDB and
+  through `src/expr` (`translate_coverage.rs`,
+  `tests/unit/access-expressions.test.ts`), page-file decoding of `orders.accdb`, `orders.mdb`, and the
   Jackcess `complex-data.accdb`, and refusal of password-protected and
   encrypted copies of the fixtures (`jet.rs`), SQL and expression translation
   (`translate.rs`), and full conversions into working documents
   (`convert.rs`).
-- `tests/unit/access-summary.test.ts` and
-  `tests/integration/access-import.test.tsx`: the wizard against the real
-  command through the test bridge.
+- `tests/unit/access-summary.test.ts`, `tests/unit/access-migration.test.ts`
+  and `tests/integration/access-import.test.tsx`: the wizard and the
+  migration tab against the real commands through the test bridge.
 - Optional corpus tests: `node scripts/access/fetch-templates.mjs <dir>` downloads
   the 30 featured templates, and `IXTABLE_ACCESS_TEMPLATES_DIR=<dir> cargo test
   --lib access::` imports each one and fails on any config validation error.
@@ -143,3 +168,8 @@ whether to import data, import, read the report, open the document.
   action-queries record). The VBA asset has a preview in Settings › Assets.
 - 2026-10-09: password-protected and encrypted files moved out of scope. Jet
   3/4 page decryption removed, Jet database passwords now refused.
+- 2026-10-10: wider query and expression coverage (built-ins, `Format`
+  patterns, row-based domain criteria, `Like` search boxes, `Switch`,
+  `Choose`), and the migration report tab with links, review marks and
+  export. The template corpus was not re-run: its host is unreachable from
+  the cloud build environment.
