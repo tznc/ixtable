@@ -8,14 +8,17 @@ export function ExpressionInput({
   value,
   onChange,
   placeholder,
+  names = REPORT_SCOPE_NAMES,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  /** Names the expression may use. */
+  names?: string[];
 }) {
   const id = useId();
-  const problems = value.trim() ? check(value, REPORT_SCOPE_NAMES) : [];
+  const problems = value.trim() ? check(value, names) : [];
   return (
     <div className="report-expression">
       <label>

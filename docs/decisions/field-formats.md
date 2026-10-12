@@ -92,6 +92,9 @@ imports, and other clients are not checked.
 - A file uploaded from a form that is then cancelled stays stored until
   cleanup runs. Cleanup is a manual Studio action.
 - The datasheet shows formatted fields as text and edits them only in forms.
+  Its edits, inserts, multi-cell paste and find and replace all parse through
+  `datasheetValue`, so a mask applies to each of them, and find matches the
+  masked or formatted text a cell shows (`src/data/sheet/rows.ts`, `find.ts`).
 - A query-sourced report sees the stored HTML or JSON. Only a table-sourced
   report turns formatted fields into text (`fieldTextRows`).
 - Expressions see the stored value: HTML for rich text and JSON text for
@@ -109,4 +112,7 @@ imports, and other clients are not checked.
   inheritance, generation, validation, and the inputs.
 - `tests/integration/field-formats.test.tsx`: upload and read through the
   bridge, setting formats in the table designer, entering each kind in a
-  generated form, and the datasheet mask check.
+  generated form, the datasheet mask check, and masked and formatted cells in
+  the datasheet.
+- `tests/unit/datasheet-fields.test.ts`: masks and formats in datasheet
+  edits, paste, and find.

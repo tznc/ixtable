@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { expect, it } from "vitest";
 import type { DocumentConfig } from "../../src/lib/types";
-import { createTable, readPage, renderNewDocument } from "./helpers";
+import { createTable, insertRow, readPage, renderNewDocument, value } from "./helpers";
 
 const LONG = { timeout: 20_000 };
 type Ref = { id: string; name: string; mime: string; size: number; sha256: string };
@@ -145,4 +145,47 @@ it("rejects a typed value that does not fill the input mask", async () => {
   await user.type(draft, "5551234{Enter}");
   await waitFor(async () => expect((await readPage("docs")).rows).toHaveLength(1), LONG);
   expect((await readPage("docs")).rows[0][1]).toEqual({ type: "text", value: "5551234" });
+});
+
+it("shows masked and formatted fields in the datasheet and edits through the mask", async () => {
+  const user = await renderNewDocument();
+  await docs();
+  await user.click(await screen.findByRole("button", { name: "Design table" }, LONG));
+  const fields = await screen.findByRole("region", { name: "Field settings" }, LONG);
+  await user.selectOptions(
+    within(fields).getByRole("combobox", { name: "tags format" }),
+    "multiSelect",
+  );
+  await user.type(within(fields).getByRole("textbox", { name: /phone input mask/ }), "000-0000");
+  await waitFor(async () => {
+    const entity = (await readConfig()).entities.find((e) => e.table === "docs");
+    expect(entity?.fields?.map((f) => [f.column, f.format ?? f.inputMask])).toEqual(
+      expect.arrayContaining([
+        ["tags", "multiSelect"],
+        ["phone", "000-0000"],
+      ]),
+    );
+  }, LONG);
+  await user.click(screen.getByRole("button", { name: "Close" }));
+  await insertRow("docs", [
+    { column: "id", value: value("integer", 1) },
+    { column: "phone", value: value("text", "5551234") },
+    { column: "tags", value: value("text", '["red","blue"]') },
+  ]);
+  await user.click(screen.getByRole("button", { name: "Refresh" }));
+  const phone = await screen.findByRole("textbox", { name: "phone, row 1" }, LONG);
+  await waitFor(() => expect(phone).toHaveValue("555-1234"), LONG);
+  const tags = screen.getByRole("textbox", { name: "tags, row 1" });
+  expect(tags).toHaveAttribute("aria-readonly", "true");
+  expect(tags).toHaveTextContent("red, blue");
+  expect(screen.queryByRole("textbox", { name: "New tags" })).not.toBeInTheDocument();
+  expect(screen.getByText("Use a form")).toBeInTheDocument();
+
+  await user.clear(phone);
+  await user.type(phone, "555-9876{Enter}");
+  await waitFor(
+    async () =>
+      expect((await readPage("docs")).rows[0][1]).toEqual({ type: "text", value: "5559876" }),
+    LONG,
+  );
 });

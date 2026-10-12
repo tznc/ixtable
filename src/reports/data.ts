@@ -110,8 +110,8 @@ export interface ReportData {
 }
 
 /**
- * Loads everything a report needs: dataset rows, rows of table components'
- * saved queries, and image assets. Aborting `signal` interrupts the running
+ * Loads everything a report needs: dataset rows, rows of table and chart
+ * components' saved queries, and image assets. Aborting `signal` interrupts the running
  * query in DuckDB (`cancelQuery`) and rejects with `ReportCancelled`.
  */
 export async function loadReportData(
@@ -141,7 +141,7 @@ export async function loadReportData(
     const components = bandEntries(report).flatMap((entry) => entry.band.components);
     const tables: Record<string, Row[]> = {};
     for (const c of components) {
-      if (c.kind !== "table" || !c.queryId || tables[c.queryId]) continue;
+      if ((c.kind !== "table" && c.kind !== "chart") || !c.queryId || tables[c.queryId]) continue;
       const query = config.savedQueries.find((q) => q.id === c.queryId);
       if (!query) continue;
       const options = { limit: REPORT_ROW_LIMIT, runId };

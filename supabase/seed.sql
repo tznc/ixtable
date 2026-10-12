@@ -5,3 +5,5 @@
 
 -- Local plan prices for the `fake` billing provider (BILLING_PROVIDER=fake).
 update public.plans set stripe_price_id = 'price_fake_' || id where stripe_price_id is null;
+update public.plans set stripe_annual_price_id = 'price_fake_' || id || '_annual'
+  where stripe_annual_price_id is null;

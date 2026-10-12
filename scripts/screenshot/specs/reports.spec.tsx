@@ -282,3 +282,96 @@ it("prompts for parameters in the Runtime and prints grown Unicode text", async 
     ],
   });
 });
+
+it("adds a running sum with conditional formatting and charts, and previews them", async () => {
+  const user = await renderNewDocument();
+  await seedSales();
+  await saveQuery(
+    "Orders with customers",
+    "SELECT o.id, c.name AS customer, o.status, o.amount FROM orders o JOIN customers c ON c.id = o.customer_id ORDER BY o.status, o.id",
+  );
+  await saveAndReopen(user, "phase6.ixt");
+  await openMode(user, "Reports");
+  const create = await screen.findByRole("button", { name: "New report" }, LONG);
+  await waitFor(() => expect(create).toBeEnabled(), LONG);
+  await user.click(create);
+  const name = await screen.findByRole("textbox", { name: "Report name" }, LONG);
+  await user.clear(name);
+  await user.type(name, "Running totals");
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Dataset" }),
+    "Query: Orders with customers",
+  );
+  await addComponent(user, "Detail", "Add field");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Bound field" }), "customer");
+  await addComponent(user, "Detail", "Add field");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Bound field" }), "status");
+  await addComponent(user, "Detail", "Add field");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Bound field" }), "amount");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Running sum" }), "all");
+  await typeInto(user, "Format", "#,##0.00");
+  await user.click(screen.getByRole("button", { name: "Add rule" }));
+  await typeInto(user, "Rule 1 condition", "value > 500");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Rule 1 fill" }), "Light gray");
+  expect(screen.getByRole("checkbox", { name: "Rule 1 bold" })).toBeChecked();
+  await captureDocument(document, {
+    name: "reports-08-running-sum-rule",
+    expectations: [
+      "The detail band holds customer, status and amount fields; the amount field is selected.",
+      "The properties panel shows Running sum 'Over all' and conditional formatting rule 1 'value > 500' with Bold checked and a light gray fill.",
+    ],
+  });
+
+  await addComponent(user, "Report footer", "Add chart");
+  await typeInto(user, "Chart title", "Amount by status");
+  await typeInto(user, "Category column", "status");
+  await typeInto(user, "Value columns", "amount");
+  await setPoint(user, "Width", 255);
+  await addComponent(user, "Report footer", "Add chart");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Chart type" }), "donut");
+  await typeInto(user, "Chart title", "Amount by customer");
+  await typeInto(user, "Category column", "customer");
+  await typeInto(user, "Value column", "amount");
+  await setPoint(user, "Width", 260);
+  await setPoint(user, "X", 263);
+  await captureDocument(document, {
+    name: "reports-09-chart-designer",
+    expectations: [
+      "The report footer band holds two chart components side by side, labelled 'bar chart: amount' and 'donut chart: amount'.",
+      "The properties panel shows the chart settings: type Donut, title 'Amount by customer', category column customer, value column amount.",
+    ],
+  });
+
+  await user.click(screen.getByRole("tab", { name: "Preview" }));
+  const page = await screen.findByRole("img", { name: "Page 1 of 1" }, LONG);
+  for (const total of ["20.00", "140.00", "215.50"])
+    expect(within(page).getByText(total)).toHaveAttribute("font-weight", "normal");
+  for (const total of ["555.50", "965.50"])
+    expect(within(page).getByText(total)).toHaveAttribute("font-weight", "bold");
+  const bars = within(page).getByRole("img", { name: "Amount by status" });
+  for (const label of ["cancelled", "open", "shipped"])
+    expect(within(bars).getByText(label)).toBeInTheDocument();
+  const donut = within(page).getByRole("img", { name: "Amount by customer" });
+  expect(within(donut).getByText("Northstar Goods (48%)")).toBeInTheDocument();
+  await captureDocument(document, {
+    name: "reports-10-running-sum-charts-preview",
+    expectations: [
+      "The amount column is a running total (20.00, 140.00, 215.50, 555.50, 965.50); the last two are bold on a light gray fill.",
+      "Below the rows, a blue bar chart 'Amount by status' with bars for cancelled, open and shipped sits beside a donut 'Amount by customer' with a legend of three customers and their shares.",
+    ],
+  });
+});
+
+async function typeInto(user: User, label: string, text: string) {
+  const input = screen.getByLabelText(label);
+  await user.clear(input);
+  await user.type(input, text);
+  await waitFor(() => expect(input).toHaveValue(text));
+}
+
+async function setPoint(user: User, label: string, value: number) {
+  const input = screen.getByRole("spinbutton", { name: label });
+  await user.clear(input);
+  await user.type(input, String(value));
+  await waitFor(() => expect(input).toHaveValue(value));
+}

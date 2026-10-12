@@ -39,18 +39,15 @@ export async function loadMembership(appId: string, userId: string): Promise<Mem
   return (data as Membership | null) ?? null;
 }
 
-/** App owner, or owner/admin of the app's organization. */
+/** App owner, org owner/admin, or per-app admin (SQL `is_app_admin`). */
 export async function isAppAdmin(app: LiveApp, userId: string): Promise<boolean> {
   if (app.owner_id === userId) return true;
-  const { data, error } = await serviceClient()
-    .from("org_members")
-    .select("role")
-    .eq("org_id", app.org_id)
-    .eq("user_id", userId)
-    .in("role", ["owner", "admin"])
-    .maybeSingle();
-  if (error) throw new Error(`load org role failed: ${error.message}`);
-  return data !== null;
+  const { data, error } = await serviceClient().rpc("app_capabilities_for", {
+    p_app_id: app.id,
+    p_user_id: userId,
+  });
+  if (error) throw new Error(`load app capabilities failed: ${error.message}`);
+  return ((data as string[] | null) ?? []).includes("admin");
 }
 
 /** Throws FORBIDDEN for related non-owners and NOT_FOUND for strangers. */
