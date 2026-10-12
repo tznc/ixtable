@@ -14,8 +14,10 @@ import {
   tableSchema,
 } from "./data";
 import { pageLabel, TRUNCATED_NOTICE, toneClass, toneFor } from "./conditions";
+import { fieldSettingsFor } from "../fields/values";
 import { cellText } from "./formState";
 import { BooleanCell } from "./BooleanCell";
+import { ListExport } from "./ListExport";
 import { useLookupLabels } from "./lookups";
 import { useRuntimeNavigation } from "./navigation";
 import { can } from "./rbac";
@@ -145,7 +147,8 @@ export function ListView({ form, onOpen, onCreate, params = NO_PARAMS }: Props) 
     booleans.has(column) ? (
       <BooleanCell value={record[column]} />
     ) : (
-      (lookup(column, record) ?? cellText(record[column], controlFor(column)))
+      (lookup(column, record) ??
+      cellText(record[column], controlFor(column), fieldSettingsFor(config, table, column)?.format))
     );
   const subject = isDesignedForm(config, detail)
     ? { kind: "form", id: detail.id }
@@ -305,6 +308,13 @@ export function ListView({ form, onOpen, onCreate, params = NO_PARAMS }: Props) 
         >
           Next page
         </button>
+        <ListExport
+          form={form}
+          sorts={sorts}
+          filters={filters}
+          bound={JSON.parse(bound.json) as Record<string, unknown>}
+          scope={scope}
+        />
       </div>
     </section>
   );

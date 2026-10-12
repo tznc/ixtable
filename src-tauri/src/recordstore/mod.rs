@@ -8,6 +8,8 @@ pub mod commands;
 pub(crate) mod conformance;
 #[cfg(test)]
 mod conformance_more;
+#[cfg(test)]
+mod fields_tests;
 pub mod login;
 pub mod model;
 pub mod plan;
@@ -279,7 +281,38 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
             ));
         }
     }
+    for e in &config.entities {
+        field_issues(e, &mut issues);
+    }
     issues
+}
+
+/// Field settings: one per column, a known format, and choices for a multi-select.
+fn field_issues(entity: &EntitySettings, issues: &mut Vec<Issue>) {
+    let mut seen = std::collections::HashSet::new();
+    for f in &entity.fields {
+        let name = format!("{}.{}", entity.table, f.column);
+        if f.column.is_empty() || !seen.insert(f.column.as_str()) {
+            issues.push(Issue::error(
+                "entity",
+                &entity.id,
+                format!("{name} has more than one field setting"),
+            ));
+        }
+        match f.format.as_deref() {
+            Some(format) if !FIELD_FORMATS.contains(&format) => issues.push(Issue::warning(
+                "entity",
+                &entity.id,
+                format!("{name} uses an unknown field format {format}"),
+            )),
+            Some("multiSelect") if f.options.is_empty() => issues.push(Issue::warning(
+                "entity",
+                &entity.id,
+                format!("{name} is a multi-select field with no choices"),
+            )),
+            _ => {}
+        }
+    }
 }
 
 /// Session-aware checks: tables in the store without a concurrency policy.

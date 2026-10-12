@@ -179,10 +179,28 @@ export interface AuditEvent {
   details: Record<string, unknown> | null;
 }
 
+export type BillingInterval = "month" | "year";
+
+/** Console capabilities from the app_capabilities RPC. */
+export type Capability = "owner" | "admin" | "billing" | "view";
+
+export type CollaboratorRole = "admin" | "billing" | "viewer";
+
+export interface AppCollaborator {
+  app_id: string;
+  user_id: string;
+  role: CollaboratorRole;
+  granted_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Plan {
   id: string;
   name: string;
   price_cents: number;
+  /** Always price_cents * 10 (two months free). */
+  annual_price_cents: number;
   currency: string;
   interval: string;
   runtime_user_allowance: number;
@@ -203,6 +221,7 @@ export interface Entitlement {
   used: number;
   status?: string;
   planId?: string;
+  interval?: BillingInterval;
 }
 
 export interface Subscription {
@@ -210,6 +229,7 @@ export interface Subscription {
   plan_id: string;
   provider: "stripe" | "fake";
   status: string;
+  billing_interval: BillingInterval;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
 }
@@ -333,8 +353,13 @@ export interface FunctionMap {
     };
   };
   "billing-checkout": {
-    in: { appId: string; planId: string };
+    in: { appId: string; planId: string; interval?: BillingInterval };
     out: { url: string; overAllowance: boolean };
+  };
+  "app-access-update": {
+    // A null role removes the grant; the collaborator is then null.
+    in: { appId: string; userId: string; role: CollaboratorRole | null };
+    out: { collaborator: AppCollaborator | null };
   };
   "billing-portal": { in: { appId: string }; out: { url: string } };
   "billing-invoices": { in: { appId: string }; out: { invoices: Invoice[] } };

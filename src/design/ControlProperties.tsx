@@ -8,6 +8,7 @@ import { knownNames } from "../runtime/formState";
 import { AssetPicker } from "./AssetPicker";
 import { controlConstraints } from "./constraints";
 import { DraftInput } from "./DraftInput";
+import { MaskField } from "../fields/MaskField";
 import { ExpressionField } from "./ExpressionField";
 import { clampPlacement, moveToContainer, removeControl } from "./operations";
 import {
@@ -174,7 +175,7 @@ export function ControlProperties({
         placement={control.placement}
         onChange={(placement) => change({ placement }, "Place control")}
       />
-      {control.kind === "select" && (
+      {(control.kind === "select" || control.kind === "multiSelect") && (
         <>
           <label>
             Options (one per line, value=label)
@@ -196,16 +197,18 @@ export function ControlProperties({
               }
             />
           </label>
-          <label>
-            Options from saved query
-            <select
-              value={control.optionsQueryId ?? ""}
-              onChange={(e) => change({ optionsQueryId: e.target.value || null })}
-            >
-              <option value="">None (use the list above)</option>
-              <OptionsQueries />
-            </select>
-          </label>
+          {control.kind === "select" && (
+            <label>
+              Options from saved query
+              <select
+                value={control.optionsQueryId ?? ""}
+                onChange={(e) => change({ optionsQueryId: e.target.value || null })}
+              >
+                <option value="">None (use the list above)</option>
+                <OptionsQueries />
+              </select>
+            </label>
+          )}
         </>
       )}
       {control.kind === "relationship" && (
@@ -300,6 +303,12 @@ export function ControlProperties({
                 />
               </label>
             </div>
+          )}
+          {control.kind === "text" && (
+            <MaskField
+              value={control.inputMask}
+              onChange={(inputMask) => change({ inputMask }, "Set input mask")}
+            />
           )}
           {(control.kind === "text" || control.kind === "multiline") && (
             <label>

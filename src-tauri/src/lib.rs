@@ -12,6 +12,7 @@ pub mod cloud;
 pub mod dashboards;
 pub mod data;
 pub mod design;
+pub mod export;
 pub mod import;
 pub mod installation;
 pub mod installation_checks;
@@ -23,6 +24,7 @@ pub mod migrations;
 pub mod paths;
 pub mod postgres;
 pub mod queries;
+pub mod record_attachments;
 pub mod recordstore;
 pub mod recovery;
 mod report_pdf;
@@ -190,6 +192,17 @@ fn read_table_page(
     trigger_auth::authorize(&window_label, &table, authz::Op::Read, trigger.as_ref())?;
     manager()?.table_page(&window_label, &table, offset, limit, &sorts, &filters)
 }
+/// The datasheet totals row (src/data/sheet): one aggregate per column over the filtered rows.
+#[tauri::command]
+fn read_table_totals(
+    window_label: String,
+    table: String,
+    filters: Vec<data::Filter>,
+    totals: Vec<data::totals::TotalSpec>,
+) -> Result<Vec<data::DataValue>, AppError> {
+    trigger_auth::authorize(&window_label, &table, authz::Op::Read, None)?;
+    manager()?.table_totals(&window_label, &table, &filters, &totals)
+}
 #[tauri::command]
 fn execute_read_query(window_label: String, sql: String) -> Result<data::QueryResult, AppError> {
     authz::require_unrestricted(&window_label, "run ad hoc SQL")?;
@@ -353,6 +366,7 @@ pub fn run() {
             list_database_objects,
             inspect_table,
             read_table_page,
+            read_table_totals,
             execute_read_query,
             recordstore::commands::insert_row,
             recordstore::commands::update_row,
@@ -385,6 +399,10 @@ pub fn run() {
             asset_data::read_asset_data_url,
             asset_data::read_asset_text,
             // dashboards commands
+            // export commands
+            export::export_table,
+            export::export_saved_query,
+            export::export_sql_query,
             // import commands
             import::preview_import_file,
             import::import_file,
@@ -424,6 +442,11 @@ pub fn run() {
             recordstore::runtime_login::runtime_datasource_login_status,
             recordstore::runtime_login::set_runtime_datasource_login,
             recordstore::runtime_login::clear_runtime_datasource_login,
+            // record attachment commands
+            record_attachments::upload_record_attachment,
+            record_attachments::read_record_attachment,
+            record_attachments::save_record_attachment,
+            record_attachments::remove_unused_record_attachments,
             // roles commands
             authz::set_runtime_role_preview,
             // design commands

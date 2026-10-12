@@ -54,7 +54,29 @@ interface ComponentBase {
  */
 interface TextBase extends ComponentBase {
   canGrow?: boolean;
+  /** Conditional formatting rules; the first rule whose `when` holds applies its style. */
+  conditions?: ReportCondition[];
 }
+
+/** Style a conditional formatting rule applies. Gray levels like `ComponentStyle`. */
+export type ConditionStyle = Pick<ComponentStyle, "bold" | "gray" | "fill">;
+
+/**
+ * One conditional formatting rule. `when` sees the band scope plus `value`,
+ * the component's own value (its text for static text).
+ */
+export interface ReportCondition {
+  id: string;
+  when: string;
+  style: ConditionStyle;
+}
+
+/**
+ * Running sum: the value accumulates over the rows (detail band) or band
+ * instances (group bands) printed so far. "group" restarts at each instance
+ * of the enclosing group; "all" never restarts.
+ */
+export type RunningSum = "group" | "all";
 
 export interface StaticTextComponent extends TextBase {
   kind: "staticText";
@@ -65,12 +87,14 @@ export interface FieldComponent extends TextBase {
   kind: "field";
   expression: string;
   format?: string;
+  runningSum?: RunningSum;
 }
 /** A calculated value: totals (`sum(rows.amount)`), page numbers (`page & ' of ' & pages`), … */
 export interface CalculatedComponent extends TextBase {
   kind: "calculated";
   expression: string;
   format?: string;
+  runningSum?: RunningSum;
 }
 export interface ImageComponent extends ComponentBase {
   kind: "image";
@@ -106,6 +130,37 @@ export interface TableComponent extends ComponentBase {
   columns: TableColumn[];
 }
 
+export type ReportChartType = "bar" | "line" | "area" | "pie" | "donut" | "scatter";
+export const REPORT_CHART_TYPES: ReportChartType[] = [
+  "bar",
+  "line",
+  "area",
+  "pie",
+  "donut",
+  "scatter",
+];
+
+/**
+ * A chart drawn with the dashboard chart data and geometry (PRD §15, §16).
+ * Rows come from `queryId` (a saved query) or, when it is empty, from the
+ * band's `rows`. Charts keep their designed size and never split.
+ */
+export interface ChartComponent extends ComponentBase {
+  kind: "chart";
+  chartType: ReportChartType;
+  queryId?: string;
+  /** Category column (numeric x column for scatter). */
+  xField: string;
+  /** Value columns, one series each. */
+  yFields: string[];
+  /** Splits the first y column into one series per value. */
+  groupBy?: string;
+  stacked?: boolean;
+  /** src/expr format pattern for value labels. */
+  format?: string;
+  title?: string;
+}
+
 export type ReportComponent =
   | StaticTextComponent
   | FieldComponent
@@ -113,7 +168,8 @@ export type ReportComponent =
   | ImageComponent
   | LineComponent
   | RectangleComponent
-  | TableComponent;
+  | TableComponent
+  | ChartComponent;
 export type ComponentKind = ReportComponent["kind"];
 
 export interface Band {

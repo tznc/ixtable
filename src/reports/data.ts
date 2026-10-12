@@ -1,3 +1,4 @@
+import { fieldTextRows } from "../fields/values";
 import { asTauriError, readTablePage } from "../lib/api";
 import type { DataValue, DocumentConfig, QueryResult } from "../lib/types";
 import { cancelQuery, runSavedQuery, runQuerySql } from "../query/api";
@@ -109,8 +110,8 @@ export interface ReportData {
 }
 
 /**
- * Loads everything a report needs: dataset rows, rows of table components'
- * saved queries, and image assets. Aborting `signal` interrupts the running
+ * Loads everything a report needs: dataset rows, rows of table and chart
+ * components' saved queries, and image assets. Aborting `signal` interrupts the running
  * query in DuckDB (`cancelQuery`) and rejects with `ReportCancelled`.
  */
 export async function loadReportData(
@@ -140,7 +141,7 @@ export async function loadReportData(
     const components = bandEntries(report).flatMap((entry) => entry.band.components);
     const tables: Record<string, Row[]> = {};
     for (const c of components) {
-      if (c.kind !== "table" || !c.queryId || tables[c.queryId]) continue;
+      if ((c.kind !== "table" && c.kind !== "chart") || !c.queryId || tables[c.queryId]) continue;
       const query = config.savedQueries.find((q) => q.id === c.queryId);
       if (!query) continue;
       const options = { limit: REPORT_ROW_LIMIT, runId };
@@ -155,7 +156,9 @@ export async function loadReportData(
     if (ids.length)
       for (const a of await step(() => readReportAssets(ids)))
         assets[a.id] = { mediaType: a.mediaType, dataBase64: a.dataBase64 };
-    return { rows: dataset ? rowsOf(dataset) : [], tables, assets, truncated };
+    const table = report.datasetQueryId ? null : report.table;
+    const rows = dataset ? fieldTextRows(rowsOf(dataset), config, table) : [];
+    return { rows, tables, assets, truncated };
   } finally {
     signal?.removeEventListener("abort", onAbort);
   }

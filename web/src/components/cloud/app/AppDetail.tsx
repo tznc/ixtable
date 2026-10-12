@@ -2,10 +2,11 @@ import React, { type ReactNode } from "react";
 import Link from "@docusaurus/Link";
 import { useHistory, useLocation } from "@docusaurus/router";
 import type { User } from "@supabase/supabase-js";
-import { useCloudApi } from "@site/src/lib/cloud";
+import { useCloudApi, type Capability } from "@site/src/lib/cloud";
 import { entitlementStatus } from "@site/src/lib/cloud/status";
 import { Badge, ErrorNotice, Loading, Notice, TabPanel, Tabs, type TabDef } from "../ui";
 import { useAsync } from "../useAsync";
+import AccessTab from "./AccessTab";
 import AuditTab from "./AuditTab";
 import BackupsTab from "./BackupsTab";
 import BillingTab from "./BillingTab";
@@ -18,18 +19,18 @@ import type { AppTabProps } from "./types";
 import UsersTab from "./UsersTab";
 import VersionsTab from "./VersionsTab";
 
-type Access = "all" | "admin" | "owner" | "billing";
+type Access = "all" | Capability;
 
 const TABS: (TabDef & { access: Access; render: (props: AppTabProps) => ReactNode })[] = [
   { id: "overview", label: "Overview", access: "all", render: (p) => <OverviewTab {...p} /> },
-  { id: "users", label: "Runtime users", access: "admin", render: (p) => <UsersTab {...p} /> },
-  { id: "roles", label: "Roles", access: "admin", render: (p) => <RolesTab {...p} /> },
-  { id: "versions", label: "Versions", access: "admin", render: (p) => <VersionsTab {...p} /> },
+  { id: "users", label: "Runtime users", access: "view", render: (p) => <UsersTab {...p} /> },
+  { id: "roles", label: "Roles", access: "view", render: (p) => <RolesTab {...p} /> },
+  { id: "versions", label: "Versions", access: "view", render: (p) => <VersionsTab {...p} /> },
   { id: "backups", label: "Backups", access: "admin", render: (p) => <BackupsTab {...p} /> },
   {
     id: "installations",
     label: "Installations",
-    access: "admin",
+    access: "view",
     render: (p) => <InstallationsTab {...p} />,
   },
   {
@@ -38,19 +39,14 @@ const TABS: (TabDef & { access: Access; render: (props: AppTabProps) => ReactNod
     access: "owner",
     render: (p) => <CredentialsTab {...p} />,
   },
-  { id: "audit", label: "Audit history", access: "admin", render: (p) => <AuditTab {...p} /> },
+  { id: "audit", label: "Audit history", access: "view", render: (p) => <AuditTab {...p} /> },
+  { id: "access", label: "Access", access: "view", render: (p) => <AccessTab {...p} /> },
   { id: "billing", label: "Billing", access: "billing", render: (p) => <BillingTab {...p} /> },
   { id: "settings", label: "Settings", access: "admin", render: (p) => <SettingsTab {...p} /> },
 ];
 
-function allowed(
-  access: Access,
-  props: Pick<AppTabProps, "isOwner" | "isAdmin" | "orgRole">,
-): boolean {
-  if (access === "all") return true;
-  if (access === "owner") return props.isOwner;
-  if (access === "billing") return props.isAdmin || props.orgRole === "billing";
-  return props.isAdmin;
+function allowed(access: Access, capabilities: Capability[]): boolean {
+  return access === "all" || capabilities.includes(access);
 }
 
 /** /cloud/app?id=…&tab=…: one cloud app. Tabs a viewer cannot use are hidden, and RLS still applies. */
@@ -63,13 +59,13 @@ export default function AppDetail({ user }: { user: User }): ReactNode {
   const state = useAsync(async () => {
     const q = api.q();
     const app = await q.app(appId);
-    const [isAdmin, orgRole, profiles, entitlement] = await Promise.all([
-      q.isAppAdmin(appId).catch(() => false),
+    const [capabilities, orgRole, profiles, entitlement] = await Promise.all([
+      q.appCapabilities(appId).catch((): Capability[] => []),
       q.myOrgRole(app.org_id, user.id),
       q.profiles([app.owner_id]),
       q.entitlement(appId).catch(() => null),
     ]);
-    return { app, isAdmin, orgRole, owner: profiles[app.owner_id] ?? null, entitlement };
+    return { app, capabilities, orgRole, owner: profiles[app.owner_id] ?? null, entitlement };
   }, [api, appId, user.id]);
 
   if (!appId)
@@ -81,18 +77,21 @@ export default function AppDetail({ user }: { user: User }): ReactNode {
   if (state.loading && !state.data) return <Loading label="Loading app" />;
   if (state.error || !state.data) return <ErrorNotice error={state.error} testId="app-error" />;
 
-  const { app, isAdmin, orgRole, owner, entitlement } = state.data;
+  const { app, capabilities, orgRole, owner, entitlement } = state.data;
   const props: AppTabProps = {
     app,
     user,
-    isOwner: app.owner_id === user.id,
-    isAdmin,
+    isOwner: capabilities.includes("owner"),
+    capabilities,
+    isAdmin: capabilities.includes("admin"),
+    canView: capabilities.includes("view"),
+    canBill: capabilities.includes("billing"),
     orgRole,
     owner,
     entitlement,
     reloadApp: state.reload,
   };
-  const tabs = TABS.filter((tab) => allowed(tab.access, props));
+  const tabs = TABS.filter((tab) => allowed(tab.access, capabilities));
   const selected = tabs.find((tab) => tab.id === params.get("tab")) ?? tabs[0];
   const status = entitlementStatus(entitlement);
   const selectTab = (id: string) => history.replace(`/cloud/app?id=${app.id}&tab=${id}`);

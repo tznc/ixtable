@@ -1,14 +1,9 @@
 import { evaluate, formatValue } from "../../expr";
-import type {
-  CalculatedComponent,
-  ComponentStyle,
-  FieldComponent,
-  ReportComponent,
-  StaticTextComponent,
-  TableComponent,
-} from "../types";
+import type { ComponentStyle, ReportComponent, TableComponent } from "../types";
+import { chartItems } from "./chart";
 import { type PositionedItem, type Row, r2 } from "./document";
 import { BASELINE, LINE_HEIGHT, measureText, normalizeText, wrapText } from "./text";
+import { ERROR_TEXT, type RunningValue, styledComponent } from "./values";
 
 /** Evaluation context for one band instance. */
 export interface RenderContext {
@@ -17,6 +12,8 @@ export interface RenderContext {
   tables: Record<string, Row[]>;
   assets: Record<string, { mediaType: string }>;
   diagnose: (componentId: string, message: string) => void;
+  /** Running-sum values of this band instance, by component id. */
+  running?: ReadonlyMap<string, RunningValue>;
 }
 
 export const DEFAULT_FONT_SIZE = 10;
@@ -26,7 +23,6 @@ const CELL_PAD_X = 3;
 const CELL_PAD_Y = 2;
 const HEADER_FILL = 0.9;
 const CELL_LINE = 0.5;
-const ERROR_TEXT = "#Error";
 
 /** Evaluates `expression` and formats the result; errors become `#Error` plus a diagnostic. */
 export function expressionText(
@@ -56,7 +52,7 @@ export interface Box {
 }
 
 /** Optional background/border rectangle for a box. */
-function frame(box: Box, ox: number, oy: number): PositionedItem[] {
+export function frame(box: Box, ox: number, oy: number): PositionedItem[] {
   const lineWidth = box.style?.borderWidth ?? 0;
   const fill = box.style?.fill ?? null;
   if (!lineWidth && fill === null) return [];
@@ -135,14 +131,6 @@ export function textHeight(box: Box, raw: string): number {
   return lines * fontSize * LINE_HEIGHT;
 }
 
-/** The text a static text, field or calculated component prints. */
-export function componentText(
-  c: StaticTextComponent | FieldComponent | CalculatedComponent,
-  ctx: RenderContext,
-): string {
-  return c.kind === "staticText" ? c.text : expressionText(c.id, c.expression, c.format, ctx);
-}
-
 function placeholder(box: Box, label: string, ox: number, oy: number): PositionedItem[] {
   return [
     {
@@ -172,8 +160,12 @@ export function componentItems(
   switch (c.kind) {
     case "staticText":
     case "field":
-    case "calculated":
-      return [...frame(c, ox, oy), textItem(c, componentText(c, ctx), ox, oy)];
+    case "calculated": {
+      const { component, text } = styledComponent(c, ctx);
+      return [...frame(component, ox, oy), textItem(component, text, ox, oy)];
+    }
+    case "chart":
+      return [...frame(c, ox, oy), ...chartItems(c, ox, oy, ctx)];
     case "line": {
       const lineWidth = c.style?.borderWidth ?? 1;
       if (lineWidth <= 0) return [];
