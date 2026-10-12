@@ -8,6 +8,7 @@ export const STEP_LABELS: Record<StepKind, string> = {
   runQuery: "Run query",
   navigate: "Navigate",
   openForm: "Open form",
+  closeForm: "Close popup form",
   openReport: "Open report",
   openDashboard: "Open dashboard",
   setState: "Set state",
@@ -34,6 +35,8 @@ export function newStep(kind: StepKind): Step {
       return { id, kind, target: { kind: "form", id: "" } };
     case "openForm":
       return { id, kind, formId: "" };
+    case "closeForm":
+      return { id, kind };
     case "openReport":
       return { id, kind, reportId: "" };
     case "openDashboard":

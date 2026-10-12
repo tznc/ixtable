@@ -4,13 +4,13 @@
  * - Fonts: standard Helvetica / Helvetica-Bold, WinAnsiEncoding (not embedded),
  *   plus embedded subsets of the bundled fallback fonts for other characters
  *   (see pdf-fonts.ts).
- * - Graphics: text, lines, rectangles in gray levels; JPEG and opaque PNG
+ * - Graphics: text, lines, rectangles in gray levels; chart paths in RGB; JPEG and opaque PNG
  *   images passed through, other PNGs decoded by Rust with an alpha soft mask
  *   (see pdf-images.ts).
  * - Determinism: fixed object order, uncompressed content streams, no random
  *   file id, and the CreationDate comes from the options. Same input, same bytes.
  */
-import type { PositionedItem, ReportDocument } from "./engine";
+import type { PathItem, PositionedItem, ReportDocument } from "./engine";
 import { textRuns, winAnsiCode } from "./engine";
 import { cidMap, cidString, fallbackFontName, fontObjects, type PdfFontSubset } from "./pdf-fonts";
 import { type DecodedPng, decodedImage, type PdfImage, pdfImage } from "./pdf-images";
@@ -95,12 +95,48 @@ function lineOps(
   return ops.join("\n");
 }
 
+/** `r g b` of a `#rrggbb` color, each 0–1. */
+export function rgb(color: string): string {
+  return [0, 1, 2]
+    .map((i) => num(Number.parseInt(color.slice(1 + i * 2, 3 + i * 2), 16) / 255 || 0))
+    .join(" ");
+}
+
+/** A chart path: filled, stroked, or both, with round joins like the SVG preview. */
+function pathOps(item: PathItem, y: (v: number) => string): string {
+  const stroke = !!item.stroke && item.lineWidth > 0;
+  const fill = item.fill !== null;
+  if ((!stroke && !fill) || !item.ops.length) return "";
+  const segments = item.ops.map((op) => {
+    switch (op[0]) {
+      case "M":
+        return `${num(op[1])} ${y(op[2])} m`;
+      case "L":
+        return `${num(op[1])} ${y(op[2])} l`;
+      case "C":
+        return `${num(op[1])} ${y(op[2])} ${num(op[3])} ${y(op[4])} ${num(op[5])} ${y(op[6])} c`;
+      case "Z":
+        return "h";
+    }
+  });
+  return [
+    "q",
+    fill ? `${rgb(item.fill as string)} rg` : "",
+    stroke ? `${rgb(item.stroke as string)} RG ${num(item.lineWidth)} w 1 j` : "",
+    segments.join(" "),
+    stroke && fill ? "B" : stroke ? "S" : "f",
+    "Q",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 function itemOps(
-  item: PositionedItem,
+  item: PositionedItem | PathItem,
   pageHeight: number,
   image: (id: string) => string | null,
   fonts: Fonts,
-) {
+): string {
   const y = (v: number) => num(pageHeight - v);
   switch (item.kind) {
     case "rect": {
@@ -129,6 +165,13 @@ function itemOps(
         "\n",
       );
     }
+    case "path":
+      return pathOps(item, y);
+    case "chart":
+      return item.marks
+        .map((mark) => itemOps(mark, pageHeight, image, fonts))
+        .filter(Boolean)
+        .join("\n");
     case "image": {
       const name = image(item.assetId);
       if (name)

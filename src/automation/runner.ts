@@ -43,6 +43,7 @@ import {
 import type { DataValue, DocumentConfig, NamedValue, QueryResult } from "../lib/types";
 import * as queryApi from "../query/api";
 import { ACTION_QUERY_OPS, type ActionSpec } from "../query/types";
+import { requestClose, requestPopup } from "../runtime/popup";
 import { customActionFor, customScope } from "./custom";
 import { afterWrite, currentRow, type FoundRow, matchRows, rowKey, withKeys } from "./rows";
 import { STEP_LABELS } from "./steps";
@@ -101,6 +102,10 @@ export interface ActionContext {
    * new field values in `set`, and steps that write or touch the UI are refused.
    */
   beforeChange?: { set: Record<string, unknown> };
+  /** Opens a popup form and resolves with its result; defaults to the Run mode host. */
+  openPopup?(target: NavigationTarget): Promise<unknown>;
+  /** Closes the topmost popup form with `value`; defaults to the Run mode host. */
+  closeForm?(value: unknown): void;
 }
 
 export interface ActionResult {
@@ -477,7 +482,17 @@ async function runStep(step: Step, frame: Frame, path: string): Promise<void> {
         ...(step.mode && { mode: step.mode }),
         ...(step.recordId?.trim() && { recordId: expr(step.recordId, frame, "Record id") }),
       };
+      if (step.popup) {
+        const value = await openPopup(ctx, to);
+        if (step.storeAs?.trim()) scope.results[step.storeAs] = value;
+        return;
+      }
       effect(frame, () => ctx.navigate(to));
+      return;
+    }
+    case "closeForm": {
+      const value = step.value?.trim() ? expr(step.value, frame, "Return value") : null;
+      effect(frame, () => (ctx.closeForm ? ctx.closeForm(value) : requestClose(value)));
       return;
     }
     case "openReport": {
@@ -558,6 +573,18 @@ function refuseInBeforeChange(step: Step, config: DocumentConfig) {
   if (BEFORE_CHANGE_STEPS.includes(step.kind) && !actionQuery) return;
   const what = actionQuery ? "Run action query" : STEP_LABELS[step.kind];
   throw new Aborted(`A before-change trigger cannot run "${what}" steps; use an after trigger`);
+}
+
+/**
+ * Opens a popup form and waits for its result. It opens at once, even in a rollback-mode
+ * action: the caller needs its value, and the popup's own saves commit on their own.
+ * With no popup host (outside Run mode) the form opens as a page and the result is null.
+ */
+async function openPopup(ctx: ActionContext, to: NavigationTarget): Promise<unknown> {
+  const value = await (ctx.openPopup ?? requestPopup)(to);
+  if (value !== undefined) return value;
+  ctx.navigate(to);
+  return null;
 }
 
 function exists(config: DocumentConfig, kind: string, id: string) {

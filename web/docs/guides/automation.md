@@ -21,7 +21,8 @@ Choose **New action** on the Actions tab, then give the action a name and add st
 | Delete record | Deletes the current record or the matching rows |
 | Run query | Runs a saved query with parameters and stores its rows, under `rows` by default |
 | Navigate | Opens a form, report, dashboard, or table, with an optional mode and record id |
-| Open form | Opens a form in list, detail, create, or edit mode, with an optional record id |
+| Open form | Opens a form in any of its modes, with an optional record id. **Open as popup** shows it in a dialog and waits for it to close (see [Popup forms](#popup-forms)) |
+| Close popup form | Closes the popup form on top and returns its **Return value** to the step that opened it |
 | Open report | Opens a report with parameter values |
 | Open dashboard | Opens a dashboard. Its parameters become the dashboard's initial filter values |
 | Set state | Sets a key in the application state or the form state. Later steps see the new value |
@@ -32,6 +33,18 @@ Choose **New action** on the Actions tab, then give the action a name and add st
 | Fail with message | Stops the action with an error message |
 
 Step expressions can read `record`, `old`, `form`, `app`, `params`, and `results`. `results` holds the values that earlier steps stored by name, so a Run query step that stores `rows` makes `results.rows` available. To change a field on the record on screen, use Update record with **The current record**.
+
+## Popup forms
+
+An Open form step with **Open as popup and wait for it to close** shows the form in a dialog over the page, like an Access modal form. The action waits until the dialog closes, then stores what the popup returned under **Store result as**:
+
+- the saved record's values, when the user saves in create or edit mode;
+- the **Return value** of a Close popup form step that a button in the popup ran;
+- null, when the user closes the dialog or presses Escape.
+
+For example, a button can open a customer form as a popup in create mode and store the result as `customer`. A later step then uses `results.customer.id`. To pick a record, open a popup in detail mode with a button that runs Close popup form with the value `record.id`.
+
+A popup opens as soon as its step runs, even in rollback mode, because the action needs its result. Saves inside the popup commit on their own. Outside the Runtime, the form opens as a page and the result is null. A Close popup form step with no popup open returns to the previous page.
 
 ## Errors and transactions
 
@@ -58,6 +71,21 @@ A test run writes to the document's real records. It also runs without role chec
 A button control on a form runs the action set in its **Button action** property. The step expressions see the record on screen as `record`, the form state as `form`, and the application state as `app`. The button stays disabled while the record loads, while another action runs, and when the current role cannot run the action. A failure shows as a notice on the form.
 
 A dashboard button runs the action picked in its **Action** property. Its steps see the dashboard filters as `params` and the application state as `app`. A dashboard button cannot set form state.
+
+## Form events
+
+A form can run an action when something happens to it. Select the form in Design mode and pick an action for each event in the **Events** section of its properties.
+
+| Event | When it runs |
+| --- | --- |
+| On load | The form opens on a record, or on a new record |
+| On current | The form moves to another record. Switching between viewing and editing the same record does not count |
+| Before update | The user saves a new or changed record, after the field checks pass and before the record is written |
+| After update | The record was saved |
+
+The steps see the record as `record`, like a button's steps. In before update, `record` holds the values about to be saved. When the action fails, the record is not saved and its message shows on the form. A **Fail with message** step with a condition is the usual way to reject a save, for example `record.end < record.start`. A declined Confirm step also cancels the save.
+
+If an after update action fails, the record stays saved and the form says so. Events check the same role permissions as buttons. A form that reads a saved query cannot save, so it offers only on load and on current. Forms in list mode run no events.
 
 ## Triggers
 

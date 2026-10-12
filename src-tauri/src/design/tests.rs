@@ -176,35 +176,50 @@ fn dependency_issues_cover_queries_actions_forms_and_navigation() {
 }
 
 #[test]
-fn related_list_nesting_is_one_level() {
-    let related = |form: Option<&str>| Control {
+fn related_lists_nest_three_levels_without_loops() {
+    let related = |form: &str| Control {
         related: Some(RelatedList {
             table: "items".into(),
             foreign_key: "order_id".into(),
             parent_column: "id".into(),
             columns: vec![],
-            form_id: form.map(Into::into),
+            form_id: Some(form.into()),
             keys: vec![],
             filter: None,
         }),
         ..control("lines", ControlKind::RelatedList)
     };
-    let mut config = config_with(Form {
-        id: "order".into(),
-        name: "Order".into(),
-        controls: vec![related(Some("item"))],
+    let form = |id: &str, child: Option<&str>| Form {
+        id: id.into(),
+        name: id.into(),
+        controls: child.map(related).into_iter().collect(),
         ..Default::default()
-    });
-    config.design.forms.push(Form {
-        id: "item".into(),
-        name: "Item".into(),
-        ..Default::default()
-    });
+    };
+    // a → b → c → d: three levels below a.
+    let mut config = config_with(form("a", Some("b")));
+    config.design.forms.push(form("b", Some("c")));
+    config.design.forms.push(form("c", Some("d")));
+    config.design.forms.push(form("d", None));
     assert!(errors(&validate(&config)).is_empty());
-    config.design.forms[2].controls.push(related(None));
-    assert!(errors(&validate(&config))
-        .iter()
-        .any(|e| e.contains("one level")));
+    // A fourth level is too deep for a only.
+    config
+        .design
+        .forms
+        .last_mut()
+        .unwrap()
+        .controls
+        .push(related("e"));
+    config.design.forms.push(form("e", None));
+    let deep = errors(&validate(&config));
+    assert_eq!(deep.len(), 1, "{deep:?}");
+    assert!(deep[0].contains("\"a\" nests related lists 4 levels deep"));
+    // A loop is reported on every form that reaches it.
+    let mut config = config_with(form("a", Some("b")));
+    config.design.forms.push(form("b", Some("c")));
+    config.design.forms.push(form("c", Some("b")));
+    let looped = errors(&validate(&config));
+    assert_eq!(looped.len(), 3, "{looped:?}");
+    assert!(looped.iter().all(|e| e.contains("in a loop")));
 }
 
 #[test]
@@ -493,4 +508,82 @@ fn multi_column_keys_round_trip_and_are_checked() {
     assert!(errors(&validate(&incomplete))
         .iter()
         .any(|e| e.contains("key column without a target")));
+}
+
+#[test]
+fn continuous_and_split_modes_round_trip_and_need_a_source() {
+    let form: Form = serde_json::from_value(serde_json::json!({
+        "id": "tasks",
+        "name": "Tasks",
+        "modes": ["continuous", "split", "detail"],
+        "navigationBar": true
+    }))
+    .unwrap();
+    assert_eq!(
+        form.modes,
+        vec![FormMode::Continuous, FormMode::Split, FormMode::Detail]
+    );
+    assert!(form.navigation_bar);
+    let json = serde_json::to_value(&form).unwrap();
+    assert_eq!(
+        json["modes"],
+        serde_json::json!(["continuous", "split", "detail"])
+    );
+    assert_eq!(json["navigationBar"], serde_json::json!(true));
+    // An absent bar stays absent when saved.
+    let plain: Form = serde_json::from_value(serde_json::json!({"id": "a", "name": "A"})).unwrap();
+    assert!(!plain.navigation_bar);
+    assert!(serde_json::to_value(&plain)
+        .unwrap()
+        .get("navigationBar")
+        .is_none());
+
+    let issues = validate(&config_with(form));
+    assert!(
+        issues
+            .iter()
+            .any(|i| i.severity == Severity::Warning && i.message.contains("continuous and split")),
+        "{issues:?}"
+    );
+    assert!(DesignSchema::default().forms[0].navigation_bar);
+}
+
+#[test]
+fn form_events_round_trip_and_must_name_existing_actions() {
+    let value = serde_json::json!({
+        "id": "f", "name": "Orders",
+        "events": { "onLoad": "a1", "beforeUpdate": "gone" }
+    });
+    let form: Form = serde_json::from_value(value).unwrap();
+    assert_eq!(form.events.on_load.as_deref(), Some("a1"));
+    assert_eq!(
+        form.events.bound().collect::<Vec<_>>(),
+        [("on load", "a1"), ("before update", "gone")]
+    );
+    let json = serde_json::to_value(&form).unwrap();
+    assert_eq!(
+        json["events"],
+        serde_json::json!({ "onLoad": "a1", "beforeUpdate": "gone" })
+    );
+    // An unbound form writes no events key.
+    let bare = serde_json::to_value(Form::default()).unwrap();
+    assert!(bare.get("events").is_none());
+
+    let mut config = config_with(form);
+    config.actions = serde_json::from_value(serde_json::json!([
+        { "id": "a1", "name": "Load", "steps": [], "onError": "stop" }
+    ]))
+    .unwrap();
+    let errs = errors(&validate(&config));
+    assert!(
+        errs.iter()
+            .any(|e| e.contains("action that does not exist on before update")),
+        "{errs:?}"
+    );
+    assert_eq!(
+        errs.iter()
+            .filter(|e| e.contains("does not exist on"))
+            .count(),
+        1
+    );
 }

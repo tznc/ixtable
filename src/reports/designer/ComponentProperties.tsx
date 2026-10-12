@@ -3,15 +3,19 @@ import { newId } from "../../lib/utils";
 import type { SavedQuery } from "../../query/types";
 import type { AssetSummary } from "../api";
 import { fieldExpression, KIND_LABELS } from "../model";
-import type { ComponentStyle, ReportComponent, TableColumn, TextAlign } from "../types";
+import type {
+  ComponentStyle,
+  Report,
+  ReportComponent,
+  RunningSum,
+  SubreportLink,
+  TableColumn,
+  TextAlign,
+} from "../types";
+import { ChartProperties } from "./ChartProperties";
+import { ConditionsEditor } from "./ConditionsEditor";
 import { ExpressionInput, PointInput } from "./fields";
-
-const FILLS: [string, number | null][] = [
-  ["None", null],
-  ["Light gray", 0.9],
-  ["Gray", 0.75],
-  ["Dark gray", 0.5],
-];
+import { FILLS } from "./styles";
 
 interface Props {
   component: ReportComponent;
@@ -20,6 +24,10 @@ interface Props {
   columns: string[];
   queries: SavedQuery[];
   assets: AssetSummary[];
+  /** Every report, to name the one a subreport prints. */
+  reports?: Report[];
+  /** Reports a subreport here may print (no loops, at most three levels). */
+  subreports?: Report[];
   onChange: (patch: Partial<ReportComponent>) => void;
   onDelete: () => void;
 }
@@ -31,6 +39,8 @@ export function ComponentProperties({
   columns,
   queries,
   assets,
+  reports = [],
+  subreports = [],
   onChange,
   onDelete,
 }: Props) {
@@ -87,7 +97,32 @@ export function ComponentProperties({
               onChange={(e) => onChange({ format: e.target.value } as Partial<ReportComponent>)}
             />
           </label>
+          {!pageBand && (
+            <label>
+              Running sum
+              <select
+                value={c.runningSum ?? ""}
+                onChange={(e) =>
+                  onChange({
+                    runningSum: (e.target.value || undefined) as RunningSum | undefined,
+                  } as Partial<ReportComponent>)
+                }
+              >
+                <option value="">No</option>
+                <option value="group">Over group</option>
+                <option value="all">Over all</option>
+              </select>
+            </label>
+          )}
         </>
+      )}
+      {c.kind === "chart" && (
+        <ChartProperties
+          chart={c}
+          columns={columns}
+          queries={queries}
+          onChange={(patch) => onChange(patch as Partial<ReportComponent>)}
+        />
       )}
       {c.kind === "image" && (
         <label>
@@ -125,6 +160,16 @@ export function ComponentProperties({
           tableColumns={c.columns}
           columns={columns}
           queries={queries}
+          onChange={(patch) => onChange(patch as Partial<ReportComponent>)}
+        />
+      )}
+      {c.kind === "subreport" && (
+        <SubreportProperties
+          reportId={c.reportId}
+          links={c.links}
+          reports={reports}
+          choices={subreports}
+          columns={columns}
           onChange={(patch) => onChange(patch as Partial<ReportComponent>)}
         />
       )}
@@ -182,12 +227,14 @@ export function ComponentProperties({
             Can grow
           </label>
         )}
-        <PointInput
-          label={c.kind === "line" ? "Line width" : "Border width"}
-          value={style.borderWidth ?? (c.kind === "line" || c.kind === "rectangle" ? 1 : 0)}
-          onChange={(borderWidth) => setStyle({ borderWidth })}
-        />
-        {c.kind !== "line" && c.kind !== "table" && (
+        {c.kind !== "subreport" && (
+          <PointInput
+            label={c.kind === "line" ? "Line width" : "Border width"}
+            value={style.borderWidth ?? (c.kind === "line" || c.kind === "rectangle" ? 1 : 0)}
+            onChange={(borderWidth) => setStyle({ borderWidth })}
+          />
+        )}
+        {c.kind !== "line" && c.kind !== "table" && c.kind !== "subreport" && (
           <label>
             Fill
             <select
@@ -205,6 +252,16 @@ export function ComponentProperties({
           </label>
         )}
       </fieldset>
+      {isText && (
+        <ConditionsEditor
+          conditions={c.conditions ?? []}
+          onChange={(conditions) =>
+            onChange({
+              conditions: conditions.length ? conditions : undefined,
+            } as Partial<ReportComponent>)
+          }
+        />
+      )}
       <button type="button" onClick={onDelete}>
         <Trash2 /> Delete component
       </button>
@@ -304,6 +361,82 @@ function TableProperties({
       </label>
       <button type="button" onClick={() => add("")}>
         <Plus /> Add column
+      </button>
+    </fieldset>
+  );
+}
+
+/** The report a subreport prints and the fields that link its rows to the band's row. */
+function SubreportProperties({
+  reportId,
+  links,
+  reports,
+  choices,
+  columns,
+  onChange,
+}: {
+  reportId: string;
+  links: SubreportLink[];
+  reports: Report[];
+  choices: Report[];
+  columns: string[];
+  onChange: (patch: { reportId?: string; links?: SubreportLink[] }) => void;
+}) {
+  const current = reports.find((r) => r.id === reportId);
+  const options = current && !choices.includes(current) ? [current, ...choices] : choices;
+  const setLink = (index: number, patch: Partial<SubreportLink>) =>
+    onChange({ links: links.map((l, i) => (i === index ? { ...l, ...patch } : l)) });
+  return (
+    <fieldset>
+      <legend>Subreport</legend>
+      <label>
+        Report
+        <select value={reportId} onChange={(e) => onChange({ reportId: e.target.value })}>
+          <option value="">None</option>
+          {options.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="report-hint">
+        Subreport rows print when each child field equals the parent field of this band&apos;s row.
+        Without links, every row prints.
+      </p>
+      <datalist id="subreport-parent-fields">
+        {columns.map((col) => (
+          <option key={col} value={col} />
+        ))}
+      </datalist>
+      {links.map((link, i) => (
+        <fieldset key={i}>
+          <legend>Link {i + 1}</legend>
+          <label>
+            Link {i + 1} child field
+            <input value={link.child} onChange={(e) => setLink(i, { child: e.target.value })} />
+          </label>
+          <label>
+            Link {i + 1} parent field
+            <input
+              list="subreport-parent-fields"
+              value={link.master}
+              onChange={(e) => setLink(i, { master: e.target.value })}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => onChange({ links: links.filter((_, j) => j !== i) })}
+          >
+            <Trash2 /> Remove link {i + 1}
+          </button>
+        </fieldset>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange({ links: [...links, { child: "", master: "" }] })}
+      >
+        <Plus /> Add link
       </button>
     </fieldset>
   );

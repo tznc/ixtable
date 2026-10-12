@@ -43,6 +43,7 @@ gate. The tests themselves run in Desktop CI and Cloud contracts CI.
 | `key-renewal-24h` | §21.3 | Key grants live 24 hours | `supabase/functions/_shared/credentials.ts` (`GRANT_TTL_MS`) |
 | `three-os-ci` | §6.1, Phase 5 | The Desktop test and golden jobs, and the release `gates` job, run on Windows, macOS, and Linux | `desktop.yml`, `release.yml` |
 | `signed-installers` | Phase 5 | macOS codesign, notarization, and Gatekeeper checks, Windows Authenticode checks, and signing secrets for both | `release.yml`, `scripts/release/signing.mjs` |
+| `bundle-icons` | Phase 5 | `bundle.icon` lists every desktop icon, and each one in `src-tauri/icons` has the right size, RGBA and ICO/ICNS entries. Regenerate with `npm run icons` from `branding/app-icon.svg` | `scripts/release/icons.mjs`, `tauri.conf.json` |
 | `versions-agree` | Phase 5 | `tauri.conf.json`, `package.json`, and `Cargo.toml` carry one version | `scripts/release/plan.mjs` |
 | `operations-docs` | Phase 5 | The security, monitoring, backup, incident, support, and production-config documents exist | `docs/release/security.md`, `docs/ops/` |
 

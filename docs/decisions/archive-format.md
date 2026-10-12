@@ -229,4 +229,6 @@ checkpoints are validated archive copies under
   and added the matching `archive_io` and `recovery.rs` tests to Evidence.
 - 2026-10-05 (after merging #36): re-checked the incremental-save text and evidence #36 added (`archive_io/reuse.rs`, `reuse_tests.rs`, `durability_tests/incremental.rs`, `Snapshot::reuse_from`, `DataStamp`); they match the code. No changes.
 - 2026-10-09: config version 4 adds `SavedQuery.action` (action queries); version 3 configs upgrade on load.
-- 2026-10-10: config version 5 adds the `deleted` and `beforeChange` trigger events and the `setField` step; version 4 configs upgrade on load.
+- 2026-10-10: config version 5 adds `Form.navigationBar` and the `continuous` and `split` form modes (docs/decisions/form-views.md); version 4 configs upgrade on load.
+- 2026-10-10: config version 6 adds `Form.events` ([form events](./form-events.md)); version 5 configs upgrade on load.
+- 2026-10-10: config version 7 adds the `deleted` and `beforeChange` trigger events and the `setField` step; version 6 configs upgrade on load.

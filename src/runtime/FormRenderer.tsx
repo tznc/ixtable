@@ -2,12 +2,17 @@ import { useState } from "react";
 import { type BackLink, BackCrumb } from "./BackCrumb";
 import type { FormMode } from "../design/schema";
 import { useDocumentConfig } from "../lib/config-store";
+import { ContinuousView } from "./ContinuousView";
+import type { RecordCursor } from "./cursor";
 import { ListView } from "./ListView";
+import { RecordNavBar } from "./RecordNavBar";
+import { SplitView } from "./SplitView";
 import { type PageKind, useRuntimeNavigation } from "./navigation";
 import { can } from "./rbac";
 import { type Link, RecordView } from "./RecordView";
 import { isDesignedForm, resolveForm } from "./registry";
 import "./runtime.css";
+import "./form-views.css";
 
 export type FormRendererProps = {
   formId: string;
@@ -27,9 +32,12 @@ export type FormRendererProps = {
   params?: Record<string, unknown>;
   /** Told whether the shown record has unsaved edits. */
   onDirty?: (dirty: boolean) => void;
+  /** Receives the saved values after a create or edit commits (popup forms). */
+  onSaved?: (record: Record<string, unknown>) => void;
 };
 
-type View = { formId: string; mode: FormMode; recordId?: unknown };
+/** `cursor`: the record's place in the list it was opened from (record navigation bar). */
+type View = { formId: string; mode: FormMode; recordId?: unknown; cursor?: RecordCursor | null };
 
 /**
  * Renders a form in list, detail, create, or edit mode. Navigation between list and
@@ -51,10 +59,13 @@ function FormStack({
   onNotify,
   params,
   onDirty,
+  onSaved,
 }: FormRendererProps) {
   const { config } = useDocumentConfig();
   const runtime = useRuntimeNavigation();
   const initial = resolveForm(config, formId);
+  // Record navigation is blocked while the shown record has unsaved edits.
+  const [dirty, setDirty] = useState(false);
   const [stack, setStack] = useState<View[]>([
     { formId, mode: mode ?? initial?.modes[0] ?? "list", recordId },
   ]);
@@ -109,27 +120,60 @@ function FormStack({
         {crumb && <BackCrumb back={crumb} />}
         <ListView
           form={form}
-          onOpen={(id) => push({ formId: detailId, mode: "detail", recordId: id })}
+          onOpen={(id, cursor) => push({ formId: detailId, mode: "detail", recordId: id, cursor })}
           onCreate={() => push({ formId: detailId, mode: "create" })}
           params={params}
         />
       </div>
     );
   }
+  if (view.mode === "continuous" || view.mode === "split")
+    return (
+      <div className="rt-form">
+        {crumb && <BackCrumb back={crumb} />}
+        {view.mode === "continuous" ? (
+          <ContinuousView form={form} params={params} />
+        ) : (
+          <SplitView form={form} params={params} onNavigate={navigate} />
+        )}
+      </div>
+    );
+  // The bar walks the list the record was opened from, else this form's own records.
+  const listForm = (view.cursor && resolveForm(config, view.cursor.formId)) || form;
+  const canCreate =
+    form.modes.includes("create") &&
+    form.source?.kind === "table" &&
+    can(config, runtime.roleId, subject.kind, subject.id, "create");
+  const showBar = !!form.navigationBar && view.mode === "detail" && !!form.source;
   return (
     <div className="rt-form">
       {crumb && <BackCrumb back={crumb} />}
+      {showBar && (
+        <RecordNavBar
+          form={listForm}
+          cursor={view.cursor ?? null}
+          disabled={dirty}
+          onGo={(id, cursor) => replace({ formId: form.id, mode: "detail", recordId: id, cursor })}
+          onNew={canCreate ? () => push({ formId: form.id, mode: "create" }) : undefined}
+        />
+      )}
       <RecordView
         form={form}
         mode={view.mode}
         recordId={view.recordId}
         link={link}
         embedded={embedded}
-        onMode={(next, id) => replace({ formId: form.id, mode: next, recordId: id })}
+        onMode={(next, id) =>
+          replace({ formId: form.id, mode: next, recordId: id, cursor: view.cursor })
+        }
         onClose={close}
         onNavigate={navigate}
         onNotify={onNotify}
-        onDirty={onDirty}
+        onDirty={(next) => {
+          setDirty(next);
+          onDirty?.(next);
+        }}
+        onSaved={onSaved}
       />
     </div>
   );
