@@ -71,7 +71,7 @@ Expressions on a form read the record as `record`, the form state as `form`, and
 
 A **lookup** field picks a related record. It offers a search box and up to 50 matching choices, and an optional choice filter narrows them. A lookup on a multi-column key writes every key column.
 
-A **related list** shows child records inside a parent form, such as the orders of a customer. It appears once the parent is saved. **Add** opens a create form for a child with the link to the parent filled in and locked. Each row has **Edit** and **Delete** buttons. Related lists go one level deep: a child form does not show its own related lists.
+A **related list** shows child records inside a parent form, such as the orders of a customer. It appears once the parent is saved. **Add** opens a create form for a child with the link to the parent filled in and locked. Each row has **Edit** and **Delete** buttons. Editing a row opens its child form inside the list, and that form shows its own related lists, such as the lines of an order. Related lists nest up to three levels below the form you open, for example customers, orders, order lines, and stock allocations. Studio offers only child forms that stay within three levels and never lead back to the form itself.
 
 ## Buttons
 

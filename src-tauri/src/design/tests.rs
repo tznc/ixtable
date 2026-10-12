@@ -176,35 +176,50 @@ fn dependency_issues_cover_queries_actions_forms_and_navigation() {
 }
 
 #[test]
-fn related_list_nesting_is_one_level() {
-    let related = |form: Option<&str>| Control {
+fn related_lists_nest_three_levels_without_loops() {
+    let related = |form: &str| Control {
         related: Some(RelatedList {
             table: "items".into(),
             foreign_key: "order_id".into(),
             parent_column: "id".into(),
             columns: vec![],
-            form_id: form.map(Into::into),
+            form_id: Some(form.into()),
             keys: vec![],
             filter: None,
         }),
         ..control("lines", ControlKind::RelatedList)
     };
-    let mut config = config_with(Form {
-        id: "order".into(),
-        name: "Order".into(),
-        controls: vec![related(Some("item"))],
+    let form = |id: &str, child: Option<&str>| Form {
+        id: id.into(),
+        name: id.into(),
+        controls: child.map(related).into_iter().collect(),
         ..Default::default()
-    });
-    config.design.forms.push(Form {
-        id: "item".into(),
-        name: "Item".into(),
-        ..Default::default()
-    });
+    };
+    // a → b → c → d: three levels below a.
+    let mut config = config_with(form("a", Some("b")));
+    config.design.forms.push(form("b", Some("c")));
+    config.design.forms.push(form("c", Some("d")));
+    config.design.forms.push(form("d", None));
     assert!(errors(&validate(&config)).is_empty());
-    config.design.forms[2].controls.push(related(None));
-    assert!(errors(&validate(&config))
-        .iter()
-        .any(|e| e.contains("one level")));
+    // A fourth level is too deep for a only.
+    config
+        .design
+        .forms
+        .last_mut()
+        .unwrap()
+        .controls
+        .push(related("e"));
+    config.design.forms.push(form("e", None));
+    let deep = errors(&validate(&config));
+    assert_eq!(deep.len(), 1, "{deep:?}");
+    assert!(deep[0].contains("\"a\" nests related lists 4 levels deep"));
+    // A loop is reported on every form that reaches it.
+    let mut config = config_with(form("a", Some("b")));
+    config.design.forms.push(form("b", Some("c")));
+    config.design.forms.push(form("c", Some("b")));
+    let looped = errors(&validate(&config));
+    assert_eq!(looped.len(), 3, "{looped:?}");
+    assert!(looped.iter().all(|e| e.contains("in a loop")));
 }
 
 #[test]

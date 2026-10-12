@@ -21,7 +21,6 @@ export type BodyContext = {
   readOnly: boolean;
   /** Columns that may not be edited (the related-list link, auto keys). */
   locked: Set<string>;
-  embedded: boolean;
   identity: DataValue[] | null;
   setField: (column: string, value: unknown) => void;
   blur: (control: DesignControl) => void;
@@ -107,7 +106,6 @@ function ControlView({ ctx, control }: { ctx: BodyContext; control: DesignContro
     case "image":
       return <ImageView control={control} />;
     case "relatedList":
-      if (ctx.embedded) return null;
       return <RelatedRecords ctx={ctx} control={control} disabled={!ctx.enabled.has(control.id)} />;
     default:
       break;
