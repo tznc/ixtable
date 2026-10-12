@@ -1,6 +1,7 @@
 import {
   Calculator,
   ChartColumn,
+  FileStack,
   Image,
   Minus,
   Square,
@@ -15,6 +16,7 @@ import {
   type BandKey,
   bandEntries,
   contentWidth,
+  embeddableReports,
   findComponent,
   getBand,
   isPageBand,
@@ -36,20 +38,27 @@ const PALETTE: [ComponentKind, string, typeof Type][] = [
   ["line", "Add line", Minus],
   ["rectangle", "Add rectangle", Square],
   ["table", "Add table", Table2],
+  ["subreport", "Add subreport", FileStack],
   ["chart", "Add chart", ChartColumn],
 ];
+
+/** Kinds that page headers and footers can't hold. */
+const BODY_ONLY: ComponentKind[] = ["table", "subreport"];
 
 type Change = (fn: (report: Report) => Report, label?: string) => void;
 
 /** Band editor canvas with palette and properties panel. */
 export function ReportDesigner({
   report,
+  reports = [],
   queries,
   columns,
   change,
   focusId,
 }: {
   report: Report;
+  /** Every report of the document, for subreports. */
+  reports?: Report[];
   queries: SavedQuery[];
   columns: string[];
   change: Change;
@@ -66,7 +75,7 @@ export function ReportDesigner({
   const activeKey = getBand(report, bandKey) ? bandKey : "detail";
   const active = bands.find((b) => b.key === activeKey) ?? bands[0];
   const selected = selectedId ? findComponent(report, selectedId) : undefined;
-  const problems = reportProblems(report);
+  const problems = reportProblems(report, reports);
 
   useEffect(() => {
     listAssets()
@@ -103,7 +112,7 @@ export function ReportDesigner({
     );
   };
 
-  const tableBlocked = isPageBand(active.key);
+  const pageBand = isPageBand(active.key);
   const add = (kind: ComponentKind) => {
     const band = active.band;
     const right = Math.max(0, ...band.components.map((c) => c.x + c.w));
@@ -125,23 +134,26 @@ export function ReportDesigner({
     <div className="report-designer">
       <div className="report-canvas-area">
         <div className="report-palette" role="toolbar" aria-label="Report components">
-          {PALETTE.map(([kind, label, Icon]) => (
-            <button
-              key={kind}
-              type="button"
-              aria-disabled={kind === "table" && tableBlocked ? "true" : undefined}
-              aria-describedby={kind === "table" && tableBlocked ? "report-table-hint" : undefined}
-              onClick={() => {
-                if (!(kind === "table" && tableBlocked)) add(kind);
-              }}
-            >
-              <Icon /> {label}
-            </button>
-          ))}
+          {PALETTE.map(([kind, label, Icon]) => {
+            const blocked = pageBand && BODY_ONLY.includes(kind);
+            return (
+              <button
+                key={kind}
+                type="button"
+                aria-disabled={blocked ? "true" : undefined}
+                aria-describedby={blocked ? "report-table-hint" : undefined}
+                onClick={() => {
+                  if (!blocked) add(kind);
+                }}
+              >
+                <Icon /> {label}
+              </button>
+            );
+          })}
         </div>
-        {tableBlocked && (
+        {pageBand && (
           <p className="report-hint" id="report-table-hint">
-            Tables are not supported in page headers or footers.
+            Tables and subreports are not supported in page headers or footers.
           </p>
         )}
         <p className="report-hint" id="report-canvas-hint">
@@ -187,6 +199,8 @@ export function ReportDesigner({
             columns={columns}
             queries={queries}
             assets={assets}
+            reports={reports}
+            subreports={embeddableReports(reports, report)}
             onDelete={() => remove(selected.component.id)}
             onChange={(patch) =>
               updateComponent(selected.component.id, "Edit report component", (c) => {

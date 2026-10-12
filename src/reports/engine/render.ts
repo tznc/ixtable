@@ -1,5 +1,5 @@
 import { evaluate, formatValue } from "../../expr";
-import type { ComponentStyle, ReportComponent, TableComponent } from "../types";
+import type { ComponentStyle, ReportComponent, SubreportComponent, TableComponent } from "../types";
 import { chartItems } from "./chart";
 import { type PositionedItem, type Row, r2 } from "./document";
 import { BASELINE, LINE_HEIGHT, measureText, normalizeText, wrapText } from "./text";
@@ -150,9 +150,9 @@ function placeholder(box: Box, label: string, ox: number, oy: number): Positione
   ];
 }
 
-/** Items for one non-table component placed with its band origin at (ox, oy). */
+/** Items for one component other than a table or subreport, placed with its band origin at (ox, oy). */
 export function componentItems(
-  c: Exclude<ReportComponent, TableComponent>,
+  c: Exclude<ReportComponent, TableComponent | SubreportComponent>,
   ox: number,
   oy: number,
   ctx: RenderContext,
