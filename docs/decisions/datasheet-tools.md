@@ -23,7 +23,7 @@ The Data mode grid moved from `DatabaseWorkbench` into `src/data/sheet/`.
 - **Sort.** Clicking a header sorts by it. Shift-click adds the column as the
   next sort key (`sorts.ts`). The column menu also sorts.
 - **Find and replace** (`FindReplace.tsx`, `find.ts`) matches the text a cell
-  shows, skipping nulls and blobs. Find next walks the filtered, sorted table
+  shows (masked or formatted by its field settings), skipping nulls and blobs. Find next walks the filtered, sorted table
   one page at a time, wraps once, and moves the grid to the match. Replace all
   reads every matching row, asks for confirmation, and sends one
   `writeRecordBatch` with `expected` values.
@@ -39,7 +39,8 @@ The Data mode grid moved from `DatabaseWorkbench` into `src/data/sheet/`.
   average, standard deviation and variance need a numeric column.
 - **Paste** (`paste.ts`) takes over a paste that spans more than one cell.
   It parses tab-separated clipboard text with quoted fields, maps it onto the
-  visible editable columns from the focused cell, and sends one
+  visible editable columns (not generated, blob, or formatted fields) from the
+  focused cell, applies input masks, and sends one
   `writeRecordBatch`. Rows that land on existing records update them (an empty
   cell becomes null). Rows past the last record, or pasted into the new-record
   row, are inserted (an empty cell keeps the default). A cell that does not

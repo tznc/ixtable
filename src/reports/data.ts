@@ -1,3 +1,4 @@
+import { fieldTextRows } from "../fields/values";
 import { asTauriError, readTablePage } from "../lib/api";
 import type { DataValue, DocumentConfig, QueryResult } from "../lib/types";
 import { cancelQuery, runSavedQuery, runQuerySql } from "../query/api";
@@ -155,7 +156,9 @@ export async function loadReportData(
     if (ids.length)
       for (const a of await step(() => readReportAssets(ids)))
         assets[a.id] = { mediaType: a.mediaType, dataBase64: a.dataBase64 };
-    return { rows: dataset ? rowsOf(dataset) : [], tables, assets, truncated };
+    const table = report.datasetQueryId ? null : report.table;
+    const rows = dataset ? fieldTextRows(rowsOf(dataset), config, table) : [];
+    return { rows, tables, assets, truncated };
   } finally {
     signal?.removeEventListener("abort", onAbort);
   }

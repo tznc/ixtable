@@ -1,7 +1,7 @@
 import { type KeyboardEvent, useState } from "react";
 import { controlConstraints } from "../design/constraints";
 import type { DesignControl, DesignForm, TabPage } from "../design/schema";
-import { isInputKind } from "../design/schema";
+import { formTable, isInputKind } from "../design/schema";
 import { GridCanvas, GridItem } from "../grid";
 import { ComputedValue, Field, ImageView } from "./controls";
 import { toneFor } from "./conditions";
@@ -128,6 +128,7 @@ function ControlView({ ctx, control }: { ctx: BodyContext; control: DesignContro
   return (
     <Field
       control={control}
+      table={formTable(ctx.form)}
       value={value}
       readOnly={readOnly}
       error={ctx.errors[control.id]}

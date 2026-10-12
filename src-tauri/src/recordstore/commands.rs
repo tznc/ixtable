@@ -3,7 +3,7 @@
 //! reader is refreshed, so the next read sees it (read-your-writes).
 use super::{
     entity_policy, read_target, secrets, with_store, ChangePlan, Dependent, EntitySettings,
-    StoreCapabilities, TableImpact, WriteOp, WriteOutcome,
+    FieldSettings, StoreCapabilities, TableImpact, WriteOp, WriteOutcome,
 };
 use crate::archive::DocumentConfig;
 use crate::data::{AlterTable, CreateTable, IndexDef, NamedValue};
@@ -105,6 +105,11 @@ pub fn alter_table(
 ) -> Result<SessionState, AppError> {
     guard_definition(window)?;
     with_store(window, |s| s.alter_table(table, operations))?;
+    update_entities(window, |entities| {
+        for e in entities.iter_mut().filter(|e| e.table == table) {
+            follow_columns(&mut e.fields, operations);
+        }
+    })?;
     if let Some(new_name) = operations.iter().rev().find_map(|op| match op {
         AlterTable::RenameTable { new_name } => Some(new_name.clone()),
         _ => None,
@@ -116,6 +121,20 @@ pub fn alter_table(
         })?;
     }
     after_write(window)
+}
+
+/// Field settings follow column renames and drop with their column.
+pub fn follow_columns(fields: &mut Vec<FieldSettings>, operations: &[AlterTable]) {
+    for op in operations {
+        match op {
+            AlterTable::RenameColumn { column, new_name } => fields
+                .iter_mut()
+                .filter(|f| &f.column == column)
+                .for_each(|f| f.column = new_name.clone()),
+            AlterTable::DropColumn { column } => fields.retain(|f| &f.column != column),
+            _ => {}
+        }
+    }
 }
 
 /// Saved queries, forms, reports, dashboards, and actions that mention a table.
