@@ -22,6 +22,7 @@ import {
   useRuntimeState,
   visibleNavigation,
 } from "./navigation";
+import { PopupHost } from "./PopupHost";
 import { assignedRuntimeRole } from "./rbac";
 import { tableForms } from "./registry";
 import "./runtime.css";
@@ -85,6 +86,7 @@ export function RunMode() {
           )}
         </div>
       </header>
+      <PopupHost onCloseWithoutPopup={() => runtime.canGoBack && runtime.back()} />
       <div className="rt-app">
         <nav className="rt-nav" aria-label="Application navigation">
           {navigation.length ? (

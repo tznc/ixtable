@@ -109,10 +109,15 @@ export async function postWebhook(
 }
 
 /** billing-checkout, then the fake checkout page's billing-fake-complete call. */
-export async function checkoutAndPay(user: TestUser, appId: string, planId: string) {
+export async function checkoutAndPay(
+  user: TestUser,
+  appId: string,
+  planId: string,
+  interval?: "month" | "year",
+) {
   const checkout = await callFunction<{ url: string; overAllowance: boolean }>("billing-checkout", {
     jwt: user.jwt,
-    body: { appId, planId },
+    body: interval ? { appId, planId, interval } : { appId, planId },
   });
   if (checkout.status !== 200)
     throw new Error(`billing-checkout ${checkout.status}: ${JSON.stringify(checkout.body)}`);
@@ -126,6 +131,7 @@ export async function checkoutAndPay(user: TestUser, appId: string, planId: stri
 
 export interface SubscriptionRow {
   plan_id: string;
+  billing_interval: "month" | "year";
   status: string;
   provider: string;
   current_period_end: string | null;
@@ -139,7 +145,7 @@ export async function subscriptionRow(appId: string): Promise<SubscriptionRow | 
   const { data, error } = await getServiceClient()
     .from("subscriptions")
     .select(
-      "plan_id, status, provider, current_period_end, cancel_at_period_end, stripe_customer_id, stripe_subscription_id, provider_event_at",
+      "plan_id, billing_interval, status, provider, current_period_end, cancel_at_period_end, stripe_customer_id, stripe_subscription_id, provider_event_at",
     )
     .eq("app_id", appId)
     .maybeSingle();
@@ -158,6 +164,7 @@ export async function entitlementAs(user: TestUser, appId: string) {
     used: number;
     status?: string;
     planId?: string;
+    interval?: "month" | "year";
   };
 }
 

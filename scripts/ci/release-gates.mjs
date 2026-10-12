@@ -9,6 +9,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { DEV_CLOUD_KEYS } from "../release/keys.mjs";
+import { DESKTOP_ICONS, iconProblems } from "../release/icons.mjs";
 import { readVersions } from "../release/plan.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -234,7 +235,9 @@ export const GATES = [
       const problems = [];
       const desktop = file(root, ".github/workflows/desktop.yml");
       // A literal `os: [...]` list, or the push branch of a PR-conditional fromJSON matrix.
-      const matrices = desktop.match(/os: \[[^\]]+\]|'\["ubuntu-latest","macos-latest","windows-latest"\]'/g) ?? [];
+      const matrices =
+        desktop.match(/os: \[[^\]]+\]|'\["ubuntu-latest","macos-latest","windows-latest"\]'/g) ??
+        [];
       if (matrices.filter((m) => THREE_OS.test(m)).length < 2)
         problems.push("desktop.yml test and golden jobs must both run on all three OSes");
       if (
@@ -256,6 +259,20 @@ export const GATES = [
           /codesign --verify[\s\S]*stapler validate[\s\S]*Get-AuthenticodeSignature/,
         "scripts/release/signing.mjs": /APPLE_CERTIFICATE[\s\S]*AZURE_CERTIFICATE_PROFILE/,
       }),
+  },
+  {
+    id: "bundle-icons",
+    prd: "Phase 5",
+    title: "Installers carry the full desktop icon set",
+    check: (root) => {
+      const listed = JSON.parse(file(root, "src-tauri/tauri.conf.json")).bundle.icon ?? [];
+      const unlisted = DESKTOP_ICONS.filter((icon) => !listed.includes(icon));
+      return [
+        ...unlisted.map((icon) => `tauri.conf.json bundle.icon does not list ${icon}`),
+        ...iconProblems(join(root, "src-tauri/icons")),
+        ...evidence(root, { "branding/app-icon.svg": null }),
+      ];
+    },
   },
   {
     id: "versions-agree",

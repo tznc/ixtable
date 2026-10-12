@@ -1,6 +1,8 @@
 // Shared helpers for the commercial functions (billing-*, stripe-webhook,
-// account-*, admin-support). Authorization rules: billing actions are allowed
-// for the app's owner and for org members with role owner, admin or billing.
+// account-*, admin-support). Authorization rules: billing actions need the
+// `billing` app capability (app owner, org owner/admin/billing, per-app
+// admin/billing; SQL app_capabilities_for). The organization is the billing
+// customer (org_billing_customers, PRD §4.5).
 import { audit } from "./audit.ts";
 import { billingProvider, ENDED_STATUSES, signStripePayload } from "./billing.ts";
 import { env, optionalEnv, serviceClient } from "./db.ts";
@@ -24,7 +26,7 @@ export interface SubscriptionRow extends SubscriptionState {
 }
 
 export const SUBSCRIPTION_COLUMNS =
-  "id, app_id, plan_id, provider, status, current_period_end, cancel_at_period_end, stripe_customer_id, stripe_subscription_id, provider_event_at, created_at, updated_at";
+  "id, app_id, plan_id, billing_interval, provider, status, current_period_end, cancel_at_period_end, stripe_customer_id, stripe_subscription_id, provider_event_at, created_at, updated_at";
 
 /** Client-facing subscription shape (no provider ids). */
 export function publicSubscription(row: SubscriptionRow | null): Record<string, unknown> | null {
@@ -32,6 +34,7 @@ export function publicSubscription(row: SubscriptionRow | null): Record<string, 
   return {
     app_id: row.app_id,
     plan_id: row.plan_id,
+    billing_interval: row.billing_interval,
     provider: row.provider,
     status: row.status,
     current_period_end: row.current_period_end,
@@ -39,10 +42,20 @@ export function publicSubscription(row: SubscriptionRow | null): Record<string, 
   };
 }
 
+/** The user's capabilities on a live app: owner, admin, billing, view (SQL app_capabilities_for). */
+export async function appCapabilities(appId: string, userId: string): Promise<string[]> {
+  const { data, error } = await serviceClient().rpc("app_capabilities_for", {
+    p_app_id: appId,
+    p_user_id: userId,
+  });
+  if (error) throw new Error(`load app capabilities failed: ${error.message}`);
+  return (data as string[] | null) ?? [];
+}
+
 /**
  * Loads a live app the caller may manage billing for. Callers with no
  * relation to the app get NOT_FOUND (existence is not revealed); members
- * without a billing role get FORBIDDEN.
+ * without the billing capability get FORBIDDEN.
  */
 export async function requireBillingApp(appId: string, userId: string): Promise<BillingApp> {
   const db = serviceClient();
@@ -53,29 +66,67 @@ export async function requireBillingApp(appId: string, userId: string): Promise<
     .maybeSingle();
   if (error) throw new Error(`load app failed: ${error.message}`);
   if (!app || app.deleted_at) throw new HttpError("NOT_FOUND", "App not found");
-  if (app.owner_id === userId) return app as BillingApp;
-  const { data: membership } = await db
-    .from("org_members")
-    .select("role")
-    .eq("org_id", app.org_id)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (membership && ["owner", "admin", "billing"].includes(membership.role)) {
-    return app as BillingApp;
-  }
-  const { data: appMember } = await db
-    .from("app_members")
-    .select("status")
-    .eq("app_id", appId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (membership || appMember) {
+  const capabilities = await appCapabilities(appId, userId);
+  if (capabilities.includes("billing")) return app as BillingApp;
+  const [{ data: membership }, { data: appMember }] = await Promise.all([
+    db
+      .from("org_members")
+      .select("role")
+      .eq("org_id", app.org_id)
+      .eq("user_id", userId)
+      .maybeSingle(),
+    db.from("app_members").select("status").eq("app_id", appId).eq("user_id", userId).maybeSingle(),
+  ]);
+  if (capabilities.length > 0 || membership || appMember) {
     throw new HttpError(
       "FORBIDDEN",
-      "Only the app owner or an organization owner, admin or billing member can manage billing",
+      "Only the app owner, an organization owner, admin or billing member, or an app admin or billing member can manage billing",
     );
   }
   throw new HttpError("NOT_FOUND", "App not found");
+}
+
+/** The organization's billing customer id, if it has one. */
+export async function orgBillingCustomerId(orgId: string): Promise<string | null> {
+  const { data, error } = await serviceClient()
+    .from("org_billing_customers")
+    .select("stripe_customer_id")
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (error) throw new Error(`load billing customer failed: ${error.message}`);
+  return data?.stripe_customer_id ?? null;
+}
+
+/**
+ * The organization's billing customer, created with the provider on first
+ * checkout. Concurrent first checkouts keep whichever row was stored first.
+ */
+export async function ensureOrgBillingCustomer(orgId: string, email: string): Promise<string> {
+  const existing = await orgBillingCustomerId(orgId);
+  if (existing) return existing;
+  const db = serviceClient();
+  const { data: org } = await db.from("organizations").select("name").eq("id", orgId).single();
+  const provider = billingProvider();
+  const { customerId } = await provider.createCustomer({
+    orgId,
+    orgName: org?.name ?? "",
+    email,
+  });
+  const { error } = await db
+    .from("org_billing_customers")
+    .insert({ org_id: orgId, provider: provider.name, stripe_customer_id: customerId });
+  if (error && error.code !== "23505")
+    throw new Error(`store billing customer failed: ${error.message}`);
+  return (await orgBillingCustomerId(orgId)) ?? customerId;
+}
+
+/** Customer for an app's portal and invoices: the org's, else the subscription's (pre-org rows). */
+export async function appBillingCustomerId(app: BillingApp): Promise<string | null> {
+  return (
+    (await orgBillingCustomerId(app.org_id)) ??
+    (await getSubscription(app.id))?.stripe_customer_id ??
+    null
+  );
 }
 
 export async function getSubscription(appId: string): Promise<SubscriptionRow | null> {

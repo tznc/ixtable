@@ -102,7 +102,32 @@ pub struct EntitySettings {
     pub concurrency: String,
     #[serde(default)]
     pub action_id: Option<String>,
+    /// Per-column field settings (rich text, attachments, multi-select, input masks).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fields: Vec<FieldSettings>,
 }
+
+/// How a column is presented and entered, layered on its logical type
+/// (`docs/decisions/field-formats.md`). Keyed by column name: table renames and
+/// drops of the column follow it (`commands::alter_table`).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FieldSettings {
+    pub id: String,
+    pub column: String,
+    /// One of `FIELD_FORMATS`; none is a plain field of the column's logical type.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
+    /// Access-style input mask (`src/fields/mask.ts`); applies to entry only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_mask: Option<String>,
+    /// Choices of a multi-select field.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub options: Vec<String>,
+}
+/// `richText` holds sanitized HTML in a text column; `attachment` and `multiSelect`
+/// hold a JSON array in a text or json column.
+pub const FIELD_FORMATS: &[&str] = &["richText", "attachment", "multiSelect"];
 fn default_policy() -> String {
     "optimistic".into()
 }
@@ -113,6 +138,7 @@ impl Default for EntitySettings {
             table: String::new(),
             concurrency: default_policy(),
             action_id: None,
+            fields: vec![],
         }
     }
 }

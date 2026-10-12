@@ -58,6 +58,10 @@ pub enum FormMode {
     Detail,
     Create,
     Edit,
+    /// Every record of a page as an inline-editable row on the form's own grid. Config version 5.
+    Continuous,
+    /// A datasheet of the records above the selected record's detail view.
+    Split,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -118,6 +122,9 @@ pub struct Form {
     /// List mode row filter expression (evaluated in TypeScript, `src/runtime/conditions.ts`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filter: Option<String>,
+    /// First/previous/next/last/new record buttons on single-record views. Config version 5.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub navigation_bar: bool,
     /// Actions run on form events (PRD §17.4, `docs/decisions/form-events.md`).
     #[serde(default, skip_serializing_if = "FormEvents::is_empty")]
     pub events: FormEvents,
@@ -187,6 +194,12 @@ pub enum ControlKind {
     Tabs,
     RelatedList,
     Image,
+    /// Formatted text stored as sanitized HTML.
+    RichText,
+    /// Files of an attachment field.
+    Attachment,
+    /// Several choices stored as a JSON array.
+    MultiSelect,
 }
 impl ControlKind {
     pub fn is_container(self) -> bool {
@@ -242,6 +255,9 @@ pub struct Control {
     pub asset_id: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub read_only: bool,
+    /// Access-style input mask for text entry (`src/fields/mask.ts`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_mask: Option<String>,
     /// Presentation variant, e.g. "toggle" for booleans.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub variant: Option<String>,
@@ -371,7 +387,8 @@ pub struct RelatedList {
     pub keys: Vec<KeyPair>,
     #[serde(default)]
     pub columns: Vec<String>,
-    /// Form used to add and edit child rows (embedded; it may not hold related lists).
+    /// Form used to add and edit child rows (embedded; related lists nest up to
+    /// `checks::MAX_SUBFORM_DEPTH` levels).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub form_id: Option<String>,
     /// Row filter over the child rows (`record` is a child row, `parent` the parent record).
@@ -443,6 +460,7 @@ impl Default for DesignSchema {
                 name: "Main form".into(),
                 modes: default_modes(),
                 page_size: default_page_size(),
+                navigation_bar: true,
                 ..Default::default()
             }],
             navigation: vec![NavigationItem {

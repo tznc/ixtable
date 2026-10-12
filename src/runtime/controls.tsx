@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import type { DesignControl } from "../design/schema";
+import { AttachmentInput, MaskedInput, MultiSelectInput, RichTextInput } from "../fields/inputs";
 import { useDocumentConfig } from "../lib/config-store";
 import { readAssetDataUrl } from "./api";
 import {
@@ -30,6 +31,8 @@ export type FieldProps = {
   keyValues?: Record<string, unknown>;
   /** Multi-column relationship: writes every key column of the chosen record. */
   onKeys?: (values: Record<string, unknown>) => void;
+  /** The form's table, where an attachment control stores its files. */
+  table?: string | null;
 };
 
 const dateInput = (value: unknown, kind: string) => {
@@ -54,6 +57,7 @@ export function Field({
   filterScope,
   keyValues,
   onKeys,
+  table,
 }: FieldProps) {
   const id = useId();
   const errorId = `${id}-error`;
@@ -133,8 +137,37 @@ export function Field({
         />
       );
       break;
+    case "richText":
+    case "attachment":
+    case "multiSelect": {
+      const props = { ...common, label: control.label, value, onChange };
+      input =
+        control.kind === "richText" ? (
+          <RichTextInput {...props} />
+        ) : control.kind === "attachment" ? (
+          <AttachmentInput
+            {...props}
+            table={control.binding?.table || table || null}
+            column={control.binding?.column ?? null}
+          />
+        ) : (
+          <MultiSelectInput
+            {...props}
+            options={(control.options ?? []).map((option) => option.value)}
+          />
+        );
+      break;
+    }
     default:
-      input = (
+      input = control.inputMask ? (
+        <MaskedInput
+          {...common}
+          label={control.label}
+          value={value}
+          onChange={onChange}
+          mask={control.inputMask}
+        />
+      ) : (
         <input
           {...common}
           type="text"

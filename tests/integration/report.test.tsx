@@ -206,7 +206,11 @@ it("sets pagination controls in the designer and keeps tables out of page bands"
   expect(addTable).toHaveAttribute("aria-disabled", "true");
   expect(addTable).not.toBeDisabled();
   expect(addTable).toHaveAccessibleDescription(
-    "Tables are not supported in page headers or footers.",
+    "Tables and subreports are not supported in page headers or footers.",
+  );
+  expect(screen.getByRole("button", { name: "Add subreport" })).toHaveAttribute(
+    "aria-disabled",
+    "true",
   );
   await user.click(addTable);
   expect(screen.queryByRole("checkbox", { name: "Page break before" })).not.toBeInTheDocument();

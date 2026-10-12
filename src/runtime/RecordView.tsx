@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type ActionContext, runAction } from "../automation/runner";
 import type { DesignControl, DesignForm, FormEventName, FormMode } from "../design/schema";
 import { isInputKind } from "../design/schema";
+import { withFieldDefaults } from "../fields/defaults";
 import { useDocumentConfig } from "../lib/config-store";
 import { CommittedWriteError, deleteRecord, insertRecord, updateRecord } from "../lib/records";
 import type { DataValue, TableSchema } from "../lib/types";
@@ -40,7 +41,7 @@ type Notice = { text: string; tone: "info" | "error" };
 
 type Props = {
   form: DesignForm;
-  mode: Exclude<FormMode, "list">;
+  mode: Exclude<FormMode, "list" | "continuous" | "split">;
   recordId?: unknown;
   link?: Link;
   embedded?: boolean;
@@ -50,6 +51,8 @@ type Props = {
   onNotify?: (text: string, tone: Notice["tone"]) => void;
   /** Told whether edit mode holds unsaved changes. */
   onDirty?: (dirty: boolean) => void;
+  /** Receives the saved values after a create or edit commits (popup forms return them). */
+  onSaved?: (record: RecordValues) => void;
 };
 
 const message = (reason: unknown) => {
@@ -60,7 +63,7 @@ const message = (reason: unknown) => {
 
 /** Detail, create, and edit modes of a form on the grid renderer. */
 export function RecordView({
-  form,
+  form: designed,
   mode,
   recordId,
   link,
@@ -70,8 +73,11 @@ export function RecordView({
   onNavigate,
   onNotify,
   onDirty,
+  onSaved,
 }: Props) {
   const { config } = useDocumentConfig();
+  const entities = config.entities;
+  const form = useMemo(() => withFieldDefaults(designed, { entities }), [designed, entities]);
   const runtime = useRuntimeNavigation();
   const { roleId, app } = runtime;
   const table = form.source?.kind === "table" ? (form.source.table ?? null) : null;
@@ -319,7 +325,9 @@ export function RecordView({
           if (saved[name] == null) saved[name] = fromDataValue(id[i]);
         });
         announce(problem ?? "Record created.", problem ? "error" : "info");
-        if (await afterUpdate(saved)) return;
+        const navigated = await afterUpdate(saved);
+        onSaved?.(saved);
+        if (navigated) return;
         if (embedded) onClose();
         else onMode("detail", recordIdFor(def, saved, id));
       } else {
@@ -337,7 +345,9 @@ export function RecordView({
             )
           : {};
         announce(problem ?? "Changes saved.", problem ? "error" : "info");
-        if (changes && (await afterUpdate(values))) return;
+        const navigated = changes ? await afterUpdate(values) : false;
+        onSaved?.({ ...original, ...values });
+        if (navigated) return;
         if (embedded) onClose();
         else onMode("detail", recordId);
       }
@@ -455,7 +465,6 @@ export function RecordView({
     errors: errors.fields,
     readOnly,
     locked,
-    embedded,
     identity,
     setField,
     blur,

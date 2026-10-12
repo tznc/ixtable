@@ -50,11 +50,12 @@ reloads after a save anyway.
 
 ## Consequences
 
-- List mode raises no events. Continuous forms (PRD Phase 6) will raise on
-  current per row when they land.
+- List mode raises no events. Neither do the rows of a continuous form
+  ([form views](./form-views.md)); a split form's record pane is a `RecordView`
+  and raises them.
 - There are no before insert or after insert events: before and after update
   also cover creates, as Access BeforeUpdate and AfterUpdate do.
-- Adding `Form.events` moved the config version to 5
+- Adding `Form.events` moved the config version to 6
   ([archive format](./archive-format.md)).
 - Access import does not yet map form event macros to these events.
 

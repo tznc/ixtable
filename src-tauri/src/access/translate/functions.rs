@@ -1,6 +1,6 @@
 //! Access (VBA) built-in functions in SQL, plus `Like` patterns and date literals.
 use super::ast::*;
-use super::sql::{string_literal, Dialect, SqlWriter};
+use super::sql::{Dialect, SqlWriter};
 
 /// True when an expression uses an aggregate (outside subqueries).
 pub fn contains_aggregate(e: &Expr) -> bool {
@@ -222,7 +222,7 @@ pub fn sql_call(
         }
         "datevalue" | "cdate" if duck => format!("CAST({} AS TIMESTAMP)", a[0]),
         "timevalue" if duck => format!("CAST({} AS TIME)", a[0]),
-        "format" if duck => format_sql(&a, args)?,
+        "format" if duck => super::builtins::format_sql(&a[0], args.get(1))?,
         "left" => format!("{}({}, 1, {})", if duck { "substring" } else { "substr" }, a[0], a[1]),
         "right" if duck => format!("right({}, {})", a[0], a[1]),
         "right" => format!("substr({}, -({}))", a[0], a[1]),
@@ -298,12 +298,16 @@ pub fn sql_call(
         }
         "coalesce" => format!("coalesce({})", a.join(", ")),
         "plaintext" if duck => format!("replace(regexp_replace({}, '<[^>]*>', '', 'g'), '&nbsp;', ' ')", a[0]),
-        // A VBA function: the column stays, without values.
-        _ if duck && !is_builtin(lower) => {
-            w.out.notes.push(format!("{name}() is a VBA function, so its column is empty"));
-            "NULL".into()
-        }
-        "dlookup" | "dcount" | "dsum" | "davg" | "dmin" | "dmax" | "dfirst" | "dlast" if duck => domain_sql(w, lower, args)?,
+        _ if duck && super::domain::is_domain(lower) => super::domain::domain_sql(w, lower, args)?,
+        _ if duck => match super::builtins::duck_call(w, lower, &a, args)? {
+            Some(sql) => sql,
+            // A VBA function: the column stays, without values.
+            None if !is_builtin(lower) => {
+                w.out.notes.push(format!("{name}() is a VBA function, so its column is empty"));
+                "NULL".into()
+            }
+            None => return Err(format!("{name}() is not supported")),
+        },
         _ => return Err(format!("{name}() is not supported")),
     })
 }
@@ -337,73 +341,6 @@ fn is_builtin(name: &str) -> bool {
         "timeserial",
     ]
     .contains(&name)
-}
-
-/// `DLookup("expr", "domain", "criteria")` with literal arguments → a scalar subquery.
-fn domain_sql(w: &mut SqlWriter, f: &str, args: &[Expr]) -> Result<String, String> {
-    let expr = arg_str(args, 0).ok_or_else(|| format!("{f} needs literal arguments"))?;
-    let domain = arg_str(args, 1).ok_or_else(|| format!("{f} needs literal arguments"))?;
-    let criteria = match args.get(2) {
-        None => None,
-        Some(Expr::Str(s)) => Some(s.as_str()),
-        Some(_) => return Err(format!("{f} with a computed criteria")),
-    };
-    let agg = match f {
-        "dlookup" => None,
-        "dcount" => Some("Count"),
-        "dsum" => Some("Sum"),
-        "davg" => Some("Avg"),
-        "dmin" => Some("Min"),
-        "dmax" => Some("Max"),
-        "dfirst" => Some("First"),
-        _ => Some("Last"),
-    };
-    let domain = domain.trim().trim_start_matches('[').trim_end_matches(']');
-    let column = match agg {
-        Some(a) => format!("{a}({expr})"),
-        None => expr.to_string(),
-    };
-    let mut sql = format!("SELECT {column} FROM [{domain}]");
-    if let Some(c) = criteria.filter(|c| !c.trim().is_empty()) {
-        sql.push_str(&format!(" WHERE {c}"));
-    }
-    let select = match parse_statement(&sql)? {
-        Statement::Select(s) => s,
-        _ => return Err("a domain function needs a SELECT".into()),
-    };
-    let mut inner = w.select(&select)?;
-    if agg.is_none() {
-        inner.push_str(" LIMIT 1");
-    }
-    Ok(format!("({inner})"))
-}
-
-fn format_sql(a: &[String], args: &[Expr]) -> Result<String, String> {
-    let fmt = arg_str(args, 1).ok_or("Format needs a literal format")?;
-    let strf = match fmt.to_ascii_lowercase().as_str() {
-        "yyyy" => "%Y",
-        "yy" => "%y",
-        "mm" => "%m",
-        "m" => "%-m",
-        "mmm" => "%b",
-        "mmmm" => "%B",
-        "dd" => "%d",
-        "d" => "%-d",
-        "ww" => return Ok(format!("CAST(week({}) AS VARCHAR)", a[0])),
-        "q" => return Ok(format!("CAST(quarter({}) AS VARCHAR)", a[0])),
-        "short date" => "%-m/%-d/%Y",
-        "medium date" => "%d-%b-%y",
-        "long date" => "%A, %B %-d, %Y",
-        "mmmm yyyy" => "%B %Y",
-        "mmm yyyy" => "%b %Y",
-        "yyyy-mm-dd" => "%Y-%m-%d",
-        "mm/dd/yyyy" => "%m/%d/%Y",
-        "currency" => return Ok(format!("printf('$%.2f', {})", a[0])),
-        "percent" => return Ok(format!("printf('%.2f%%', ({}) * 100)", a[0])),
-        "fixed" | "standard" => return Ok(format!("printf('%.2f', {})", a[0])),
-        _ => return Ok(format!("CAST({} AS VARCHAR)", a[0])),
-    };
-    Ok(format!("strftime({}, {})", a[0], string_literal(strf)))
 }
 
 pub enum LikePattern {

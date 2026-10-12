@@ -337,6 +337,6 @@ describe("embeddableModes", () => {
     ]);
     const query = { ...newForm("Q", { kind: "query", queryId: "q" }), modes: ["list", "edit"] };
     expect(embeddableModes(query as ReturnType<typeof newForm>)).toEqual(["list"]);
-    expect(embeddableModes(null)).toHaveLength(4);
+    expect(embeddableModes(null)).toHaveLength(6);
   });
 });
