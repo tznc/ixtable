@@ -24,16 +24,28 @@ A table item opens a generated list and detail form for that table. These genera
 
 ## Form modes
 
-A form has up to four modes: list, detail, create, and edit. You choose which modes a form supports in Design view, and a navigation item can open a form in a specific mode. A form whose source is a saved query is read-only, so it has no create or edit mode.
+A form has up to six modes: list, continuous, split, detail, create, and edit. New forms get list, detail, create, and edit. You choose which modes a form supports in Design view, and a navigation item can open a form in a specific mode. A form whose source is a saved query is read-only, so it has no create or edit mode.
 
 | Mode | What the user sees | Buttons |
 | --- | --- | --- |
 | List | A page of rows | **New** opens create mode. Selecting a row opens it in detail mode |
+| Continuous | A page of records, each drawn with the form's own layout and editable in place | **Save**, **Undo**, and **Delete** on each changed row. **Add** on the new-record row |
+| Split | The list above the selected record's detail view | Selecting a row shows it below. **Edit** and **Delete** work in the detail view |
 | Detail | One record, read-only | **Edit** and **Delete**, when the role allows them |
 | Create | An empty record | **Create** and **Cancel** |
 | Edit | The record with editable fields | **Save** and **Cancel** |
 
 A list form opens rows in itself or in the detail form set in its **Row opens** property. Cancel in edit mode returns to detail mode. Cancel in create mode returns to the previous page.
+
+## Continuous and split forms
+
+A continuous form repeats the form's layout once per record, like an Access continuous form. Each row saves on its own: press **Save** or Enter, or move to another row and the changed row saves. Validation runs per row. The last row is empty and adds a new record. Related lists do not show inside a continuous form.
+
+A split form shows the list as a datasheet with the selected record below it. Saving in the detail view refreshes the datasheet. Both modes page and read the same way as list pages.
+
+## Record navigation bar
+
+Turn on **Record navigation bar** in a form's properties to show first, previous, next, last, and new record buttons above a record in detail mode, with its position, such as "Record 2 of 3". New forms have it on. The bar steps through the records in the order of the list the record was opened from, including its sort and search. A record opened directly, such as from a button, shows the record count and starts with the first and last buttons. The bar is disabled while the record has unsaved changes.
 
 ## List pages
 

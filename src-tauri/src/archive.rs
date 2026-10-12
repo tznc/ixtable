@@ -18,7 +18,7 @@ pub use crate::archive_io::{
     read_archive, read_header, write_archive, ArchiveHeader, FORMAT_VERSION, MIN_FORMAT_VERSION,
 };
 /// Current `DocumentConfig.version`. Version 2 configs load through serde defaults.
-pub const CONFIG_VERSION: u32 = 4;
+pub const CONFIG_VERSION: u32 = 5;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ArchiveError {

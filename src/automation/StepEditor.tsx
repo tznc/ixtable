@@ -3,6 +3,7 @@ import { inspectTable } from "../lib/api";
 import { useDocumentConfig } from "../lib/config-store";
 import { QueryPicker } from "../query/QueryPicker";
 import { useShell } from "../shell/context";
+import { FORM_MODES, formModeLabel } from "../design/schema";
 import { ActionPicker } from "./ActionPicker";
 import { ExprInput, SelectField, TextField, ValueMapEditor } from "./fields";
 import { newStep, STEP_LABELS } from "./steps";
@@ -277,12 +278,40 @@ function StepFields({
             label="Form mode"
             value={step.mode ?? "detail"}
             onChange={(v) => set({ mode: v })}
-            options={["list", "detail", "create", "edit"].map((m) => ({ value: m, label: m }))}
+            options={FORM_MODES.map((m) => ({ value: m, label: formModeLabel(m) }))}
           />
           <ExprInput
             label="Record id"
             value={step.recordId}
             onChange={(v) => set({ recordId: v || undefined })}
+          />
+          <label className="ax-check">
+            <input
+              type="checkbox"
+              checked={!!step.popup}
+              onChange={(e) =>
+                set(e.target.checked ? { popup: true } : { popup: undefined, storeAs: undefined })
+              }
+            />
+            Open as popup and wait for it to close
+          </label>
+          {step.popup && (
+            <TextField
+              label="Store result as"
+              value={step.storeAs}
+              onChange={(v) => set({ storeAs: v || undefined })}
+            />
+          )}
+          {when}
+        </div>
+      );
+    case "closeForm":
+      return (
+        <div className="ax-row">
+          <ExprInput
+            label="Return value"
+            value={step.value}
+            onChange={(v) => set({ value: v || undefined })}
           />
           {when}
         </div>

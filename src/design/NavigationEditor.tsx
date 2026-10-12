@@ -95,7 +95,7 @@ export function NavigationEditor({ objects }: { objects: DbObject[] }) {
                 }
               >
                 <option value="">Default mode</option>
-                {FORM_MODES.filter((m) => m === "list" || m === "create").map((mode) => (
+                {FORM_MODES.filter((m) => m !== "detail" && m !== "edit").map((mode) => (
                   <option key={mode} value={mode}>
                     {mode}
                   </option>
