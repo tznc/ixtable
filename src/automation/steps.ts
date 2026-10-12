@@ -17,6 +17,7 @@ export const STEP_LABELS: Record<StepKind, string> = {
   condition: "If / else",
   runAction: "Run action",
   fail: "Fail with message",
+  setField: "Set field (before-change)",
 };
 
 export function newStep(kind: StepKind): Step {
@@ -52,5 +53,7 @@ export function newStep(kind: StepKind): Step {
       return { id, kind, actionId: "" };
     case "fail":
       return { id, kind, message: "" };
+    case "setField":
+      return { id, kind, field: "", value: "" };
   }
 }

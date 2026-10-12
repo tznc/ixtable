@@ -231,3 +231,4 @@ checkpoints are validated archive copies under
 - 2026-10-09: config version 4 adds `SavedQuery.action` (action queries); version 3 configs upgrade on load.
 - 2026-10-10: config version 5 adds `Form.navigationBar` and the `continuous` and `split` form modes (docs/decisions/form-views.md); version 4 configs upgrade on load.
 - 2026-10-10: config version 6 adds `Form.events` ([form events](./form-events.md)); version 5 configs upgrade on load.
+- 2026-10-10: config version 7 adds the `deleted` and `beforeChange` trigger events and the `setField` step; version 6 configs upgrade on load.

@@ -79,17 +79,37 @@ foreign keys and `ON DELETE CASCADE` are enforced by SQLite on every
 platform. PostgreSQL runs
 every kind directly, `postgres_scanner` handles every type.
 
-**Triggers.** When the target has enabled `created` or `updated` triggers, the
-run finds the changed rows: inserts compare key sets before and after,
-updates compare every column by key, and `replace` reports every row as
-created. `run_action_query` returns the created identities, the updated
-identities with their old values, and one sync-trigger grant per event.
+**Triggers.** When the target has enabled `created`, `updated` or `deleted`
+triggers, the run finds the changed rows: inserts compare key sets before and
+after, updates compare every column by key, deletes keep every column of the
+rows that are gone, and `replace` reports every old row as deleted and every
+new row as created. `run_action_query` returns the created identities, the
+updated identities with their old values, the deleted rows with their values,
+and one sync-trigger grant per event. Rows an SQL cascade removes from other
+tables do not fire those tables' triggers.
 `src/lib/records.ts` `runActionQuery` calls each record hook once with a
 single write whose `meta.bulk` carries those rows, and `src/automation/triggers.ts`
 fires the triggers once per row, in order, as if each row had been written
 alone. Each use of a grant extends it (`trigger_auth::verify`), so one grant
 covers all rows of an event. It is released when they are done. A table with
 triggers needs a primary key.
+
+**Before-change triggers.** They run in TypeScript, so a run on a table with
+enabled before-change triggers (any kind but delete) takes two calls
+(`queries::action_before`). The first runs the statement, collects every row
+it would create or update (all new values, and the old values of updated
+rows), rolls back, and returns them as `pending` with a fingerprint. The
+caller runs the triggers on each row; a rejection ends the run there, with
+nothing written. The second call carries `before`: the fingerprint and the
+fields set per row, by position. It runs the statement again, refuses with
+CONFLICT and rolls back if the rows differ, and applies the fields in the
+same transaction: an UPDATE by key on PostgreSQL, an UPDATE of the copy
+before it is compared for an embedded-SQLite update, and for rows an
+embedded-SQLite insert created, a DELETE and INSERT of the row (the
+attachment cannot UPDATE a date column). The fingerprint leaves out new rows'
+defaulted and identity columns, whose values can change between the calls,
+which is also why fields are matched by position. Trigger fields cannot
+change a row's key. A dry run skips the triggers.
 
 **Permissions.** A run needs the role's table operations: `create` for insert,
 `update`, `delete`, and both `delete` and `create` for replace
@@ -137,6 +157,11 @@ becomes a `runQuery` step.
   key, inserts with date defaults, dry runs and constraint rollback on a
   real SQLite file, foreign keys and cascades with the journal mode kept,
   validation, and (ignored, CI runs it) the PostgreSQL path.
+- `src-tauri/src/queries/action_before_tests.rs`: deleted rows of deletes
+  and replaces, pending rows and applied trigger fields for inserts and
+  embedded updates (a date column included), refused stale fingerprints, key
+  columns and unknown rows, and (ignored, CI runs it) the PostgreSQL path
+  with an identity column.
 - `src-tauri/src/trigger_auth_tests.rs`: a grant extended by each use.
 - `src-tauri/src/access/tests/translate.rs` and `convert.rs`: Access action
   statements translated and run in DuckDB. An imported template's append,
@@ -157,3 +182,5 @@ becomes a `runQuery` step.
 - 2026-10-10: PRD §9.4, §10 and §12.1 now allow the DuckDB write path for
   user-written action queries only, and require store constraints, including
   foreign keys, to hold as they do for RecordStore writes.
+- 2026-10-10: deleted triggers fire on delete and replace queries, and
+  before-change triggers run on each pending row through a second call.
