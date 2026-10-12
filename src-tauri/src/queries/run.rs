@@ -51,12 +51,12 @@ fn running() -> &'static Mutex<Vec<Running>> {
 }
 
 /// Deregisters a run when it finishes, however it finishes.
-pub(super) struct RunGuard {
+pub(crate) struct RunGuard {
     run_id: String,
-    pub(super) cancelled: Arc<AtomicBool>,
+    pub(crate) cancelled: Arc<AtomicBool>,
 }
 impl RunGuard {
-    pub(super) fn register(window: &str, run_id: &str, connection: &duckdb::Connection) -> Self {
+    pub(crate) fn register(window: &str, run_id: &str, connection: &duckdb::Connection) -> Self {
         let cancelled = Arc::new(AtomicBool::new(false));
         running().lock().unwrap().push(Running {
             window: window.into(),

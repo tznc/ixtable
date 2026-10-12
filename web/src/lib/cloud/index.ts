@@ -80,6 +80,16 @@ export function formatPrice(cents: number, interval: string): string {
   return `${amount} per ${interval}`;
 }
 
+/** Price line for a plan at an interval: the annual price is billed once per year. */
+export function planPrice(
+  plan: { price_cents: number; annual_price_cents: number },
+  interval: "month" | "year",
+): string {
+  return interval === "year"
+    ? formatPrice(plan.annual_price_cents, "year")
+    : formatPrice(plan.price_cents, "month");
+}
+
 export const ARCHIVE_LIMIT_BYTES = 500 * 1024 * 1024;
 
 export function shortId(id: string | null | undefined): string {
