@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Component kinds the canvas supports. Anything else is rejected by `validate`.
-pub const COMPONENT_KINDS: [&str; 8] = [
+pub const COMPONENT_KINDS: [&str; 9] = [
     "staticText",
     "field",
     "calculated",
@@ -19,6 +19,7 @@ pub const COMPONENT_KINDS: [&str; 8] = [
     "rectangle",
     "table",
     "subreport",
+    "chart",
 ];
 
 /// Levels of subreports a report may nest below itself (PRD Phase 7).
@@ -229,12 +230,30 @@ fn band_issues(
         }
         if c.kind == "table" {
             tables += 1;
+        }
+        if c.kind == "table" || c.kind == "chart" {
             if let Some(q) = c.extra.get("queryId").and_then(|v| v.as_str()) {
                 if !q.is_empty() && !config.saved_queries.iter().any(|s| s.id == q) {
                     issues.push(err(format!(
                         "{what} uses a saved query that does not exist"
                     )));
                 }
+            }
+        }
+        if c.kind == "chart" {
+            let chart_type = c.extra.get("chartType").and_then(|v| v.as_str());
+            if !matches!(
+                chart_type,
+                Some("bar" | "line" | "area" | "pie" | "donut" | "scatter")
+            ) {
+                issues.push(err(format!("{what} has an unsupported chart type")));
+            }
+        }
+        if let Some(sum) = c.extra.get("runningSum") {
+            if !matches!(sum.as_str(), Some("group" | "all")) {
+                issues.push(err(format!(
+                    "{what} running sum must be \"group\" or \"all\""
+                )));
             }
         }
     }
@@ -687,6 +706,39 @@ mod tests {
             .find(|i| i.message.contains("s3: subreports are not supported"))
             .expect("page band warning");
         assert_eq!(warning.severity, crate::archive::Severity::Warning);
+    }
+
+    #[test]
+    fn reports_validate_charts_and_running_sums() {
+        let mut r = valid_report();
+        let mut ok = component("ch1", "chart", 0.0, 0.0, 200.0, 100.0);
+        ok.extra.insert("chartType".into(), json!("bar"));
+        ok.extra.insert("queryId".into(), json!("q1"));
+        ok.extra.insert("xField".into(), json!("region"));
+        ok.extra.insert("yFields".into(), json!(["amount"]));
+        let mut bad = component("ch2", "chart", 0.0, 100.0, 200.0, 100.0);
+        bad.extra.insert("chartType".into(), json!("radar"));
+        bad.extra.insert("queryId".into(), json!("nope"));
+        let mut sum = component("s1", "calculated", 0.0, 0.0, 50.0, 20.0);
+        sum.extra.insert("runningSum".into(), json!("group"));
+        let mut wrong = component("s2", "field", 50.0, 0.0, 50.0, 20.0);
+        wrong.extra.insert("runningSum".into(), json!("page"));
+        r.bands.report_footer = Band {
+            height: 200.0,
+            components: vec![ok, bad],
+            ..Default::default()
+        };
+        r.bands.detail.components.extend([sum, wrong]);
+        let issues = validate(&config_with(r));
+        let text: Vec<String> = issues.iter().map(|i| i.message.clone()).collect();
+        assert_eq!(text.len(), 3, "{text:?}");
+        let has = |s: &str| text.iter().any(|m| m.contains(s));
+        assert!(has("ch2 has an unsupported chart type"), "{text:?}");
+        assert!(
+            has("ch2 uses a saved query that does not exist"),
+            "{text:?}"
+        );
+        assert!(has("s2 running sum must be"), "{text:?}");
     }
 
     #[test]

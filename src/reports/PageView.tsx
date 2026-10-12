@@ -1,4 +1,11 @@
-import { type Page, type PositionedItem, type ReportDocument, textRuns } from "./engine";
+import {
+  type Page,
+  type PathItem,
+  type PathOp,
+  type PositionedItem,
+  type ReportDocument,
+  textRuns,
+} from "./engine";
 
 /** Gray level (0 black … 1 white) as a CSS color. */
 const grayCss = (level: number) => {
@@ -33,11 +40,15 @@ function runsOf(text: string, fontSize: number, bold: boolean, x: number) {
   ));
 }
 
+/** SVG path data of chart path ops. */
+const svgPath = (ops: PathOp[]) =>
+  ops.map((op) => (op[0] === "Z" ? "Z" : `${op[0]}${op.slice(1).join(" ")}`)).join("");
+
 function Item({
   item,
   imageUrl,
 }: {
-  item: PositionedItem;
+  item: PositionedItem | PathItem;
   imageUrl: (id: string) => string | undefined;
 }) {
   switch (item.kind) {
@@ -84,6 +95,24 @@ function Item({
             </text>
           ))}
         </>
+      );
+    case "path":
+      return (
+        <path
+          d={svgPath(item.ops)}
+          fill={item.fill ?? "none"}
+          stroke={item.stroke && item.lineWidth > 0 ? item.stroke : "none"}
+          strokeWidth={item.stroke && item.lineWidth > 0 ? item.lineWidth : undefined}
+          strokeLinejoin="round"
+        />
+      );
+    case "chart":
+      return (
+        <g role="img" aria-label={item.title}>
+          {item.marks.map((mark, i) => (
+            <Item key={i} item={mark} imageUrl={imageUrl} />
+          ))}
+        </g>
       );
     case "image": {
       const href = imageUrl(item.assetId);

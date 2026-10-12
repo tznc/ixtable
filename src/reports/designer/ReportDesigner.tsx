@@ -1,5 +1,6 @@
 import {
   Calculator,
+  ChartColumn,
   FileStack,
   Image,
   Minus,
@@ -38,6 +39,7 @@ const PALETTE: [ComponentKind, string, typeof Type][] = [
   ["rectangle", "Add rectangle", Square],
   ["table", "Add table", Table2],
   ["subreport", "Add subreport", FileStack],
+  ["chart", "Add chart", ChartColumn],
 ];
 
 /** Kinds that page headers and footers can't hold. */

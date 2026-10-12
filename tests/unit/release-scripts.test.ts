@@ -1,13 +1,16 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { compareVersions, readVersions, resolvePlan } from "../../scripts/release/plan.mjs";
 import {
   exportedNames,
   missingSecrets,
+  notarizationMethod,
   releaseConnectSrc,
   requiredSecrets,
   tauriConfigOverride,
+  writeApiKey,
 } from "../../scripts/release/signing.mjs";
 
 const root = join(__dirname, "../..");
@@ -138,6 +141,35 @@ describe("signing secrets", () => {
     expect(exportedNames("macos", { APPLE_ID: "a" })).toEqual(["APPLE_ID"]);
   });
 
+  it("notarizes with an App Store Connect API key once one is set, and never exports its text", () => {
+    expect(notarizationMethod({})).toBe("appleId");
+    const apiKey = { APPLE_API_ISSUER: "i", APPLE_API_KEY: "ABC123", APPLE_API_PRIVATE_KEY: "k" };
+    expect(notarizationMethod({ APPLE_API_KEY: "ABC123" })).toBe("apiKey");
+    const cert = {
+      APPLE_CERTIFICATE: "c",
+      APPLE_CERTIFICATE_PASSWORD: "p",
+      APPLE_SIGNING_IDENTITY: "s",
+    };
+    expect(missingSecrets("macos", { ...cert, ...apiKey })).toEqual([]);
+    expect(missingSecrets("macos", { ...cert, APPLE_API_KEY: "ABC123" })).toEqual([
+      "APPLE_API_ISSUER",
+      "APPLE_API_PRIVATE_KEY",
+    ]);
+    expect(exportedNames("macos", { ...cert, ...apiKey })).not.toContain("APPLE_API_PRIVATE_KEY");
+  });
+
+  it("writes the API key where the Tauri CLI looks for it, readable only by the runner", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ixtable-signing-"));
+    const path = writeApiKey({ APPLE_API_KEY: "ABC123", APPLE_API_PRIVATE_KEY: "pem" }, dir);
+    expect(path).toBe(join(dir, "AuthKey_ABC123.p8"));
+    expect(readFileSync(path, "utf8")).toBe("pem\n");
+    if (process.platform !== "win32") expect(statSync(path).mode & 0o077).toBe(0);
+    expect(writeApiKey({ APPLE_API_KEY: "ABC123" }, dir)).toBeUndefined();
+    expect(() => writeApiKey({ APPLE_API_KEY: "../x", APPLE_API_PRIVATE_KEY: "pem" }, dir)).toThrow(
+      /key ID/,
+    );
+  });
+
   it("signs Windows through Azure Trusted Signing only with all credentials", () => {
     const signed = tauriConfigOverride("windows", all("windows"));
     expect(signed.bundle.windows.signCommand.cmd).toBe("trusted-signing-cli");
@@ -173,4 +205,3 @@ describe("content security policy", () => {
     );
   });
 });
-

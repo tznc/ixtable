@@ -1,6 +1,6 @@
 import { evaluate } from "../../expr";
 import { pageDimensions } from "../model";
-import type { Band, Report, ReportGroup, SubreportComponent, TableComponent } from "../types";
+import type { Band, Report, ReportGroup, TableComponent } from "../types";
 import type {
   LayoutOptions,
   Page,
@@ -10,15 +10,13 @@ import type {
   Row,
 } from "./document";
 import { type Growth, grown, growBand } from "./grow";
+import { runningSums } from "./running";
 import { cutAt, sliceItems } from "./split";
+import type { RunningValue } from "./values";
 import {
   isSubreport,
-  linkedRows,
-  MAX_SUBREPORT_DEPTH,
-  SUBREPORT_DEPTH,
+  resolveSubreport,
   SUBREPORT_EXTRA,
-  SUBREPORT_LOOP,
-  SUBREPORT_MISSING,
   SUBREPORT_PAGE_BAND,
   splitAtSubreport,
 } from "./subreport";
@@ -53,6 +51,8 @@ interface Block {
   section: boolean;
   /** Open group headers (outer first) to repeat at the top of continuation pages. */
   repeat: Block[];
+  /** Running-sum values of this instance (detail and group bands). */
+  running?: Map<string, RunningValue>;
 }
 
 interface Prepared extends Block {
@@ -124,12 +124,16 @@ export function layoutReport(
     groupPage: null,
     groupPages: null,
   };
-  const context = (scope: Record<string, unknown>): RenderContext => ({
+  const context = (
+    scope: Record<string, unknown>,
+    running?: Map<string, RunningValue>,
+  ): RenderContext => ({
     scope,
     now: options.now,
     tables: options.tables ?? {},
     assets: options.assets ?? {},
     diagnose,
+    running,
   });
 
   // 1–2. Sort rows by group keys (stable) and flatten into band instances.
@@ -182,7 +186,13 @@ export function layoutReport(
         for (const c of extra) diagnose(c.id, SUBREPORT_EXTRA);
         const { head, tail } = splitAtSubreport(b.band, sub);
         push({ ...b, band: head, breakAfter: false });
-        const child = subreport(sub, b.scope.record, frame.stack);
+        const child = resolveSubreport(
+          sub,
+          options.subreports,
+          b.scope.record,
+          frame.stack,
+          diagnose,
+        );
         if (child)
           flatten(
             child.report,
@@ -203,6 +213,8 @@ export function layoutReport(
     };
     const reportBand = (band: Band, scope: Record<string, unknown>) =>
       push(block(band, scope, { repeat: [...frame.repeat] }));
+    // Running sums are counted per printed report: each subreport instance starts again.
+    const { counted, restartBelow } = runningSums(options.now);
     reportBand(source.bands.reportHeader, { rows, record: rows[0] ?? null });
     let rowNumber = 0;
     const emit = (level: number, slice: typeof keyed) => {
@@ -210,7 +222,13 @@ export function layoutReport(
         const sliceRows = slice.map((k) => k.row);
         for (const k of slice)
           push(
-            block(source.bands.detail, { record: k.row, rows: sliceRows, rowNumber: ++rowNumber }),
+            counted(
+              block(source.bands.detail, {
+                record: k.row,
+                rows: sliceRows,
+                rowNumber: ++rowNumber,
+              }),
+            ),
           );
         return;
       }
@@ -226,44 +244,32 @@ export function layoutReport(
         const run = slice.slice(start, end);
         const runRows = run.map((k) => k.row);
         const group = { key: run[0].keys[level], level: level + 1, count: run.length };
+        restartBelow(groups, level, source.bands.detail);
         // Page numbering sections belong to the run report, not its subreports.
-        const header = block(
-          g.header,
-          { rows: runRows, record: runRows[0], group },
-          {
-            keepWithNext: g.header.keepTogether,
-            breakBefore: !!(g.header.pageBreakBefore || g.newPage || g.resetPageNumber),
-            section: !nested && !!g.resetPageNumber,
-          },
+        const header = counted(
+          block(
+            g.header,
+            { rows: runRows, record: runRows[0], group },
+            {
+              keepWithNext: g.header.keepTogether,
+              breakBefore: !!(g.header.pageBreakBefore || g.newPage || g.resetPageNumber),
+              section: !nested && !!g.resetPageNumber,
+            },
+          ),
         );
         push(header);
         const repeats = !!g.repeatHeader && !isEmptyBand(g.header);
         if (repeats) open.push(header);
         emit(level + 1, run);
-        push(block(g.footer, { rows: runRows, record: runRows[runRows.length - 1], group }));
+        push(
+          counted(block(g.footer, { rows: runRows, record: runRows[runRows.length - 1], group })),
+        );
         if (repeats) open.pop();
         start = end;
       }
     };
     emit(0, keyed);
     reportBand(source.bands.reportFooter, { rows, record: rows[rows.length - 1] ?? null });
-  };
-  /** The report and linked rows a subreport prints, or null (with a diagnostic) when it can't. */
-  const subreport = (sub: SubreportComponent, parent: unknown, stack: string[]) => {
-    const data = options.subreports?.[sub.reportId];
-    const problem = !sub.reportId
-      ? null
-      : stack.includes(sub.reportId)
-        ? SUBREPORT_LOOP
-        : stack.length > MAX_SUBREPORT_DEPTH
-          ? SUBREPORT_DEPTH
-          : !data
-            ? SUBREPORT_MISSING
-            : null;
-    if (problem) diagnose(sub.id, problem);
-    if (problem || !data) return null;
-    const rows = linkedRows(sub, data.rows, parent);
-    return rows.length ? { report: data.report, rows } : null;
   };
   flatten(report, inputRows, base, { x: 0, repeat: [], stack: [report.id] });
 
@@ -277,7 +283,7 @@ export function layoutReport(
     b.repeat.reduce((sum, h) => sum + repeatedHeight(prepareOnce(h)), 0);
   const prepare = (block: Block): Prepared => {
     const comp = block.band.components.find((c): c is TableComponent => c.kind === "table");
-    const growth = growBand(block.band, context(block.scope));
+    const growth = growBand(block.band, context(block.scope, block.running));
     if (!comp) {
       const h = block.band.height + (growth?.extra ?? 0);
       // Grown text splits between lines unless keepTogether holds and the band fits a page.
@@ -291,7 +297,7 @@ export function layoutReport(
         minFirst: splittable ? block.band.height : h,
       };
     }
-    const geo = measureTable(comp, context(block.scope));
+    const geo = measureTable(comp, context(block.scope, block.running));
     const h = block.band.height + Math.max(0, geo.height - comp.h);
     const splittable = !block.band.keepTogether || h > bodyHeight - repeatHeight(block) + EPS;
     const minFirst = splittable ? comp.y + geo.headerHeight + (geo.rowHeights[0] ?? 0) : h;
@@ -500,10 +506,10 @@ function bandItems(
   left: number,
   oy: number,
   page: PageContext,
-  context: (scope: Record<string, unknown>) => RenderContext,
+  context: (scope: Record<string, unknown>, running?: Map<string, RunningValue>) => RenderContext,
   part: "all" | "above" | "below" | "repeat",
 ): PositionedItem[] {
-  const ctx = context({ ...p.scope, ...page });
+  const ctx = context({ ...p.scope, ...page }, p.running);
   const ox = left + p.x;
   const table = p.table;
   const belowStart = table ? table.comp.y + table.comp.h : Number.POSITIVE_INFINITY;

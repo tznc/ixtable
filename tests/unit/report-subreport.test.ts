@@ -126,6 +126,30 @@ describe("subreports", () => {
     expect(items).toEqual(many.map((r) => `${r.item} x1`));
   });
 
+  it("counts running sums per subreport instance and in the band around it", () => {
+    const running = named("running", {
+      detail: band(12, [{ ...field("rq", "record.qty"), runningSum: "all" } as ReportComponent]),
+    });
+    const parent = named("invoices", {
+      detail: band(50, [
+        { ...field("rid", "record.id"), runningSum: "all" } as ReportComponent,
+        sub("running"),
+        field("total", "'End ' & record.id", 34),
+      ]),
+    });
+    const doc = layoutReport(parent, invoices.slice(0, 2), {
+      subreports: { running: { report: running, rows: lines } },
+    });
+    expect(doc.diagnostics).toEqual([]);
+    const text = (id: string) =>
+      texts(doc)
+        .flat()
+        .filter((t) => t[0] === id)
+        .map((t) => t[1]);
+    expect(text("rq")).toEqual(["4", "12", "14", "1"]);
+    expect(text("rid")).toEqual(["1", "3"]);
+  });
+
   it("nests three levels and stops at the fourth or at a loop", () => {
     const level = (id: string, child?: string): Report =>
       named(id, {

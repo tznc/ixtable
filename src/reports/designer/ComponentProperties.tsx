@@ -7,18 +7,15 @@ import type {
   ComponentStyle,
   Report,
   ReportComponent,
+  RunningSum,
   SubreportLink,
   TableColumn,
   TextAlign,
 } from "../types";
+import { ChartProperties } from "./ChartProperties";
+import { ConditionsEditor } from "./ConditionsEditor";
 import { ExpressionInput, PointInput } from "./fields";
-
-const FILLS: [string, number | null][] = [
-  ["None", null],
-  ["Light gray", 0.9],
-  ["Gray", 0.75],
-  ["Dark gray", 0.5],
-];
+import { FILLS } from "./styles";
 
 interface Props {
   component: ReportComponent;
@@ -100,7 +97,32 @@ export function ComponentProperties({
               onChange={(e) => onChange({ format: e.target.value } as Partial<ReportComponent>)}
             />
           </label>
+          {!pageBand && (
+            <label>
+              Running sum
+              <select
+                value={c.runningSum ?? ""}
+                onChange={(e) =>
+                  onChange({
+                    runningSum: (e.target.value || undefined) as RunningSum | undefined,
+                  } as Partial<ReportComponent>)
+                }
+              >
+                <option value="">No</option>
+                <option value="group">Over group</option>
+                <option value="all">Over all</option>
+              </select>
+            </label>
+          )}
         </>
+      )}
+      {c.kind === "chart" && (
+        <ChartProperties
+          chart={c}
+          columns={columns}
+          queries={queries}
+          onChange={(patch) => onChange(patch as Partial<ReportComponent>)}
+        />
       )}
       {c.kind === "image" && (
         <label>
@@ -230,6 +252,16 @@ export function ComponentProperties({
           </label>
         )}
       </fieldset>
+      {isText && (
+        <ConditionsEditor
+          conditions={c.conditions ?? []}
+          onChange={(conditions) =>
+            onChange({
+              conditions: conditions.length ? conditions : undefined,
+            } as Partial<ReportComponent>)
+          }
+        />
+      )}
       <button type="button" onClick={onDelete}>
         <Trash2 /> Delete component
       </button>

@@ -47,6 +47,7 @@ const KIND_SIZE: Record<ComponentKind, [number, number]> = {
   rectangle: [120, 40],
   table: [300, 40],
   subreport: [300, 60],
+  chart: [280, 160],
 };
 
 /** A new component of `kind`, placed at (x, y) and clamped into a band of `bandWidth`. */
@@ -75,6 +76,8 @@ export function newComponent(
       return { ...base, kind, queryId: "", columns: [] };
     case "subreport":
       return { ...base, kind, reportId: "", links: [] };
+    case "chart":
+      return { ...base, kind, chartType: "bar", queryId: "", xField: "", yFields: [] };
   }
 }
 
@@ -155,14 +158,16 @@ export function findComponent(
   return undefined;
 }
 
-/** Deep copy with fresh ids for the report, its groups, components and table columns. */
+/** Deep copy with fresh ids for the report, its groups, components, table columns and conditions. */
 export function duplicateReport(report: Report, name: string): Report {
   const copyBand = (band: Band): Band => ({
     ...band,
     components: band.components.map((c) =>
       c.kind === "table"
         ? { ...c, id: newId(), columns: c.columns.map((col) => ({ ...col, id: newId() })) }
-        : { ...c, id: newId() },
+        : "conditions" in c && c.conditions
+          ? { ...c, id: newId(), conditions: c.conditions.map((r) => ({ ...r, id: newId() })) }
+          : { ...c, id: newId() },
     ),
   });
   const b = structuredClone(report.bands);
@@ -215,6 +220,7 @@ export const KIND_LABELS: Record<ComponentKind, string> = {
   rectangle: "Rectangle",
   table: "Table",
   subreport: "Subreport",
+  chart: "Chart",
 };
 
 export const isPageBand = (key: BandKey) => key === "pageHeader" || key === "pageFooter";

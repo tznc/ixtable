@@ -1,5 +1,5 @@
 import type { Band, ReportComponent, SubreportComponent } from "../types";
-import type { Row } from "./document";
+import type { Row, SubreportData } from "./document";
 
 const EPS = 1e-6;
 
@@ -49,3 +49,27 @@ export const linkedRows = (sub: SubreportComponent, rows: Row[], parent: unknown
   const record = (parent ?? {}) as Row;
   return rows.filter((row) => links.every((l) => sameKey(row[l.child], record[l.master])));
 };
+
+/** The report and linked rows a subreport prints, or null (with a diagnostic) when it can't. */
+export function resolveSubreport(
+  sub: SubreportComponent,
+  loaded: Record<string, SubreportData> | undefined,
+  parent: unknown,
+  stack: string[],
+  diagnose: (componentId: string, message: string) => void,
+): { report: SubreportData["report"]; rows: Row[] } | null {
+  const data = loaded?.[sub.reportId];
+  const problem = !sub.reportId
+    ? null
+    : stack.includes(sub.reportId)
+      ? SUBREPORT_LOOP
+      : stack.length > MAX_SUBREPORT_DEPTH
+        ? SUBREPORT_DEPTH
+        : !data
+          ? SUBREPORT_MISSING
+          : null;
+  if (problem) diagnose(sub.id, problem);
+  if (problem || !data) return null;
+  const rows = linkedRows(sub, data.rows, parent);
+  return rows.length ? { report: data.report, rows } : null;
+}
