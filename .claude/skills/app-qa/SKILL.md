@@ -26,6 +26,7 @@ One spec per critical local flow lives in `scripts/screenshot/specs/`:
 | spec | flow (capture prefix) |
 |---|---|
 | `app-shell` | start, data grid, table design, canvas, inline record, SQL query, form builder, preview, close (`app-qa-*`, feeds the docs images in `manifest.mjs`) |
+| `datasheet` | Data mode tools: multi-column sort, filter by selection, find and replace, totals row, hidden and frozen columns, paste from a spreadsheet (`datasheet-*`) |
 | `schema` | create table with keys/FK/unique/check/index, table designer, impact preview, relationship diagram (`schema-*`) |
 | `query` | visual builder with join, aggregate, parameter, filter, sort, preview; generated SQL (`query-*`) |
 | `forms` | generate CRUD forms, keyboard grid resize, validation rule (`forms-*`); Runtime list, create with validation and relationship selector, master/detail, edit (`runtime-*`) |
@@ -37,6 +38,7 @@ One spec per critical local flow lives in `scripts/screenshot/specs/`:
 | `settings` | datasource, entities, migrations dry run, YAML, problems (`settings-*`) |
 | `templates` | start from CRM, Inventory, Work orders (`templates-*`) |
 | `access-import` | Access template import: inventory, conversion report, imported app in the Runtime (`access-*`) |
+| `export` | Export menu in Data, Query and Runtime lists; CSV/XLSX/JSON written with sort and filters (`export-*`) |
 
 Shared helpers (seeding through the bridge, Save As, settings tabs, templates) are in `specs/fixtures.tsx`.
 
