@@ -1,9 +1,12 @@
 import { Plus, Rows3, Trash2 } from "lucide-react";
-import { type ClipboardEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type ClipboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { datasheetText, datasheetValue } from "../../fields/datasheet";
+import { fieldSettingsFor } from "../../fields/values";
 import { asTauriError } from "../../lib/api";
+import { useDocumentConfig } from "../../lib/config-store";
 import { deleteRecord, insertRecord, updateRecord, writeRecordBatch } from "../../lib/records";
-import type { DbPage, Filter, Sort } from "../../lib/types";
-import { logicalOf, valueFromText } from "../../schema/logical";
+import type { DataValue, DbPage, Filter, Sort } from "../../lib/types";
+import { logicalOf } from "../../schema/logical";
 import { showValue } from "../format";
 import { addFilter, selectionFilter } from "./filters";
 import type { CellAt } from "./find";
@@ -11,7 +14,7 @@ import { FindReplace } from "./FindReplace";
 import { freezeThrough, hideColumn, visibleColumns } from "./layout";
 import { ColumnMenu } from "./ColumnMenu";
 import { isMultiCell, parseClipboardGrid, pastedMessage, pasteWrites, planPaste } from "./paste";
-import { isEditable, originalValues, typedValues } from "./rows";
+import { isEditable, originalValues, type SheetFields, typedValues } from "./rows";
 import { navigateDraft } from "./navigation";
 import { nextSorts } from "./sorts";
 import { SheetToolbar } from "./SheetToolbar";
@@ -60,6 +63,13 @@ export function Datasheet({
   onError: (message: string) => void;
 }) {
   const [layout, saveLayout] = useSheetLayout(table, onError);
+  const { config } = useDocumentConfig();
+  // Input masks and formats (rich text, attachments, multi-select) per column index.
+  const fields: SheetFields = useMemo(
+    () => page.columns.map((c) => fieldSettingsFor(config, table, c.name)),
+    [config, table, page.columns],
+  );
+  const shown = (j: number, v: DataValue) => datasheetText(v, fields[j]) ?? showValue(v);
   const [active, setActive] = useState<CellAt | null>(null);
   const [finding, setFinding] = useState(false);
   const [pending, setPending] = useState<{ offset: number; cell: CellAt } | null>(null);
@@ -72,7 +82,7 @@ export function Datasheet({
   const visible = visibleColumns(page.columns, layout);
   const frozen = visible.slice(0, layout.frozen);
   const frozenKey = frozen.join(",");
-  const editable = (j: number) => !readOnly && isEditable(page.columns[j]);
+  const editable = (j: number) => !readOnly && isEditable(page.columns[j], fields[j]);
   const editableVisible = visible.filter(editable);
 
   // Frozen columns stick at the summed widths of the row number and earlier frozen columns.
@@ -118,7 +128,7 @@ export function Datasheet({
   const commit = async (row: number, column: number, text: string) => {
     const meta = page.columns[column];
     try {
-      const value = valueFromText(text, meta.name, logicalOf(meta));
+      const value = datasheetValue(text, meta, fields[column]);
       await updateRecord(table, [{ column: meta.name, value }], page.identities[row], {
         expected: originalValues(page.columns, page.rows[row]),
       });
@@ -144,7 +154,7 @@ export function Datasheet({
     setDraftError("");
     try {
       const cells = new Map(Object.entries(draft).map(([j, text]) => [Number(j), text]));
-      await insertRecord(table, typedValues(page.columns, cells, false));
+      await insertRecord(table, typedValues(page.columns, cells, false, fields));
       setDraft({});
       onWritten();
     } catch (e) {
@@ -166,7 +176,7 @@ export function Datasheet({
       return;
     }
     try {
-      const writes = pasteWrites(table, page, plan);
+      const writes = pasteWrites(table, page, plan, fields);
       if (!writes.length) return;
       await writeRecordBatch(writes);
       setDraft({});
@@ -221,6 +231,7 @@ export function Datasheet({
           readOnly={readOnly}
           read={{ sorts, filters: readFilters }}
           visible={visible}
+          fields={fields}
           editable={editable}
           active={active}
           onFound={(at, cell) => {
@@ -339,7 +350,7 @@ export function Datasheet({
                         <input
                           key={`${revision}:${showValue(v)}`}
                           data-cell={`${i}:${j}`}
-                          defaultValue={showValue(v)}
+                          defaultValue={shown(j, v)}
                           aria-label={label}
                           onFocus={() => setActive({ row: i, column: j })}
                           onPaste={(e) => void paste(e, { row: i, column: j })}
@@ -347,7 +358,7 @@ export function Datasheet({
                             if (e.key === "Enter") e.currentTarget.blur();
                           }}
                           onBlur={(e) => {
-                            if (e.currentTarget.value !== showValue(v))
+                            if (e.currentTarget.value !== shown(j, v))
                               void commit(i, j, e.currentTarget.value);
                           }}
                         />
@@ -360,7 +371,7 @@ export function Datasheet({
                           aria-label={label}
                           onFocus={() => setActive({ row: i, column: j })}
                         >
-                          {showValue(v)}
+                          {shown(j, v)}
                         </span>
                       )}
                     </td>
@@ -388,8 +399,8 @@ export function Datasheet({
                   const props = cellProps(j);
                   return (
                     <td key={column.name} {...props}>
-                      {column.generated ? (
-                        <span>Generated</span>
+                      {column.generated || fields[j]?.format ? (
+                        <span>{column.generated ? "Generated" : "Use a form"}</span>
                       ) : (
                         <input
                           data-draft-index={visible.indexOf(j)}

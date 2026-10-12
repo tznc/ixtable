@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { runAction } from "../automation/runner";
 import type { DesignControl, DesignForm, FormMode } from "../design/schema";
 import { isInputKind } from "../design/schema";
+import { withFieldDefaults } from "../fields/defaults";
 import { useDocumentConfig } from "../lib/config-store";
 import { CommittedWriteError, deleteRecord, insertRecord, updateRecord } from "../lib/records";
 import type { DataValue, TableSchema } from "../lib/types";
@@ -53,7 +54,7 @@ const message = (reason: unknown) => {
 
 /** Detail, create, and edit modes of a form on the grid renderer. */
 export function RecordView({
-  form,
+  form: designed,
   mode,
   recordId,
   link,
@@ -65,6 +66,8 @@ export function RecordView({
   onDirty,
 }: Props) {
   const { config } = useDocumentConfig();
+  const entities = config.entities;
+  const form = useMemo(() => withFieldDefaults(designed, { entities }), [designed, entities]);
   const runtime = useRuntimeNavigation();
   const { roleId, app } = runtime;
   const table = form.source?.kind === "table" ? (form.source.table ?? null) : null;

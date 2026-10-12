@@ -3,7 +3,7 @@ import { useState } from "react";
 import { asTauriError, readTablePage } from "../../lib/api";
 import { type RecordWrite, updateRecord, writeRecordBatch } from "../../lib/records";
 import type { DataValue, DbPage, Filter, Sort } from "../../lib/types";
-import { logicalOf, valueFromText } from "../../schema/logical";
+import { datasheetValue } from "../../fields/datasheet";
 import {
   type CellAt,
   cellMatches,
@@ -12,7 +12,7 @@ import {
   nextMatch,
   replaceText,
 } from "./find";
-import { originalValues } from "./rows";
+import { originalValues, type SheetFields } from "./rows";
 
 /** Largest page the backend serves; replace-all reads the table in pages of this size. */
 const SCAN_PAGE = 1000;
@@ -29,6 +29,7 @@ export function FindReplace({
   readOnly,
   read,
   visible,
+  fields,
   editable,
   active,
   onFound,
@@ -42,6 +43,8 @@ export function FindReplace({
   /** The sorts and filters the datasheet reads with. */
   read: { sorts: Sort[]; filters: Filter[] };
   visible: number[];
+  /** Field settings per column index: find matches the masked or formatted text. */
+  fields: SheetFields;
   editable: (column: number) => boolean;
   active: CellAt | null;
   onFound: (offset: number, cell: CellAt) => void;
@@ -73,7 +76,7 @@ export function FindReplace({
   };
 
   const locate = async () => {
-    const here = nextMatch(page.rows, columns, options, active);
+    const here = nextMatch(page.rows, columns, options, active, fields);
     if (here) return onFound(page.offset, here);
     const pages = Math.ceil(page.total / pageSize);
     const current = Math.floor(page.offset / pageSize);
@@ -81,7 +84,7 @@ export function FindReplace({
     for (let k = 1; k <= pages; k++) {
       const offset = ((current + k) % pages) * pageSize;
       const rows = offset === page.offset ? page.rows : (await readPage(offset, pageSize)).rows;
-      const hit = nextMatch(rows, columns, options, null);
+      const hit = nextMatch(rows, columns, options, null, fields);
       if (hit) return onFound(offset, hit);
     }
     setStatus(`No matches for “${find}”.`);
@@ -92,7 +95,7 @@ export function FindReplace({
     const meta = page.columns[column];
     return {
       column: meta.name,
-      value: valueFromText(replaceText(text, replacement, options), meta.name, logicalOf(meta)),
+      value: datasheetValue(replaceText(text, replacement, options), meta, fields[column]),
       identity,
       expected: originalValues(page.columns, row),
     };
@@ -101,17 +104,27 @@ export function FindReplace({
   const replace = () =>
     run(async () => {
       const value = active && page.rows[active.row]?.[active.column];
-      if (!active || !value || !editable(active.column) || !cellMatches(value, options)) {
+      if (
+        !active ||
+        !value ||
+        !editable(active.column) ||
+        !cellMatches(value, options, fields[active.column])
+      ) {
         await locate();
         return;
       }
       const row = page.rows[active.row];
-      const change = write(row, page.identities[active.row], active.column, cellText(value) ?? "");
+      const change = write(
+        row,
+        page.identities[active.row],
+        active.column,
+        cellText(value, fields[active.column]) ?? "",
+      );
       await updateRecord(table, [{ column: change.column, value: change.value }], change.identity, {
         expected: change.expected,
       });
       onWritten();
-      const next = nextMatch(page.rows, columns, options, active);
+      const next = nextMatch(page.rows, columns, options, active, fields);
       if (next) onFound(page.offset, next);
     });
 
@@ -124,8 +137,8 @@ export function FindReplace({
         const chunk = await readPage(offset, SCAN_PAGE);
         chunk.rows.forEach((row, i) => {
           const values = targets
-            .filter((j) => cellMatches(row[j], options))
-            .map((j) => write(row, chunk.identities[i], j, cellText(row[j]) ?? ""));
+            .filter((j) => cellMatches(row[j], options, fields[j]))
+            .map((j) => write(row, chunk.identities[i], j, cellText(row[j], fields[j]) ?? ""));
           if (!values.length) return;
           cells += values.length;
           writes.push({

@@ -24,6 +24,7 @@ pub mod migrations;
 pub mod paths;
 pub mod postgres;
 pub mod queries;
+pub mod record_attachments;
 pub mod recordstore;
 pub mod recovery;
 mod report_pdf;
@@ -441,6 +442,11 @@ pub fn run() {
             recordstore::runtime_login::runtime_datasource_login_status,
             recordstore::runtime_login::set_runtime_datasource_login,
             recordstore::runtime_login::clear_runtime_datasource_login,
+            // record attachment commands
+            record_attachments::upload_record_attachment,
+            record_attachments::read_record_attachment,
+            record_attachments::save_record_attachment,
+            record_attachments::remove_unused_record_attachments,
             // roles commands
             authz::set_runtime_role_preview,
             // design commands
@@ -456,6 +462,7 @@ pub fn run() {
             // access commands
             access::inspect_access_file,
             access::import_access_file,
+            access::write_access_report,
             // templates commands
             templates::list_templates,
             templates::read_template_config,

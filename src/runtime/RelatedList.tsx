@@ -11,6 +11,7 @@ import { humanize } from "../design/generate";
 import { MAX_SUBFORM_DEPTH } from "../design/nesting";
 import { type DesignControl, type DesignForm, type FormMode, relatedKeys } from "../design/schema";
 import { readTablePage } from "../lib/api";
+import { fieldSettingsFor, fieldText } from "../fields/values";
 import { useDocumentConfig } from "../lib/config-store";
 import { deleteRecord } from "../lib/records";
 import type { DataValue, TableSchema } from "../lib/types";
@@ -165,6 +166,10 @@ export function RelatedRecords({
 
   if (!related) return null;
   const label = control.label || humanize(related.table);
+  const cellValue = (record: Record<string, unknown>, column: string) => {
+    const format = fieldSettingsFor(config, related.table, column)?.format;
+    return format ? fieldText(record[column], format) : displayText(record[column]);
+  };
   // Validation rejects deeper designs; this guard also stops a form that embeds itself.
   if (depth >= MAX_SUBFORM_DEPTH)
     return (
@@ -270,7 +275,7 @@ export function RelatedRecords({
                   {booleanColumn(column) ? (
                     <BooleanCell value={record[column]} />
                   ) : (
-                    (lookup(column, record) ?? displayText(record[column]))
+                    (lookup(column, record) ?? cellValue(record, column))
                   )}
                 </td>
               ))}

@@ -1,6 +1,6 @@
 import type { RecordWrite } from "../../lib/records";
 import type { DbPage } from "../../lib/types";
-import { originalValues, typedValues } from "./rows";
+import { originalValues, type SheetFields, typedValues } from "./rows";
 
 /**
  * Parses spreadsheet clipboard text (Excel, Numbers, Google Sheets: tab-separated
@@ -92,7 +92,12 @@ export function planPaste(
  * rows leave empty cells to their defaults. A cell that does not parse for its
  * column throws, naming the pasted row.
  */
-export function pasteWrites(table: string, page: DbPage, plan: PastePlan): RecordWrite[] {
+export function pasteWrites(
+  table: string,
+  page: DbPage,
+  plan: PastePlan,
+  fields: SheetFields = [],
+): RecordWrite[] {
   const at = (k: number, build: () => RecordWrite) => {
     try {
       return build();
@@ -107,7 +112,7 @@ export function pasteWrites(table: string, page: DbPage, plan: PastePlan): Recor
         operation: "update" as const,
         table,
         identity: page.identities[row],
-        values: typedValues(page.columns, cells, true),
+        values: typedValues(page.columns, cells, true, fields),
         meta: { expected: originalValues(page.columns, page.rows[row]) },
       })),
     ),
@@ -116,7 +121,7 @@ export function pasteWrites(table: string, page: DbPage, plan: PastePlan): Recor
         operation: "insert" as const,
         table,
         identity: null,
-        values: typedValues(page.columns, cells, false),
+        values: typedValues(page.columns, cells, false, fields),
       })),
     ),
   ];
