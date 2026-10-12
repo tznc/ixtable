@@ -7,11 +7,15 @@ import { pdfImage } from "./pdf-images";
 /** Characters of a laid-out report that print in a fallback font, as sorted code points. */
 export function fallbackCodePoints(doc: ReportDocument): number[] {
   const cps = new Set<number>();
-  for (const page of doc.pages)
-    for (const item of page.items)
-      if (item.kind === "text")
-        for (const line of item.lines)
-          for (const char of line.text) if (fallbackGlyph(char)) cps.add(char.codePointAt(0) ?? 0);
+  const texts = doc.pages.flatMap((page) =>
+    page.items.flatMap((item) =>
+      item.kind === "chart" ? item.marks : item.kind === "text" ? [item] : [],
+    ),
+  );
+  for (const item of texts)
+    if (item.kind === "text")
+      for (const line of item.lines)
+        for (const char of line.text) if (fallbackGlyph(char)) cps.add(char.codePointAt(0) ?? 0);
   return [...cps].sort((a, b) => a - b);
 }
 
