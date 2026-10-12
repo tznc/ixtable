@@ -26,6 +26,7 @@ One spec per critical local flow lives in `scripts/screenshot/specs/`:
 | spec | flow (capture prefix) |
 |---|---|
 | `app-shell` | start, data grid, table design, canvas, inline record, SQL query, form builder, preview, close (`app-qa-*`, feeds the docs images in `manifest.mjs`) |
+| `datasheet` | Data mode tools: multi-column sort, filter by selection, find and replace, totals row, hidden and frozen columns, paste from a spreadsheet (`datasheet-*`) |
 | `schema` | create table with keys/FK/unique/check/index, table designer, impact preview, relationship diagram (`schema-*`) |
 | `query` | visual builder with join, aggregate, parameter, filter, sort, preview; generated SQL (`query-*`) |
 | `forms` | generate CRUD forms, keyboard grid resize, validation rule (`forms-*`); Runtime list, create with validation and relationship selector, master/detail, edit (`runtime-*`) |
