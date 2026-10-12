@@ -460,6 +460,18 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
                 format!("form \"{}\" has an empty list filter", form.name),
             ));
         }
+        for (event, action) in form.events.bound() {
+            if !config.actions.iter().any(|a| a.id == action) {
+                out.push(Issue::error(
+                    "form",
+                    id,
+                    format!(
+                        "form \"{}\" runs an action that does not exist on {event}",
+                        form.name
+                    ),
+                ));
+            }
+        }
         match subform_depth(&embeds, id, &mut Vec::new()) {
             None => out.push(Issue::error("form", id, format!("form \"{}\" has related lists that open each other in a loop", form.name))),
             Some(depth) if depth > MAX_SUBFORM_DEPTH => out.push(Issue::error("form", id, format!("form \"{}\" nests related lists {depth} levels deep (at most {MAX_SUBFORM_DEPTH})", form.name))),

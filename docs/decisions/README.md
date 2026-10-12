@@ -27,6 +27,7 @@ every risk-retirement spike. This index maps each spike to its record.
 | [Data export](./data-export.md) | none. CSV, XLSX and JSON export streamed from DuckDB (PRD Phase 6) | accepted |
 | [Datasheet tools](./datasheet-tools.md) | none. Filter by selection, find and replace, frozen and hidden columns, totals row, spreadsheet paste (PRD Phase 6) | accepted |
 | [Continuous, split and popup forms](./form-views.md) | none. Phase 6 form modes, record navigation bar, popup forms with return values | accepted |
+| [Form events](./form-events.md) | none. Form events run declarative actions (PRD §17.4) | accepted |
 
 The Phase 0 item "signed personalized bundle and envelope-encryption threat
 model" is covered by the [cloud security model](./cloud-security-model.md)
