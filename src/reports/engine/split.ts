@@ -1,4 +1,4 @@
-import { type PositionedItem, r2 } from "./document";
+import { moveChart, type PositionedItem, r2 } from "./document";
 import { BASELINE, LINE_HEIGHT } from "./text";
 
 /** Coordinates are rounded to 0.01 pt, so comparisons allow that much. */
@@ -13,7 +13,7 @@ const lineBottom = (item: TextItem, line: Line) =>
 /**
  * Where a piece of a band that starts at `from` and may reach `limit` ends
  * (coordinates relative to the band top). The cut falls between text lines;
- * an image or line that crosses it moves it above that item. Rectangles and
+ * an image, chart or line that crosses it moves it above that item. Rectangles and
  * text frames don't move it: they are clipped. Returns `from` when nothing
  * fits.
  */
@@ -66,6 +66,8 @@ export function sliceItems(
         h: r2(h),
         lines: lines.map((line) => ({ ...line, y: r2(line.y + dy) })),
       });
+    } else if (item.kind === "chart") {
+      if (inside(item.y)) out.push(moveChart(item, dy));
     } else if (item.kind === "image" || (item.kind === "line" && item.h === 0)) {
       if (inside(item.y)) out.push({ ...item, y: r2(item.y + dy) });
     } else if (h > TOL) out.push({ ...item, y: r2(top + dy), h: r2(h) });

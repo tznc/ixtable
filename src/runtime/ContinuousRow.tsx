@@ -168,8 +168,8 @@ export function ContinuousRow({
     errors: errors.fields,
     readOnly: !editable,
     locked,
-    // One level of master/detail: a repeated row holds no related lists.
-    embedded: true,
+    // A repeated row holds no related lists; open the record for its details.
+    repeated: true,
     identity,
     setField: (column, value) => setRecord((current) => ({ ...current, [column]: value })),
     blur: (control) => {

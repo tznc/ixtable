@@ -55,6 +55,7 @@ export const RATE_LIMITS = {
   "invitations-create": { max: 30, windowSeconds: 3600 },
   "invitations-accept": { max: 20, windowSeconds: 600 },
   "members-update": { max: 120, windowSeconds: 3600 },
+  "app-access-update": { max: 120, windowSeconds: 3600 },
   "archive-upload-url": { max: 60, windowSeconds: 3600 },
   "publish-checkpoint": { max: 30, windowSeconds: 3600 },
   "versions-resolve": { max: 20, windowSeconds: 3600 },

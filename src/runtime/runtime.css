@@ -412,3 +412,112 @@
   width: 14px;
   height: 14px;
 }
+.rt-richtext {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #d5d8dc;
+  border-radius: 4px;
+  background: var(--ix-surface);
+}
+.rt-richtext-tools {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-bottom: 1px solid #e3e5e8;
+}
+.rt-richtext-tools button {
+  border: 0;
+  background: transparent;
+  padding: 3px 5px;
+}
+.rt-richtext-tools svg {
+  width: 14px;
+  height: 14px;
+}
+.rt-richtext-box,
+.rt-richtext-view {
+  min-height: 72px;
+  padding: 6px 8px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.rt-richtext-view {
+  border: 0;
+  color: var(--ix-text);
+}
+.rt-richtext-box:focus-visible {
+  outline: 2px solid var(--ix-focus);
+  outline-offset: -2px;
+}
+.rt-richtext-box ul,
+.rt-richtext-view ul {
+  list-style: disc;
+  padding-left: 20px;
+}
+.rt-richtext-box ol,
+.rt-richtext-view ol {
+  list-style: decimal;
+  padding-left: 20px;
+}
+.rt-multiselect {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-size: 13px;
+}
+.rt-multiselect label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 400;
+}
+.rt-attachments ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rt-attachments li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.rt-attachments li small {
+  color: var(--ix-subtle);
+}
+.rt-attachments li button {
+  border: 0;
+  background: transparent;
+  padding: 2px;
+}
+.rt-attachments svg {
+  width: 14px;
+  height: 14px;
+}
+.rt-attach-add {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border: 1px solid #d5d8dc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  width: fit-content;
+}
+.rt-attach-add input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.rt-attach-add:focus-within {
+  outline: 2px solid var(--ix-focus);
+}

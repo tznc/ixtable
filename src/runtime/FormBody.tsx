@@ -1,7 +1,7 @@
 import { type KeyboardEvent, useState } from "react";
 import { controlConstraints } from "../design/constraints";
 import type { DesignControl, DesignForm, TabPage } from "../design/schema";
-import { isInputKind } from "../design/schema";
+import { formTable, isInputKind } from "../design/schema";
 import { GridCanvas, GridItem } from "../grid";
 import { ComputedValue, Field, ImageView } from "./controls";
 import { toneFor } from "./conditions";
@@ -21,7 +21,8 @@ export type BodyContext = {
   readOnly: boolean;
   /** Columns that may not be edited (the related-list link, auto keys). */
   locked: Set<string>;
-  embedded: boolean;
+  /** True on a continuous form's repeated rows, which hold no related lists. */
+  repeated?: boolean;
   identity: DataValue[] | null;
   setField: (column: string, value: unknown) => void;
   blur: (control: DesignControl) => void;
@@ -107,7 +108,7 @@ function ControlView({ ctx, control }: { ctx: BodyContext; control: DesignContro
     case "image":
       return <ImageView control={control} />;
     case "relatedList":
-      if (ctx.embedded) return null;
+      if (ctx.repeated) return null;
       return <RelatedRecords ctx={ctx} control={control} disabled={!ctx.enabled.has(control.id)} />;
     default:
       break;
@@ -128,6 +129,7 @@ function ControlView({ ctx, control }: { ctx: BodyContext; control: DesignContro
   return (
     <Field
       control={control}
+      table={formTable(ctx.form)}
       value={value}
       readOnly={readOnly}
       error={ctx.errors[control.id]}

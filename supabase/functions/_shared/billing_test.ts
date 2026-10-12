@@ -41,7 +41,11 @@ Deno.test("buildFakeEvent produces Stripe-shaped events carrying app metadata", 
   assert(String(event.id).startsWith("evt_fake_"));
   const object = (event.data as { object: Record<string, unknown> }).object;
   assertEquals(object.status, "active");
-  assertEquals(object.metadata, { app_id: "app-1234567890", plan_id: "team" });
+  assertEquals(object.metadata, {
+    app_id: "app-1234567890",
+    plan_id: "team",
+    billing_interval: "month",
+  });
   const checkout = buildFakeEvent({
     type: "checkout.session.completed",
     appId: "a",
@@ -59,16 +63,25 @@ Deno.test("fake provider returns website URLs; billingProvider requires a provid
   const provider = fakeProvider("http://127.0.0.1:3001");
   const checkout = await provider.createCheckout({
     appId: "app",
+    orgId: "org",
     planId: "team",
-    priceId: "price_fake_team",
+    interval: "year",
+    priceId: "price_fake_team_annual",
     userId: "u",
-    customerEmail: "a@example.com",
+    customerId: "cus_fake_org",
     successUrl: "http://127.0.0.1:3001/ok",
     cancelUrl: "http://127.0.0.1:3001/cancel",
   });
   assert(
     checkout.url.startsWith("http://127.0.0.1:3001/cloud/billing/fake-checkout?session=cs_fake_"),
   );
+  assertEquals(new URL(checkout.url).searchParams.get("interval"), "year");
+  const customer = await provider.createCustomer({
+    orgId: "org",
+    orgName: "Acme",
+    email: "a@b.co",
+  });
+  assert(customer.customerId.startsWith("cus_fake_"));
   Deno.env.delete("BILLING_PROVIDER");
   assertThrows(() => billingProvider());
   Deno.env.set("BILLING_PROVIDER", "fake");

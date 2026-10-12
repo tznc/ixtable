@@ -183,6 +183,9 @@ verify_jwt = true
 [functions.members-update]
 verify_jwt = true
 
+[functions.app-access-update]
+verify_jwt = true
+
 [functions.archive-upload-url]
 verify_jwt = true
 

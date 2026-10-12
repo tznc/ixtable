@@ -163,6 +163,10 @@ impl ReadRuntime {
     pub(super) fn from(&self, table: &str) -> String {
         format!("data.{}.{}", q(self.schema_name()), q(table))
     }
+    /// The read path of any table, including internal `_ixtable_` tables.
+    pub fn qualified(&self, table: &str) -> String {
+        self.from(table)
+    }
 
     pub fn objects(&self) -> Result<Vec<DbObject>, String> {
         self.ready()?;

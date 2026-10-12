@@ -27,7 +27,7 @@ through DuckDB, and to write through the RecordStore so triggers run.
   `RecordView.save` (computed inputs written, disabled fields kept, `expected` values
   for optimistic entities) and goes through `src/lib/records.ts`. A changed row saves on
   Save, Enter, or when focus leaves it. A save re-reads the page. Rows render with
-  `embedded`, so related lists stay one level deep.
+  `repeated`, so a row shows no related lists (the detail form does).
 - **Split** (`src/runtime/SplitView.tsx`). `ListView` with a `selected` row and a
   `refresh` counter above a `RecordView` of the detail form. Saving or deleting in the
   pane bumps `refresh`.
