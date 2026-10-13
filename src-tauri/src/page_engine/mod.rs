@@ -7,6 +7,7 @@
 pub mod binding;
 pub mod chart;
 pub mod data;
+pub mod links;
 pub mod load;
 pub mod model;
 

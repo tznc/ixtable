@@ -152,6 +152,7 @@ pub fn new_dashboard(name: &str) -> Page {
         layout: default_grid_layout(),
         filters: vec![],
         components: vec![],
+        parameters: vec![],
     }
 }
 

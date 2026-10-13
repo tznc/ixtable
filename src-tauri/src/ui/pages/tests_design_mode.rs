@@ -149,3 +149,64 @@ fn the_runtime_treats_the_blank_main_form_page_as_an_empty_app(cx: &mut TestAppC
     // The page only shows the blank main form, so the Runtime offers to build the app.
     assert!(h.try_label("rt-empty").is_some());
 }
+
+#[gpui_kit::test]
+fn declares_page_parameters_and_links_pages_with_values(cx: &mut TestAppContext) {
+    let mut h = tall_document(cx);
+    // Page 1 takes a required region.
+    new_dashboard(&mut h);
+    h.click("add-page-param");
+    h.fill("page-param-name:1", "region");
+    h.click("page-param-required:1");
+    let target = dashboard(&h);
+    assert_eq!(target.parameters[0].name, "region");
+    assert!(target.parameters[0].required);
+
+    // Page 2 has a button that opens Page 1 with region 'East'.
+    h.click("new-page");
+    h.click("add-button");
+    crate::ui::reports::test_support::choose(&mut h, "prop-target-page", "Page 1");
+    h.fill("prop-page-param:region", "'East'");
+    let source = dashboard(&h);
+    let button = &source.components[0];
+    assert_eq!(button.target_page_id.as_deref(), Some(target.id.as_str()));
+    assert_eq!(button.page_params.get("region").map(String::as_str), Some("'East'"));
+
+    // A navigation item to Page 1 takes a value too, and the links overview lists both.
+    h.click("design-navigation");
+    h.click("add-nav-item");
+    let item = h.config().design.navigation.last().cloned().expect("nav item");
+    crate::ui::reports::test_support::choose(&mut h, &format!("nav-target:{}", item.id), "Page 1");
+    h.fill(id(&format!("nav-param:{}:region", item.id)), "'West'");
+    let item = h.config().design.navigation.last().cloned().expect("nav item");
+    assert_eq!(item.params.get("region").map(String::as_str), Some("'West'"));
+    let links: Vec<String> = (1..=3).filter_map(|n| h.try_label(id(&format!("page-link:{n}")))).collect();
+    assert!(links.contains(&"Button Action button 1 on Page 2 opens Page 1 (region = 'East')".to_string()) || links.iter().any(|l| l.contains("on Page 2 opens Page 1 (region = 'East')")), "{links:?}");
+    assert!(links.iter().any(|l| l.ends_with("opens Page 1 (region = 'West')")), "{links:?}");
+}
+
+#[gpui_kit::test]
+fn a_page_button_opens_its_target_page_in_the_runtime_with_the_values(cx: &mut TestAppContext) {
+    let mut h = tall_document(cx);
+    crate::ui::reports::test_support::edit_store(&mut h, |c| {
+        c.pages = serde_json::from_value(serde_json::json!([
+            {"id": "detail", "name": "Detail", "parameters": [{"name": "region", "logicalType": "text"}],
+             "components": [{"id": "t", "kind": "text", "title": "Note", "placement": {"column": 1, "row": 1, "columnSpan": 4},
+                             "visibleWhen": "params.region == 'East'", "text": "East detail"}]},
+            {"id": "home", "name": "Home", "components": [
+                {"id": "b", "kind": "button", "title": "Go", "label": "Open East", "targetPageId": "detail",
+                 "pageParams": {"region": "'East'"}, "placement": {"column": 1, "row": 1, "columnSpan": 4}}
+            ]}
+        ]))
+        .unwrap();
+        c.design.navigation = serde_json::from_value(serde_json::json!([
+            {"id": "n", "label": "Home", "kind": "page", "targetId": "home"}
+        ]))
+        .unwrap();
+        c.design.start_page = Some("n".into());
+    });
+    h.switch_mode(ModeId::Run);
+    h.click(id("dash-button:Open East"));
+    crate::ui::reports::test_support::wait_until(&mut h, "the detail page", |h| h.try_label(id("text:Note:0")).is_some());
+    assert_eq!(h.label(id("text:Note:0")), "East detail");
+}

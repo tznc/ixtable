@@ -195,6 +195,7 @@ fn deletes_a_form_and_its_references() {
         kind,
         target_id: target.map(Into::into),
         mode: None,
+        params: Default::default(),
         children,
     };
     let design = DesignSchema {

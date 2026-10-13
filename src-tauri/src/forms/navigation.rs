@@ -73,6 +73,7 @@ pub fn page_for(item: &NavigationItem) -> Option<RuntimePage> {
     Some(RuntimePage {
         mode: item.mode.map(|m| super::schema::form_mode_key(m).to_string()),
         nav_id: Some(item.id.clone()),
+        params: crate::page_engine::links::evaluate_params(&item.params, &Map::new()),
         ..RuntimePage::new(kind, target.clone())
     })
 }
@@ -133,10 +134,8 @@ pub fn start_page(config: &DocumentConfig, role_id: Option<&str>) -> Option<Runt
 /// or report full page (the navigation item's form mode wins over the component's); anything
 /// else is shown as is.
 pub fn solo_page(config: &DocumentConfig, page: &RuntimePage) -> RuntimePage {
-    let solo = (page.kind == PageKind::Page)
-        .then(|| config.pages.iter().find(|p| p.id == page.id))
-        .flatten()
-        .and_then(|p| match p.components.as_slice() {
+    let shown = (page.kind == PageKind::Page).then(|| config.pages.iter().find(|p| p.id == page.id)).flatten();
+    let solo = shown.and_then(|p| match p.components.as_slice() {
             [only] => Some(only),
             _ => None,
         });
@@ -155,10 +154,12 @@ pub fn solo_page(config: &DocumentConfig, page: &RuntimePage) -> RuntimePage {
         .mode
         .clone()
         .or_else(|| component.mode.map(|m| super::schema::form_mode_key(m).to_string()));
+    let params = shown.map_or_else(|| page.params.clone(), |p| crate::page_engine::links::with_defaults(p, page.params.clone()));
     RuntimePage {
         kind,
         id: target.clone(),
         mode: if kind == PageKind::Form { mode } else { None },
+        params,
         ..page.clone()
     }
 }

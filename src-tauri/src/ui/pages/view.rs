@@ -95,7 +95,7 @@ impl PageView {
             shell,
             env,
             dashboard_id: dashboard_id.to_string(),
-            initial: params,
+            initial: params.clone(),
             back,
             values: Map::new(),
             settled: Map::new(),
@@ -111,6 +111,7 @@ impl PageView {
             _subscription: subscription,
         };
         if let Some(dashboard) = view.dashboard(cx) {
+            view.initial = crate::page_engine::links::with_defaults(&dashboard, params);
             view.values = default_filter_values(&dashboard.filters);
             for filter in &dashboard.filters {
                 if let Some(value) = view.initial.get(&filter.param) {
@@ -241,7 +242,17 @@ impl PageView {
         }
     }
 
-    pub(super) fn run_button(&mut self, action_id: String, cx: &mut Context<Self>) {
+    /// Opens the page a button links to, with its parameter values evaluated over the
+    /// page's `params` and `app`.
+    pub(super) fn open_linked_page(&mut self, component: &PageComponent, cx: &mut Context<Self>) {
+        let Some(target) = component.target_page_id.clone().filter(|t| !t.is_empty()) else { return };
+        let Some(dashboard) = self.dashboard(cx) else { return };
+        let scope = self.scope(&self.params(&dashboard), cx);
+        let params = crate::page_engine::links::evaluate_params(&component.page_params, &scope);
+        self.navigate(NavigationTarget { kind: "page".into(), id: target, mode: None, record_id: None, params }, cx);
+    }
+
+    pub(super) fn run_button(&mut self, action_id: String, link: Option<PageComponent>, cx: &mut Context<Self>) {
         let Some(dashboard) = self.dashboard(cx) else { return };
         let params = self.params(&dashboard);
         // Buttons run through the Automation runner unless a runner is set.
@@ -258,11 +269,13 @@ impl PageView {
                 crate::forms::actions::run_action(&action_id, &ctx)
             },
             Self::on_host_event,
-            |this, result, cx| {
+            move |this, result, cx| {
                 if !result.ok {
                     if let Some(error) = result.error.filter(|e| !e.is_empty()) {
                         this.say(error, true, cx);
                     }
+                } else if let Some(link) = &link {
+                    this.open_linked_page(link, cx);
                 }
             },
         );

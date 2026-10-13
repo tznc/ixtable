@@ -85,6 +85,14 @@ fn apply_text(key: &str, c: &mut PageComponent, text: &str) -> bool {
         "prop-visible-when" => c.visible_when = opt(text),
         "prop-enabled-when" => c.enabled_when = opt(text),
         "prop-text" => c.text = Some(text.into()),
+        other if other.starts_with("prop-page-param:") => {
+            let name = other.trim_start_matches("prop-page-param:").to_string();
+            if text.trim().is_empty() {
+                c.page_params.remove(&name);
+            } else {
+                c.page_params.insert(name, text.into());
+            }
+        }
         other => {
             let Some(rest) = other.strip_prefix("prop-style-").and_then(|r| r.strip_suffix("-when")) else { return false };
             let Some(style) = rest.parse::<usize>().ok().and_then(|n| c.styles.get_mut(n)) else { return false };
@@ -111,7 +119,6 @@ impl PageEditor {
         true
     }
 
-    /// A callback that runs `f` on this editor with the picked value.
     /// "Edit form" / "New form" (and the report equivalents): opens the definition's designer.
     fn open_button(id: &'static str, label: &'static str, cx: &Context<Self>) -> Button {
         Button::new(id)
@@ -122,6 +129,7 @@ impl PageEditor {
             .on_click(cx.listener(|this, _, window, cx| this.open_target(window, cx)))
     }
 
+    /// A callback that runs `f` on this editor with the picked value.
     pub(super) fn on_pick(
         cx: &Context<Self>,
         f: impl Fn(&mut Self, &str, &mut Context<Self>) + 'static,
@@ -589,6 +597,38 @@ impl PageEditor {
                         editor.update(cx, |this, cx| this.change("Edit component", move |c| c.action_id = v, cx))
                     }, cx),
                 );
+                let mut pages = vec![(String::new(), "(none)".to_string())];
+                pages.extend(config.pages.iter().filter(|p| p.id != dashboard.id).map(|p| (p.id.clone(), p.name.clone())));
+                panel = panel.child(choice_field(
+                    "prop-target-page",
+                    "Then open page",
+                    c.target_page_id.as_deref().unwrap_or(""),
+                    pages,
+                    "(none)",
+                    Self::on_pick(cx, |this, v, cx| {
+                        let v = opt(v);
+                        this.change("Edit component", move |c| {
+                            if c.target_page_id != v {
+                                c.page_params.clear();
+                            }
+                            c.target_page_id = v;
+                        }, cx)
+                    }),
+                    cx,
+                ));
+                let target = config.pages.iter().find(|p| Some(&p.id) == c.target_page_id.as_ref()).cloned();
+                for param in target.iter().flat_map(|p| p.parameters.iter()) {
+                    let label = if param.required { format!("{} (required)", param.name) } else { param.name.clone() };
+                    panel = panel.child(self.expression_field(
+                        &format!("prop-page-param:{}", param.name),
+                        &label,
+                        c.page_params.get(&param.name).map(String::as_str).unwrap_or(""),
+                        "Expression over params and app",
+                        &names,
+                        window,
+                        cx,
+                    ));
+                }
             }
             ComponentKind::Text => {
                 let area = self.text_area(c.text.as_deref().unwrap_or(""), window, cx);

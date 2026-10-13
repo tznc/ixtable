@@ -25,6 +25,11 @@ pub struct Page {
     pub filters: Vec<PageFilter>,
     #[serde(default)]
     pub components: Vec<PageComponent>,
+    /// Values the page takes when it is opened (navigation items, page links and "Open
+    /// page" steps pass them). Components read them as `params`; filters override the same
+    /// names. Config version 8.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parameters: Vec<crate::archive::QueryParameter>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -160,6 +165,12 @@ pub struct PageComponent {
     /// button: caption.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+    /// button: the page it opens (after its action, when it has one).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_page_id: Option<String>,
+    /// button: values for the target page's parameters, expressions over `params` and `app`.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub page_params: std::collections::BTreeMap<String, String>,
     /// text: plain text; blank lines separate paragraphs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,

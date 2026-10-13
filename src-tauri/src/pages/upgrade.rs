@@ -139,6 +139,7 @@ pub fn wrapper_page(
         layout,
         filters: vec![],
         components: vec![component],
+        parameters: vec![],
     }
 }
 

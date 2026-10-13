@@ -252,7 +252,7 @@ impl PageEditor {
     }
 
     fn on_edit(this: &mut Self, key: &String, text: String, cx: &mut Context<Self>) {
-        if !this.on_component_edit(key, &text, cx) && !this.on_filter_edit(key, &text, cx) {
+        if !this.on_component_edit(key, &text, cx) && !this.on_filter_edit(key, &text, cx) && !this.on_param_edit(key, &text, cx) {
             this.on_layout_edit(key, &text, cx);
         }
     }

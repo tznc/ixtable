@@ -1,4 +1,5 @@
-//! The dashboard settings panel, shown while no component is selected: the filters and a
+//! The page settings panel, shown while no component is selected: the parameters
+//! (`parameters.rs`), the filters and a
 //! compact version of the grid settings (`LayoutSettings`): column count, padding, gaps and
 //! item alignment. Tracks, named regions and breakpoints are edited in YAML until the
 //! Design studio's layout editor is shared.
@@ -108,11 +109,13 @@ impl PageEditor {
             Self::on_pick(cx, |this, v, cx| this.set_alignment(false, v, cx)),
             cx,
         );
+        let parameters = self.render_parameters(dashboard, window, cx);
         let filters = self.render_filters(dashboard, window, cx);
         v_flex()
             .id("dash-settings")
             .gap_3()
-            .child(div().text_xs().text_color(muted).child("DASHBOARD SETTINGS"))
+            .child(div().text_xs().text_color(muted).child("PAGE SETTINGS"))
+            .child(parameters)
             .child(filters)
             .child(
                 crate::ui::reports::fields::section("dash-grid-settings", "Page grid", cx)

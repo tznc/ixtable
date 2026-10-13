@@ -85,6 +85,7 @@ pub fn validate_config(config: &DocumentConfig) -> Vec<Issue> {
     issues.extend(crate::queries::validate(config));
     issues.extend(reports::validate(config));
     issues.extend(pages::validate(config));
+    issues.extend(crate::page_engine::links::link_issues(config));
     issues.extend(automation::validate(config));
     issues.extend(migrations::validate(config));
     issues.extend(recordstore::validate(config));

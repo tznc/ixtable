@@ -17,6 +17,7 @@ mod data;
 mod editor;
 mod embedded;
 mod filters;
+mod parameters;
 mod props;
 mod settings;
 mod view;

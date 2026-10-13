@@ -292,7 +292,7 @@ fn serializes_layouts_and_placements_exactly_like_a_form() {
     let old: Page = serde_json::from_value(json!({"id": "x", "name": "Old"})).expect("old");
     assert_eq!(
         old,
-        Page { id: "x".into(), name: "Old".into(), layout: Default::default(), filters: vec![], components: vec![] }
+        Page { id: "x".into(), name: "Old".into(), layout: Default::default(), filters: vec![], components: vec![], parameters: vec![] }
     );
 }
 

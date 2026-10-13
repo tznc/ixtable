@@ -185,17 +185,18 @@ impl PageView {
 
     pub(super) fn button_body(&mut self, component: &PageComponent, name: &str, cx: &mut Context<Self>) -> AnyElement {
         let action = component.action_id.clone().filter(|a| !a.is_empty());
+        let target = component.target_page_id.clone().filter(|p| !p.is_empty());
         let allowed = action.as_ref().is_none_or(|a| self.env.can("action", a, Operation::Execute, cx));
         let label = component.label.clone().filter(|l| !l.is_empty()).unwrap_or_else(|| if component.title.is_empty() { "Run".into() } else { component.title.clone() });
         let _ = name;
+        let component = component.clone();
         Button::new(SharedString::from(format!("dash-button:{label}")))
             .primary()
             .label(label)
-            .disabled(action.is_none() || !allowed)
-            .on_click(cx.listener(move |this, _, _, cx| {
-                if let Some(action) = action.clone() {
-                    this.run_button(action, cx);
-                }
+            .disabled((action.is_none() && target.is_none()) || !allowed)
+            .on_click(cx.listener(move |this, _, _, cx| match action.clone() {
+                Some(action) => this.run_button(action, Some(component.clone()), cx),
+                None => this.open_linked_page(&component, cx),
             }))
             .into_any_element()
     }
