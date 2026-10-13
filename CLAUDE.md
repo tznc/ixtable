@@ -32,7 +32,7 @@ PostgreSQL, heavy, perf and live-cloud tests are `#[ignore]`d. Run them with
 under `CI` a missing variable panics (`src-tauri/src/test_env.rs`), and CI runs
 the ignored tests through `scripts/ci/run-ignored-rust-tests.mjs`, which
 checks each one ran and passed. Cloud tests against a local Supabase stack:
-`cargo test --lib -- --ignored cloud_live` with `SUPABASE_URL`,
+`cargo test --lib -- --ignored cloud_live --test-threads=1` with `SUPABASE_URL`,
 `SUPABASE_ANON_KEY` and `IXTABLE_CLOUD_PUBLIC_KEY_RAW` set.
 `IXTABLE_DUCKDB_SQLITE_EXTENSION` / `IXTABLE_DUCKDB_POSTGRES_EXTENSION`
 override extension paths (hashes still checked). `IXTABLE_STATE_DIR` moves

@@ -1,7 +1,7 @@
 //! Cloud flows against a real local Supabase stack (ports of the live parts of
 //! `tests/integration/cloud-auth.test.tsx` and `cloud-distribution.test.tsx`, with the helpers
 //! of `cloud-helpers.ts`). Every test is ignored by default; run them with
-//! `cargo test --lib -- --ignored cloud_live` while the stack is up (`supabase start`, the
+//! `cargo test --lib -- --ignored cloud_live --test-threads=1` (they share one state directory) while the stack is up (`supabase start`, the
 //! Edge Functions served) and `SUPABASE_URL` (default `http://127.0.0.1:54321`),
 //! `SUPABASE_ANON_KEY` (default: the CLI's demo key) and `IXTABLE_CLOUD_PUBLIC_KEY_RAW` (the
 //! signing key from `scripts/cloud/dev-secrets.mjs`) are set. `SUPABASE_SERVICE_ROLE_KEY`

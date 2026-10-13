@@ -99,7 +99,7 @@ jobs:
       # The desktop cloud tests are #[ignore]d without a stack; the script runs them and
       # fails unless each one ran and passed.
       - name: Desktop cloud integration tests (Rust)
-        run: node scripts/ci/run-ignored-rust-tests.mjs "Desktop cloud" cloud_live
+        run: node scripts/ci/run-ignored-rust-tests.mjs "Desktop cloud" cloud_live --test-threads=1
       - name: Supabase logs on failure
         if: failure()
         run: docker ps -a --format '{{.Names}}' | grep supabase | while read -r name; do echo "::group::$name"; docker logs --tail 200 "$name" 2>&1; echo "::endgroup::"; done
