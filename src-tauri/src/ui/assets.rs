@@ -7,12 +7,17 @@ use std::borrow::Cow;
 gpui_kit::assets::icon_assets!(
     ExtraIcons,
     [
+        ArrowDownUp,
         CodeXml,
         Construction,
         Database,
         DatabaseZap,
         FilePlus,
+        FolderPlus,
+        Hash,
+        Link,
         PackageOpen,
+        Pencil,
         Save,
         SaveAll,
         Shapes,
