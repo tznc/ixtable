@@ -2,3 +2,7 @@
 # libduckdb-sys links the official prebuilt DuckDB that
 # scripts/prepare-duckdb-artifacts.sh downloads (SHA-256 pinned) into this directory.
 DUCKDB_LIB_DIR = { value = "src-tauri/resources/duckdb/lib", relative = true }
+
+[alias]
+# Screenshot specs for visual QA (src-tauri/src/ui/screenshots/, `/app-qa` skill).
+screenshot = "test --lib ui::screenshots -- --ignored --test-threads=1"

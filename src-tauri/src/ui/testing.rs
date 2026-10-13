@@ -23,7 +23,7 @@ use crate::{
 };
 use gpui_kit::test::{ElementSnapshot, TestWindowExt as _};
 use gpui_kit::{
-    AnyWindowHandle, App, AppContext as _, Bounds, ElementId, Entity, Point, TestAppContext,
+    AnyView, AnyWindowHandle, App, AppContext as _, Bounds, ElementId, Entity, Point, TestAppContext,
     Window, WindowBounds, WindowOptions, px, size,
 };
 use serde_json::{Value, json};
@@ -39,8 +39,48 @@ static NEXT_WINDOW: AtomicUsize = AtomicUsize::new(1);
 
 pub const WINDOW_SIZE: (f32, f32) = (1280.0, 900.0);
 
-pub struct Harness<'a> {
-    pub cx: &'a mut TestAppContext,
+/// The GPUI context a `Harness` drives: `TestAppContext` for tests, or
+/// `HeadlessAppContext` with a real renderer for screenshots (`ui::screenshot`).
+pub trait UiContext {
+    fn update<R>(&mut self, f: impl FnOnce(&mut App) -> R) -> R;
+    fn read<R>(&self, f: impl FnOnce(&App) -> R) -> R;
+    fn update_window<R>(
+        &mut self,
+        window: AnyWindowHandle,
+        f: impl FnOnce(AnyView, &mut Window, &mut App) -> R,
+    ) -> gpui_kit::Result<R>;
+    fn run_until_parked(&self);
+    fn advance_clock(&self, duration: std::time::Duration);
+    /// Renders the window to pixels, when the context has a renderer.
+    fn screenshot(&mut self, _window: AnyWindowHandle) -> Option<image::RgbaImage> {
+        None
+    }
+}
+
+impl UiContext for TestAppContext {
+    fn update<R>(&mut self, f: impl FnOnce(&mut App) -> R) -> R {
+        TestAppContext::update(self, f)
+    }
+    fn read<R>(&self, f: impl FnOnce(&App) -> R) -> R {
+        TestAppContext::read(self, f)
+    }
+    fn update_window<R>(
+        &mut self,
+        window: AnyWindowHandle,
+        f: impl FnOnce(AnyView, &mut Window, &mut App) -> R,
+    ) -> gpui_kit::Result<R> {
+        gpui_kit::AppContext::update_window(self, window, f)
+    }
+    fn run_until_parked(&self) {
+        TestAppContext::run_until_parked(self)
+    }
+    fn advance_clock(&self, duration: std::time::Duration) {
+        self.executor().advance_clock(duration)
+    }
+}
+
+pub struct Harness<'a, C: UiContext = TestAppContext> {
+    pub cx: &'a mut C,
     pub window: AnyWindowHandle,
     pub root: Entity<AppView>,
     /// The backend session key of this test's window.
@@ -48,16 +88,21 @@ pub struct Harness<'a> {
     pub dialogs: Arc<TestDialogs>,
 }
 
-impl<'a> Harness<'a> {
+impl<'a, C: UiContext> Harness<'a, C> {
     /// The start screen in a fresh window.
-    pub fn start(cx: &'a mut TestAppContext) -> Self {
+    pub fn start(cx: &'a mut C) -> Self {
+        Self::start_sized(cx, WINDOW_SIZE)
+    }
+
+    /// The start screen in a fresh window of `(width, height)` logical pixels.
+    pub fn start_sized(cx: &'a mut C, window_size: (f32, f32)) -> Self {
         let label = format!("test-{}", NEXT_WINDOW.fetch_add(1, Ordering::SeqCst));
         let dialogs = Arc::new(TestDialogs::default());
         let (window, root) = cx.update(|cx| {
             super::init(dialogs.clone(), cx);
             let bounds = Bounds {
                 origin: Point::default(),
-                size: size(px(WINDOW_SIZE.0), px(WINDOW_SIZE.1)),
+                size: size(px(window_size.0), px(window_size.1)),
             };
             gpui_kit::open_window(
                 WindowOptions {
@@ -81,7 +126,7 @@ impl<'a> Harness<'a> {
     }
 
     /// A new untitled document, open in the shell.
-    pub fn new_document(cx: &'a mut TestAppContext) -> Self {
+    pub fn new_document(cx: &'a mut C) -> Self {
         let mut h = Self::start(cx);
         h.click("new-document");
         assert!(h.has_shell(), "New document did not open the shell");
@@ -200,7 +245,7 @@ impl<'a> Harness<'a> {
 
     /// Advances GPUI's fake clock (debounced autosave, timers) and settles.
     pub fn advance(&mut self, duration: std::time::Duration) {
-        self.cx.executor().advance_clock(duration);
+        self.cx.advance_clock(duration);
         self.settle();
     }
 

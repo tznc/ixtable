@@ -7,6 +7,7 @@ pub mod asset_data;
 pub mod assets;
 pub mod authz;
 pub mod automation;
+pub mod automation_runner;
 pub mod bundle;
 pub mod bundle_export;
 pub mod checkpoints;

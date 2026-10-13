@@ -79,6 +79,8 @@ libc = "0.2"
 [dev-dependencies]
 gpui-kit = { version = "=0.7.1", features = ["tree-sitter-sql", "tree-sitter-yaml", "test-support"] }
 proptest = "1.7"
+# Screenshot harness (ui::screenshot): PNG output of GPUI captures.
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 # Desktop-only (PRD §6.2): no staticlib, and lean debug info keeps test builds small.
 [profile.dev]

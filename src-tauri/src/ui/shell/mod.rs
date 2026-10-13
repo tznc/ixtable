@@ -157,6 +157,8 @@ pub struct Shell {
     pub reveal: Option<RevealTarget>,
     view: Option<(ModeId, AnyView, Option<AnyView>)>,
     focus: FocusHandle,
+    /// Triggers, custom actions and the job worker of this document; dropped on close.
+    _automation: crate::ui::automation::AutomationHost,
     _subscriptions: Vec<Subscription>,
 }
 impl EventEmitter<ShellEvent> for Shell {}
@@ -217,6 +219,7 @@ impl Shell {
             reveal: None,
             view: None,
             focus: cx.focus_handle(),
+            _automation: crate::ui::automation::AutomationHost::new(label, cx),
             _subscriptions: subscriptions,
         };
         this.reload_metadata(cx);

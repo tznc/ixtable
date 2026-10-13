@@ -4,6 +4,7 @@
 
 pub mod app;
 pub mod assets;
+pub mod automation;
 pub mod autosave;
 pub mod dialogs;
 pub mod events;
@@ -15,6 +16,10 @@ pub mod start_sections;
 pub mod store;
 pub mod task;
 pub mod widgets;
+#[cfg(test)]
+pub mod screenshot;
+#[cfg(test)]
+mod screenshots;
 #[cfg(test)]
 pub mod testing;
 
