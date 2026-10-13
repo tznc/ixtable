@@ -198,7 +198,13 @@ authorized against both the active role and the role it was enqueued under
   trigger fails after a commit, browser contexts handing navigation to Run
   mode, polling for queued jobs.
 - `tests/integration/automation-runtime.test.tsx`: a sync trigger's navigate
-  and setState steps followed in the Runtime.
+  and setState steps followed in the Runtime (`ui/automation/tests_runtime.rs`).
+  Run mode installs `ui::runtime::handlers::RunHandlers` as the window's
+  `UiHandlers`: navigate steps queue a page that a poller applies to the
+  `Runtime`, setState (app scope) writes the Runtime's shared app state at
+  once, and `app.user` / `app.role` come from the role in force (`Developer`
+  without a preview). Studio modes install none, so they only show the
+  "open it in the Runtime" notice.
 - `tests/unit/automation-triggers.test.ts`: sync triggers inside the write,
   old values on update, failure propagation, recursion depth limit.
 - `tests/unit/automation-runner.test.ts`: step behavior, stop, continue, and

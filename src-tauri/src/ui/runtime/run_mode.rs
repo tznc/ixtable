@@ -154,6 +154,8 @@ pub struct RunBody {
     env: RuntimeEnv,
     runtime: Entity<Runtime>,
     popups: Entity<PopupHost>,
+    _handlers: crate::automation_runner::host::HandlersRegistration,
+    _relay: Task<()>,
     page: Option<(String, AnyView)>,
     _subscriptions: Vec<Subscription>,
 }
@@ -174,7 +176,11 @@ impl RunBody {
             cx.observe(&shell, |_, _, cx| cx.notify()),
             cx.subscribe(&store, |_, _, _: &StoreEvent, cx| cx.notify()),
         ];
-        Self { shell, env, runtime, popups, page: None, _subscriptions: subscriptions }
+        // Triggers and actions on background threads navigate and set state through these.
+        let handlers = super::handlers::RunHandlers::new(runtime.read(cx).shared_state());
+        let registration = crate::automation_runner::host::install_handlers(&env.label, handlers.clone());
+        let relay = handlers.relay(runtime.clone(), env.clone(), cx);
+        Self { shell, env, runtime, popups, _handlers: registration, _relay: relay, page: None, _subscriptions: subscriptions }
     }
 
     /// The view of the page shown (tests downcast it to a `FormRenderer`).
