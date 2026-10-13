@@ -16,7 +16,7 @@ use crate::forms::{
 };
 use crate::manager::AppError;
 use crate::recordstore::EntitySettings;
-use crate::ui::{prelude::*, reports::fields::input};
+use crate::ui::{controls::input, prelude::*};
 use gpui_kit::component::input::{InputEvent, InputState};
 
 /// A rename in progress.
@@ -194,8 +194,7 @@ impl DesignStudio {
                     .ghost()
                     .small()
                     .flex_1()
-                    .justify_start()
-                    .label(name)
+                    .start_label(None, name)
                     .selected(is_active)
                     .on_click(cx.listener(move |this, _, _, cx| this.select_form(&select_id, cx)))
                     .into_any_element(),

@@ -94,7 +94,8 @@ impl<V: 'static> Choice<V> {
         let trigger = Button::new(id.clone())
             .outline()
             .small()
-            .label(if label.is_empty() { "—".to_string() } else { label })
+            .w_full()
+            .end_icon_label(IconName::ChevronDown, if label.is_empty() { "—".to_string() } else { label })
             .disabled(self.disabled)
             .on_click(toggle);
         let list = self.open.then(|| {

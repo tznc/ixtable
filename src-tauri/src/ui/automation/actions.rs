@@ -6,7 +6,7 @@
 //! `StepEditor`'s. Test run: `test-sample`, `test-problem`, `test-run`, `test-result`,
 //! `test-event-N` and the step log `test-log` (see `step_log`).
 
-use super::fields::{choice_field, text_field, Inputs};
+use crate::ui::controls::{choice_field, text_field, Inputs};
 use super::step_editor::StepEditor;
 use super::steps::{new_action, step_number};
 use crate::automation::{ActionDef, OnError};
@@ -178,11 +178,7 @@ impl ActionsPanel {
         mutate: impl FnOnce(&mut crate::archive::DocumentConfig),
         cx: &mut Context<Self>,
     ) {
-        let store = self.shell.read(cx).store.clone();
-        let result = store.update(cx, |s, cx| s.update(label, mutate, cx));
-        if let Err(e) = result {
-            self.shell.update(cx, |s, cx| s.set_error(Some(e), cx));
-        }
+        Shell::edit_config(&self.shell, label, mutate, cx);
         cx.notify();
     }
 

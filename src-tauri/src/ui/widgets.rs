@@ -18,9 +18,24 @@ use gpui_kit::prelude::FluentBuilder as _;
 /// The label stays the button's accessibility label, so tests still find it by name.
 pub trait StartAligned: Sized {
     fn start_label(self, icon: Option<gpui_kit::component::Icon>, label: impl Into<SharedString>) -> Self;
+    /// A left-aligned, ellipsized label with `icon` at the right edge (selects, menus).
+    fn end_icon_label(self, icon: impl Into<gpui_kit::component::Icon>, label: impl Into<SharedString>) -> Self;
 }
 
 impl StartAligned for Button {
+    fn end_icon_label(self, icon: impl Into<gpui_kit::component::Icon>, label: impl Into<SharedString>) -> Self {
+        let label = label.into();
+        self.accessibility_label(label.clone()).child(
+            h_flex()
+                .w_full()
+                .min_w_0()
+                .gap_1()
+                .justify_between()
+                .child(div().min_w_0().overflow_hidden().whitespace_nowrap().text_ellipsis().child(label))
+                .child(icon.into().small()),
+        )
+    }
+
     fn start_label(self, icon: Option<gpui_kit::component::Icon>, label: impl Into<SharedString>) -> Self {
         let label = label.into();
         self.accessibility_label(label.clone()).child(
@@ -33,6 +48,20 @@ impl StartAligned for Button {
                 .child(div().min_w_0().overflow_hidden().whitespace_nowrap().text_ellipsis().child(label)),
         )
     }
+}
+
+/// The theme color a table cell or field takes for its tone (None for a custom tone).
+pub fn tone_color(tone: &crate::design::Tone, cx: &App) -> Option<Hsla> {
+    use crate::design::Tone;
+    let theme = cx.theme();
+    Some(match tone {
+        Tone::Positive => theme.success,
+        Tone::Negative => theme.danger,
+        Tone::Warning => theme.warning,
+        Tone::Muted => theme.muted_foreground,
+        Tone::Emphasis => theme.primary,
+        Tone::Other(_) => return None,
+    })
 }
 
 /// Observed text: `id` gets `label` as its accessibility label so tests can read it.

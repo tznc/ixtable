@@ -7,6 +7,7 @@
 //! constraint editors' ids (see `schema::constraints`); `Remove relationship N`;
 //! `submit-create-table` and `cancel-create-table`; `create-table-error` for the alert.
 
+use crate::ui::controls::{check, error_line, input_text, new_input, on_change, section, text_input};
 use crate::data::{CreateForeignKey, CreateTable, IndexSpec};
 use crate::recordstore::capabilities::StoreCapabilities;
 use crate::ui::{
@@ -18,7 +19,6 @@ use crate::ui::{
             CheckEditor, CheckEvent, ForeignKeyEditor, ForeignKeyEvent, IndexEditor, IndexEvent,
             TableRef, UniqueEditor, UniqueEvent,
         },
-        controls::{check, error_line, input_text, new_input, on_change, section, text_input},
         logical::store_types,
     },
     shell::Shell,

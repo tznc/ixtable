@@ -8,6 +8,7 @@ pub mod assets;
 pub mod automation;
 pub mod autosave;
 pub mod cloud;
+pub mod controls;
 pub mod dashboards;
 pub mod dialogs;
 pub mod events;

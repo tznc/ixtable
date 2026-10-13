@@ -28,7 +28,8 @@ use crate::{
     ui::{
         grid::canvas::{GridCanvas, GridItem},
         prelude::*,
-        reports::{fields::Inputs, ReportPreview},
+        controls::Inputs,
+        reports::ReportPreview,
         runtime::{
             back::back_crumb,
             host::{context, run_action_job, HostEvent, UiHost},

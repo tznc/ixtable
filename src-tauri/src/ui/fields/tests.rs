@@ -1,14 +1,15 @@
 //! Ports of tests/unit/field-mask.test.ts, field-formats.test.ts (the rich text,
 //! field value and datasheet parts) and datasheet-fields.test.ts (cell conversion).
 
-use super::{
-    datasheet::{datasheet_text, datasheet_value},
-    mask::{apply_mask, mask_issue, mask_problem, mask_template, masked_text, parse_mask},
-    richtext::{rich_text_plain, sanitize_rich_text},
-    values::{
-        AttachmentRef, attachments_value, choices_value, field_settings_for, field_text,
-        field_text_rows, file_size, parse_attachments, parse_choices,
+use super::datasheet::{datasheet_text, datasheet_value};
+use crate::forms::{
+    field_values::{
+        AttachmentRef, attachments_value, choices_value, field_text, field_text_rows,
+        file_size, parse_attachments, parse_choices,
     },
+    fields::field_settings_for,
+    mask::{mask_issue, mask_problem, masked_text, parse_mask},
+    richtext::{rich_text_plain, sanitize_rich_text},
 };
 use crate::archive::DocumentConfig;
 use crate::data::DataValue;
@@ -61,49 +62,6 @@ fn text(value: &str) -> DataValue {
 }
 
 // ---- field-mask.test.ts ----------------------------------------------------
-
-#[test]
-fn formats_typed_digits_and_stores_them_without_literals_by_default() {
-    let phone = parse_mask("(000) 000-0000");
-    let result = apply_mask(&phone, "5551234567");
-    assert_eq!(result.display, "(555) 123-4567");
-    assert_eq!(result.stored, "5551234567");
-    assert!(result.complete);
-    assert_eq!(result.rejected, 0);
-    assert_eq!(mask_template(&phone), "(___) ___-____");
-}
-
-#[test]
-fn stores_literals_with_section_zero_and_uses_the_given_placeholder() {
-    let mask = parse_mask("000-0000;0;#");
-    assert_eq!(apply_mask(&mask, "5551234").stored, "555-1234");
-    assert_eq!(mask_template(&mask), "###-####");
-}
-
-#[test]
-fn reformats_text_that_already_holds_the_literals() {
-    let phone = parse_mask("(000) 000-0000");
-    assert_eq!(apply_mask(&phone, "(555) 123-4567").display, "(555) 123-4567");
-    assert_eq!(apply_mask(&phone, "555-123-4567").stored, "5551234567");
-}
-
-#[test]
-fn leaves_trailing_literals_off_a_partial_value() {
-    let phone = parse_mask("(000) 000-0000");
-    assert_eq!(apply_mask(&phone, "555").display, "(555");
-    assert_eq!(apply_mask(&phone, "5551").display, "(555) 1");
-    assert!(!apply_mask(&phone, "555").complete);
-}
-
-#[test]
-fn applies_case_conversion_and_letter_optional_and_escaped_slots() {
-    let postcode = parse_mask(">LL0 0LL");
-    assert_eq!(apply_mask(&postcode, "sw1a").display, "SW1");
-    assert_eq!(apply_mask(&postcode, "sw1 2ab").display, "SW1 2AB");
-    let optional = parse_mask("999\\-\"x\"0");
-    assert_eq!(apply_mask(&optional, "7").display, "7");
-    assert_eq!(apply_mask(&optional, "12-x3").display, "12-x3");
-}
 
 #[test]
 fn splits_sections_only_outside_quotes_and_escapes() {
@@ -203,10 +161,10 @@ fn shows_each_format_as_text() {
 fn finds_field_settings_and_turns_report_rows_into_text() {
     let config = entities();
     assert_eq!(
-        field_settings_for(&config, "docs", "phone").and_then(|f| f.input_mask.as_deref()),
+        field_settings_for(&config.entities, Some("docs"), Some("phone")).and_then(|f| f.input_mask.as_deref()),
         Some("000-0000")
     );
-    assert!(field_settings_for(&config, "other", "phone").is_none());
+    assert!(field_settings_for(&config.entities, Some("other"), Some("phone")).is_none());
     let row: Map<String, Value> = json!({ "notes": "<b>x</b>", "tags": "[\"red\"]", "id": 1 })
         .as_object()
         .cloned()

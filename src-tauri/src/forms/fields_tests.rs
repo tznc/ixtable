@@ -1,9 +1,7 @@
 //! Tests for the field helpers (masks follow tests/unit/field-mask.test.ts).
 
-use super::{
-    apply_mask, field_text, mask_issue, mask_problem, mask_template, masked_text,
-    parse_attachments, parse_choices, parse_mask, rich_text_plain,
-};
+use super::{field_text, parse_attachments, parse_choices, rich_text_plain};
+use crate::forms::mask::{apply_mask, mask_template, parse_mask};
 use serde_json::{Value, json};
 
 #[test]
@@ -47,32 +45,6 @@ fn applies_case_conversion_and_letter_optional_and_escaped_slots() {
     let optional = parse_mask("999\\-\"x\"0");
     assert_eq!(apply_mask(&optional, "7").display, "7");
     assert_eq!(apply_mask(&optional, "12-x3").display, "12-x3");
-}
-
-#[test]
-fn splits_sections_only_outside_quotes_and_escapes() {
-    assert!(parse_mask("\"a;b\"0;0").store_literals);
-    assert!(parse_mask("0\\;0").slots.len() == 3);
-}
-
-#[test]
-fn reports_values_that_do_not_fill_the_mask_and_passes_blanks() {
-    let text = |s: &str| Value::String(s.into());
-    assert_eq!(mask_problem("000-0000", &text(""), "Phone"), None);
-    assert_eq!(mask_problem("000-0000", &Value::Null, "Phone"), None);
-    assert_eq!(
-        mask_problem("000-0000", &text("555"), "Phone").as_deref(),
-        Some("Phone must match ___-____.")
-    );
-    assert_eq!(
-        mask_problem("000-0000", &text("555-12x4"), "Phone").as_deref(),
-        Some("Phone must match ___-____.")
-    );
-    assert_eq!(mask_problem("000-0000", &text("5551234"), "Phone"), None);
-    assert_eq!(masked_text("000-0000", "555-1234", "Phone").unwrap(), "5551234");
-    assert!(masked_text("000-0000", "1", "Phone").unwrap_err().contains("Phone must match"));
-    assert!(mask_issue("(--)").unwrap().contains("no characters"));
-    assert_eq!(mask_issue("0"), None);
 }
 
 #[test]

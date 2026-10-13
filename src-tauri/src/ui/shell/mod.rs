@@ -276,6 +276,20 @@ impl Shell {
         cx.notify();
     }
 
+    /// Applies a definition edit through the config store; a failure becomes the shell's
+    /// error banner.
+    pub fn edit_config(
+        shell: &Entity<Shell>,
+        label: &str,
+        mutate: impl FnOnce(&mut crate::archive::DocumentConfig),
+        cx: &mut App,
+    ) {
+        let store = shell.read(cx).store.clone();
+        if let Err(e) = store.update(cx, |s, cx| s.update(label, mutate, cx)) {
+            shell.update(cx, |s, cx| s.set_error(Some(e), cx));
+        }
+    }
+
     pub fn set_notice(&mut self, notice: impl Into<String>, cx: &mut Context<Self>) {
         self.notice = Some(notice.into());
         cx.notify();

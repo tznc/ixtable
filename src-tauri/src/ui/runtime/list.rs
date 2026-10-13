@@ -441,18 +441,6 @@ impl ListView {
     }
 }
 
-fn tone_color(tone: &Tone, cx: &App) -> Option<Hsla> {
-    let theme = cx.theme();
-    Some(match tone {
-        Tone::Positive => theme.success,
-        Tone::Negative => theme.danger,
-        Tone::Warning => theme.warning,
-        Tone::Muted => theme.muted_foreground,
-        Tone::Emphasis => theme.primary,
-        Tone::Other(_) => return None,
-    })
-}
-
 impl Render for ListView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let form = self.props.form.clone();
@@ -518,7 +506,7 @@ impl Render for ListView {
                 let cells = columns.iter().enumerate().map(|(slot, column)| {
                     let cell_id = SharedString::from(format!("cell:{index}:{}", slug_of(column)));
                     let tone = self.tone_of(record, column, cx);
-                    let color = tone.as_ref().and_then(|t| tone_color(t, cx));
+                    let color = tone.as_ref().and_then(|t| widgets::tone_color(t, cx));
                     let tone_id = tone.as_ref().map(|t| (SharedString::from(format!("{cell_id}:tone")), t.as_str().to_string()));
                     let content: AnyElement = if booleans[slot] {
                         match boolean_value(record.get(column).unwrap_or(&Value::Null)) {
@@ -575,7 +563,7 @@ impl Render for ListView {
                 Button::new(SharedString::from(format!("search-column:option:{}", slug_of(column))))
                     .ghost()
                     .small()
-                    .label(self.label_of(column, cx))
+                    .start_label(None, self.label_of(column, cx))
                     .selected(column == &effective)
                     .on_click(cx.listener(move |this, _, _, cx| this.select_search_column(target.clone(), cx)))
             }))

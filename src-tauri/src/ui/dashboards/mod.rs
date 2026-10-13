@@ -43,7 +43,7 @@ use crate::{
     design::FormMode,
     ui::{
         prelude::*,
-        reports::fields::{input, Inputs},
+        controls::{input, Inputs},
         runtime::{
             run_mode::{PageBuilders, PageBuilder},
             RuntimeEnv,
@@ -147,10 +147,7 @@ impl DashboardsMode {
     }
 
     fn edit_config(&mut self, label: &str, mutate: impl FnOnce(&mut crate::archive::DocumentConfig) + 'static, cx: &mut Context<Self>) {
-        let store = self.shell.read(cx).store.clone();
-        if let Err(e) = store.update(cx, |s, cx| s.update(label, mutate, cx)) {
-            self.shell.update(cx, |s, cx| s.set_error(Some(e), cx));
-        }
+        Shell::edit_config(&self.shell, label, mutate, cx);
         cx.notify();
     }
 
@@ -260,9 +257,10 @@ impl DashboardsMode {
                 Button::new(SharedString::from(format!("dashboard-item-{}", i + 1)))
                     .ghost()
                     .small()
-                    .justify_start()
-                    .icon(IconName::LayoutDashboard)
-                    .label(if d.name.is_empty() { "Untitled dashboard".to_string() } else { d.name.clone() })
+                    .start_label(
+                        Some(IconName::LayoutDashboard.into()),
+                        if d.name.is_empty() { "Untitled dashboard".to_string() } else { d.name.clone() },
+                    )
                     .selected(current == Some(d.id.as_str()))
                     .on_click(cx.listener(move |this, _, _, cx| this.select(&id, cx)))
             }))

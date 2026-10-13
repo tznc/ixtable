@@ -22,7 +22,7 @@ use crate::{
     ui::{
         automation::action_picker,
         prelude::*,
-        reports::fields::{check, choice_field, expr_field, input},
+        controls::{check, choice_field, expr_field, input},
     },
 };
 use gpui_kit::component::input::{Textarea, TextareaState};
@@ -368,7 +368,7 @@ impl DashboardEditor {
                 Button::new("dashboard-settings")
                     .ghost()
                     .small()
-                    .label("Dashboard settings")
+                    .start_label(None, "Dashboard settings")
                     .on_click(cx.listener(|this, _, _, cx| this.select(None, cx))),
             )
             .child(div().text_xs().text_color(muted).child(format!("{} PROPERTIES", kind_label(c.kind).to_uppercase())))

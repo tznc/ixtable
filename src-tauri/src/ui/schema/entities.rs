@@ -6,7 +6,7 @@
 //! ("No resolved policy" | "Action missing" | "Resolved"), and for settings whose table
 //! is gone `orphan:<table>` and `Remove settings for <table>`.
 
-use super::controls::select;
+use crate::ui::controls::select;
 use crate::recordstore::EntitySettings;
 use crate::ui::{prelude::*, shell::Shell, widgets};
 
@@ -189,7 +189,7 @@ impl Render for EntitiesTab {
             );
         }
         if !self.error.is_empty() {
-            panel = panel.child(super::controls::error_line("entities-error", &self.error, cx));
+            panel = panel.child(crate::ui::controls::error_line("entities-error", &self.error, cx));
         }
         panel
     }

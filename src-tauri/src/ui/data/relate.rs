@@ -7,6 +7,7 @@
 //! button is `Preview relationship`), `relate-error`, `relate-cancel`; the preview is an
 //! `ImpactDialog` confirming with `Create relationship`.
 
+use crate::ui::controls::{error_line, modal, select};
 use super::relationships::DrawnRelationship;
 use crate::data::{AlterTable, CreateForeignKey, TableSchema};
 use crate::manager::AppError;
@@ -19,7 +20,6 @@ use crate::ui::{
     prelude::*,
     schema::{
         constraints::{ForeignKeyDraft, ForeignKeyEditor, ForeignKeyEvent, TableRef},
-        controls::{error_line, modal, select},
         impact::{ImpactDialog, ImpactEvent},
     },
     shell::Shell,

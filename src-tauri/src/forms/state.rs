@@ -2,7 +2,8 @@
 //! validation, and container-inherited visibility/enabled state (port of
 //! `src/runtime/formState.ts`).
 
-use super::fields::{field_text, mask_problem, rich_text_plain, value_text};
+use super::fields::{field_text, rich_text_plain, value_text};
+use super::mask::mask_problem;
 use super::schema::{has_enabled_state, is_input_kind};
 use super::values::{RecordValues, is_blank};
 use crate::design::{Control, ControlKind, Form};
@@ -195,7 +196,7 @@ pub fn validate_control(control: &Control, value: &Value, scope: &FormScope) -> 
         };
     }
     if let Some(mask) = control.input_mask.as_deref().filter(|m| !m.is_empty()) {
-        if let Some(problem) = mask_problem(mask, value, &label) {
+        if let Some(problem) = mask_problem(mask, Some(&value_text(value)), &label) {
             return message(problem);
         }
     }

@@ -16,6 +16,7 @@
 //! `clear-filters`, `Total for <column>` and `total:<column>`, `sheet-notice`,
 //! `draft-error`.
 
+use crate::ui::controls::select;
 use super::{
     filters::{add_filter, describe_filter, selection_filter, SheetFilter},
     find::CellAt,
@@ -31,10 +32,9 @@ use crate::manager::AppError;
 use crate::records::{self, RecordWriteMeta};
 use crate::ui::{
     dialogs,
-    fields::{datasheet::datasheet_text, datasheet::datasheet_value, values::field_settings_for},
+    fields::{datasheet::datasheet_text, datasheet::datasheet_value},
     prelude::*,
     schema::{
-        controls::select,
         logical::{logical_of, show_value},
     },
     shell::Shell,
@@ -192,7 +192,7 @@ impl Datasheet {
             .page
             .columns
             .iter()
-            .map(|c| field_settings_for(config, &self.table, &c.name).cloned())
+            .map(|c| crate::forms::fields::field_settings_for(&config.entities, Some(&self.table), Some(&c.name)).cloned())
             .collect();
         self.layout = read_layout(config, &self.table);
     }

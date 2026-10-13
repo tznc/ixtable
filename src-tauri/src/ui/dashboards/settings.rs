@@ -13,7 +13,8 @@ use crate::{
     design::{GridAlign, GridTrack},
     ui::{
         prelude::*,
-        reports::fields::{choice_field, input, pairs},
+        controls::{choice_field, input},
+        reports::fields::pairs,
     },
 };
 

@@ -3,10 +3,7 @@
 //! are in `settings_editor` and `inputs`.
 
 pub mod datasheet;
-pub mod mask;
-pub mod richtext;
 pub mod settings_editor;
-pub mod values;
 
 #[cfg(test)]
 mod tests;

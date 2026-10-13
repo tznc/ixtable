@@ -28,7 +28,8 @@ use crate::forms::{
 use crate::ui::{
     events::DocEvent,
     prelude::*,
-    reports::fields::{choice, pairs},
+    controls::choice,
+    reports::fields::pairs,
     shell::{ModeId, RevealTarget, Shell},
     store::StoreEvent,
 };
@@ -187,10 +188,7 @@ impl DesignStudio {
         mutate: impl FnOnce(&mut DocumentConfig) + 'static,
         cx: &mut Context<Self>,
     ) {
-        let store = self.shell.read(cx).store.clone();
-        if let Err(e) = store.update(cx, |s, cx| s.update(label, mutate, cx)) {
-            self.shell.update(cx, |s, cx| s.set_error(Some(e), cx));
-        }
+        Shell::edit_config(&self.shell, label, mutate, cx);
         cx.notify();
     }
 
@@ -371,8 +369,7 @@ impl DesignStudio {
                 Button::new(SharedString::from(format!("add-{}", kind_id(kind))))
                     .outline()
                     .small()
-                    .justify_start()
-                    .label(control_kind_label(kind))
+                    .start_label(None, control_kind_label(kind))
                     .tooltip(format!("Add {}", control_kind_label(kind)))
                     .disabled(!has_form)
                     .on_click(cx.listener(move |this, _, _, cx| this.add(kind, cx)))

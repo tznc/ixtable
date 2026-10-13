@@ -14,9 +14,8 @@
 //!   `step-N-else-add` (and `-kind`) for the branches, whose steps are `step-N-then-M`.
 
 use super::env::{Env, FORM_MODES};
-use super::fields::{
-    check, choice, choice_field, expr_field, expression_problem, plain, text_field, Inputs,
-};
+use super::fields::expression_problem;
+use crate::ui::controls::{check, choice, choice_field, expr_field, plain_options, text_field, Inputs};
 use super::steps::{
     add_step, find_mut, from_values, map_add, map_expr, map_remove, map_rename, map_rows,
     move_step, nested_text, remove_step, set_field, set_nested, text_of, to_values, Branch,
@@ -494,7 +493,7 @@ impl StepEditor {
                     "dashboard" => env.dashboards.clone(),
                     _ => env.tables.clone(),
                 };
-                let kinds = plain(&["form", "report", "dashboard", "table"]);
+                let kinds = plain_options(&["form", "report", "dashboard", "table"]);
                 let picked = {
                     let (me, id) = (me.clone(), id.clone());
                     move |value: &str, _: &mut Window, cx: &mut App| {

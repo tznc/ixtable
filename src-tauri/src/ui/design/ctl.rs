@@ -10,7 +10,7 @@ use super::studio::DesignStudio;
 use crate::forms::state::expression_problem;
 use crate::ui::{
     prelude::*,
-    reports::fields::{check, choice, choice_field, expr_field, input},
+    controls::{check, choice, choice_field, expr_field, input},
 };
 use gpui_kit::component::checkbox::Checkbox;
 

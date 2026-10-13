@@ -102,18 +102,6 @@ fn named(prefix: &str, kind: &str, control: &Control) -> SharedString {
     format!("{prefix}{kind}:{}", if slug.is_empty() { control.id.clone() } else { slug }).into()
 }
 
-fn tone_color(tone: Option<crate::design::Tone>, cx: &App) -> Option<Hsla> {
-    let theme = cx.theme();
-    Some(match tone? {
-        crate::design::Tone::Positive => theme.success,
-        crate::design::Tone::Negative => theme.danger,
-        crate::design::Tone::Warning => theme.warning,
-        crate::design::Tone::Muted => theme.muted_foreground,
-        crate::design::Tone::Emphasis => theme.primary,
-        crate::design::Tone::Other(_) => return None,
-    })
-}
-
 fn control_view(ctx: &BodyContext, control: &Control, window: &mut Window, cx: &mut App) -> AnyElement {
     let scope = ctx.scope.scope();
     let column = control.binding.as_ref().map(|b| b.column.clone()).filter(|c| !c.is_empty());
@@ -248,7 +236,7 @@ pub fn computed_value(
     cx: &App,
 ) -> AnyElement {
     let theme = cx.theme();
-    let color = tone_color(tone, cx);
+    let color = tone.as_ref().and_then(|t| widgets::tone_color(t, cx));
     let shown = if error.is_some() { "—".to_string() } else { formatted(value, control.format.as_deref()) };
     v_flex()
         .gap_1()

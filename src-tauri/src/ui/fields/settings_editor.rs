@@ -7,16 +7,17 @@
 //! saved when it loses focus), `remove-unused-files` and `attachment-status`,
 //! `no-field-columns`.
 
-use super::{
+use crate::ui::controls::{new_input, input_text, select, text_input};
+use crate::forms::{
+    field_values::FIELD_FORMATS,
+    fields::field_settings_for,
     mask::{mask_issue, mask_template, parse_mask},
-    values::FIELD_FORMATS,
 };
 use crate::data::Column;
 use crate::recordstore::{EntitySettings, FieldSettings};
 use crate::ui::{
     prelude::*,
     schema::{
-        controls::{new_input, input_text, select, text_input},
         logical::{logical_of, parse_logical},
     },
     shell::Shell,
@@ -112,7 +113,7 @@ impl FieldSettingsEditor {
         let mut masks = HashMap::new();
         let mut choices = HashMap::new();
         for column in columns.iter().filter(|c| editable(c)) {
-            let field = super::values::field_settings_for(shell.read(cx).config(cx), table, &column.name).cloned();
+            let field = field_settings_for(&shell.read(cx).config(cx).entities, Some(table), Some(&column.name)).cloned();
             let mask = new_input(window, cx, "e.g. (000) 000-0000", field.as_ref().and_then(|f| f.input_mask.as_deref()).unwrap_or(""));
             let name = column.name.clone();
             subscriptions.push(cx.subscribe(&mask, move |this, state, e: &InputEvent, cx| {
@@ -147,7 +148,7 @@ impl FieldSettingsEditor {
     }
 
     fn field(&self, column: &str, cx: &App) -> Option<FieldSettings> {
-        super::values::field_settings_for(self.shell.read(cx).config(cx), &self.table, column).cloned()
+        field_settings_for(&self.shell.read(cx).config(cx).entities, Some(&self.table), Some(column)).cloned()
     }
 
     fn save(&mut self, column: &str, patch: impl FnOnce(&mut FieldSettings), cx: &mut Context<Self>) {

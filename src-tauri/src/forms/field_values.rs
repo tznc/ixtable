@@ -28,21 +28,6 @@ pub struct AttachmentRef {
     pub sha256: String,
 }
 
-/// The field settings of `table.column`, if any.
-pub fn field_settings_for<'a>(
-    config: &'a DocumentConfig,
-    table: &str,
-    column: &str,
-) -> Option<&'a FieldSettings> {
-    config
-        .entities
-        .iter()
-        .find(|e| e.table == table)?
-        .fields
-        .iter()
-        .find(|f| f.column == column)
-}
-
 fn json_array(value: &str) -> Vec<Value> {
     if !value.trim().starts_with('[') {
         return vec![];

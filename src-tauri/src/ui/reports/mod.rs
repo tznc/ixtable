@@ -45,7 +45,7 @@ use crate::report_engine::{
 use crate::reports::Report;
 use crate::ui::shell::{ModeId, RevealTarget, Shell};
 use crate::ui::prelude::*;
-use fields::{choice_field, input, Inputs};
+use crate::ui::controls::{choice_field, input, Inputs};
 use serde_json::Map;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -149,11 +149,7 @@ impl ReportsMode {
         mutate: impl FnOnce(&mut crate::archive::DocumentConfig) + 'static,
         cx: &mut Context<Self>,
     ) {
-        let store = self.shell.read(cx).store.clone();
-        let result = store.update(cx, |s, cx| s.update(label, mutate, cx));
-        if let Err(e) = result {
-            self.shell.update(cx, |s, cx| s.set_error(Some(e), cx));
-        }
+        Shell::edit_config(&self.shell, label, mutate, cx);
         cx.notify();
     }
 

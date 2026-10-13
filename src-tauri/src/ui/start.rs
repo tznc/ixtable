@@ -178,8 +178,7 @@ impl StartScreen {
         disabled: bool,
     ) -> Button {
         let button = Button::new(id)
-            .icon(Icon::new(icon))
-            .label(title)
+            .start_label(Some(Icon::new(icon)), title)
             .tooltip(detail)
             .disabled(disabled)
             .w(px(220.));

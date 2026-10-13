@@ -5,12 +5,12 @@
 //! `Type for <file column>` (select), `Import primary key` (select); and for an existing
 //! table `Field for <file column>` (select) and `mapping-type:<file column>`.
 
+use crate::ui::controls::{check, input_text, new_input, select, text_input};
 use super::mapping::{ColumnDraft, FieldDrafts};
 use crate::data::Column;
 use crate::ui::{
     prelude::*,
     schema::{
-        controls::{check, input_text, new_input, select, text_input},
         logical::LOGICAL_TYPES,
     },
 };

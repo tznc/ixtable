@@ -21,9 +21,9 @@ use crate::forms::{
     schema::{container_layout, control_kind_label, has_enabled_state, is_input_kind},
     state::known_names,
 };
+use crate::forms::mask::{mask_issue, mask_template, parse_mask};
 use crate::ui::{
     automation::action_picker,
-    fields::mask::{mask_issue, mask_template, parse_mask},
     grid::engine::{GridDelta, SpanConstraints, resize_placement},
     prelude::*,
 };

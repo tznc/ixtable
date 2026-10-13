@@ -12,29 +12,15 @@ use super::{chart, view::DashboardView};
 use crate::{
     dashboard_engine::data::{kpi_value, result_rows, table_slice, text_paragraphs},
     dashboards::{DashboardComponent, DashboardFilter, FilterControl},
-    design::Tone,
     forms::rbac::Operation,
     ui::{
         dashboards::data::QueryState,
         prelude::*,
-        reports::fields::{choice, input},
+        controls::{choice, input},
         runtime::message,
     },
 };
 use serde_json::{Map, Value};
-
-/// The color a table cell takes for its tone.
-fn tone_color(tone: &Tone, cx: &App) -> Option<Hsla> {
-    let theme = cx.theme();
-    Some(match tone {
-        Tone::Positive => theme.success,
-        Tone::Negative => theme.danger,
-        Tone::Warning => theme.warning,
-        Tone::Muted => theme.muted_foreground,
-        Tone::Emphasis => theme.primary,
-        Tone::Other(_) => return None,
-    })
-}
 
 impl DashboardView {
     /// The rows of a query-backed component, or the message that stands in for them.
@@ -151,7 +137,7 @@ impl DashboardView {
         }));
         let rows = slice.rows.iter().enumerate().map(|(r, row)| {
             h_flex().border_b_1().border_color(border).children(row.iter().enumerate().map(|(c, text)| {
-                let color = slice.tones[r][c].as_ref().and_then(|t| tone_color(t, cx));
+                let color = slice.tones[r][c].as_ref().and_then(|t| widgets::tone_color(t, cx));
                 widgets::styled_text(format!("cell:{name}:{r}:{c}"), text.clone(), { let w = widths[c]; move |d| {
                     d.flex_none().w(px(w)).px_2().py_1().text_sm().whitespace_nowrap().truncate().when_some(color, |d, color| d.text_color(color))
                 } })

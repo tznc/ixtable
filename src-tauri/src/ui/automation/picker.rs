@@ -5,7 +5,7 @@
 //! items (by index) of the `popup-menu` it opens: index 0 is `(none)`, then the actions in
 //! definition order.
 
-use super::fields::choice_field;
+use crate::ui::controls::choice_field;
 use crate::automation::ActionDef;
 use gpui_kit::*;
 

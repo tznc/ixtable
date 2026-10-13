@@ -6,6 +6,7 @@
 //! "Current column"), `find-whole`, `find-case`, `find-next`, `find-replace`,
 //! `find-replace-all`, `find-close`, `find-status`.
 
+use crate::ui::controls::{check, input_text, new_input, on_change, select, text_input};
 use super::{
     find::{cell_matches, cell_text, next_match, replace_text, CellAt, FindOptions},
     grid::Datasheet,
@@ -18,7 +19,6 @@ use crate::ui::{
     dialogs,
     fields::datasheet::datasheet_value,
     prelude::*,
-    schema::controls::{check, input_text, new_input, on_change, select, text_input},
 };
 use gpui_kit::component::input::{InputEvent, InputState};
 
