@@ -115,6 +115,34 @@ impl FormRenderer {
         Self { props, stack: vec![entry], shown: None, dirty: false, carry: None, events: Rc::default(), _observer: observer }
     }
 
+    /// Takes new props from an embedding host (a dashboard whose filters or record id changed).
+    /// The first view restarts when what it shows changed; otherwise the callbacks are just
+    /// refreshed.
+    pub fn set_props(&mut self, props: FormRendererProps, cx: &mut Context<Self>) {
+        let changed = props.form_id != self.props.form_id
+            || props.mode != self.props.mode
+            || props.record_id != self.props.record_id
+            || props.params != self.props.params;
+        self.props = props;
+        if !changed {
+            return;
+        }
+        let initial = resolve_form(self.props.env.config(cx), &self.props.form_id);
+        let mode = self
+            .props
+            .mode
+            .or_else(|| initial.as_ref().and_then(|f| f.modes.first().copied()))
+            .unwrap_or_default();
+        self.stack = vec![Entry {
+            form_id: self.props.form_id.clone(),
+            mode,
+            record_id: self.props.record_id.clone(),
+            cursor: None,
+        }];
+        *self.events.borrow_mut() = EventState::default();
+        self.reset(cx);
+    }
+
     fn top(&self) -> &Entry {
         self.stack.last().expect("the stack always holds a view")
     }

@@ -10,7 +10,7 @@ use crate::validation::Severity;
 use gpui_kit::TestAppContext;
 use serde_json::{Value, json};
 
-fn table_with_keys(h: &mut Harness, name: &str, columns: Value, foreign_keys: Value) {
+pub(super) fn table_with_keys(h: &mut Harness, name: &str, columns: Value, foreign_keys: Value) {
     let columns: Vec<Value> = columns
         .as_array()
         .expect("columns")

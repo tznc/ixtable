@@ -29,6 +29,10 @@ mod tests;
 #[cfg(test)]
 mod tests_events;
 #[cfg(test)]
+mod tests_forms;
+#[cfg(test)]
+mod tests_guards;
+#[cfg(test)]
 mod tests_misc;
 #[cfg(test)]
 mod tests_rbac;
