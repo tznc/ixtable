@@ -17,13 +17,17 @@ pub(super) fn customers(h: &mut Harness) {
 
 /// The id of the navigation button labelled `label`.
 pub(super) fn nav(h: &mut Harness, label: &str) -> String {
+    fn find<'a>(items: &'a [crate::design::NavigationItem], label: &str) -> Option<&'a crate::design::NavigationItem> {
+        items.iter().find_map(|n| {
+            if n.label == label && n.kind != crate::design::NavKind::Group {
+                Some(n)
+            } else {
+                find(&n.children, label)
+            }
+        })
+    }
     let config = h.config();
-    let item = config
-        .design
-        .navigation
-        .iter()
-        .find(|n| n.label == label)
-        .unwrap_or_else(|| panic!("no navigation item {label}"));
+    let item = find(&config.design.navigation, label).unwrap_or_else(|| panic!("no navigation item {label}"));
     format!("nav:{}", item.id)
 }
 

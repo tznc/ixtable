@@ -27,7 +27,11 @@ pub mod stack;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_misc;
+#[cfg(test)]
 mod tests_rbac;
+#[cfg(test)]
+mod tests_template;
 #[cfg(test)]
 mod tests_views;
 #[cfg(test)]
