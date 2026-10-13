@@ -2,7 +2,7 @@
 //! bundles, cloud apps, crash recovery). A feature adds its button in `actions` (built
 //! every render) or its panel view in `panels` (built once with the screen).
 
-use super::start::StartScreen;
+use super::{persistence::recovery_list::RecoveryList, start::StartScreen};
 use gpui_kit::*;
 
 /// Buttons next to New and Open.
@@ -13,8 +13,8 @@ pub fn actions(screen: &Entity<StartScreen>, busy: bool, cx: &mut App) -> Vec<An
 
 /// Panels between the banners and the template list.
 pub fn panels(screen: &Entity<StartScreen>, window: &mut Window, cx: &mut App) -> Vec<AnyView> {
-    let _ = (screen, window, cx);
-    vec![]
+    let _ = window;
+    vec![cx.new(|cx| RecoveryList::new(screen, cx)).into()]
 }
 
 /// Opens a runtime bundle (.ixtr) the OS asked to open.

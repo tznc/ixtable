@@ -7,6 +7,8 @@ pub mod assets;
 pub mod autosave;
 pub mod dialogs;
 pub mod events;
+pub mod forms;
+pub mod persistence;
 pub mod prelude;
 pub mod shell;
 pub mod start;
