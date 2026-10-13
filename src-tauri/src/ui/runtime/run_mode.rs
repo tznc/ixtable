@@ -30,7 +30,9 @@ use crate::ui::{prelude::*, shell::Shell, store::StoreEvent};
 use std::rc::Rc;
 
 /// Builds the view of a report or dashboard page; registered by the features that own them.
-pub type PageBuilder = Rc<dyn Fn(&RuntimePage, &RuntimeEnv, Option<BackLink>, &mut Window, &mut App) -> AnyView>;
+/// Builders get the shell too: a dashboard's report widgets need it.
+pub type PageBuilder =
+    Rc<dyn Fn(&RuntimePage, &RuntimeEnv, Option<BackLink>, &Entity<Shell>, &mut Window, &mut App) -> AnyView>;
 
 #[derive(Clone, Default)]
 pub struct PageBuilders {
@@ -253,7 +255,10 @@ impl RunBody {
                         (builders.dashboard, "Dashboards")
                     };
                     match builder {
-                        Some(build) => build(page, &env, back, window, cx),
+                        Some(build) => {
+                            let shell = self.shell.clone();
+                            build(page, &env, back, &shell, window, cx)
+                        }
                         None => cx
                             .new(|_| Placeholder { back, text: format!("{noun} are not available in this build.") })
                             .into(),

@@ -2,7 +2,7 @@
 //! text marks in page points, so preview, print and PDF draw the same chart.
 
 use super::chart_geometry::{
-    bar_geometry, chart_data, format_number, line_geometry, pie_geometry, plot_area,
+    bar_geometry, chart_data, format_number, line_geometry, pie_categories, pie_geometry, plot_area,
     scatter_data, scatter_geometry, series_color, CategoryData, Frame, Margin, Plot, ScatterSeries,
     SeriesSpec, Ticks, AXIS, GRID, MAX_SERIES, OTHER_COLOR, OTHER_LABEL,
 };
@@ -346,24 +346,7 @@ fn scatter_chart(
 
 /// Pie or donut on the left, legend with shares on the right.
 fn pie_chart(m: &mut Marks, c: &ChartSpec, data: &CategoryData, w: f64, h: f64, top: f64) -> bool {
-    let mut labels = data.categories.clone();
-    let mut values: Vec<Option<f64>> = data
-        .series
-        .first()
-        .map(|s| s.values.clone())
-        .unwrap_or_default();
-    // Categories past the palette fold into "Other" so slice colors never repeat.
-    if labels.len() > MAX_SERIES {
-        let rest: f64 = values
-            .iter()
-            .skip(MAX_SERIES - 1)
-            .map(|v| v.unwrap_or(0.0).max(0.0))
-            .sum();
-        labels.truncate(MAX_SERIES - 1);
-        labels.push(OTHER_LABEL.into());
-        values.truncate(MAX_SERIES - 1);
-        values.push(Some(rest));
-    }
+    let (labels, values) = pie_categories(data);
     let slices = pie_geometry(&labels, &values);
     if slices.is_empty() {
         return false;
@@ -424,8 +407,15 @@ fn chart_rows(c: &Comp, spec: &ChartSpec, ctx: &RenderContext) -> Vec<Row> {
 
 /// The chart item of one chart component placed with its band origin at (ox, oy).
 pub fn chart_items(c: &Comp, spec: &ChartSpec, ox: f64, oy: f64, ctx: &RenderContext) -> Vec<Item> {
-    let mut m = Marks::new(&c.id, ox + c.x, oy + c.y);
     let rows = chart_rows(c, spec, ctx);
+    vec![Item::Chart(chart_item(&c.id, (ox + c.x, oy + c.y), (c.w, c.h), spec, &rows))]
+}
+
+/// One chart drawn from `rows` into a `w` x `h` box at `origin` (page coordinates). Reports
+/// and dashboards share it; `spec.query_id` is not read here.
+pub fn chart_item(id: &str, origin: (f64, f64), size: (f64, f64), spec: &ChartSpec, rows: &[Row]) -> ChartItem {
+    let (w, h) = size;
+    let mut m = Marks::new(id, origin.0, origin.1);
     let series_spec = SeriesSpec {
         x: &spec.x_field,
         y: &spec.y_fields,
@@ -438,7 +428,7 @@ pub fn chart_items(c: &Comp, spec: &ChartSpec, ox: f64, oy: f64, ctx: &RenderCon
             &title_text,
             0.0,
             2.0,
-            c.w,
+            w,
             Label {
                 align: Some("center"),
                 size: Some(TITLE_SIZE),
@@ -451,24 +441,24 @@ pub fn chart_items(c: &Comp, spec: &ChartSpec, ox: f64, oy: f64, ctx: &RenderCon
     let kind = spec.chart_type.as_str();
     let mut drawn = false;
     if kind == "scatter" {
-        let data = scatter_data(&series_spec, &rows);
+        let data = scatter_data(&series_spec, rows);
         let legend: Legend = data
             .iter()
             .enumerate()
             .map(|(i, s)| (s.name.clone(), series_color(i, Some(&s.name)).to_string()))
             .collect();
-        let rows_of = if legend.len() > 1 { legend_rows(&legend, c.w) } else { vec![] };
-        let plot_h = c.h - top - rows_of.len() as f64 * LEGEND_ROW;
-        drawn = scatter_chart(&mut m, spec, &data, c.w, plot_h, top).is_some();
+        let rows_of = if legend.len() > 1 { legend_rows(&legend, w) } else { vec![] };
+        let plot_h = h - top - rows_of.len() as f64 * LEGEND_ROW;
+        drawn = scatter_chart(&mut m, spec, &data, w, plot_h, top).is_some();
         if drawn {
-            draw_legend(&mut m, &rows_of, top + plot_h, c.w);
+            draw_legend(&mut m, &rows_of, top + plot_h, w);
         }
     } else {
-        let data = chart_data(&series_spec, &rows);
+        let data = chart_data(&series_spec, rows);
         if has_values(&data) {
             drawn = true;
             if kind == "pie" || kind == "donut" {
-                drawn = pie_chart(&mut m, spec, &data, c.w, c.h - top, top);
+                drawn = pie_chart(&mut m, spec, &data, w, h - top, top);
             } else {
                 let legend: Legend = data
                     .series
@@ -476,10 +466,10 @@ pub fn chart_items(c: &Comp, spec: &ChartSpec, ox: f64, oy: f64, ctx: &RenderCon
                     .enumerate()
                     .map(|(i, s)| (s.name.clone(), series_color(i, Some(&s.name)).to_string()))
                     .collect();
-                let rows_of = if legend.len() > 1 { legend_rows(&legend, c.w) } else { vec![] };
-                let plot_h = c.h - top - rows_of.len() as f64 * LEGEND_ROW;
-                category_chart(&mut m, spec, &data, c.w, plot_h, top);
-                draw_legend(&mut m, &rows_of, top + plot_h, c.w);
+                let rows_of = if legend.len() > 1 { legend_rows(&legend, w) } else { vec![] };
+                let plot_h = h - top - rows_of.len() as f64 * LEGEND_ROW;
+                category_chart(&mut m, spec, &data, w, plot_h, top);
+                draw_legend(&mut m, &rows_of, top + plot_h, w);
             }
         }
     }
@@ -487,8 +477,8 @@ pub fn chart_items(c: &Comp, spec: &ChartSpec, ox: f64, oy: f64, ctx: &RenderCon
         m.text(
             CHART_NO_DATA,
             0.0,
-            top + (c.h - top - LABEL_LINE) / 2.0,
-            c.w,
+            top + (h - top - LABEL_LINE) / 2.0,
+            w,
             Label {
                 align: Some("center"),
                 ..Label::default()
@@ -500,13 +490,13 @@ pub fn chart_items(c: &Comp, spec: &ChartSpec, ox: f64, oy: f64, ctx: &RenderCon
     } else {
         title_text
     };
-    vec![Item::Chart(ChartItem {
-        component_id: c.id.clone(),
+    ChartItem {
+        component_id: id.to_string(),
         x: r2(m.ox),
         y: r2(m.oy),
-        w: r2(c.w),
-        h: r2(c.h),
+        w: r2(w),
+        h: r2(h),
         title,
         marks: m.marks,
-    })]
+    }
 }

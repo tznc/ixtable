@@ -697,6 +697,21 @@ pub fn line_geometry(data: &CategoryData, area: bool, stacked: bool, frame: &Fra
     }
 }
 
+/// The first series as pie categories: those past the palette fold into "Other" so slice
+/// colors never repeat.
+pub fn pie_categories(data: &CategoryData) -> (Vec<String>, Vec<Option<f64>>) {
+    let mut labels = data.categories.clone();
+    let mut values: Vec<Option<f64>> = data.series.first().map(|s| s.values.clone()).unwrap_or_default();
+    if labels.len() > MAX_SERIES {
+        let rest: f64 = values.iter().skip(MAX_SERIES - 1).map(|v| v.unwrap_or(0.0).max(0.0)).sum();
+        labels.truncate(MAX_SERIES - 1);
+        labels.push(OTHER_LABEL.into());
+        values.truncate(MAX_SERIES - 1);
+        values.push(Some(rest));
+    }
+    (labels, values)
+}
+
 #[derive(Debug, Clone)]
 pub struct Slice {
     pub index: usize,

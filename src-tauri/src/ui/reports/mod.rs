@@ -16,7 +16,7 @@
 mod canvas;
 mod designer;
 mod extra;
-mod fields;
+pub(crate) mod fields;
 mod page_view;
 mod preview;
 mod props;
@@ -33,7 +33,8 @@ pub(crate) mod test_support;
 mod tests_run;
 
 pub use designer::ReportDesigner;
-pub use page_view::{page_image, page_view, PageImages};
+pub(crate) use page_view::hex as page_color;
+pub use page_view::{chart_element, page_image, page_view, PageImages};
 pub use preview::ReportPreview;
 pub use run::{ParameterPrompt, ReportRun};
 

@@ -104,7 +104,9 @@ pub fn build_view(
         ModeId::Reports => cx
             .new(|cx| crate::ui::reports::ReportsMode::new(shell.clone(), window, cx))
             .into(),
-        ModeId::Dashboards => placeholder(cx, "Dashboards", "Charts and KPIs"),
+        ModeId::Dashboards => cx
+            .new(|cx| crate::ui::dashboards::DashboardsMode::new(shell.clone(), window, cx))
+            .into(),
         ModeId::Automation => cx
             .new(|cx| crate::ui::automation::AutomationMode::new(shell.clone(), window, cx))
             .into(),

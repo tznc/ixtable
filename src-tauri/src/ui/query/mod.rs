@@ -24,7 +24,7 @@ mod list;
 mod model;
 mod params;
 mod picker;
-mod results;
+pub(crate) mod results;
 mod run;
 mod sortgroup;
 mod sources;
