@@ -6,6 +6,7 @@ pub mod access;
 pub mod app;
 pub mod assets;
 pub mod autosave;
+pub mod cloud;
 pub mod dialogs;
 pub mod events;
 pub mod forms;
