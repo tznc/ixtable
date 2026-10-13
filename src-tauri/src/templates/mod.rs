@@ -166,13 +166,6 @@ pub fn list_templates() -> Result<Vec<TemplateInfo>, AppError> {
     TEMPLATES.iter().filter(|t| t.listed).map(info).collect()
 }
 
-/// A template's definitions as DocumentConfig YAML (seed migration included). Applying it
-/// with `apply_document_config_yaml` upgrades a document made from an older version.
-pub fn read_template_config(template_id: String) -> Result<String, AppError> {
-    archive::document_config_yaml(&template_config(&template_id)?)
-        .map_err(|e| invalid(&template_id, e))
-}
-
 /// Creates a new untitled document from a template: definitions, assets, schema, and seed.
 pub fn create_from_template(
     window_label: String,

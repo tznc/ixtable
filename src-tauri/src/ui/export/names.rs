@@ -23,14 +23,6 @@ pub fn format_label(format: ExportFormat) -> &'static str {
     }
 }
 
-pub fn filter_name(format: ExportFormat) -> &'static str {
-    match format {
-        ExportFormat::Csv => "CSV files",
-        ExportFormat::Xlsx => "Excel workbooks",
-        ExportFormat::Json => "JSON files",
-    }
-}
-
 const CSV: &[FileFilter] = &[FileFilter { name: "CSV files", extensions: &["csv"] }];
 const XLSX: &[FileFilter] = &[FileFilter { name: "Excel workbooks", extensions: &["xlsx"] }];
 const JSON: &[FileFilter] = &[FileFilter { name: "JSON files", extensions: &["json"] }];

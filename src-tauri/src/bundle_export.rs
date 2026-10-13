@@ -1,11 +1,10 @@
 //! `export_runtime_bundle`: packages the open Studio document as a signed `.ixtr`.
 use crate::archive::{self, ArchiveDocument, ArchiveMetadata, Severity};
 use crate::bundle::{
-    archive_bytes, build_bundle, fingerprint, io_err, parse_version, sha256_hex, signing_key,
+    archive_bytes, build_bundle, io_err, parse_version, sha256_hex, signing_key,
     state_dir, verify, write_atomic, BundleMeta, APP_VERSION,
 };
 use crate::manager::AppError;
-use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
@@ -139,12 +138,6 @@ pub(crate) fn snapshot_data(
     let tmp = Remove(scratch.join(format!(".bundle-data-{}.db", uuid::Uuid::new_v4())));
     crate::manager::vacuum_into(db, &tmp.0)?;
     fs::read(&tmp.0).map_err(io_err)
-}
-
-/// Public signing-key fingerprint for display (generates the key if missing).
-pub fn bundle_signer_fingerprint() -> Result<String, AppError> {
-    let key = signing_key(&state_dir())?;
-    Ok(fingerprint(&B64.encode(key.verifying_key().as_bytes())))
 }
 
 #[cfg(test)]

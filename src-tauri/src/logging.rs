@@ -387,22 +387,6 @@ pub fn read_logs(window_label: String, limit: Option<usize>) -> Result<Vec<LogEn
     Ok(global().read(limit.unwrap_or(200).min(5000)))
 }
 
-/// Writes a frontend diagnostic line (level `info`/`warn`/`error`) to the local log.
-pub fn write_log(
-    window_label: String,
-    level: String,
-    area: String,
-    message: String,
-) -> Result<(), AppError> {
-    let _ = window_label;
-    let level = match level.as_str() {
-        "warn" | "error" | "debug" => level,
-        _ => "info".into(),
-    };
-    log(&level, &format!("ui:{area}"), &message);
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

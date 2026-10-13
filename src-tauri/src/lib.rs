@@ -94,9 +94,6 @@ pub fn save_document(window_label: String) -> Result<SessionState, AppError> {
 pub fn save_document_as(window_label: String, path: String) -> Result<SessionState, AppError> {
     manager()?.save(&window_label, Some(PathBuf::from(path)))
 }
-pub fn reload_document(window_label: String) -> Result<SessionState, AppError> {
-    manager()?.reload(&window_label)
-}
 pub fn close_document(window_label: String, force: bool) -> Result<(), AppError> {
     manager()?.close(&window_label, force)
 }
@@ -116,12 +113,6 @@ pub fn export_attachment(window_label: String, id: String, path: String) -> Resu
 }
 pub fn remove_attachment(window_label: String, id: String) -> Result<SessionState, AppError> {
     manager()?.remove_attachment(&window_label, &id)
-}
-pub fn get_preference(key: String) -> Result<Option<Value>, AppError> {
-    manager()?
-        .global
-        .preference(&key)
-        .map_err(|e| AppError::new("IO_ERROR", e))
 }
 pub fn set_preference(key: String, value: Value) -> Result<(), AppError> {
     manager()?

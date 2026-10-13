@@ -41,16 +41,6 @@ pub fn report_parameters(report: &Report, queries: &[SavedQuery]) -> Vec<QueryPa
     seen
 }
 
-/// The kind of input a prompt shows for a logical type.
-pub fn input_type(logical_type: &str) -> &'static str {
-    match logical_type {
-        "integer" | "number" => "number",
-        "date" => "date",
-        "timestamp" => "datetime-local",
-        _ => "text",
-    }
-}
-
 /// A parameter value as prompt text (null and booleans show empty).
 pub fn display(value: Option<&Value>) -> String {
     match value {

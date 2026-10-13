@@ -60,14 +60,6 @@ pub async fn preview_import_file(
     .await
 }
 
-/// Imports every row of a file into a new or existing table.
-pub async fn import_file(
-    window_label: String,
-    request: crate::import::write::ImportRequest,
-) -> Result<crate::import::write::ImportReport, AppError> {
-    blocking(move || import_now(&window_label, request)).await
-}
-
 /// Imports a file. Errors before anything is written (an unreadable file, a
 /// bad mapping) fail the command; once a new table exists or rows are being
 /// written, a stop is reported in `aborted` with the counts so far, and the

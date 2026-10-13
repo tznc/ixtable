@@ -7,12 +7,6 @@ use crate::recordstore::secrets::{self, SecretStore};
 use serde::Serialize;
 use serde_json::{json, Value};
 
-/// Effective cloud URL, anon key, and website URL for supabase-js.
-pub fn cloud_config(window_label: String) -> Result<config::CloudConfig, AppError> {
-    let _ = window_label;
-    Ok(config::current())
-}
-
 /// Secret-store id of a supabase-js storage key. Only Supabase auth keys are
 /// accepted, so the webview cannot read other local secrets through this.
 fn auth_key(key: &str) -> Result<String, AppError> {

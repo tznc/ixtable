@@ -149,12 +149,6 @@ impl<C: UiContext> Harness<'_, C> {
     }
 }
 
-/// Reveals `id` in the table designer's scroll area, then clicks it.
-pub fn click_designer<C: UiContext>(h: &mut Harness<'_, C>, id: &str) {
-    reveal(h, "table-designer", None, id);
-    h.click(id.to_string());
-}
-
 /// Reveals and clicks `id` inside the designer section `scope`.
 pub fn click_designer_in<C: UiContext>(h: &mut Harness<'_, C>, scope: &str, id: &str) {
     reveal(h, "table-designer", Some(scope), id);

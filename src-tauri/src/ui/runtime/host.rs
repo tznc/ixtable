@@ -6,7 +6,7 @@
 //! `run_action_job` runs one action: the work on the background executor, a poller that
 //! hands queued requests to the owning view while it runs, and a completion callback.
 
-use super::{Notice, Runtime};
+use super::Runtime;
 use crate::forms::actions::{
     ActionContext, ActionHost, ActionResult, NavigationTarget, NoticeTone, StateScope,
 };
@@ -203,12 +203,4 @@ pub fn context(
         snapshot: None,
         host,
     }
-}
-
-/// The notice for an action's failure.
-pub fn failure_notice(result: &ActionResult) -> Option<Notice> {
-    (!result.ok)
-        .then(|| result.error.clone().filter(|e| !e.is_empty()))
-        .flatten()
-        .map(|message| Notice { message, tone: NoticeTone::Error })
 }
