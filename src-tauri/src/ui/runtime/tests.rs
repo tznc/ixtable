@@ -128,7 +128,9 @@ impl ActionRunner for FnRunner {
 }
 
 /// Keeps the process-wide action runner to one test at a time; clears it on drop.
-pub(crate) struct RunnerGuard(#[allow(dead_code)] MutexGuard<'static, ()>);
+pub(crate) struct RunnerGuard {
+    _lock: MutexGuard<'static, ()>,
+}
 
 impl Drop for RunnerGuard {
     fn drop(&mut self) {
@@ -142,14 +144,14 @@ static RUNNER_LOCK: Mutex<()> = Mutex::new(());
 pub(crate) fn with_runner(
     run: impl Fn(&str, &ActionContext) -> ActionResult + Send + Sync + 'static,
 ) -> RunnerGuard {
-    let guard = RunnerGuard(RUNNER_LOCK.lock().unwrap_or_else(|e| e.into_inner()));
+    let guard = RunnerGuard { _lock: RUNNER_LOCK.lock().unwrap_or_else(|e| e.into_inner()) };
     set_action_runner(Some(Arc::new(FnRunner(Box::new(run)))));
     guard
 }
 
 /// Installs the real Automation runner through the Runtime's bridge.
 pub(crate) fn with_real_runner() -> RunnerGuard {
-    let guard = RunnerGuard(RUNNER_LOCK.lock().unwrap_or_else(|e| e.into_inner()));
+    let guard = RunnerGuard { _lock: RUNNER_LOCK.lock().unwrap_or_else(|e| e.into_inner()) };
     set_action_runner(Some(Arc::new(super::automation_bridge::AutomationRunner)));
     guard
 }

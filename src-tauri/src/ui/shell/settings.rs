@@ -1,7 +1,7 @@
 //! The `app` mode: application settings as a tab strip over `TABS`. Each tab's view
 //! lives in its owning feature module and is registered in `build_tab`.
 
-use super::{Shell, placeholder::TabPlaceholder};
+use super::Shell;
 use crate::ui::widgets;
 use gpui_kit::component::{ActiveTheme as _, v_flex};
 use gpui_kit::*;
@@ -76,13 +76,7 @@ fn build_tab(key: &str, shell: &Entity<Shell>, window: &mut Window, cx: &mut App
         "problems" => cx
             .new(|cx| super::problems::ProblemsTab::new(shell.clone(), cx))
             .into(),
-        _ => {
-            let label = TABS
-                .iter()
-                .find(|(k, _)| *k == key)
-                .map_or("Settings", |(_, l)| *l);
-            cx.new(|_| TabPlaceholder { title: label }).into()
-        }
+        _ => unreachable!("settings tab {key} is not in TABS"),
     }
 }
 

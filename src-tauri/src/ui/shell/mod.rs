@@ -5,7 +5,6 @@
 pub mod expression_issues;
 pub mod modes;
 pub mod object_browser;
-pub mod placeholder;
 pub mod problems;
 pub mod settings;
 pub mod yaml;

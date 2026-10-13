@@ -2,7 +2,7 @@
 //! Each feature registers its workspace view (and optional sidebar) in `build_view`
 //! and `build_sidebar`.
 
-use super::{Shell, placeholder::ModePlaceholder};
+use super::Shell;
 use gpui_kit::assets::IconName;
 use gpui_kit::*;
 
@@ -138,8 +138,4 @@ pub fn build_sidebar(
         ),
         _ => None,
     }
-}
-
-fn placeholder(cx: &mut App, title: &'static str, description: &'static str) -> AnyView {
-    cx.new(|_| ModePlaceholder { title, description }).into()
 }

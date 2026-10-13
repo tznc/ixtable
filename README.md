@@ -98,9 +98,9 @@ Studio has one mode per area. The registry is `src-tauri/src/ui/shell/modes.rs`.
 |---|---|---|
 | Data | `ui/data/`, `ui/schema/` | tables, schema designer, relationships, record grid |
 | Query | `ui/query/` | SQL and visual query builder, parameters, saved queries |
-| Design | placeholder; `ui/grid/` holds the shared grid | form designer on the shared grid |
+| Design | `ui/design/`, `ui/grid/` | form designer on the shared grid |
 | Reports | `ui/reports/` | freeform report designer, pagination, print and PDF |
-| Dashboards | placeholder | dashboards on the shared grid |
+| Dashboards | `ui/dashboards/` | dashboards on the shared grid |
 | Automation | `ui/automation/` | actions, record triggers, background jobs |
 | Settings | `ui/shell/settings.rs` | assets, release, datasource, entities, migrations, roles, YAML, problems, logs |
 | Runtime | `ui/runtime/`, `ui/release/` | runs the application, opens runtime-only bundles |
