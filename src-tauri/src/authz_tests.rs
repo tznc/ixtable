@@ -144,7 +144,7 @@ fn a_report_grants_its_dataset_and_table_queries_for_reading_only() {
 /// stray `queryId` on a text component.
 fn dashboard_config() -> DocumentConfig {
     let mut c = config();
-    c.dashboards = serde_json::from_value(json!([
+    c.pages = serde_json::from_value(json!([
         {
             "id": "d-sales", "name": "Sales",
             "filters": [{"id": "fl1", "name": "Region", "param": "region",
@@ -217,7 +217,7 @@ fn a_dashboard_grants_read_on_its_component_and_filter_queries_only() {
 fn a_previewed_role_granted_only_a_dashboard_runs_its_queries() {
     let (m, base) = session();
     m.with_session("w", |s| {
-        s.doc.config.dashboards = dashboard_config().dashboards;
+        s.doc.config.pages = dashboard_config().pages;
         s.doc.config.roles = vec![role(vec![grant("dashboard", "d-sales", &[Op::Read])], &[])];
         preview_role(s, Some("clerk".into()))
     })

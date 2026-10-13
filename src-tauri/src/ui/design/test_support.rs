@@ -9,19 +9,25 @@ use gpui_kit::Entity;
 
 pub use crate::ui::reports::test_support::{choose, edit_store, id, wait_until};
 
-/// Opens Design mode.
+/// Opens Design mode on the first form (the default document's page shows it).
 pub fn open_designer<C: UiContext>(h: &mut Harness<'_, C>) {
     h.switch_mode(ModeId::Design);
     assert_eq!(h.mode(), ModeId::Design);
+    let first = h.config().design.forms.first().map(|f| f.id.clone());
+    let design = crate::ui::pages::test_support::design_mode(h);
+    h.update(|_, cx| {
+        design.update(cx, |d, cx| match first {
+            Some(id) => d.open_form(&id, None, cx),
+            None => d.focus = crate::ui::pages::Focus::Form,
+        })
+    });
     assert_eq!(h.label("design-studio"), "Form builder");
 }
 
+/// The form designer of the Design mode.
 pub fn studio<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<DesignStudio> {
-    h.read_shell(|s, _| s.mode_view())
-        .expect("a mode is showing")
-        .downcast::<DesignStudio>()
-        .ok()
-        .expect("Design mode is showing")
+    let design = crate::ui::pages::test_support::design_mode(h);
+    h.cx.read(|cx| design.read(cx).forms.clone())
 }
 
 /// The first form of the document.

@@ -1,17 +1,15 @@
-//! Reports mode (PRD §15): report list, band designer, preview and PDF export. Port of
-//! `src/reports/`; the layout and PDF engine is `crate::report_engine`.
+//! Reports (PRD §15): the band designer, preview and PDF export of one report. Reports are
+//! shown on pages, and the Design mode (`ui::pages::DesignMode`) opens a report here from its
+//! page. The layout and PDF engine is `crate::report_engine`.
 //!
-//! - `ReportsMode` is the mode's view: a report list, the toolbar (name, dataset, duplicate,
-//!   delete, Design/Preview tabs) and the designer or the preview.
+//! - `ReportPanel` shows one report: the toolbar (name, dataset, duplicate, delete,
+//!   Design/Preview tabs) and the designer or the preview.
 //! - `ReportDesigner` (`designer.rs`, `canvas.rs`, `props*.rs`, `settings.rs`) edits one report.
 //! - `ReportPreview` (`preview.rs`) shows the laid-out pages; `ReportRun` (`run.rs`) opens a
 //!   report from Runtime, asking for parameters first.
 //!
-//! Test ids: `new-report`, `report-item-N`, `no-reports`, `report-name`, `report-dataset`,
-//! `duplicate-report`, `delete-report`, `tab-design`, `tab-preview`, `mode-title`.
-//!
-//! The dataset choice lists saved queries and tables/views directly; the Query agent's
-//! shared `QueryPicker` can replace it once it lands.
+//! Test ids: `report-name`, `report-dataset`, `duplicate-report`, `delete-report`,
+//! `tab-design`, `tab-preview`.
 
 mod canvas;
 mod designer;
@@ -43,7 +41,7 @@ use crate::report_engine::{
     model::{duplicate_report, new_report},
 };
 use crate::reports::Report;
-use crate::ui::shell::{ModeId, RevealTarget, Shell};
+use crate::ui::shell::Shell;
 use crate::ui::prelude::*;
 use crate::ui::controls::{choice_field, input, Inputs};
 use serde_json::Map;
@@ -64,7 +62,7 @@ fn unique_name(base: &str, taken: &[String]) -> String {
         .unwrap_or_default()
 }
 
-pub struct ReportsMode {
+pub struct ReportPanel {
     shell: Entity<Shell>,
     pub selected: Option<String>,
     pub tab: Tab,
@@ -74,11 +72,11 @@ pub struct ReportsMode {
     preview: Option<(String, Entity<ReportPreview>)>,
     columns: Vec<String>,
     columns_key: Option<String>,
-    inputs: Inputs<ReportsMode, String>,
+    inputs: Inputs<ReportPanel, String>,
     _subscription: Subscription,
 }
 
-impl ReportsMode {
+impl ReportPanel {
     pub fn new(shell: Entity<Shell>, _: &mut Window, cx: &mut Context<Self>) -> Self {
         let subscription = cx.observe(&shell, |_, _, cx| cx.notify());
         Self {
@@ -104,20 +102,17 @@ impl ReportsMode {
         self.preview.as_ref().map(|(_, p)| p.clone())
     }
 
-    /// Opens the report another mode asked to reveal.
-    fn take_reveal(&mut self, cx: &mut Context<Self>) {
-        let request = self.shell.update(cx, |s, _| s.take_reveal(ModeId::Reports));
-        if let Some(RevealTarget::Reports { object_id, element_id }) = request {
-            self.selected = Some(object_id);
-            self.tab = Tab::Design;
-            self.focus = element_id;
-            self.focus_seq += 1;
-            cx.notify();
-        }
+    /// Shows report `id` in the designer, with component `element` selected.
+    pub fn open(&mut self, id: &str, element: Option<String>, cx: &mut Context<Self>) {
+        self.selected = Some(id.to_string());
+        self.tab = Tab::Design;
+        self.focus = element;
+        self.focus_seq += 1;
+        cx.notify();
     }
 
     /// The report shown: the selected one, else the first.
-    fn current(&self, cx: &App) -> Option<Report> {
+    pub fn current(&self, cx: &App) -> Option<Report> {
         let config = self.shell.read(cx).config(cx);
         config
             .reports
@@ -159,12 +154,15 @@ impl ReportsMode {
         }
     }
 
-    pub fn create(&mut self, cx: &mut Context<Self>) {
+    /// Adds a report (on a page of its own) and returns its id.
+    pub fn create(&mut self, cx: &mut Context<Self>) -> String {
         let taken: Vec<String> = self.shell.read(cx).config(cx).reports.iter().map(|r| r.name.clone()).collect();
         let report = new_report(&unique_name("Report", &taken));
+        let id = report.id.clone();
         self.selected = Some(report.id.clone());
         self.tab = Tab::Design;
-        self.edit_config("New report", move |c| c.reports.push(report), cx);
+        self.edit_config("New report", move |c| { c.reports.push(report); crate::pages::upgrade::sync(c); }, cx);
+        id
     }
 
     pub fn duplicate(&mut self, cx: &mut Context<Self>) {
@@ -173,7 +171,7 @@ impl ReportsMode {
         };
         let copy = duplicate_report(&report, &format!("{} copy", report.name));
         self.selected = Some(copy.id.clone());
-        self.edit_config("Duplicate report", move |c| c.reports.push(copy), cx);
+        self.edit_config("Duplicate report", move |c| { c.reports.push(copy); crate::pages::upgrade::sync(c); }, cx);
     }
 
     pub fn delete(&mut self, cx: &mut Context<Self>) {
@@ -181,7 +179,7 @@ impl ReportsMode {
             return;
         };
         self.selected = None;
-        self.edit_config("Delete report", move |c| c.reports.retain(|r| r.id != id), cx);
+        self.edit_config("Delete report", move |c| { c.reports.retain(|r| r.id != id); crate::pages::upgrade::sync(c); }, cx);
     }
 
     /// Dataset choice value: `query:<id>`, `table:<name>` or "".
@@ -305,47 +303,9 @@ impl ReportsMode {
         preview
     }
 
-    fn select(&mut self, id: &str, cx: &mut Context<Self>) {
-        self.selected = Some(id.to_string());
-        cx.notify();
-    }
-
     fn set_tab(&mut self, key: &str, cx: &mut Context<Self>) {
         self.tab = if key == "preview" { Tab::Preview } else { Tab::Design };
         cx.notify();
-    }
-
-    fn render_list(&self, reports: &[Report], current: Option<&str>, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = cx.theme();
-        let (border, muted) = (theme.border, theme.muted_foreground);
-        v_flex()
-            .id("report-list")
-            .w(px(220.))
-            .h_full()
-            .flex_none()
-            .gap_1()
-            .p_3()
-            .border_r_1()
-            .border_color(border)
-            .child(div().text_xs().text_color(muted).child("REPORTS"))
-            .child(
-                Button::new("new-report")
-                    .outline()
-                    .small()
-                    .icon(IconName::Plus)
-                    .label("New report")
-                    .on_click(cx.listener(|this, _, _, cx| this.create(cx))),
-            )
-            .children(reports.iter().enumerate().map(|(i, r)| {
-                let id = r.id.clone();
-                Button::new(SharedString::from(format!("report-item-{}", i + 1)))
-                    .ghost()
-                    .small()
-                    .start_label(None, r.name.clone())
-                    .selected(current == Some(r.id.as_str()))
-                    .on_click(cx.listener(move |this, _, _, cx| this.select(&id, cx)))
-            }))
-            .when(reports.is_empty(), |el| el.child(widgets::text("no-reports", "No reports yet.")))
     }
 
     fn render_toolbar(&mut self, report: &Report, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -396,39 +356,22 @@ impl ReportsMode {
     }
 }
 
-impl Render for ReportsMode {
+impl Render for ReportPanel {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // The shell is being updated while it builds this view, so reveals are taken here.
-        self.take_reveal(cx);
-        let reports = self.shell.read(cx).config(cx).reports.clone();
-        let report = self.current(cx);
-        let title = report.as_ref().map_or("Reports".to_string(), |r| r.name.clone());
-        let editor = match &report {
-            Some(report) => {
-                self.load_columns(report, cx);
-                let body = match self.tab {
-                    Tab::Design => self.designer_for(report, cx).into_any_element(),
-                    Tab::Preview => self.preview_for(report, cx).into_any_element(),
-                };
-                v_flex()
-                    .size_full()
-                    .child(self.render_toolbar(report, window, cx))
-                    .child(div().flex_1().min_h_0().child(body))
-                    .into_any_element()
-            }
-            None => widgets::empty_state("no-report", "Create a report to start designing.", "Use New report in the list.", cx)
-                .into_any_element(),
+        let Some(report) = self.current(cx) else {
+            return widgets::empty_state("no-report", "This report no longer exists.", "Go back to the page.", cx)
+                .into_any_element();
+        };
+        self.load_columns(&report, cx);
+        let body = match self.tab {
+            Tab::Design => self.designer_for(&report, cx).into_any_element(),
+            Tab::Preview => self.preview_for(&report, cx).into_any_element(),
         };
         v_flex()
+            .id("report-panel")
             .size_full()
-            .child(widgets::titlebar("Project / Reports", &title, cx))
-            .child(
-                h_flex()
-                    .id("reports-mode")
-                    .flex_1()
-                    .min_h_0()
-                    .child(self.render_list(&reports, report.as_ref().map(|r| r.id.as_str()), cx))
-                    .child(div().flex_1().min_w_0().h_full().child(editor)),
-            )
+            .child(self.render_toolbar(&report, window, cx))
+            .child(div().flex_1().min_h_0().child(body))
+            .into_any_element()
     }
 }

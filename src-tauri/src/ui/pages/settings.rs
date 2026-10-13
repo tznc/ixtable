@@ -6,10 +6,10 @@
 //! Test ids: `dash-settings` (the panel), `layout-columns`, `layout-padding`,
 //! `layout-column-gap`, `layout-row-gap`, `layout-justify`, `layout-align`.
 
-use super::editor::DashboardEditor;
+use super::editor::PageEditor;
 use crate::{
-    dashboard_engine::model::with_layout,
-    dashboards::Dashboard,
+    page_engine::model::with_layout,
+    pages::Page,
     design::{GridAlign, GridTrack},
     ui::{
         prelude::*,
@@ -38,7 +38,7 @@ fn align_of(key: &str) -> GridAlign {
     }
 }
 
-impl DashboardEditor {
+impl PageEditor {
     pub(super) fn on_layout_edit(&mut self, key: &str, text: &str, cx: &mut Context<Self>) -> bool {
         let Ok(number) = text.trim().parse::<f64>() else { return key.starts_with("layout-") };
         let number = number.round().max(0.0) as usize;
@@ -78,7 +78,7 @@ impl DashboardEditor {
         }, cx);
     }
 
-    pub(super) fn render_settings_panel(&mut self, dashboard: &Dashboard, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn render_settings_panel(&mut self, dashboard: &Page, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let muted = cx.theme().muted_foreground;
         let layout = &dashboard.layout;
         let number = |this: &mut Self, id: &str, label: &str, value: usize, window: &mut Window, cx: &mut Context<Self>| {
@@ -115,7 +115,7 @@ impl DashboardEditor {
             .child(div().text_xs().text_color(muted).child("DASHBOARD SETTINGS"))
             .child(filters)
             .child(
-                crate::ui::reports::fields::section("dash-grid-settings", "Dashboard grid", cx)
+                crate::ui::reports::fields::section("dash-grid-settings", "Page grid", cx)
                     .child(columns)
                     .child(padding)
                     .child(column_gap)

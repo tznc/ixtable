@@ -1,7 +1,7 @@
 //! Port of the "runtime navigation with roles" tests of tests/unit/rbac.test.ts, plus page
 //! titles.
 
-use super::{PageKind, RuntimePage, can_open, page_title, start_page, visible_navigation};
+use super::{PageKind, RuntimePage, can_open, page_title, solo_page, start_page, visible_navigation};
 use crate::archive::DocumentConfig;
 use crate::design::NavigationItem;
 use crate::forms::rbac::tests::clerk;
@@ -73,4 +73,26 @@ fn titles_a_page_by_its_nav_label_else_its_targets_name() {
     assert_eq!(page_title(&c, &RuntimePage::new(PageKind::Form, "orders-form")), "Order entry");
     assert_eq!(page_title(&c, &RuntimePage::new(PageKind::Table, "order_lines")), "Order lines");
     assert_eq!(page_title(&c, &RuntimePage::new(PageKind::Report, "gone")), "previous page");
+}
+
+#[test]
+fn a_page_with_only_a_form_or_report_opens_it_full_page() {
+    let mut config = DocumentConfig::default();
+    config.pages = serde_json::from_value(json!([
+        {"id": "p1", "name": "Orders", "components": [{"id": "c", "kind": "form", "formId": "f", "mode": "detail"}]},
+        {"id": "p2", "name": "Sales", "components": [{"id": "c", "kind": "report", "reportId": "r"}]},
+        {"id": "p3", "name": "Mixed", "components": [
+            {"id": "a", "kind": "form", "formId": "f"}, {"id": "b", "kind": "kpi"}
+        ]}
+    ]))
+    .unwrap();
+    let form = solo_page(&config, &RuntimePage::new(PageKind::Page, "p1"));
+    assert_eq!((form.kind, form.id.as_str(), form.mode.as_deref()), (PageKind::Form, "f", Some("detail")));
+    let listed = RuntimePage { mode: Some("list".into()), nav_id: Some("n".into()), ..RuntimePage::new(PageKind::Page, "p1") };
+    let form = solo_page(&config, &listed);
+    assert_eq!((form.mode.as_deref(), form.nav_id.as_deref()), (Some("list"), Some("n")));
+    let report = solo_page(&config, &RuntimePage::new(PageKind::Page, "p2"));
+    assert_eq!((report.kind, report.id.as_str(), report.mode), (PageKind::Report, "r", None));
+    let mixed = RuntimePage::new(PageKind::Page, "p3");
+    assert_eq!(solo_page(&config, &mixed), mixed);
 }

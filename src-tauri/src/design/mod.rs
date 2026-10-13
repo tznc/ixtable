@@ -427,7 +427,9 @@ pub enum NavKind {
     #[default]
     Form,
     Report,
-    Dashboard,
+    /// A page (config version 8; earlier versions called it a dashboard).
+    #[serde(alias = "dashboard")]
+    Page,
     Table,
     Group,
 }

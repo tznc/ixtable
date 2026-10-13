@@ -38,7 +38,10 @@ pub fn apply_generated_app(
         Some([table]) => format!("Create forms for {table}"),
         _ => "Generate app from tables".to_string(),
     };
-    store.update(cx, |s, cx| s.update(&label, move |c| c.design = next, cx))?;
+    store.update(cx, |s, cx| s.update(&label, move |c| {
+        c.design = next;
+        crate::pages::upgrade::sync(c);
+    }, cx))?;
     Ok(added)
 }
 

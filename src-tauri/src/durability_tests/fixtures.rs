@@ -106,7 +106,7 @@ fn describe(
         forms: c.design.forms.iter().map(|f| f.id.clone()).collect(),
         queries: c.saved_queries.iter().map(|q| q.id.clone()).collect(),
         reports: c.reports.iter().map(|r| r.id.clone()).collect(),
-        dashboards: c.dashboards.iter().map(|d| d.id.clone()).collect(),
+        dashboards: c.pages.iter().map(|d| d.id.clone()).collect(),
         rows: tables
             .iter()
             .map(|t| (t.to_string(), count_rows(m, window, t)))

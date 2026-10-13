@@ -13,11 +13,11 @@
 //! grants its dataset table and queries; a dashboard grants read on the
 //! queries of its KPI, table and chart components and filter options (never
 //! embedded forms or reports, their queries or tables, or any write or
-//! action). Dashboard filters and columns are not row or column security:
+//! action). Page filters and columns are not row or column security:
 //! the caller supplies parameters, filters and limits (PRD §20.1). Ad hoc SQL
 //! is refused for a role. This is not a defense against a user holding direct database credentials.
 use crate::archive::DocumentConfig;
-use crate::dashboards::{ComponentKind, Dashboard};
+use crate::pages::{ComponentKind, Page};
 use crate::design::{Form, SourceKind};
 use crate::manager::{AppError, Session};
 use crate::reports::{Band, Report};
@@ -217,7 +217,7 @@ pub(crate) fn form_queries(form: &Form) -> impl Iterator<Item = &str> {
 /// choices. Embedded forms are excluded: their queries need the form grant
 /// (`readable_query`'s `by_form`), since the dashboard refuses forms the role
 /// cannot open.
-pub(crate) fn dashboard_queries(dashboard: &Dashboard) -> impl Iterator<Item = &str> {
+pub(crate) fn dashboard_queries(dashboard: &Page) -> impl Iterator<Item = &str> {
     let components = dashboard
         .components
         .iter()
@@ -258,9 +258,9 @@ fn readable_query(config: &DocumentConfig, role: &Role, id: &str) -> bool {
     };
     let by_dashboard = || {
         config
-            .dashboards
+            .pages
             .iter()
-            .filter(|d| explicit(role, "dashboard", &d.id, Op::Read))
+            .filter(|d| explicit(role, "page", &d.id, Op::Read))
             .any(|d| dashboard_queries(d).any(|q| q == id))
     };
     by_form || by_report() || by_dashboard()

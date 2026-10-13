@@ -1,7 +1,7 @@
 //! Helpers shared by the reports tests and the reports screenshot spec. They are generic
 //! over the harness's context, so they drive both the test and the headless-renderer apps.
 
-use super::{ReportPreview, ReportsMode};
+use super::{ReportPanel, ReportPreview};
 use crate::archive::{DocumentConfig, SavedQuery};
 use crate::data::DataValue;
 use crate::reports::{Band, Component, Report};
@@ -83,12 +83,10 @@ pub fn seed_orders<C: UiContext>(h: &mut Harness<'_, C>) {
     }
 }
 
-pub fn mode<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<ReportsMode> {
-    h.read_shell(|s, _| s.mode_view())
-        .expect("a mode is showing")
-        .downcast::<ReportsMode>()
-        .ok()
-        .expect("Reports mode is showing")
+/// The report panel of the Design mode.
+pub fn mode<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<ReportPanel> {
+    let design = crate::ui::pages::test_support::design_mode(h);
+    h.cx.read(|cx| design.read(cx).reports.clone())
 }
 
 pub fn preview<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<ReportPreview> {
@@ -108,8 +106,8 @@ pub fn wait_for_page<C: UiContext>(h: &mut Harness<'_, C>, label: &str) {
 }
 
 pub fn open_reports<C: UiContext>(h: &mut Harness<'_, C>) {
-    h.switch_mode(ModeId::Reports);
-    assert_eq!(h.mode(), ModeId::Reports);
+    h.switch_mode(ModeId::Design);
+    assert_eq!(h.mode(), ModeId::Design);
 }
 
 /// The first report of the document.

@@ -114,7 +114,7 @@ pub enum RevealTarget {
         object_id: String,
         element_id: Option<String>,
     },
-    Dashboards {
+    Page {
         object_id: String,
         element_id: Option<String>,
     },
@@ -128,8 +128,7 @@ impl RevealTarget {
     pub fn mode(&self) -> ModeId {
         match self {
             RevealTarget::Design { .. } => ModeId::Design,
-            RevealTarget::Reports { .. } => ModeId::Reports,
-            RevealTarget::Dashboards { .. } => ModeId::Dashboards,
+            RevealTarget::Reports { .. } | RevealTarget::Page { .. } => ModeId::Design,
             RevealTarget::Automation { .. } => ModeId::Automation,
         }
     }

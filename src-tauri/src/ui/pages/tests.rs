@@ -5,7 +5,7 @@
 use super::test_support::{
     SALES_BY_REGION, component, dashboard, edit_store, new_dashboard, pick_query, seed_sales, wait_for_columns,
 };
-use crate::dashboards::{ComponentKind, FilterControl};
+use crate::pages::{ComponentKind, FilterControl};
 use crate::ui::reports::test_support::{choose, id, wait_until};
 use crate::ui::testing::Harness;
 use gpui_kit::TestAppContext;
@@ -83,14 +83,14 @@ fn creates_renames_duplicates_and_deletes_dashboards(cx: &mut TestAppContext) {
     assert_eq!(h.label("mode-title"), "Sales board");
     h.click("add-text");
     h.click("duplicate-dashboard");
-    let names: Vec<String> = h.config().dashboards.iter().map(|d| d.name.clone()).collect();
+    let names: Vec<String> = h.config().pages.iter().map(|d| d.name.clone()).collect();
     assert_eq!(names, ["Sales board", "Sales board copy"]);
-    let (original, copy) = (h.config().dashboards[0].clone(), h.config().dashboards[1].clone());
+    let (original, copy) = (h.config().pages[0].clone(), h.config().pages[1].clone());
     assert_ne!(original.id, copy.id);
     assert_eq!(copy.components.len(), 1);
     assert_ne!(original.components[0].id, copy.components[0].id, "a copy gets fresh component ids");
     h.click("delete-dashboard");
-    let names: Vec<String> = h.config().dashboards.iter().map(|d| d.name.clone()).collect();
+    let names: Vec<String> = h.config().pages.iter().map(|d| d.name.clone()).collect();
     assert_eq!(names, ["Sales board"]);
 }
 
@@ -117,10 +117,10 @@ fn adds_every_kind_of_component_with_its_properties_and_lists_the_issues(cx: &mu
     );
     // Unset references are fine; references to deleted objects are reported.
     assert!(!h.exists("dash-issues"));
-    edit_store(&mut h, |c| c.dashboards[0].components[0].query_id = Some("gone".into()));
+    edit_store(&mut h, |c| c.pages[0].components[0].query_id = Some("gone".into()));
     assert!(h.exists("dash-issues"));
     assert_eq!(h.label(id("issue:0")), "\"KPI 1\" uses a saved query that does not exist");
-    edit_store(&mut h, |c| c.dashboards[0].components[0].query_id = None);
+    edit_store(&mut h, |c| c.pages[0].components[0].query_id = None);
     assert!(!h.exists("dash-issues"));
 
     // The last added component is selected; its title edits as one step.

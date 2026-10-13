@@ -1,4 +1,4 @@
-//! A live dashboard (port of `DashboardView.tsx`): the filter bar, the components on the
+//! A live dashboard (port of `PageView.tsx`): the filter bar, the components on the
 //! shared grid, and parallel query loading with progress and Cancel. Used by the Studio's
 //! View tab (detached) and by Runtime navigation (attached to the `Runtime`).
 //!
@@ -14,11 +14,11 @@ use super::{
     ROW_HEIGHT,
 };
 use crate::{
-    dashboard_engine::{
+    page_engine::{
         data::{dashboard_params, default_filter_values},
         model::kind_label,
     },
-    dashboards::{ComponentKind, Dashboard, DashboardComponent, DashboardFilter},
+    pages::{ComponentKind, Page, PageComponent, PageFilter},
     forms::{
         actions::{NavigationTarget, NoticeTone, StateScope},
         navigation::{PageKind, RuntimePage},
@@ -56,7 +56,7 @@ pub struct WidgetState {
     pub enabled_error: Option<String>,
 }
 
-pub struct DashboardView {
+pub struct PageView {
     pub(super) shell: Entity<Shell>,
     pub(super) env: RuntimeEnv,
     dashboard_id: String,
@@ -72,13 +72,13 @@ pub struct DashboardView {
     pub notice: Option<(String, bool)>,
     pub(super) options: HashMap<String, Vec<String>>,
     options_asked: HashSet<String>,
-    pub(super) inputs: Inputs<DashboardView, String>,
+    pub(super) inputs: Inputs<PageView, String>,
     forms: HashMap<String, Entity<EmbeddedForm>>,
     reports: HashMap<String, Entity<ReportPreview>>,
     _subscription: Subscription,
 }
 
-impl DashboardView {
+impl PageView {
     pub fn new(
         shell: Entity<Shell>,
         env: RuntimeEnv,
@@ -122,12 +122,12 @@ impl DashboardView {
         view
     }
 
-    pub(super) fn dashboard(&self, cx: &App) -> Option<Dashboard> {
-        self.env.config(cx).dashboards.iter().find(|d| d.id == self.dashboard_id).cloned()
+    pub(super) fn dashboard(&self, cx: &App) -> Option<Page> {
+        self.env.config(cx).pages.iter().find(|d| d.id == self.dashboard_id).cloned()
     }
 
     /// The query parameters in force: page parameters, overridden by the filters' settled values.
-    pub fn params(&self, dashboard: &Dashboard) -> Map<String, Value> {
+    pub fn params(&self, dashboard: &Page) -> Map<String, Value> {
         let mut values = self.settled.clone();
         for (id, value) in default_filter_values(&dashboard.filters) {
             values.entry(id).or_insert(value);
@@ -274,16 +274,16 @@ impl DashboardView {
     }
 
     /// The state of a component's query: `Denied` when the role may not read it.
-    pub fn component_state(&self, dashboard: &Dashboard, component: &DashboardComponent, cx: &App) -> Option<QueryState> {
+    pub fn component_state(&self, dashboard: &Page, component: &PageComponent, cx: &App) -> Option<QueryState> {
         let readable = |query: &str| self.env_can_read(dashboard, query, cx);
         self.state_of(component, &readable)
     }
 
-    fn env_can_read(&self, dashboard: &Dashboard, query: &str, cx: &App) -> bool {
+    fn env_can_read(&self, dashboard: &Page, query: &str, cx: &App) -> bool {
         can_read_dashboard_query(self.env.config(cx), self.env.role_id(cx).as_deref(), dashboard, query)
     }
 
-    fn state_of(&self, component: &DashboardComponent, readable: &dyn Fn(&str) -> bool) -> Option<QueryState> {
+    fn state_of(&self, component: &PageComponent, readable: &dyn Fn(&str) -> bool) -> Option<QueryState> {
         let id = component.query_id.as_deref().filter(|q| !q.is_empty())?;
         if !readable(id) {
             return Some(QueryState::Denied);
@@ -293,7 +293,7 @@ impl DashboardView {
 
     /// The saved queries a load runs: the ones the components use that the role may read,
     /// each once.
-    pub fn runnable_queries(&self, dashboard: &Dashboard, cx: &App) -> Vec<String> {
+    pub fn runnable_queries(&self, dashboard: &Page, cx: &App) -> Vec<String> {
         let mut ids: Vec<String> = vec![];
         for c in &dashboard.components {
             let id = c.query_id.clone().unwrap_or_default();
@@ -327,7 +327,7 @@ impl DashboardView {
     }
 
     /// Loads the choices of select filters that take them from a query.
-    fn load_options(&mut self, dashboard: &Dashboard, cx: &mut Context<Self>) {
+    fn load_options(&mut self, dashboard: &Page, cx: &mut Context<Self>) {
         for filter in &dashboard.filters {
             let Some(query) = filter.options_query_id.clone().filter(|_| filter.options.is_empty()) else { continue };
             if !self.options_asked.insert(query.clone()) {
@@ -339,7 +339,7 @@ impl DashboardView {
                 cx,
                 move || {
                     let run_id = uuid::Uuid::new_v4().to_string();
-                    (runner.run)(&label, &id, &Map::new(), &run_id).map(|r| crate::dashboard_engine::data::option_values(&r.rows)).unwrap_or_default()
+                    (runner.run)(&label, &id, &Map::new(), &run_id).map(|r| crate::page_engine::data::option_values(&r.rows)).unwrap_or_default()
                 },
                 move |this, values, cx| {
                     this.options.insert(query, values);
@@ -349,7 +349,7 @@ impl DashboardView {
         }
     }
 
-    fn form_for(&mut self, component: &DashboardComponent, params: &Map<String, Value>, cx: &mut Context<Self>) -> Entity<EmbeddedForm> {
+    fn form_for(&mut self, component: &PageComponent, params: &Map<String, Value>, cx: &mut Context<Self>) -> Entity<EmbeddedForm> {
         if let Some(form) = self.forms.get(&component.id).cloned() {
             form.update(cx, |f, cx| f.set_component(component, params.clone(), cx));
             return form;
@@ -360,7 +360,7 @@ impl DashboardView {
         form
     }
 
-    fn report_for(&mut self, component: &DashboardComponent, params: &Map<String, Value>, cx: &mut Context<Self>) -> Entity<ReportPreview> {
+    fn report_for(&mut self, component: &PageComponent, params: &Map<String, Value>, cx: &mut Context<Self>) -> Entity<ReportPreview> {
         let report_id = component.report_id.clone().unwrap_or_default();
         if let Some(preview) = self.reports.get(&component.id).cloned() {
             preview.update(cx, |p, cx| p.set_params(Some(params.clone()), cx));
@@ -389,7 +389,7 @@ impl DashboardView {
                 .child(
                     div()
                         .id("dash-progress-bar")
-                        .aria_label(format!("Dashboard queries progress: {done} of {total}"))
+                        .aria_label(format!("Page queries progress: {done} of {total}"))
                         .w(px(160.))
                         .h(px(6.))
                         .rounded_full()
@@ -411,8 +411,8 @@ impl DashboardView {
 
     fn render_component(
         &mut self,
-        dashboard: &Dashboard,
-        component: &DashboardComponent,
+        dashboard: &Page,
+        component: &PageComponent,
         visible: &ConditionResult,
         scope: &Map<String, Value>,
         params: &Map<String, Value>,
@@ -480,8 +480,8 @@ impl DashboardView {
     #[allow(clippy::too_many_arguments)]
     fn render_body(
         &mut self,
-        dashboard: &Dashboard,
-        component: &DashboardComponent,
+        dashboard: &Page,
+        component: &PageComponent,
         name: &str,
         scope: &Map<String, Value>,
         params: &Map<String, Value>,
@@ -522,7 +522,7 @@ impl DashboardView {
     }
 
     /// The filters that are not placed on the canvas, shown in the toolbar.
-    fn bar_filters(dashboard: &Dashboard) -> Vec<DashboardFilter> {
+    fn bar_filters(dashboard: &Page) -> Vec<PageFilter> {
         let placed: HashSet<&str> = dashboard
             .components
             .iter()
@@ -533,7 +533,7 @@ impl DashboardView {
     }
 }
 
-impl Render for DashboardView {
+impl Render for PageView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let Some(dashboard) = self.dashboard(cx) else {
             return message("dash-missing", "This dashboard does not exist.", true, cx).into_any_element();

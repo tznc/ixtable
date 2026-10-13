@@ -4,13 +4,14 @@ use super::generate::humanize;
 use super::rbac::{Operation, can};
 use crate::archive::DocumentConfig;
 use crate::design::{NavKind, NavigationItem};
+use crate::pages::ComponentKind;
 use serde_json::{Map, Value};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PageKind {
     Form,
     Report,
-    Dashboard,
+    Page,
     Table,
 }
 
@@ -19,7 +20,7 @@ impl PageKind {
         match self {
             PageKind::Form => "form",
             PageKind::Report => "report",
-            PageKind::Dashboard => "dashboard",
+            PageKind::Page => "page",
             PageKind::Table => "table",
         }
     }
@@ -27,7 +28,7 @@ impl PageKind {
         Some(match key {
             "form" => PageKind::Form,
             "report" => PageKind::Report,
-            "dashboard" => PageKind::Dashboard,
+            "page" | "dashboard" => PageKind::Page,
             "table" => PageKind::Table,
             _ => return None,
         })
@@ -66,7 +67,7 @@ pub fn page_for(item: &NavigationItem) -> Option<RuntimePage> {
         NavKind::Group => return None,
         NavKind::Form => PageKind::Form,
         NavKind::Report => PageKind::Report,
-        NavKind::Dashboard => PageKind::Dashboard,
+        NavKind::Page => PageKind::Page,
         NavKind::Table => PageKind::Table,
     };
     Some(RuntimePage {
@@ -128,6 +129,40 @@ pub fn start_page(config: &DocumentConfig, role_id: Option<&str>) -> Option<Runt
     page_for(item)
 }
 
+/// What the Runtime shows for `page`: a page holding only one form or report shows that form
+/// or report full page (the navigation item's form mode wins over the component's); anything
+/// else is shown as is.
+pub fn solo_page(config: &DocumentConfig, page: &RuntimePage) -> RuntimePage {
+    let solo = (page.kind == PageKind::Page)
+        .then(|| config.pages.iter().find(|p| p.id == page.id))
+        .flatten()
+        .and_then(|p| match p.components.as_slice() {
+            [only] => Some(only),
+            _ => None,
+        });
+    let Some(component) = solo else {
+        return page.clone();
+    };
+    let (kind, target) = match component.kind {
+        ComponentKind::Form => (PageKind::Form, component.form_id.as_ref()),
+        ComponentKind::Report => (PageKind::Report, component.report_id.as_ref()),
+        _ => return page.clone(),
+    };
+    let Some(target) = target.filter(|t| !t.is_empty()) else {
+        return page.clone();
+    };
+    let mode = page
+        .mode
+        .clone()
+        .or_else(|| component.mode.map(|m| super::schema::form_mode_key(m).to_string()));
+    RuntimePage {
+        kind,
+        id: target.clone(),
+        mode: if kind == PageKind::Form { mode } else { None },
+        ..page.clone()
+    }
+}
+
 /// A page's title for back links: its navigation label, else the target's name.
 pub fn page_title(config: &DocumentConfig, page: &RuntimePage) -> String {
     let labelled = page.nav_id.as_ref().and_then(|nav| {
@@ -152,8 +187,8 @@ pub fn page_title(config: &DocumentConfig, page: &RuntimePage) -> String {
             .iter()
             .find(|r| r.id == page.id)
             .map(|r| r.name.clone()),
-        PageKind::Dashboard => config
-            .dashboards
+        PageKind::Page => config
+            .pages
             .iter()
             .find(|d| d.id == page.id)
             .map(|d| d.name.clone()),

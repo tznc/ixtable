@@ -16,7 +16,7 @@ use crate::ui::prelude::*;
 const KINDS: [(&str, NavKind); 5] = [
     ("form", NavKind::Form),
     ("report", NavKind::Report),
-    ("dashboard", NavKind::Dashboard),
+    ("page", NavKind::Page),
     ("table", NavKind::Table),
     ("group", NavKind::Group),
 ];
@@ -84,7 +84,7 @@ impl DesignStudio {
             by_kind: vec![
                 (NavKind::Form, design.forms.iter().map(|f| (f.id.clone(), f.name.clone())).collect()),
                 (NavKind::Report, config.reports.iter().map(|r| (r.id.clone(), r.name.clone())).collect()),
-                (NavKind::Dashboard, config.dashboards.iter().map(|d| (d.id.clone(), d.name.clone())).collect()),
+                (NavKind::Page, config.pages.iter().map(|d| (d.id.clone(), d.name.clone())).collect()),
                 (NavKind::Table, self.tables(cx).into_iter().map(|t| (t.clone(), t)).collect()),
                 (NavKind::Group, vec![]),
             ],

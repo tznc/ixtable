@@ -302,7 +302,7 @@ fn check_navigation(
             NavKind::Group => true,
             NavKind::Form => config.design.forms.iter().any(|f| f.id == target),
             NavKind::Report => config.reports.iter().any(|r| r.id == target),
-            NavKind::Dashboard => config.dashboards.iter().any(|d| d.id == target),
+            NavKind::Page => config.pages.iter().any(|d| d.id == target),
             NavKind::Table => !target.is_empty(),
         };
         if !exists {

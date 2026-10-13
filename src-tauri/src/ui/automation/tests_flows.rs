@@ -351,7 +351,7 @@ fn reveals_an_action_or_trigger_from_another_mode(cx: &mut TestAppContext) {
         .unwrap();
         c.triggers = serde_json::from_value(json!([trigger("t1", "created", "a2")])).unwrap();
     });
-    h.switch_mode(ModeId::Reports);
+    h.switch_mode(ModeId::Design);
     let shell = h.shell();
     h.update(|window, cx| {
         shell.update(cx, |s, cx| {

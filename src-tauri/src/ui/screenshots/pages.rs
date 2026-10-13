@@ -8,7 +8,7 @@
 
 use crate::archive::{DocumentConfig, QueryParameter, SavedQuery};
 use crate::data::DataValue;
-use crate::ui::dashboards::test_support::{
+use crate::ui::pages::test_support::{
     component, dashboard, define, new_dashboard, pick_query, uid, wait_for_columns,
 };
 use crate::ui::reports::test_support::{choose, edit_store, id, wait_until};
@@ -99,7 +99,7 @@ fn dashboards_designer_view_and_filter() {
         "dashboards-01-designer",
         &[
             "The dashboard canvas shows the Revenue KPI and the chart as grid items in design mode.",
-            "Dashboard settings list the status filter with its three choices.",
+            "Page settings list the status filter with its three choices.",
         ],
     );
 

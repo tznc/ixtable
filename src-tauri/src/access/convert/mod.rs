@@ -218,7 +218,7 @@ pub fn convert(
         "savedQueries": saved,
         "design": { "version": 3, "forms": forms, "navigation": nav.items, "startPage": nav.start_page },
         "reports": reports,
-        "dashboards": [],
+        "pages": [],
         "actions": all_actions,
         "triggers": [],
         "migrations": [migration],
@@ -353,13 +353,14 @@ pub fn create(
     m.new_session(window)?;
     let result = (|| {
         let ids = import_assets(m, window, &assets, vba_text(file))?;
-        let config: DocumentConfig = serde_json::from_value(resolve_assets(&config, &ids))
+        let mut config: DocumentConfig = serde_json::from_value(resolve_assets(&config, &ids))
             .map_err(|e| {
                 AppError::new(
                     "IMPORT_FAILED",
                     format!("the converted definitions are invalid: {e}"),
                 )
             })?;
+        crate::pages::upgrade::sync(&mut config);
         m.update_config(window, config.clone())?;
         let db = m.database_path(window)?;
         crate::migrations::apply_sqlite(&db, &config.migrations)

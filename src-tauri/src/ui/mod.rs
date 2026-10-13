@@ -9,7 +9,6 @@ pub mod automation;
 pub mod autosave;
 pub mod cloud;
 pub mod controls;
-pub mod dashboards;
 pub mod dialog;
 pub mod dialogs;
 pub mod events;
@@ -23,6 +22,7 @@ mod store_tests;
 pub mod grid;
 pub mod import;
 pub mod migrations;
+pub mod pages;
 pub mod persistence;
 pub mod prelude;
 pub mod query;
@@ -56,7 +56,7 @@ pub fn init(dialogs: Arc<dyn dialogs::DialogProvider>, cx: &mut App) {
     gpui_kit::init(cx);
     shell::bind_keys(cx);
     cx.set_global(dialogs::Dialogs(dialogs));
-    dashboards::register(cx);
+    pages::register(cx);
 }
 
 pub fn is_runtime_bundle(path: &str) -> bool {

@@ -304,7 +304,7 @@ fn work_orders_v2_extends_v1_without_changing_applied_migrations() {
         ids.extend(c.actions.iter().map(|a| a.id.clone()));
         ids.extend(c.triggers.iter().map(|t| t.id.clone()));
         ids.extend(c.reports.iter().map(|r| r.id.clone()));
-        ids.extend(c.dashboards.iter().map(|d| d.id.clone()));
+        ids.extend(c.pages.iter().map(|d| d.id.clone()));
         ids.extend(c.roles.iter().map(|r| r.id.clone()));
         ids
     };

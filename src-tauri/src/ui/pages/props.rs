@@ -13,10 +13,10 @@
 //! `prop-visible-when`, `prop-enabled-when`, `prop-hint`, `prop-region`, `prop-delete` and
 //! `dashboard-settings`.
 
-use super::{editor::DashboardEditor, mode_name, parse_mode};
+use super::{editor::PageEditor, mode_name, parse_mode};
 use crate::{
-    dashboard_engine::model::{CHART_TYPES, chart_key, chart_label, embeddable_modes, kind_label, new_id},
-    dashboards::{ChartType, ComponentKind, Dashboard, DashboardComponent},
+    page_engine::model::{CHART_TYPES, chart_key, chart_label, embeddable_modes, kind_label, new_id},
+    pages::{ChartType, ComponentKind, Page, PageComponent},
     design::{ConditionalStyle, Tone},
     forms::state::expression_problem,
     ui::{
@@ -58,7 +58,7 @@ fn row_names(columns: &[String], value: bool) -> Vec<String> {
 }
 
 /// Sets the text field named by `key`; false when `key` is not one.
-fn apply_text(key: &str, c: &mut DashboardComponent, text: &str) -> bool {
+fn apply_text(key: &str, c: &mut PageComponent, text: &str) -> bool {
     match key {
         "prop-title" => c.title = text.into(),
         "prop-expression" => c.expression = opt(text),
@@ -94,7 +94,7 @@ fn apply_text(key: &str, c: &mut DashboardComponent, text: &str) -> bool {
     true
 }
 
-impl DashboardEditor {
+impl PageEditor {
     pub(super) fn on_component_edit(&mut self, key: &str, text: &str, cx: &mut Context<Self>) -> bool {
         if !key.starts_with("prop-") {
             return false;
@@ -112,6 +112,16 @@ impl DashboardEditor {
     }
 
     /// A callback that runs `f` on this editor with the picked value.
+    /// "Edit form" / "New form" (and the report equivalents): opens the definition's designer.
+    fn open_button(id: &'static str, label: &'static str, cx: &Context<Self>) -> Button {
+        Button::new(id)
+            .primary()
+            .small()
+            .icon(IconName::Pencil)
+            .label(label)
+            .on_click(cx.listener(|this, _, window, cx| this.open_target(window, cx)))
+    }
+
     pub(super) fn on_pick(
         cx: &Context<Self>,
         f: impl Fn(&mut Self, &str, &mut Context<Self>) + 'static,
@@ -169,7 +179,7 @@ impl DashboardEditor {
         id: &str,
         legend: &str,
         selected: &[String],
-        on_change: fn(&mut DashboardComponent, Vec<String>),
+        on_change: fn(&mut PageComponent, Vec<String>),
         cx: &mut Context<Self>,
     ) -> Div {
         let mut all = self.columns.columns.clone();
@@ -194,7 +204,7 @@ impl DashboardEditor {
         )
     }
 
-    fn style_rows(&mut self, component: &DashboardComponent, names: &[String], window: &mut Window, cx: &mut Context<Self>) -> Div {
+    fn style_rows(&mut self, component: &PageComponent, names: &[String], window: &mut Window, cx: &mut Context<Self>) -> Div {
         let count = component.styles.len();
         let mut rows = v_flex().gap_2();
         for (n, style) in component.styles.iter().enumerate() {
@@ -279,7 +289,7 @@ impl DashboardEditor {
         rows
     }
 
-    fn condition_properties(&mut self, c: &DashboardComponent, window: &mut Window, cx: &mut Context<Self>) -> Div {
+    fn condition_properties(&mut self, c: &PageComponent, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let mut panel = v_flex().gap_2();
         if c.kind == ComponentKind::Table {
             let columns = self.columns.columns.clone();
@@ -352,8 +362,8 @@ impl DashboardEditor {
 
     pub(super) fn render_component_panel(
         &mut self,
-        dashboard: &Dashboard,
-        c: &DashboardComponent,
+        dashboard: &Page,
+        c: &PageComponent,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -368,7 +378,7 @@ impl DashboardEditor {
                 Button::new("dashboard-settings")
                     .ghost()
                     .small()
-                    .start_label(None, "Dashboard settings")
+                    .start_label(None, "Page settings")
                     .on_click(cx.listener(|this, _, _, cx| this.select(None, cx))),
             )
             .child(div().text_xs().text_color(muted).child(format!("{} PROPERTIES", kind_label(c.kind).to_uppercase())))
@@ -541,6 +551,7 @@ impl DashboardEditor {
                         }),
                         cx,
                     ));
+                panel = panel.child(Self::open_button("edit-form", if chosen.is_some() { "Edit form" } else { "New form" }, cx));
                 if matches!(c.mode, Some(crate::design::FormMode::Detail | crate::design::FormMode::Edit)) && !query_sourced {
                     panel = panel.child(self.expression_field(
                         "prop-record-id",
@@ -568,6 +579,8 @@ impl DashboardEditor {
                     }),
                     cx,
                 ));
+                let chosen = config.reports.iter().any(|r| Some(&r.id) == c.report_id.as_ref());
+                panel = panel.child(Self::open_button("edit-report", if chosen { "Edit report" } else { "New report" }, cx));
             }
             ComponentKind::Button => {
                 let editor = cx.entity();
@@ -622,7 +635,7 @@ impl DashboardEditor {
     }
 
     /// Region choice for the component's placement: "None" keeps the column and row placement.
-    fn region_picker(&self, dashboard: &Dashboard, c: &DashboardComponent, cx: &mut Context<Self>) -> Option<Div> {
+    fn region_picker(&self, dashboard: &Page, c: &PageComponent, cx: &mut Context<Self>) -> Option<Div> {
         let names: Vec<String> = dashboard.layout.named_regions.iter().map(|r| r.name.clone()).filter(|n| !n.is_empty()).collect();
         let current = c.placement.region.clone().unwrap_or_default();
         if names.is_empty() && current.is_empty() {

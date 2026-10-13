@@ -256,7 +256,7 @@ fn check_step(config: &DocumentConfig, action: &ActionDef, step: &Step, issues: 
     };
     let forms: HashSet<&str> = config.design.forms.iter().map(|x| x.id.as_str()).collect();
     let reports: HashSet<&str> = config.reports.iter().map(|x| x.id.as_str()).collect();
-    let dashboards: HashSet<&str> = config.dashboards.iter().map(|x| x.id.as_str()).collect();
+    let dashboards: HashSet<&str> = config.pages.iter().map(|x| x.id.as_str()).collect();
     let missing = |issues: &mut Vec<Issue>, kind: &str, id: &str, set: &HashSet<&str>| {
         if id.is_empty() {
             err(issues, format!("no {kind} selected"));
@@ -298,7 +298,7 @@ fn check_step(config: &DocumentConfig, action: &ActionDef, step: &Step, issues: 
             match kind {
                 "form" => missing(issues, "form", id, &forms),
                 "report" => missing(issues, "report", id, &reports),
-                "dashboard" => missing(issues, "dashboard", id, &dashboards),
+                "page" => missing(issues, "page", id, &dashboards),
                 "table" if !id.is_empty() => {}
                 _ => err(issues, "navigation target is not set".into()),
             }
@@ -309,7 +309,7 @@ fn check_step(config: &DocumentConfig, action: &ActionDef, step: &Step, issues: 
             expr_map(issues, "params", false);
         }
         "openDashboard" => {
-            missing(issues, "dashboard", text(f, "dashboardId"), &dashboards);
+            missing(issues, "page", text(f, "dashboardId"), &dashboards);
             expr_map(issues, "params", false);
         }
         "setState" => {

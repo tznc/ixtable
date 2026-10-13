@@ -32,6 +32,7 @@ every risk-retirement spike. This index maps each spike to its record.
 | [Datasheet tools](./datasheet-tools.md) | none. Filter by selection, find and replace, frozen and hidden columns, totals row, spreadsheet paste (PRD Phase 6) | accepted |
 | [Continuous, split and popup forms](./form-views.md) | none. Phase 6 form modes, record navigation bar, popup forms with return values | accepted |
 | [Form events](./form-events.md) | none. Form events run declarative actions (PRD §17.4) | accepted |
+| [Pages](./pages.md) | none. Forms, reports and dashboards consolidated into pages on one Design page (config version 8) | accepted |
 | [Native GPUI UI](./gpui-ui.md) | none. Rust/GPUI UI via tauri-plugin-gpui and gpui-kit; conventions and headless tests | accepted |
 | [Design language](./design-language.md) | none. Type scale, colour, buttons, dialogs, callouts and tables every screen follows | accepted |
 

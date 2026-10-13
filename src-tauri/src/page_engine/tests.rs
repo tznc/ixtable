@@ -9,8 +9,8 @@ use super::model::{
     with_layout,
 };
 use crate::archive::DocumentConfig;
-use crate::dashboards::{
-    ChartType, ComponentKind, Dashboard, DashboardComponent, DashboardFilter, FilterControl, KpiComparison,
+use crate::pages::{
+    ChartType, ComponentKind, Page, PageComponent, PageFilter, FilterControl, KpiComparison,
 };
 use crate::data::DataValue;
 use crate::design::{ConditionalStyle, FormMode, FormSource, Placement, SourceKind, Tone};
@@ -22,8 +22,8 @@ fn at(column: u16, row: u16, column_span: u16, row_span: u16) -> Placement {
     Placement { column, row, column_span, row_span, region: None }
 }
 
-fn chart(patch: impl FnOnce(&mut DashboardComponent)) -> DashboardComponent {
-    let mut c = DashboardComponent {
+fn chart(patch: impl FnOnce(&mut PageComponent)) -> PageComponent {
+    let mut c = PageComponent {
         id: "c".into(),
         kind: ComponentKind::Chart,
         title: "Chart".into(),
@@ -49,7 +49,7 @@ fn rows() -> Vec<Row> {
     .collect()
 }
 
-fn spec(c: &DashboardComponent) -> SeriesSpec<'_> {
+fn spec(c: &PageComponent) -> SeriesSpec<'_> {
     SeriesSpec { x: c.x.as_deref().unwrap_or(""), y: &c.y, group_by: c.group_by.as_deref() }
 }
 
@@ -114,7 +114,7 @@ fn builds_scatter_points_from_numeric_x_and_y_skipping_blanks() {
     assert_eq!(counts, [("East".into(), 1), ("West".into(), 1), ("(blank)".into(), 1)]);
 }
 
-fn kpi(patch: impl FnOnce(&mut DashboardComponent)) -> DashboardComponent {
+fn kpi(patch: impl FnOnce(&mut PageComponent)) -> PageComponent {
     let mut c = chart(|_| {});
     c.kind = ComponentKind::Kpi;
     patch(&mut c);
@@ -159,7 +159,7 @@ fn returns_expression_errors_for_the_widget_to_show() {
     assert!(kpi_value(&c, &rows(), &Map::new()).is_err());
 }
 
-fn filter(patch: impl FnOnce(&mut DashboardFilter)) -> DashboardFilter {
+fn filter(patch: impl FnOnce(&mut PageFilter)) -> PageFilter {
     let mut f = new_filter("Region", "region");
     patch(&mut f);
     f
@@ -273,7 +273,7 @@ fn serializes_layouts_and_placements_exactly_like_a_form() {
         "gridTemplateColumns": "200px 2fr",
     });
     let placement = json!({"column": 2, "row": 3, "columnSpan": 1, "rowSpan": 2, "gridArea": "x"});
-    let dashboard: Dashboard = serde_json::from_value(json!({
+    let dashboard: Page = serde_json::from_value(json!({
         "id": "d", "name": "Ops", "layout": layout,
         "components": [{"id": "k", "kind": "kpi", "placement": placement}],
     }))
@@ -287,12 +287,12 @@ fn serializes_layouts_and_placements_exactly_like_a_form() {
     assert_eq!(text(&dashboard.layout), text(&form.layout));
     assert_eq!(text(&dashboard.components[0].placement), text(&form.controls[0].placement));
     assert!(!text(&dashboard.layout).contains("gridTemplate"));
-    let round: Dashboard = serde_json::from_value(serde_json::to_value(&dashboard).expect("json")).expect("round trip");
+    let round: Page = serde_json::from_value(serde_json::to_value(&dashboard).expect("json")).expect("round trip");
     assert_eq!(round, dashboard);
-    let old: Dashboard = serde_json::from_value(json!({"id": "x", "name": "Old"})).expect("old");
+    let old: Page = serde_json::from_value(json!({"id": "x", "name": "Old"})).expect("old");
     assert_eq!(
         old,
-        Dashboard { id: "x".into(), name: "Old".into(), layout: Default::default(), filters: vec![], components: vec![] }
+        Page { id: "x".into(), name: "Old".into(), layout: Default::default(), filters: vec![], components: vec![] }
     );
 }
 
@@ -342,7 +342,7 @@ fn flags_a_table_style_rule_with_no_column() {
     dashboard.components.push(table);
     let config = DocumentConfig::default();
     let message = "\"Orders\" has a conditional style with no column";
-    let messages = |d: &Dashboard| dashboard_issues(d, &config).into_iter().map(|i| i.message).collect::<Vec<_>>();
+    let messages = |d: &Page| dashboard_issues(d, &config).into_iter().map(|i| i.message).collect::<Vec<_>>();
     assert!(messages(&dashboard).contains(&message.to_string()));
     dashboard.components[0].styles = vec![good];
     assert!(!messages(&dashboard).contains(&message.to_string()));
@@ -381,14 +381,14 @@ fn sales() -> (Vec<String>, Vec<Vec<DataValue>>) {
     )
 }
 
-fn table() -> DashboardComponent {
+fn table() -> PageComponent {
     let style = |id: &str, when: &str, tone: Tone, column: &str| ConditionalStyle {
         id: id.into(),
         when: when.into(),
         tone,
         column: Some(column.into()),
     };
-    DashboardComponent {
+    PageComponent {
         id: "t".into(),
         kind: ComponentKind::Table,
         title: "Sales".into(),

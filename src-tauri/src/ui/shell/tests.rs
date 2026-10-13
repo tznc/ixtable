@@ -114,12 +114,10 @@ fn lists_recent_documents_and_opens_one(cx: &mut TestAppContext) {
 fn switches_modes_and_persists_the_active_mode(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     for (mode, heading) in [
-        (ModeId::Reports, "Reports"),
-        (ModeId::Dashboards, "Dashboards"),
         (ModeId::Automation, "Automation"),
         (ModeId::Run, "Runtime"),
         (ModeId::App, "Application settings"),
-        (ModeId::Design, "Form builder"),
+        (ModeId::Design, "Main form"),
     ] {
         h.switch_mode(mode);
         assert_eq!(h.label("mode-title"), heading, "{mode:?}");
@@ -143,7 +141,7 @@ fn settings_is_an_icon_button_beside_save(cx: &mut TestAppContext) {
 #[gpui_kit::test]
 fn keeps_the_mode_out_of_undo_history(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
-    h.switch_mode(ModeId::Reports);
+    h.switch_mode(ModeId::Design);
     assert!(!h.can_undo());
 }
 

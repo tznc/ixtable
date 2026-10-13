@@ -164,7 +164,7 @@ fn seed_sales_east_west(h: &mut Harness) {
 
 #[gpui_kit::test]
 fn marks_the_queries_of_an_unreadable_dashboard_denied_in_a_hosted_view(cx: &mut TestAppContext) {
-    use super::{DashboardView, QueryState};
+    use super::{PageView, QueryState};
     use crate::ui::runtime::{Runtime, RuntimeEnv};
     use gpui_kit::{AppContext as _, Bounds, Point, WindowBounds, WindowOptions, px, size};
 
@@ -199,12 +199,12 @@ fn marks_the_queries_of_an_unreadable_dashboard_denied_in_a_hosted_view(cx: &mut
         gpui_kit::open_window(
             WindowOptions { window_bounds: Some(WindowBounds::Windowed(bounds)), ..Default::default() },
             cx,
-            |_, cx| cx.new(|cx| DashboardView::new(shell, env, &home, serde_json::Map::new(), None, cx)),
+            |_, cx| cx.new(|cx| PageView::new(shell, env, &home, serde_json::Map::new(), None, cx)),
         )
         .expect("open the hosting window")
     });
     wait(&mut h);
-    let dashboard = h.config().dashboards[0].clone();
+    let dashboard = h.config().pages[0].clone();
     h.cx.read(|cx| {
         let view = view.read(cx);
         assert!(view.runnable_queries(&dashboard, cx).is_empty());

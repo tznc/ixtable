@@ -8,13 +8,13 @@
 //! ("Page 1 of 3"), `filter:<label>` (a choice, an input, or for a date range the group with
 //! `filter:<label>:from` / `filter:<label>:to`), `dash-button:<label>` and `text:<name>:<n>`.
 
-use super::{chart, view::DashboardView};
+use super::{chart, view::PageView};
 use crate::{
-    dashboard_engine::data::{kpi_value, result_rows, table_slice, text_paragraphs},
-    dashboards::{DashboardComponent, DashboardFilter, FilterControl},
+    page_engine::data::{kpi_value, result_rows, table_slice, text_paragraphs},
+    pages::{PageComponent, PageFilter, FilterControl},
     forms::rbac::Operation,
     ui::{
-        dashboards::data::QueryState,
+        pages::data::QueryState,
         prelude::*,
         controls::{choice, input},
         runtime::message,
@@ -22,11 +22,11 @@ use crate::{
 };
 use serde_json::{Map, Value};
 
-impl DashboardView {
+impl PageView {
     /// The rows of a query-backed component, or the message that stands in for them.
     fn gate(
         &self,
-        component: &DashboardComponent,
+        component: &PageComponent,
         name: &str,
         state: Option<QueryState>,
         cx: &App,
@@ -46,7 +46,7 @@ impl DashboardView {
 
     pub(super) fn kpi_body(
         &mut self,
-        component: &DashboardComponent,
+        component: &PageComponent,
         name: &str,
         state: Option<QueryState>,
         scope: &Map<String, Value>,
@@ -90,7 +90,7 @@ impl DashboardView {
 
     pub(super) fn chart_widget(
         &mut self,
-        component: &DashboardComponent,
+        component: &PageComponent,
         name: &str,
         state: Option<QueryState>,
         cx: &mut Context<Self>,
@@ -106,7 +106,7 @@ impl DashboardView {
 
     pub(super) fn table_body(
         &mut self,
-        component: &DashboardComponent,
+        component: &PageComponent,
         name: &str,
         state: Option<QueryState>,
         scope: &Map<String, Value>,
@@ -183,7 +183,7 @@ impl DashboardView {
         v_flex().gap_2().w_full().min_w_0().child(scroller).children(pager).into_any_element()
     }
 
-    pub(super) fn button_body(&mut self, component: &DashboardComponent, name: &str, cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn button_body(&mut self, component: &PageComponent, name: &str, cx: &mut Context<Self>) -> AnyElement {
         let action = component.action_id.clone().filter(|a| !a.is_empty());
         let allowed = action.as_ref().is_none_or(|a| self.env.can("action", a, Operation::Execute, cx));
         let label = component.label.clone().filter(|l| !l.is_empty()).unwrap_or_else(|| if component.title.is_empty() { "Run".into() } else { component.title.clone() });
@@ -200,7 +200,7 @@ impl DashboardView {
             .into_any_element()
     }
 
-    pub(super) fn text_body(&self, component: &DashboardComponent, name: &str) -> AnyElement {
+    pub(super) fn text_body(&self, component: &PageComponent, name: &str) -> AnyElement {
         v_flex()
             .gap_2()
             .children(text_paragraphs(component.text.as_deref().unwrap_or("")).into_iter().enumerate().map(|(i, p)| {
@@ -210,7 +210,7 @@ impl DashboardView {
     }
 
     /// One dashboard filter as a labelled control. Blank means "all" (the query default).
-    pub(super) fn filter_input(&mut self, filter: &DashboardFilter, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn filter_input(&mut self, filter: &PageFilter, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let label = if filter.name.is_empty() { filter.param.clone() } else { filter.name.clone() };
         let value = self.values.get(&filter.id).cloned().unwrap_or(Value::Null);
         if filter.control == FilterControl::DateRange {

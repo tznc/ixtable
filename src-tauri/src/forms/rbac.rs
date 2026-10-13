@@ -3,7 +3,7 @@
 //! actions may attempt.
 
 use crate::archive::DocumentConfig;
-use crate::dashboards::{ComponentKind, Dashboard};
+use crate::pages::{ComponentKind, Page};
 use crate::roles::{ObjectPermission, Permissions, Role};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -165,7 +165,7 @@ pub fn can(
 }
 
 /// Saved queries a dashboard shows: KPI, table and chart queries, and filter options.
-pub fn dashboard_query_ids(dashboard: &Dashboard) -> Vec<String> {
+pub fn dashboard_query_ids(dashboard: &Page) -> Vec<String> {
     let mut ids: Vec<String> = dashboard
         .components
         .iter()
@@ -192,11 +192,11 @@ pub fn dashboard_query_ids(dashboard: &Dashboard) -> Vec<String> {
 pub fn can_read_dashboard_query(
     config: &DocumentConfig,
     role_id: Option<&str>,
-    dashboard: &Dashboard,
+    dashboard: &Page,
     query_id: &str,
 ) -> bool {
     can(config, role_id, "query", query_id, Operation::Read)
-        || (can(config, role_id, "dashboard", &dashboard.id, Operation::Read)
+        || (can(config, role_id, "page", &dashboard.id, Operation::Read)
             && dashboard_query_ids(dashboard).iter().any(|q| q == query_id))
 }
 
