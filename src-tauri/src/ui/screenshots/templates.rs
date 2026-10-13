@@ -81,7 +81,7 @@ fn templates_inventory() {
 #[ignore = "screenshot spec: run with `cargo screenshot`"]
 fn templates_work_orders_dashboard() {
     let mut cx = context();
-    let mut h = from_template(&mut cx, "work-orders", (1280.0, 1300.0));
+    let mut h = from_template(&mut cx, "work-orders", (2100.0, 1100.0));
     wait(&mut h);
     h.capture(
         "templates-04-work-orders-dashboard",

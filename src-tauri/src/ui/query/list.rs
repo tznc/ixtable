@@ -104,17 +104,23 @@ impl QueryMode {
                 h_flex()
                     .gap_1()
                     .items_center()
+                    .w_full()
+                    .overflow_hidden()
                     .child(
-                        Button::new(SharedString::from(format!("query-open:{id}")))
-                            .ghost()
-                            .small()
-                            .flex_1()
-                            .start_label(Some(Icon::new(IconName::CodeXml)), if q.action.is_some() { format!("{name} (action)") } else { name })
-                            .selected(selected)
-                            .on_click(cx.listener(move |this, _, window, cx| this.open_id(&open_id, window, cx))),
+                        // The name truncates so the row's icons stay inside the list.
+                        div().flex_1().min_w_0().overflow_hidden().child(
+                            Button::new(SharedString::from(format!("query-open:{id}")))
+                                .ghost()
+                                .small()
+                                .w_full()
+                                .start_label(Some(Icon::new(IconName::CodeXml)), if q.action.is_some() { format!("{name} (action)") } else { name })
+                                .selected(selected)
+                                .on_click(cx.listener(move |this, _, window, cx| this.open_id(&open_id, window, cx))),
+                        ),
                     )
                     .child(
                         Button::new(SharedString::from(format!("query-rename:{id}")))
+                            .flex_none()
                             .ghost()
                             .xsmall()
                             .icon(IconName::Pencil)
@@ -123,6 +129,7 @@ impl QueryMode {
                     )
                     .child(
                         Button::new(SharedString::from(format!("query-duplicate:{id}")))
+                            .flex_none()
                             .ghost()
                             .xsmall()
                             .icon(IconName::Copy)
@@ -131,6 +138,7 @@ impl QueryMode {
                     )
                     .child(
                         Button::new(SharedString::from(format!("query-delete:{id}")))
+                            .flex_none()
                             .ghost()
                             .xsmall()
                             .icon(IconName::Delete)

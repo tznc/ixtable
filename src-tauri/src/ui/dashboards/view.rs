@@ -439,6 +439,8 @@ impl DashboardView {
             .id(SharedString::from(format!("widget:{name}")))
             .aria_label(name.clone())
             .size_full()
+            .min_w_0()
+            .overflow_hidden()
             .min_h(px(min_height))
             .gap_2()
             .p_3()
@@ -464,6 +466,8 @@ impl DashboardView {
                 // component is dimmed and an overlay swallows the clicks.
                 div()
                     .relative()
+                    .w_full()
+                    .min_w_0()
                     .when(disabled, |el| el.opacity(0.5))
                     .child(body)
                     .when(disabled, |el| el.child(div().absolute().size_full().top_0().left_0().occlude()))
