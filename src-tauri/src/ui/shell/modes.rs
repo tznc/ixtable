@@ -108,7 +108,9 @@ pub fn build_view(
         ModeId::Automation => cx
             .new(|cx| crate::ui::automation::AutomationMode::new(shell.clone(), window, cx))
             .into(),
-        ModeId::Run => placeholder(cx, "Runtime", "The running application"),
+        ModeId::Run => cx
+            .new(|cx| crate::ui::runtime::RunMode::new(shell.clone(), window, cx))
+            .into(),
     }
 }
 

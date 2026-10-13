@@ -61,6 +61,9 @@ fn build_tab(key: &str, shell: &Entity<Shell>, window: &mut Window, cx: &mut App
         "yaml" => cx
             .new(|cx| super::yaml::YamlTab::new(shell.clone(), window, cx))
             .into(),
+        "roles" => cx
+            .new(|cx| crate::ui::runtime::roles_tab::RolesTab::new(shell.clone(), window, cx))
+            .into(),
         "datasource" => cx
             .new(|cx| crate::ui::schema::datasource::DatasourceTab::new(shell.clone(), window, cx))
             .into(),
