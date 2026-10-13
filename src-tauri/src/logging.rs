@@ -381,7 +381,6 @@ fn is_key_char(b: u8) -> bool {
 }
 
 /// The newest `limit` (default 200, max 5000) diagnostic log entries.
-#[tauri::command]
 pub fn read_logs(window_label: String, limit: Option<usize>) -> Result<Vec<LogEntry>, AppError> {
     let _ = window_label;
     let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -389,7 +388,6 @@ pub fn read_logs(window_label: String, limit: Option<usize>) -> Result<Vec<LogEn
 }
 
 /// Writes a frontend diagnostic line (level `info`/`warn`/`error`) to the local log.
-#[tauri::command]
 pub fn write_log(
     window_label: String,
     level: String,

@@ -228,7 +228,6 @@ impl DocumentManager {
     }
 }
 
-#[tauri::command]
 pub fn create_checkpoint(
     window_label: String,
     reason: Option<String>,
@@ -237,11 +236,9 @@ pub fn create_checkpoint(
     crate::authz::require_unrestricted(&window_label, "create checkpoints")?;
     crate::manager()?.create_checkpoint(&window_label, reason.as_deref().unwrap_or("manual"))
 }
-#[tauri::command]
 pub fn list_checkpoints(window_label: String) -> Result<Vec<CheckpointInfo>, AppError> {
     crate::manager()?.list_checkpoints(&window_label)
 }
-#[tauri::command]
 pub fn restore_checkpoint_as_copy(
     window_label: String,
     checkpoint_id: String,

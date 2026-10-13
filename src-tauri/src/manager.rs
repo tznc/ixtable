@@ -89,7 +89,7 @@ pub struct Session {
     /// Tables the current role may read (see `authz::ReadableCache`).
     pub(crate) authz_cache: crate::authz::ReadableCache,
 }
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionState {
     pub session_id: String,
@@ -977,7 +977,6 @@ fn sqlite_extension_path() -> Result<PathBuf, AppError> {
 
 /// Saves the document when it is dirty, has a path, and is not conflicted; otherwise
 /// returns the current state unchanged (PRD §7.2 debounced autosave).
-#[tauri::command]
 pub fn autosave_document(window_label: String) -> Result<SessionState, AppError> {
     crate::manager()?.autosave(&window_label)
 }

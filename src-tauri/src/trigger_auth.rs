@@ -386,7 +386,6 @@ pub fn precheck(window: &str, table: &str, event: TriggerEvent) -> Result<(), Ap
 }
 
 /// Ends a sync trigger grant once the trigger run finished.
-#[tauri::command]
 pub fn release_trigger_grant(window_label: String, grant: String) -> Result<(), AppError> {
     release(&window_label, &grant);
     Ok(())

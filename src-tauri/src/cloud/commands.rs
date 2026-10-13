@@ -8,7 +8,6 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 /// Effective cloud URL, anon key, and website URL for supabase-js.
-#[tauri::command]
 pub fn cloud_config(window_label: String) -> Result<config::CloudConfig, AppError> {
     let _ = window_label;
     Ok(config::current())
@@ -34,7 +33,6 @@ fn store() -> Result<SecretStore, AppError> {
 
 /// supabase-js session storage, sealed in the local secret store and bound
 /// to the cloud URL (a session for another cloud is never released).
-#[tauri::command]
 pub fn cloud_auth_storage_get(
     window_label: String,
     key: String,
@@ -45,7 +43,6 @@ pub fn cloud_auth_storage_get(
         .get_for(&id, &config::current().url)
         .unwrap_or(None))
 }
-#[tauri::command]
 pub fn cloud_auth_storage_set(
     window_label: String,
     key: String,
@@ -57,7 +54,6 @@ pub fn cloud_auth_storage_set(
         .put_for(&id, &value, &config::current().url)
         .map_err(|e| err("IO_ERROR", e))
 }
-#[tauri::command]
 pub fn cloud_auth_storage_remove(window_label: String, key: String) -> Result<(), AppError> {
     let _ = window_label;
     let id = auth_key(&key)?;
@@ -73,12 +69,11 @@ pub struct DesktopAuthStart {
 }
 
 fn browser_disabled() -> bool {
-    cfg!(feature = "test-bridge") || std::env::var_os("IXTABLE_CLOUD_NO_BROWSER").is_some()
+    cfg!(test) || std::env::var_os("IXTABLE_CLOUD_NO_BROWSER").is_some()
 }
 
 /// Starts Google/Microsoft sign-in in the browser (PKCE S256). Returns the
 /// approval URL so the UI can offer it when no browser could be opened.
-#[tauri::command]
 pub fn cloud_desktop_auth_start(
     window_label: String,
     provider: Option<String>,
@@ -104,7 +99,6 @@ pub struct DesktopAuthPoll {
 }
 
 /// Polls `desktop-auth-exchange` with the verifier of a started sign-in.
-#[tauri::command]
 pub async fn cloud_desktop_auth_poll(
     window_label: String,
     state: String,
@@ -137,7 +131,6 @@ pub async fn cloud_desktop_auth_poll(
 }
 
 /// Forgets in-memory cloud credentials (sign-out).
-#[tauri::command]
 pub fn cloud_sign_out_local(window_label: String) -> Result<(), AppError> {
     let _ = window_label;
     super::grants::clear_all();
@@ -145,7 +138,6 @@ pub fn cloud_sign_out_local(window_label: String) -> Result<(), AppError> {
 }
 
 /// Publish preflight: size report, validation, security summary, blockers.
-#[tauri::command]
 pub async fn cloud_publish_preflight(
     window_label: String,
     runtime_users: Option<u32>,
@@ -209,7 +201,6 @@ fn signed_upload_url(reply: &super::contract::UploadUrlReply) -> String {
 /// Uploads the saved archive (Studio) or an installation snapshot (Runtime)
 /// to a signed URL from `archive-upload-url`. `kind` is `version` or `backup`.
 /// Progress is pollable with `cloud_transfer_progress(transferId)`.
-#[tauri::command]
 pub async fn cloud_upload_archive(
     window_label: String,
     access_token: String,
@@ -267,7 +258,6 @@ pub async fn cloud_upload_archive(
 /// Encrypts the datasource credential with a fresh DEK and sends the envelope
 /// to `credential-envelope`. `scope` is `shared` or `user` (then `userId`).
 /// Without `password`, the password stored for the datasource is used.
-#[tauri::command]
 pub async fn cloud_upload_credential(
     window_label: String,
     access_token: String,
@@ -358,7 +348,6 @@ pub async fn cloud_upload_credential(
 
 /// Downloads an archive from a `restore-url` signed URL, verifies its
 /// SHA-256 and size, and opens it as a new untitled copy (new document id).
-#[tauri::command]
 pub async fn cloud_restore_copy(
     window_label: String,
     signed_url: String,
@@ -393,7 +382,6 @@ pub async fn cloud_restore_copy(
 }
 
 /// Progress of an upload or download started with `transferId`.
-#[tauri::command]
 pub fn cloud_transfer_progress(
     window_label: String,
     transfer_id: String,

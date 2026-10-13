@@ -240,7 +240,6 @@ async fn blocking<T: Send + 'static>(
 
 /// Runs read-only SQL with `$name` parameters. `parameters` optionally declares
 /// types, defaults, and required flags (as a saved query would).
-#[tauri::command]
 pub async fn execute_parameterized_query(
     window_label: String,
     sql: String,
@@ -268,7 +267,6 @@ pub async fn execute_parameterized_query(
 }
 
 /// Runs a saved query by id; missing values fall back to parameter defaults.
-#[tauri::command]
 pub async fn run_saved_query(
     window_label: String,
     id: String,
@@ -299,7 +297,6 @@ pub async fn run_saved_query(
 /// Reads one page of a saved query: filters, sorts, LIMIT/OFFSET and the total
 /// count run in DuckDB over the query as a subquery (see `page_on`).
 #[allow(clippy::too_many_arguments)]
-#[tauri::command]
 pub async fn run_saved_query_page(
     window_label: String,
     id: String,
@@ -346,13 +343,11 @@ pub fn check_on(connection: &duckdb::Connection, sql: &str) -> Result<Vec<String
 }
 
 /// Validates query SQL before it is saved (see `check_on`).
-#[tauri::command]
 pub async fn check_query_sql(window_label: String, sql: String) -> Result<Vec<String>, AppError> {
     blocking(move || check_on(&*crate::manager()?.read_connection(&window_label)?, &sql)).await
 }
 
 /// Interrupts a running query (`run_id`) or every running query of the window.
-#[tauri::command]
 pub fn cancel_query(window_label: String, run_id: Option<String>) -> Result<usize, AppError> {
     Ok(cancel(&window_label, run_id.as_deref()))
 }

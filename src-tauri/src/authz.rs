@@ -364,7 +364,6 @@ pub fn unrestricted_session(s: &Session, what: &str) -> Result<(), AppError> {
 /// "Preview as role" in Studio: Run mode enforces the previewed role in Rust
 /// exactly as an installed runtime would. `role_id` None ends the preview.
 /// A cloud installation's role comes from its signed manifest and cannot change.
-#[tauri::command]
 pub fn set_runtime_role_preview(
     window_label: String,
     role_id: Option<String>,

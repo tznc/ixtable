@@ -94,7 +94,6 @@ pub fn validate_config(config: &DocumentConfig) -> Vec<Issue> {
     issues
 }
 
-#[tauri::command]
 pub fn validate_document(window_label: String) -> Result<Vec<Issue>, AppError> {
     let config = crate::manager()?.config(&window_label)?;
     let mut issues = validate_config(&config);

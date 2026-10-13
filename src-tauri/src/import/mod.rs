@@ -43,7 +43,6 @@ fn failed(e: String) -> AppError {
 }
 
 /// Columns with inferred logical types and the first rows of a file.
-#[tauri::command]
 pub async fn preview_import_file(
     window_label: String,
     path: String,
@@ -62,7 +61,6 @@ pub async fn preview_import_file(
 }
 
 /// Imports every row of a file into a new or existing table.
-#[tauri::command]
 pub async fn import_file(
     window_label: String,
     request: crate::import::write::ImportRequest,
@@ -164,7 +162,6 @@ pub struct FileSourceInfo {
 }
 
 /// Columns and row counts of the document's file sources, read through the session reader.
-#[tauri::command]
 pub async fn file_source_info(
     window_label: String,
 ) -> Result<Vec<crate::import::FileSourceInfo>, AppError> {

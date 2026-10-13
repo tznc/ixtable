@@ -45,7 +45,6 @@ pub struct ExportSummary {
 /// the table's row identity, as pages are ordered). `run_id` makes it
 /// cancellable with `cancel_query`.
 #[allow(clippy::too_many_arguments)]
-#[tauri::command]
 pub async fn export_table(
     window_label: String,
     table: String,
@@ -74,7 +73,6 @@ pub async fn export_table(
 
 /// Exports every row of a saved read query that `filters` match, in `sorts` order.
 #[allow(clippy::too_many_arguments)]
-#[tauri::command]
 pub async fn export_saved_query(
     window_label: String,
     id: String,
@@ -109,7 +107,6 @@ pub async fn export_saved_query(
 
 /// Exports the rows of ad hoc read-only SQL (developer only, like running it).
 #[allow(clippy::too_many_arguments)]
-#[tauri::command]
 pub async fn export_sql_query(
     window_label: String,
     sql: String,

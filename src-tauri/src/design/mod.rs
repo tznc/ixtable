@@ -476,7 +476,6 @@ impl Default for DesignSchema {
 }
 
 /// Design issues including table and column references checked against the live schema.
-#[tauri::command]
 pub fn validate_design(
     window_label: String,
 ) -> Result<Vec<crate::archive::Issue>, crate::manager::AppError> {

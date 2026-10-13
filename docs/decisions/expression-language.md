@@ -1,7 +1,15 @@
 # Expression language
 
 Status: accepted. Covers PRD §17.1. The user-facing reference is
-[`src/expr/README.md`](../../src/expr/README.md).
+[`src-tauri/src/expr/README.md`](../../src-tauri/src/expr/README.md).
+
+Update (GPUI port): expressions are now evaluated in Rust, in
+`src-tauri/src/expr`, because the React UI is being replaced by a GPUI
+(Rust) UI. The language, semantics, and scope conventions below are unchanged;
+the TypeScript implementation in `src/expr/` is the reference it was ported
+from and goes away with the React UI. Where this record names TypeScript files
+(`src/runtime/*`, `src/shell/*`, `tests/*.test.ts`), those describe the
+retired UI and are replaced as each feature moves to GPUI.
 
 ## Context
 
@@ -15,16 +23,38 @@ or locale.
 ## Decision
 
 ixtable has one declarative, Access-style expression language, implemented
-once in TypeScript under `src/expr/`. A hand-written parser in `parser.ts`
-produces an AST, and a tree-walking evaluator in `evaluate.ts` runs it against
-an explicit scope object. There is no `eval`, no `Function`, and no prototype
-access. Names like `constructor` and `__proto__` are rejected, and inherited
-or function-valued properties read as null.
+once in Rust under `src-tauri/src/expr/`. A hand-written parser in
+`parser.rs` produces an AST, and a tree-walking evaluator in `evaluate.rs`
+runs it against an explicit scope: a `serde_json::Map` of root names to JSON
+values. There is no `eval`, no dynamic code, and no host-object access. Names
+like `constructor` and `__proto__` are rejected, and a missing key reads as
+null. Results are `serde_json::Value`.
 
-Rust never evaluates expressions. It stores them as strings in
-`DocumentConfig`, and config validation only flags empty ones. Every consumer,
-including forms, the runtime, reports, dashboards, and the automation runner,
-imports the same `parse`, `evaluate`, `evaluateBoolean`, and `check`.
+Expressions are stored as strings in `DocumentConfig`, and config validation
+only flags empty ones. Every consumer, including forms, the runtime, reports,
+dashboards, and the automation runner, calls the same `parse`, `evaluate`,
+`evaluate_boolean`, and `check` from `crate::expr`. The old TypeScript module
+(`src/expr/`) had the same API shape and is the behavioral reference: the Rust
+tests are ports of its tests, and a differential run of about 6,000
+expressions against it (arithmetic, text, dates, formats, comparisons,
+aggregates, and regular expressions) matched except for the differences
+listed below.
+
+Known differences from the TypeScript implementation:
+
+- Positions in errors and diagnostics are UTF-16 code unit offsets, as before.
+- A numeric literal too large for a double (`1e400`) is a parse error, because
+  JSON cannot hold infinity. A function result that is not finite is null.
+- `format` of a number of 1e21 or more prints all digits, where JavaScript
+  switched to exponent notation.
+- The evaluator refuses trees nested more than 200 levels deep.
+- `regexmatch` runs on a small built-in backtracking matcher (no new crate)
+  that accepts the JavaScript syntax listed in the README. It stops after about
+  20 million steps and refuses a repeated group that repeats more than 400
+  times in one match, so no accepted pattern can hang or overflow the stack.
+- Letters and digits in names follow Rust's `char::is_alphabetic` and
+  `is_alphanumeric`, which differ from `\p{L}` and `\p{N}` only for a few
+  marks and number letters.
 
 Semantics chosen for determinism:
 
@@ -34,15 +64,15 @@ Semantics chosen for determinism:
 - Arithmetic results round to 15 significant digits, so `0.1 + 0.2` is `0.3`.
   Division by zero gives null.
 - Dates are ISO strings, and all date math runs in UTC. Tests pass the clock
-  through `evaluate(src, scope, { now })`.
+  through `EvaluateOptions::at(now)`.
 - Text comparison is by character code, with no locale.
 - `regexmatch` rejects patterns that can backtrack for minutes, and caps
   pattern and input length.
 
 Scope roots follow one convention across features: `record`, `form`, `app`,
-`params`, `rows`, `value`, and `parent`. `check(src, knownNames)` reports
+`params`, `rows`, `value`, and `parent`. `check(src, known_names)` reports
 unknown names with character positions, so editors can flag them as the user
-types. The table of roots per expression kind is in `src/expr/README.md`.
+types. The table of roots per expression kind is in `src-tauri/src/expr/README.md`.
 
 Filters and conditional styles (PRD §17.1) use the same evaluator through
 `src/runtime/conditions.ts`:
@@ -133,8 +163,9 @@ reads the request with `useReveal`, selects the form and control, report and
 component, dashboard and component, or action or trigger, and clears the
 request.
 
-Rust never evaluates expressions, so it cannot enforce this gate.
-`loadExpressionIssues` runs in TypeScript before the expensive step:
+Rust can now evaluate expressions, but this gate still lives where the
+expression editors do (`loadExpressionIssues`) and runs before the expensive
+step:
 
 - Release export refuses with `EXPRESSION_ERRORS` before it asks for a
   destination.
@@ -177,7 +208,10 @@ it does not know loads as `Tone::Other` and saves back unchanged.
   `tests/integration/expression-problems.test.tsx`: Problems lists a broken
   control expression, Open selects that control, export is refused, and the
   publish panel is blocked.
-- `tests/unit/expr.test.ts`: literals and arithmetic, names, null semantics,
+- `src-tauri/src/expr/tests.rs` (`cargo test --lib expr::`): ports of
+  `tests/unit/expr.test.ts` and `tests/unit/access-expressions.test.ts`, plus
+  number printing, UTF-16 positions, and the regex matcher. The original
+  `tests/unit/expr.test.ts`: literals and arithmetic, names, null semantics,
   comparisons, functions, aggregates, dates, formatting, errors, injection
   attempts, `check`, and `referencedNames`.
 - Consumers use the shared module in `src/automation`, `src/runtime`,
@@ -190,3 +224,4 @@ it does not know loads as `Tone::Other` and saves back unchanged.
 - 2026-10-05: Added the dashboard editor to the editors that run `check`; the
   rest matched the code.
 - 2026-10-05 (after merging #36): re-checked the list-filter pushdown text #36 added against `src/runtime/pushdown.ts`; it matches. No changes.
+- 2026-10-13: Expression evaluation moved from `src/expr` (TypeScript) to `src-tauri/src/expr` (Rust) for the GPUI port. Rewrote the Decision section; the rest still describes the React consumers until they are ported.

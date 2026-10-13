@@ -114,7 +114,6 @@ fn install_and_open(
 }
 
 /// Reads a bundle's verified header and what opening it would do (no decryption).
-#[tauri::command]
 pub fn inspect_runtime_bundle(
     window_label: String,
     path: String,
@@ -174,7 +173,6 @@ fn pending_for(
 
 /// Pending migrations for a (possibly password-protected) update, shown with
 /// the release notes before `update_runtime_installation` applies it.
-#[tauri::command]
 pub fn preview_runtime_update(
     window_label: String,
     path: String,
@@ -188,7 +186,6 @@ pub fn preview_runtime_update(
 
 /// Verifies and opens a runtime bundle: installs it on first open, updates the
 /// installation when the bundle is newer, and opens a runtime-only session.
-#[tauri::command]
 pub fn open_runtime_bundle(
     window_label: String,
     path: String,
@@ -213,7 +210,6 @@ pub fn open_runtime_bundle(
 /// Manual update of an installed bundle ("Check for update…"). The version must be newer
 /// unless `allow_downgrade`; installation records are kept and migrated.
 /// `expected_sha256` is the hash `inspect_runtime_bundle` returned for the file.
-#[tauri::command]
 pub fn update_runtime_installation(
     window_label: String,
     path: String,
@@ -266,14 +262,12 @@ fn current_runtime(window: &str) -> Result<installation::RuntimeSession, AppErro
 }
 
 /// Installed-bundle details for the runtime window header.
-#[tauri::command]
 pub fn runtime_installation_info(window_label: String) -> Result<InstalledBundle, AppError> {
     let rt = current_runtime(&window_label)?;
     read_installed(&rt.dir).ok_or_else(|| AppError::new("NOT_RUNTIME", "Installation is missing"))
 }
 
 /// Impact preview for `reset_runtime_installation_data`.
-#[tauri::command]
 pub fn preview_installation_reset(window_label: String) -> Result<ResetPreview, AppError> {
     let rt = current_runtime(&window_label)?;
     installation::reset_preview(&rt.dir, &installations_root().join(".tmp"))
@@ -281,7 +275,6 @@ pub fn preview_installation_reset(window_label: String) -> Result<ResetPreview, 
 
 /// Destructive: replaces installation records with the bundle's bootstrap data after a
 /// recovery checkpoint. Requires `confirmed: true`.
-#[tauri::command]
 pub fn reset_runtime_installation_data(
     window_label: String,
     confirmed: bool,

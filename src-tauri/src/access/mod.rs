@@ -104,7 +104,6 @@ pub fn inventory(path: &Path) -> Result<Inventory, String> {
 }
 
 /// Lists the objects of an Access file (`.accdb`, `.mdb`, `.accdt`).
-#[tauri::command]
 pub async fn inspect_access_file(
     path: String,
 ) -> Result<crate::access::Inventory, crate::manager::AppError> {
@@ -120,7 +119,6 @@ pub struct AccessImport {
 }
 
 /// Creates a new untitled document from an Access file.
-#[tauri::command]
 pub async fn import_access_file(
     window_label: String,
     path: String,
@@ -148,7 +146,6 @@ pub async fn import_access_file(
 }
 
 /// Saves the migration report text the Studio renders (Markdown or CSV).
-#[tauri::command]
 pub fn write_access_report(
     window_label: String,
     path: String,

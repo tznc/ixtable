@@ -41,7 +41,6 @@ pub struct ExportOptions {
 ///
 /// The release fields are written to `DocumentConfig.release`, the document is saved
 /// when it has a location, and validation errors block the export.
-#[tauri::command]
 pub fn export_runtime_bundle(
     window_label: String,
     path: String,
@@ -143,7 +142,6 @@ pub(crate) fn snapshot_data(
 }
 
 /// Public signing-key fingerprint for display (generates the key if missing).
-#[tauri::command]
 pub fn bundle_signer_fingerprint() -> Result<String, AppError> {
     let key = signing_key(&state_dir())?;
     Ok(fingerprint(&B64.encode(key.verifying_key().as_bytes())))

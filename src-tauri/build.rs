@@ -35,17 +35,6 @@ fn check_release_keys() {
 
 fn main() {
     check_release_keys();
-    if std::env::var_os("CARGO_FEATURE_TEST_BRIDGE").is_some() {
-        napi_build::setup();
-        // The test bridge DLL is loaded by node.exe, which has no Common Controls v6
-        // manifest, so comctl32 v5 is bound and its missing TaskDialogIndirect import
-        // (tauri-runtime-wry and rfd dialogs) fails the load with error 127. Delay-load
-        // comctl32 so the import resolves only if a dialog is ever shown (never in tests).
-        if std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc") {
-            println!("cargo:rustc-link-arg-cdylib=/DELAYLOAD:comctl32.dll");
-            println!("cargo:rustc-link-arg-cdylib=delayimp.lib");
-        }
-    }
     link_prebuilt_duckdb();
     tauri_build::build()
 }
@@ -65,11 +54,8 @@ fn link_prebuilt_duckdb() {
         Ok("linux") => {
             // WebKitGTK references sqlite3_*, so the linker exports rusqlite's bundled SQLite.
             // sqlite_scanner carries its own SQLite and crashes on close when part of it binds
-            // to ours, so hide archive symbols. Not in the test bridge: node needs its
-            // napi_register_module_v1, which comes from an archive (rlib).
-            if std::env::var_os("CARGO_FEATURE_TEST_BRIDGE").is_none() {
-                println!("cargo:rustc-link-arg=-Wl,--exclude-libs,ALL");
-            }
+            // to ours, so hide archive symbols.
+            println!("cargo:rustc-link-arg=-Wl,--exclude-libs,ALL");
             println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/../lib/ixtable");
             println!("cargo:rustc-link-arg=-Wl,-rpath,{}", dir.display());
         }

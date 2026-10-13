@@ -13,7 +13,6 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 /// Cloud apps installed on this computer (for offline use).
-#[tauri::command]
 pub fn cloud_installed_apps(window_label: String) -> Result<Vec<LocalInstallation>, AppError> {
     let _ = window_label;
     let Ok(entries) = std::fs::read_dir(install::cloud_root()) else {
@@ -35,7 +34,6 @@ pub fn cloud_installed_apps(window_label: String) -> Result<Vec<LocalInstallatio
 /// identity) → streaming download (size-capped) → SHA-256 check → the
 /// runtime installation flow (records preserved, migrations, health checks,
 /// atomic activation, revert on failure).
-#[tauri::command]
 pub async fn cloud_install_app(
     window_label: String,
     access_token: String,
@@ -96,7 +94,6 @@ pub async fn cloud_install_app(
 }
 
 /// Opens the installed version of a cloud app without contacting the cloud.
-#[tauri::command]
 pub fn cloud_open_installed(
     window_label: String,
     app_id: String,
@@ -155,7 +152,6 @@ fn info_from(record: CloudRecord, window: &str) -> Result<CloudRuntimeInfo, AppE
 }
 
 /// Identity of the open cloud installation (runtime bar, RBAC role).
-#[tauri::command]
 pub fn cloud_runtime_info(window_label: String) -> Result<CloudRuntimeInfo, AppError> {
     let dir = install::session_dir(&window_label)?;
     // Owner flag and role come only from the re-verified signed manifest.
@@ -226,7 +222,6 @@ pub(crate) fn open_credential(
 /// Requests a key grant for the open cloud installation's PostgreSQL
 /// datasource, decrypts the credential envelope in memory, and connects.
 /// A REVOKED/FORBIDDEN answer drops any held credential and disconnects.
-#[tauri::command]
 pub async fn cloud_key_grant(
     window_label: String,
     access_token: String,
@@ -282,7 +277,6 @@ pub async fn cloud_key_grant(
 }
 
 /// Drops the credential held for the window's datasource (sign-out, revoke).
-#[tauri::command]
 pub fn cloud_release_credentials(window_label: String) -> Result<(), AppError> {
     if let Ok(config) = crate::manager()?.config(&window_label) {
         grants::clear(&window_label, &datasource_target(&config.datasource));

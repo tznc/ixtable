@@ -139,7 +139,6 @@ fn require_runtime(window: &str) -> Result<DatasourceConfig, AppError> {
 }
 
 /// Whether the open runtime bundle needs a database login, and which one it uses.
-#[tauri::command]
 pub fn runtime_datasource_login_status(
     window_label: String,
 ) -> Result<RuntimeLoginStatus, AppError> {
@@ -150,7 +149,6 @@ pub fn runtime_datasource_login_status(
 /// installation and re-attaches the reader. A refused login is not stored.
 /// Unless the connection verifies the server (verify-full), the password is
 /// sent only after the recipient accepts the risk (`accept_unverified`).
-#[tauri::command]
 pub fn set_runtime_datasource_login(
     window_label: String,
     user: String,
@@ -181,7 +179,6 @@ pub fn set_runtime_datasource_login(
 }
 
 /// Forgets this installation's stored login and re-attaches the reader.
-#[tauri::command]
 pub fn clear_runtime_datasource_login(
     window_label: String,
 ) -> Result<RuntimeLoginStatus, AppError> {

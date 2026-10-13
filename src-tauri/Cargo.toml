@@ -11,20 +11,19 @@ crate-type = ["cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-napi-build = "2"
 # build.rs release key check (src/release_keys.rs).
 base64 = "0.22"
 serde_json = "1"
 
 [features]
 default = []
-test-bridge = ["dep:tauri-test", "dep:napi", "dep:napi-derive"]
 
 [dependencies]
-tauri = { version = "2", features = [] }
-tauri-test = { version = "0.2.1", optional = true }
-napi = { version = "2", default-features = false, features = ["napi8", "async", "serde-json"], optional = true }
-napi-derive = { version = "2", optional = true }
+tauri = { version = "2.12", features = ["unstable"] }
+# GPUI renders the whole UI inside the Tauri window (no WebView, src/ui/). The plugin and
+# gpui-kit must build on the same `gpui-pre` snapshot (0.3.8).
+tauri-plugin-gpui = { git = "https://github.com/Ziinc/tauri-gpui", rev = "ec6e8a6cf94233c0c857230cf9608e4f541aa535" }
+gpui-kit = { version = "=0.7.1", features = ["tree-sitter-sql", "tree-sitter-yaml"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9.34"
@@ -78,9 +77,10 @@ png = "0.18"
 libc = "0.2"
 
 [dev-dependencies]
+gpui-kit = { version = "=0.7.1", features = ["tree-sitter-sql", "tree-sitter-yaml", "test-support"] }
 proptest = "1.7"
 
-# Desktop-only (PRD §6.2): no staticlib, and lean debug info keeps test-bridge builds small.
+# Desktop-only (PRD §6.2): no staticlib, and lean debug info keeps test builds small.
 [profile.dev]
 debug = "line-tables-only"
 

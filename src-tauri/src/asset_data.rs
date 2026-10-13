@@ -45,7 +45,6 @@ pub fn image_data_url(
 }
 
 /// An image asset of the open document as a `data:<mime>;base64,…` URL (at most 5 MB).
-#[tauri::command]
 pub fn read_asset_data_url(window_label: String, id: String) -> Result<String, AppError> {
     let m = crate::manager()?;
     let asset = m
@@ -87,7 +86,6 @@ pub fn asset_text(
 }
 
 /// A text asset of the open document, for the Studio preview (developers only).
-#[tauri::command]
 pub fn read_asset_text(window_label: String, id: String) -> Result<String, AppError> {
     crate::authz::require_unrestricted(&window_label, "read assets")?;
     let m = crate::manager()?;

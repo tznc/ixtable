@@ -465,7 +465,6 @@ pub fn validate_tables(config: &DocumentConfig, tables: &[String]) -> Vec<Issue>
 }
 
 /// Automation issues for the open document, including table existence.
-#[tauri::command]
 pub fn validate_automation(window_label: String) -> Result<Vec<Issue>, AppError> {
     let m = crate::manager()?;
     let config = m.config(&window_label)?;

@@ -415,7 +415,6 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
 
 /// Writes PDF bytes produced by the TS PDF writer to `path` (Export PDF…).
 /// A runtime role must be allowed to read `report_id`.
-#[tauri::command]
 pub fn write_report_pdf(
     window_label: String,
     path: String,
@@ -449,7 +448,6 @@ pub struct ReportAsset {
 }
 
 /// Reads application assets (attachments) by id for report images.
-#[tauri::command]
 pub fn read_report_assets(
     window_label: String,
     ids: Vec<String>,

@@ -162,21 +162,18 @@ fn info(t: &Template) -> Result<TemplateInfo, AppError> {
 }
 
 /// Templates shown under "Start from a template".
-#[tauri::command]
 pub fn list_templates() -> Result<Vec<TemplateInfo>, AppError> {
     TEMPLATES.iter().filter(|t| t.listed).map(info).collect()
 }
 
 /// A template's definitions as DocumentConfig YAML (seed migration included). Applying it
 /// with `apply_document_config_yaml` upgrades a document made from an older version.
-#[tauri::command]
 pub fn read_template_config(template_id: String) -> Result<String, AppError> {
     archive::document_config_yaml(&template_config(&template_id)?)
         .map_err(|e| invalid(&template_id, e))
 }
 
 /// Creates a new untitled document from a template: definitions, assets, schema, and seed.
-#[tauri::command]
 pub fn create_from_template(
     window_label: String,
     template_id: String,

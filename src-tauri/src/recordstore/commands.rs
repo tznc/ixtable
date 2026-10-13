@@ -255,7 +255,6 @@ pub fn rename_dependents(
     (dependents, warnings)
 }
 
-#[tauri::command]
 pub fn store_capabilities(window_label: String) -> Result<StoreCapabilities, AppError> {
     let config = crate::manager()?.config(&window_label)?;
     Ok(if config.datasource.is_postgres() {
@@ -265,14 +264,12 @@ pub fn store_capabilities(window_label: String) -> Result<StoreCapabilities, App
     })
 }
 
-#[tauri::command]
 pub fn table_drop_impact(window_label: String, table: String) -> Result<TableImpact, AppError> {
     let mut impact = with_store(&window_label, |s| s.impact(&table))?;
     impact.dependents = config_dependents(&crate::manager()?.config(&window_label)?, &table);
     Ok(impact)
 }
 
-#[tauri::command]
 pub fn drop_database_table(window_label: String, table: String) -> Result<SessionState, AppError> {
     guard_definition(&window_label)?;
     with_store(&window_label, |s| s.drop_table(&table))?;
@@ -282,7 +279,6 @@ pub fn drop_database_table(window_label: String, table: String) -> Result<Sessio
     after_write(&window_label)
 }
 
-#[tauri::command]
 pub fn preview_table_changes(
     window_label: String,
     table: String,
@@ -320,7 +316,6 @@ pub fn preview_table_changes(
     Ok(plan)
 }
 
-#[tauri::command]
 pub fn apply_table_changes(
     window_label: String,
     table: String,
@@ -329,7 +324,6 @@ pub fn apply_table_changes(
     alter_table(&window_label, &table, &operations)
 }
 
-#[tauri::command]
 pub fn create_index(
     window_label: String,
     spec: crate::recordstore::CreateIndex,
@@ -339,14 +333,12 @@ pub fn create_index(
     after_write(&window_label)
 }
 
-#[tauri::command]
 pub fn drop_index(window_label: String, name: String) -> Result<SessionState, AppError> {
     guard_definition(&window_label)?;
     with_store(&window_label, |s| s.drop_index(&name))?;
     after_write(&window_label)
 }
 
-#[tauri::command]
 pub fn list_indexes(
     window_label: String,
     table: Option<String>,
@@ -459,7 +451,6 @@ fn resolve_batch_expected(window: &str, ops: Vec<WriteOp>) -> Result<Vec<WriteOp
 /// Applies `ops` as one transaction. `triggers[i]` marks op i as a trigger
 /// step (see trigger_auth.rs); each insert/update returns the grant for its
 /// app-mode sync triggers.
-#[tauri::command]
 pub fn execute_write_batch(
     window_label: String,
     ops: Vec<crate::recordstore::WriteOp>,
@@ -486,7 +477,6 @@ pub fn write_one(
 
 /// Record writes return `{changed, identity?, triggerGrant?}` (see
 /// `write_one`); `trigger` marks an app-mode trigger step.
-#[tauri::command]
 pub fn insert_row(
     window_label: String,
     table: String,
@@ -498,7 +488,6 @@ pub fn insert_row(
 /// `expected` carries the values the user started from; entities with the
 /// optimistic policy reject the update with CONFLICT when they changed, and
 /// with EXPECTED_REQUIRED when it is missing (`resolve_expected`).
-#[tauri::command]
 pub fn update_row(
     window_label: String,
     table: String,
@@ -515,7 +504,6 @@ pub fn update_row(
     };
     write_one(window_label, op, trigger)
 }
-#[tauri::command]
 pub fn delete_row(
     window_label: String,
     table: String,
@@ -541,7 +529,6 @@ pub struct ConnectionReport {
 }
 
 /// Tries a datasource without saving it. A blank password uses the stored one.
-#[tauri::command]
 pub fn test_datasource_connection(
     window_label: String,
     datasource: crate::recordstore::DatasourceConfig,
@@ -588,7 +575,6 @@ pub fn test_datasource_connection(
 }
 
 /// Stores a datasource password in the local secret store; returns the reference to keep in config.
-#[tauri::command]
 pub fn set_datasource_password(
     window_label: String,
     datasource_id: String,
@@ -608,7 +594,6 @@ pub fn set_datasource_password(
     secrets::store_datasource_password(&target, &password).map_err(|e| AppError::new("IO_ERROR", e))
 }
 
-#[tauri::command]
 pub fn clear_datasource_password(
     window_label: String,
     password_ref: String,
@@ -629,7 +614,6 @@ pub struct DatasourceStatus {
 }
 
 /// Re-attaches the reader to the configured datasource and reports the result.
-#[tauri::command]
 pub fn connect_datasource(window_label: String) -> Result<DatasourceStatus, AppError> {
     let m = crate::manager()?;
     let config = m.config(&window_label)?;
