@@ -103,7 +103,7 @@ pub fn reveal(h: &mut Harness, container: &str, scope: Option<&str>, id: &str) {
 /// Scrolls the form's scroll area (designer or create-table form) to `id`, if it is
 /// off screen.
 pub fn auto_reveal(h: &mut Harness, id: &str) {
-    for container in ["table-designer", "create-table-body"] {
+    for container in ["table-designer", "create-table-body", "import-dialog"] {
         let (c, i) = (container.to_string(), id.to_string());
         let off_screen = h.update(move |window, _| {
             window.try_find(c).is_some() && window.try_find(i).is_some_and(|t| !t.visible())

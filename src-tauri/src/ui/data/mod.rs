@@ -21,3 +21,5 @@ pub mod testkit;
 mod tests_sheet;
 #[cfg(test)]
 mod tests_schema;
+#[cfg(test)]
+mod tests_io;
