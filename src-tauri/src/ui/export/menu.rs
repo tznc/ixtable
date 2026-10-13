@@ -152,3 +152,7 @@ impl Render for ExportMenu {
             })
     }
 }
+
+#[cfg(test)]
+#[path = "menu_tests.rs"]
+mod tests;

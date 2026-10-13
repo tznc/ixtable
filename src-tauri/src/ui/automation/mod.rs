@@ -20,6 +20,8 @@ mod triggers;
 mod tests;
 #[cfg(test)]
 mod tests_flows;
+#[cfg(test)]
+mod tests_runtime;
 
 pub use actions::ActionsPanel;
 pub use host::AutomationHost;

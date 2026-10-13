@@ -22,6 +22,8 @@ pub mod versions;
 #[cfg(test)]
 mod install_tests;
 #[cfg(test)]
+mod live_tests;
+#[cfg(test)]
 pub mod mock;
 #[cfg(test)]
 pub mod mockhttp;

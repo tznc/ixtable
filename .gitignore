@@ -18,3 +18,4 @@ src-tauri/resources/duckdb/*-x64
 src-tauri/resources/duckdb/*-arm64
 src-tauri/gen/schemas/linux-schema.json
 /reports/
+tests/golden-evidence/
