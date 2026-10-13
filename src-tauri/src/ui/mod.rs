@@ -8,6 +8,7 @@ pub mod autosave;
 pub mod dialogs;
 pub mod events;
 pub mod forms;
+pub mod migrations;
 pub mod persistence;
 pub mod prelude;
 pub mod release;

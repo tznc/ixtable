@@ -49,6 +49,9 @@ fn build_tab(key: &str, shell: &Entity<Shell>, window: &mut Window, cx: &mut App
             cx.new(|cx| crate::ui::persistence::logs_tab::LogsTab::new(label, cx))
                 .into()
         }
+        "migrations" => cx
+            .new(|cx| crate::ui::migrations::tab::MigrationsTab::new(shell.clone(), cx))
+            .into(),
         "yaml" => cx
             .new(|cx| super::yaml::YamlTab::new(shell.clone(), window, cx))
             .into(),
