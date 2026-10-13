@@ -97,7 +97,7 @@ fn formats_masked_entry_as_it_is_typed_and_stores_the_typed_characters(cx: &mut 
     assert_eq!(shown, "(555) 123-4567");
     assert_eq!(changes.borrow().last(), Some(&json!("5551234567")));
     // The input's placeholder is the mask drawn with blanks.
-    let template = crate::forms::fields::mask_template(&crate::forms::fields::parse_mask("(000) 000-0000"));
+    let template = crate::forms::mask::mask_template(&crate::forms::mask::parse_mask("(000) 000-0000"));
     assert_eq!(template, "(___) ___-____");
 }
 

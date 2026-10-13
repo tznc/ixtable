@@ -13,6 +13,7 @@
 //! `pending-mode:<i>`, `pending-destructive:<i>`, `remove-pending:<i>`, `pending-empty`,
 //! `plan-error`, `discard-changes` and `apply-changes`.
 
+use crate::ui::controls::{error_line, input_text, new_input, note, section, text_input};
 use crate::data::{AlterTable, Column, CreateColumn, TableSchema};
 use crate::manager::AppError;
 use crate::recordstore::{
@@ -33,7 +34,6 @@ use crate::ui::{
             CheckEditor, CheckEvent, ColumnPicker, ForeignKeyEditor, ForeignKeyEvent, IndexEditor,
             IndexEvent, TableRef, UniqueEditor, UniqueEvent,
         },
-        controls::{error_line, input_text, new_input, note, section, text_input},
         impact::{change_mode_key, ImpactDialog, ImpactEvent},
         logical::{mode_label, store_label, store_types},
     },
@@ -594,27 +594,11 @@ impl TableSchemaDesigner {
 }
 
 fn on_change_notify(cx: &mut Context<TableSchemaDesigner>, input: &Entity<InputState>) -> Subscription {
-    crate::ui::schema::controls::on_change(cx, input, |_, cx| cx.notify())
+    crate::ui::controls::on_change(cx, input, |_, cx| cx.notify())
 }
 
 fn same(a: &[String], b: &[String]) -> bool {
     a == b
-}
-
-fn badge(id: SharedString, label: &str, destructive: bool, cx: &App) -> impl IntoElement {
-    let theme = cx.theme();
-    let (bg, fg) = if destructive {
-        (theme.danger.opacity(0.15), theme.danger)
-    } else {
-        (theme.muted, theme.muted_foreground)
-    };
-    div()
-        .px_2()
-        .rounded_md()
-        .text_xs()
-        .bg(bg)
-        .text_color(fg)
-        .child(widgets::text(id, label.to_string()))
 }
 
 impl Render for TableSchemaDesigner {
@@ -903,9 +887,9 @@ impl Render for TableSchemaDesigner {
                     .items_center()
                     .gap_2()
                     .child(div().text_sm().child(widgets::text(SharedString::from(format!("pending-op:{i}")), summary)))
-                    .child(badge(SharedString::from(format!("pending-mode:{i}")), mode, false, cx))
+                    .child(crate::ui::controls::badge(SharedString::from(format!("pending-mode:{i}")), mode, false, cx))
                     .when(planned.is_some_and(|p| p.destructive), |el| {
-                        el.child(badge(SharedString::from(format!("pending-destructive:{i}")), "Destructive", true, cx))
+                        el.child(crate::ui::controls::badge(SharedString::from(format!("pending-destructive:{i}")), "Destructive", true, cx))
                     })
                     .child(
                         Button::new(SharedString::from(format!("remove-pending:{i}")))

@@ -8,6 +8,7 @@
 //! `source-format:<name>`, `source-columns:<name>`, `source-rows:<name>`,
 //! `Remove <name>`.
 
+use crate::ui::controls::{check, error_line, input_text, new_input, set_input, text_input};
 use super::mapping::{name_from_path, ImportOptions};
 use crate::data::files::{CsvOptions, FileFormat};
 use crate::import::{parse::ParsedFile, FileSource};
@@ -15,7 +16,6 @@ use crate::manager::AppError;
 use crate::ui::{
     dialogs::{self, FileFilter},
     prelude::*,
-    schema::controls::{check, error_line, input_text, new_input, set_input, text_input},
     shell::Shell,
     store::StoreEvent,
 };

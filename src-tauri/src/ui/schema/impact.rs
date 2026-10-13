@@ -7,8 +7,8 @@
 //! indexes|dependents`, `impact-warning:<i>`, `impact-sql`, `impact-error`,
 //! `impact-ack` (checkbox), `impact-cancel`, `impact-confirm`.
 
+use crate::ui::controls::{check, error_line, modal, note};
 use super::{
-    controls::{check, error_line, modal, note},
     logical::mode_label,
 };
 use crate::recordstore::{ChangeMode, ChangePlan, TableImpact};
@@ -101,22 +101,6 @@ fn fact(id: &'static str, label: &str, value: String, cx: &App) -> Div {
         .child(div().flex_1().text_sm().child(widgets::text(id, value)))
 }
 
-fn badge(id: SharedString, label: &str, destructive: bool, cx: &App) -> impl IntoElement {
-    let theme = cx.theme();
-    let (bg, fg) = if destructive {
-        (theme.danger.opacity(0.15), theme.danger)
-    } else {
-        (theme.muted, theme.muted_foreground)
-    };
-    div()
-        .px_2()
-        .rounded_md()
-        .text_xs()
-        .bg(bg)
-        .text_color(fg)
-        .child(widgets::text(id, label.to_string()))
-}
-
 impl Render for ImpactDialog {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let required = self.confirm_required();
@@ -144,14 +128,14 @@ impl Render for ImpactDialog {
                         SharedString::from(format!("impact-op:{i}")),
                         op.summary.clone(),
                     )))
-                    .child(badge(
+                    .child(crate::ui::controls::badge(
                         SharedString::from(format!("impact-op-mode:{i}")),
                         mode_label(change_mode_key(&op.mode)),
                         false,
                         cx,
                     ))
                     .when(op.destructive, |el| {
-                        el.child(badge(
+                        el.child(crate::ui::controls::badge(
                             SharedString::from(format!("impact-op-destructive:{i}")),
                             "Destructive",
                             true,

@@ -1,9 +1,9 @@
 //! How a datasheet cell reads and writes text for a field (port of
 //! `src/fields/datasheet.ts`).
 
-use super::{
+use crate::forms::{
+    field_values::field_text,
     mask::{apply_mask, masked_text, parse_mask},
-    values::field_text,
 };
 use crate::data::{Column, DataValue};
 use crate::recordstore::FieldSettings;

@@ -13,7 +13,7 @@ use crate::{
     dashboards::{ComponentKind, Dashboard, DashboardFilter, FilterControl},
     ui::{
         prelude::*,
-        reports::fields::{choice_field, input},
+        controls::{choice_field, input},
     },
 };
 use serde_json::Value;

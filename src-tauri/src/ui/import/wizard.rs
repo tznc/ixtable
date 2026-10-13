@@ -10,6 +10,7 @@
 //! `import-error`, `import-summary`, `import-aborted`, `report-row:<i>:row|field|problem`,
 //! `report-more`, `import-run` and `import-close`.
 
+use crate::ui::controls::{check, error_line, input_text, modal_sized, new_input, select, set_input, text_input};
 use super::{
     mapping::{
         default_columns, default_mapping, default_primary_key, existing_table_target, name_from_path,
@@ -28,7 +29,6 @@ use crate::ui::{
     dialogs::{self, FileFilter},
     prelude::*,
     schema::{
-        controls::{check, error_line, input_text, modal_sized, new_input, select, set_input, text_input},
         logical::show_value,
     },
     shell::Shell,

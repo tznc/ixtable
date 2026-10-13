@@ -13,7 +13,7 @@
 //! - the properties panel is in `props.rs`, `props_kinds.rs` and `settings.rs`.
 
 use super::extra;
-use super::fields::Inputs;
+use crate::ui::controls::Inputs;
 use crate::archive::Attachment;
 use crate::report_engine::model::{
     band_entries, clamp_geometry, embeddable_reports, find_component, get_band, is_page_band, new_component,

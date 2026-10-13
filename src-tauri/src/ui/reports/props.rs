@@ -9,7 +9,8 @@
 
 use super::designer::ReportDesigner;
 use super::extra;
-use super::fields::{check, choice_field, expr_field, input, pairs};
+use super::fields::pairs;
+use crate::ui::controls::{check, choice_field, expr_field, input};
 use crate::report_engine::model::{field_expression, is_page_band, kind_label, BandKey, REPORT_SCOPE_NAMES};
 use crate::reports::{Component, Report};
 use crate::ui::prelude::*;

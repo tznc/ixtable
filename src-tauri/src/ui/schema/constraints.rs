@@ -9,7 +9,7 @@
 //! `Add unique constraint`, `Add check`, `Add index`). Inputs are `Check expression`
 //! and `Index name`; `Unique index` is a checkbox.
 
-use super::controls::{check, input_text, new_input, on_change, plain_options, select, set_input, text_input};
+use crate::ui::controls::{check, input_text, new_input, on_change, plain_options, select, set_input, text_input};
 use crate::data::CreateForeignKey;
 use crate::ui::prelude::*;
 use gpui_kit::component::input::InputState;

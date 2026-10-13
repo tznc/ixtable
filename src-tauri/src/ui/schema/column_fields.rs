@@ -5,9 +5,9 @@
 //! logical types the store supports (every type while capabilities load), keeping
 //! the column's current one.
 
+use crate::ui::controls::{check, input_text, new_input, on_change, select, set_input, text_input};
 use super::{
     columns::ColumnDraft,
-    controls::{check, input_text, new_input, on_change, select, set_input, text_input},
     logical::{format_logical, parse_logical, LOGICAL_TYPES},
 };
 use crate::ui::prelude::*;

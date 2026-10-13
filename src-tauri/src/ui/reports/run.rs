@@ -7,7 +7,7 @@
 //! `params-run`; the bar above the preview has `report-not-run` and `change-params`
 //! ("Change parameters…" / "Enter parameters…").
 
-use super::fields::{check, input, Inputs};
+use crate::ui::controls::{check, input, Inputs};
 use super::preview::ReportPreview;
 use crate::archive::QueryParameter;
 use crate::report_engine::parameters::{display, parse_parameter, report_parameters, Raw};

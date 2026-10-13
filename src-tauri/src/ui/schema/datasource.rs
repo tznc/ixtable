@@ -8,9 +8,9 @@
 //! capabilities"); results `connection-report`, `datasource-status`, `datasource-error`;
 //! capability tables per `capability.rs`.
 
+use crate::ui::controls::{check, error_line, input_text, new_input, note, select, set_input, text_input};
 use super::{
     capability::{capability_summary, mapping_tables},
-    controls::{check, error_line, input_text, new_input, note, select, set_input, text_input},
     logical::store_label,
 };
 use crate::manager::AppError;
@@ -476,8 +476,10 @@ impl Render for DatasourceTab {
                     .child(
                         Button::new("capabilities-toggle")
                             .ghost()
-                            .icon(if expanded { IconName::ChevronDown } else { IconName::ChevronRight })
-                            .label(title)
+                            .start_label(
+                                Some(if expanded { IconName::ChevronDown } else { IconName::ChevronRight }.into()),
+                                title,
+                            )
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.expanded = !this.expanded;
                                 cx.notify();

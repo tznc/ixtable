@@ -15,7 +15,7 @@
 //! `retry-load`, `load-error`; `truncated`; `diagnostics-toggle` and `diagnostic-N`;
 //! the page is `page_view`'s `report-page`.
 
-use super::fields::choice;
+use crate::ui::controls::choice;
 use super::page_view::{page_image, page_view, PageImages};
 use crate::manager::AppError;
 use crate::report_engine::{

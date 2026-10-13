@@ -14,6 +14,7 @@
 //! column`, `Refresh`, `design-table`, `data-error`, `select-table` (empty state),
 //! `design-loading`, `design-refreshing`, `footer-range`, `prev-page`, `next-page`.
 
+use crate::ui::controls::{input_text, new_input, set_input, text_input};
 use super::{
     create_table::{CreateTableEvent, CreateTableForm},
     designer::{DesignerEvent, TableSchemaDesigner},
@@ -38,7 +39,6 @@ use crate::ui::{
     prelude::*,
     schema::{
         constraints::TableRef,
-        controls::{input_text, new_input, set_input, text_input},
     },
     shell::{Selection, SelectionKind, Shell},
     store::StoreEvent,

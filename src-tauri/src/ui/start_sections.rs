@@ -15,6 +15,7 @@ use super::{
     release::bundle_flow::{Act, BundleEvent, BundleFlow},
     start::StartScreen,
 };
+use super::widgets::StartAligned as _;
 use gpui_kit::assets::IconName;
 use gpui_kit::component::{
     Disableable as _, Icon,
@@ -54,8 +55,7 @@ pub fn actions(screen: &Entity<StartScreen>, busy: bool, _: &mut App) -> Vec<Any
     let id = screen.entity_id();
     vec![
         Button::new("import-access")
-            .icon(Icon::new(IconName::DatabaseZap))
-            .label("Import Access database…")
+            .start_label(Some(Icon::new(IconName::DatabaseZap)), "Import Access database…")
             .tooltip("Convert a Microsoft Access file into a new document")
             .outline()
             .disabled(busy)
@@ -67,8 +67,7 @@ pub fn actions(screen: &Entity<StartScreen>, busy: bool, _: &mut App) -> Vec<Any
             })
             .into_any_element(),
         Button::new("open-bundle")
-            .icon(Icon::new(IconName::PackageOpen))
-            .label("Open runtime bundle")
+            .start_label(Some(Icon::new(IconName::PackageOpen)), "Open runtime bundle")
             .tooltip("Open a signed .ixtr bundle")
             .outline()
             .disabled(busy)

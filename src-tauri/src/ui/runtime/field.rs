@@ -17,10 +17,11 @@ use crate::forms::conditions::filter_inputs_key;
 use crate::forms::data::{
     Choice, cached_relationship_label, query_choices, relationship_choices, relationship_label,
 };
+use crate::forms::field_values::file_size;
 use crate::forms::fields::{
-    apply_mask, parse_attachments, parse_choices, parse_mask, choices_value,
-    file_size, mask_template, rich_text_plain, value_text,
+    parse_attachments, parse_choices, choices_value, rich_text_plain, value_text,
 };
+use crate::forms::mask::{apply_mask, mask_template, parse_mask};
 use crate::forms::values::{RecordValues, number_value, same_value};
 use crate::ui::prelude::*;
 use gpui_kit::component::{
@@ -139,18 +140,6 @@ fn rich_html(text: &str) -> Value {
 pub fn field_id(prefix: &str, label: &str, control_id: &str) -> SharedString {
     let slug = widgets::slug(label);
     format!("{prefix}field:{}", if slug.is_empty() { control_id } else { slug.as_str() }).into()
-}
-
-fn tone_color(tone: &Tone, cx: &App) -> Option<Hsla> {
-    let theme = cx.theme();
-    Some(match tone {
-        Tone::Positive => theme.success,
-        Tone::Negative => theme.danger,
-        Tone::Warning => theme.warning,
-        Tone::Muted => theme.muted_foreground,
-        Tone::Emphasis => theme.primary,
-        Tone::Other(_) => return None,
-    })
 }
 
 impl FieldView {
@@ -602,7 +591,7 @@ impl FieldView {
             .outline()
             .small()
             .w_full()
-            .start_label(None, shown)
+            .end_icon_label(IconName::ChevronDown, shown)
             .on_click(cx.listener(|this, _, _, cx| this.toggle_open(cx)));
         let dropdown = self.open.then(|| {
             let search = self.search.clone();
@@ -693,7 +682,7 @@ impl Render for FieldView {
         let kind = props.control.kind;
         let required = props.control.validation.required;
         let theme = cx.theme().clone();
-        let tone = props.tone.as_ref().and_then(|t| tone_color(t, cx));
+        let tone = props.tone.as_ref().and_then(|t| widgets::tone_color(t, cx));
         let input: AnyElement = match kind {
             ControlKind::Boolean => {
                 let on = matches!(

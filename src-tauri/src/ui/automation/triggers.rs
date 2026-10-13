@@ -7,10 +7,8 @@
 //! `trigger-max-attempts`, `trigger-backoff`, `trigger-idempotency`, `trigger-help`.
 
 use super::env::Env;
-use super::fields::{
-    check, choice_field, expr_field, expression_problem, number_problem, parse_whole, text_field,
-    Inputs,
-};
+use super::fields::{expression_problem, number_problem, parse_whole};
+use crate::ui::controls::{check, choice_field, expr_field, text_field, Inputs};
 use super::picker::action_picker;
 use crate::automation::{Trigger, TriggerEvent, TriggerMode};
 use crate::ui::{prelude::*, shell::Shell};
@@ -107,11 +105,7 @@ impl TriggersPanel {
         mutate: impl FnOnce(&mut crate::archive::DocumentConfig),
         cx: &mut Context<Self>,
     ) {
-        let store = self.shell.read(cx).store.clone();
-        let result = store.update(cx, |s, cx| s.update(label, mutate, cx));
-        if let Err(e) = result {
-            self.shell.update(cx, |s, cx| s.set_error(Some(e), cx));
-        }
+        Shell::edit_config(&self.shell, label, mutate, cx);
         cx.notify();
     }
 

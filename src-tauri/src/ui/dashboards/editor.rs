@@ -23,7 +23,7 @@ use crate::{
         grid::canvas::{GridCanvas, GridItem},
         prelude::*,
         query::{QueryPicker, QueryPickerEvent},
-        reports::fields::Inputs,
+        controls::Inputs,
         shell::{RevealTarget, Shell},
     },
     validation::Severity,
@@ -295,9 +295,7 @@ impl DashboardEditor {
                 Button::new(SharedString::from(key))
                     .outline()
                     .small()
-                    .justify_start()
-                    .icon(component_icon(kind))
-                    .label(label)
+                    .start_label(Some(component_icon(kind).into()), label)
                     .on_click(cx.listener(move |this, _, _, cx| this.add(kind, |_| {}, cx)))
             }))
     }

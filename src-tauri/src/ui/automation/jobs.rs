@@ -11,7 +11,7 @@
 //! `job-N-attempt-M` lines and step logs `job-N-attempt-M-log`.
 
 use super::actions::step_log;
-use super::fields::choice_field;
+use crate::ui::controls::choice_field;
 use crate::automation_runner::{worker::notify_jobs_changed, StepLog};
 use crate::ui::events::DocEvent;
 use crate::jobs::{Job, JobAttempt, JobFilter};
