@@ -15,6 +15,7 @@ pub mod prelude;
 pub mod query;
 pub mod schema;
 pub mod data;
+pub mod reports;
 pub mod shell;
 pub mod start;
 pub mod start_sections;

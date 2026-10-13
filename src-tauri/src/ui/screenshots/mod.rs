@@ -11,3 +11,4 @@ mod export;
 mod fields;
 mod schema;
 mod shop;
+mod reports;

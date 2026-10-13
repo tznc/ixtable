@@ -16,13 +16,35 @@ push a row onto the next page.
 
 ## Decision
 
-Layout is a pure TypeScript function with no DOM access:
+The engine now lives in Rust (the GPUI port). `src-tauri/src/report_engine/` is
+a line-for-line port of the TypeScript engine described below, and the
+TypeScript files it replaces (`src/reports/engine/`, `pdf.ts`, `data.ts`,
+`parameters.ts`, `model.ts`) stay in the tree only until `src/` is removed.
+Everything below holds for the Rust code: where the text names `src/reports/...`
+read the module of the same name in `report_engine/` (`layout`, `grow`, `split`,
+`subreport`, `running`, `chart`, `text`, `metrics`, `pdf`, `data`, `parameters`,
+`model`). Differences from the TypeScript version:
 
-```ts
-layoutReport(report, rows, { params, now, tables, assets }) → ReportDocument
+- Expressions run in `crate::expr`, the Rust port of `src/expr`, so the engine
+  needs no JavaScript. JavaScript's number rounding and `toFixed` are
+  reproduced by `js_round` and `to_fixed`, so output is byte-identical.
+- `report_pdf_bytes` makes the whole PDF in one call, including font subsets
+  and PNG decoding (`report_pdf`); the `prepare_report_pdf` round trip is gone.
+- Data loading (`data::load_report_data`) runs on a worker thread with a
+  `LoadControl` for cancelling, and reads through `DatasetSource` so tests can
+  supply canned rows.
+- Charts are laid out from path geometry (`PathOp`) directly; there are no SVG
+  path strings to parse.
+- The preview is GPUI elements (`src/ui/reports/page_view.rs`): text lines at
+  the engine's baselines and one canvas that paints the chart paths.
+
+Layout is a pure function with no UI access:
+
+```rust
+layout_report(&report, &rows, &LayoutOptions { params, now, tables, assets, subreports }) -> ReportDocument
 ```
 
-It lives in `src/reports/engine/` and returns pages of positioned items in
+It returns pages of positioned items in
 points: `text` with pre-broken lines and baselines, `line`, `rect`, and `image`.
 Every renderer draws those items as given. None of them measures or wraps text.
 
@@ -235,9 +257,9 @@ and the Studio preview pass their own values and never prompt.
 
 ### Print
 
-Print renders every page as an SVG sized in points into a container appended to
-`<body>`, adds an `@page` rule with the page size and zero margin, and calls
-`window.print()`. A print stylesheet hides the app and breaks after each page.
+The native window has no print pipeline, so Print writes the same PDF as Export
+PDF to a file chosen in the save dialog (`ui::dialogs::save_file`); the user
+prints that file. The web version's SVG-in-`<body>` print path is not ported.
 
 ### Grayscale output
 
@@ -370,7 +392,19 @@ CSS. This engine also leaves these for later:
   conditional bold rule and a bar chart in the designer and checks the
   preview.
 
+### Proof in Rust
+
+The TypeScript tests listed above are ported to `src-tauri/src/report_engine/tests*.rs`
+(engine, grow and split, pagination, phase 6, Unicode, PDF, subreports, model,
+parameters, `tests_resources.rs` for the PDF resources) and to
+`src-tauri/src/ui/reports/tests*.rs` (the designer, preview and parameter
+prompt flows, driven through the headless window). The screenshot spec is
+`src-tauri/src/ui/screenshots/reports.rs`.
+
 ## Audit log
+
+- 2026-10-13: Ported the engine to Rust (`report_engine/`) and the UI to GPUI
+  (`ui/reports/`); Print writes a PDF file.
 
 - 2026-10-10: Added running sums, conditional formatting and charts (PRD
   Phase 6), with `tests/unit/report-phase6.test.ts` and

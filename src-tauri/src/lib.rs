@@ -32,6 +32,7 @@ pub mod queries;
 pub mod record_attachments;
 pub mod recordstore;
 pub mod recovery;
+pub mod report_engine;
 pub mod report_pdf;
 pub mod reports;
 pub mod roles;
