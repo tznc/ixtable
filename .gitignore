@@ -12,5 +12,9 @@ web/test-results/
 .agents/skills/treq*/
 .claude/skills/treq*/
 src-tauri/resources/duckdb/*/
+# Worktrees symlink these directories; a symlink is a file, so ignore it by name too.
+src-tauri/resources/duckdb/lib
+src-tauri/resources/duckdb/*-x64
+src-tauri/resources/duckdb/*-arm64
 src-tauri/gen/schemas/linux-schema.json
 /reports/
