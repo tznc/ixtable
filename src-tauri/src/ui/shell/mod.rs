@@ -561,6 +561,18 @@ impl Shell {
                                 .disabled(busy)
                                 .on_click(cx.listener(|this, _, _, cx| this.save(true, cx))),
                         )
+                        .child(
+                            Button::new(ModeId::App.button_id())
+                                .ghost()
+                                .small()
+                                .icon(Icon::new(ModeId::App.icon()))
+                                .tooltip(ModeId::App.label())
+                                .selected(doc.mode == ModeId::App)
+                                .disabled(busy)
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.change_mode(ModeId::App, window, cx)
+                                })),
+                        )
                     })
                     .child(
                         Button::new("close-project")
@@ -594,7 +606,9 @@ impl Shell {
                 },
                 |d| d.text_xs().text_color(muted),
             ));
-        let mode_switch = v_flex().px_2().gap_0p5().children(ModeId::ALL.into_iter().map(|mode| {
+        // Settings is an icon button beside Save, so the list skips it.
+        let modes = ModeId::ALL.into_iter().filter(|m| *m != ModeId::App);
+        let mode_switch = v_flex().px_2().gap_0p5().children(modes.map(|mode| {
             let active = self.doc.mode == mode;
             Button::new(mode.button_id())
                 .ghost()
