@@ -72,12 +72,12 @@ fn follows_navigate_and_set_state_steps_from_a_sync_trigger_in_the_runtime(cx: &
     wait(&mut h);
     // The steps ran: setState fed the createRecord expression, and the row was written.
     assert_eq!(column(&h, "audit", 1).len(), 1);
-    assert!(column(&h, "audit", 1)[0].starts_with("order 2 by"), "{:?}", column(&h, "audit", 1));
-    // GAP against the React app: the Runtime installs no `UiHandlers`, so a trigger's navigate
-    // step only tells the user to open the Runtime, and `app.user.name` is empty here (the
-    // React test saw "order 2 by Developer" and the audit page open).
-    let notice = h.notice().unwrap_or_default();
-    assert!(notice.contains("This action opens a table"), "{notice:?}");
+    assert_eq!(column(&h, "audit", 1), ["order 2 by Developer"]);
+    // The navigate step opened the audit page in the Runtime, with no "open it in the Runtime" notice.
+    let body = crate::ui::runtime::tests::run_body(&mut h);
+    let page = h.cx.read(|cx| body.read(cx).runtime().read(cx).page().cloned()).expect("a page is open");
+    assert_eq!((page.kind.key(), page.id.as_str()), ("table", "audit"));
+    assert!(!h.notice().unwrap_or_default().contains("Open it in the Runtime"));
 }
 
 #[gpui_kit::test]

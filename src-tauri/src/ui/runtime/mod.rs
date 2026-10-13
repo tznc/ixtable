@@ -14,6 +14,7 @@ pub mod body;
 pub mod continuous;
 pub mod export;
 pub mod field;
+pub mod handlers;
 pub mod host;
 pub mod list;
 pub mod navbar;
@@ -55,7 +56,7 @@ use crate::forms::rbac::{self, find_role};
 use crate::ui::{events::DocBus, store::ConfigStore};
 use crate::ui::prelude::*;
 use serde_json::{Map, Value, json};
-use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex, mpsc::Sender};
 
 pub use back::BackLink;
 pub use run_mode::{RunBody, RunMode};
@@ -90,7 +91,7 @@ pub struct Runtime {
     visit: u64,
     preview_role: Option<String>,
     pub notice: Option<Notice>,
-    state: Map<String, Value>,
+    state: Arc<Mutex<Map<String, Value>>>,
     pub popups: Vec<Popup>,
     next_popup: u64,
 }
@@ -104,7 +105,7 @@ impl Runtime {
             visit: 0,
             preview_role: None,
             notice: None,
-            state: Map::new(),
+            state: Arc::default(),
             popups: vec![],
             next_popup: 1,
         }
@@ -200,8 +201,13 @@ impl Runtime {
         self.changed(cx);
     }
 
+    /// The app state, shared with the automation handlers that set it from other threads.
+    pub fn shared_state(&self) -> Arc<Mutex<Map<String, Value>>> {
+        self.state.clone()
+    }
+
     pub fn set_app_state(&mut self, key: &str, value: Value, cx: &mut Context<Self>) {
-        self.state.insert(key.to_string(), value);
+        self.state.lock().unwrap_or_else(|e| e.into_inner()).insert(key.to_string(), value);
         self.changed(cx);
     }
 
@@ -222,7 +228,7 @@ impl Runtime {
 
     /// The `app` expression scope: app state plus `user` and `role`.
     pub fn app(&self, config: &DocumentConfig) -> Map<String, Value> {
-        let mut app = self.state.clone();
+        let mut app = self.state.lock().unwrap_or_else(|e| e.into_inner()).clone();
         let role_name = self.role_name(config);
         let user = match rbac::assigned_runtime_role() {
             Some(assigned) => {
