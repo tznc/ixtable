@@ -1,6 +1,7 @@
 //! The Run App window: the application as its users see it, in an OS window of its own
 //! beside Studio. Studio opens it from the "Run App" split button (`run_app_button`): the
-//! button opens the window as the owner (full access) or brings it to the front, and its
+//! button opens the window as the owner (full access), or brings it to the front and
+//! reloads its page with the latest definitions, and its
 //! menu runs the app as one of the document's roles. One window per document; it closes
 //! with the document.
 //!
@@ -66,9 +67,11 @@ fn show(shell: &Entity<Shell>, role: Option<Option<String>>, cx: &mut App) {
             (s.label().to_string(), s.doc.name.clone())
         };
         if let Some((handle, view)) = find(&label, cx) {
-            if let Some(role) = role {
-                let runtime = view.read(cx).body.read(cx).runtime().clone();
-                runtime.update(cx, |r, cx| r.set_role_id(role, cx));
+            // Running again shows the latest definitions.
+            let runtime = view.read(cx).body.read(cx).runtime().clone();
+            match role {
+                Some(role) => runtime.update(cx, |r, cx| r.set_role_id(role, cx)),
+                None => runtime.update(cx, |r, cx| r.reload(cx)),
             }
             let _ = handle.update(cx, |_, window, _| window.activate_window());
             return;

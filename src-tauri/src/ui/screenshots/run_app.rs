@@ -2,7 +2,7 @@
 //! menu, and the app running in its own window as the owner and as a role.
 
 use super::runtime::seed_sales;
-use crate::roles::{Permissions, Role};
+use crate::roles::{ObjectPermission, Permissions, Role};
 use crate::ui::data::testkit::menu_labels;
 use crate::ui::runtime::tests::{generate, nav, run_as, seed, wait};
 use crate::ui::runtime::window::OWNER;
@@ -24,6 +24,14 @@ fn run_app() {
         let id = customers.trim_start_matches("nav:").to_string();
         let mut sales = Role { id: "sales".into(), name: "Sales rep".into(), permissions: Permissions::default() };
         sales.permissions.navigation = vec![id];
+        // Read on the Customers forms, so the page opens too.
+        sales.permissions.objects = config
+            .design
+            .forms
+            .iter()
+            .filter(|f| f.name.starts_with("Customers"))
+            .map(|f| ObjectPermission { kind: "form".into(), id: f.id.clone(), read: true, ..Default::default() })
+            .collect();
         config.roles = vec![sales, Role { id: "auditor".into(), name: "Auditor".into(), permissions: Permissions::default() }];
     });
     let run = h.run_app_window().expect("Run App is open");
@@ -57,7 +65,7 @@ fn run_app() {
     h.capture(
         "run-app-03-sales-rep",
         &[
-            "The Run App window runs as 'Sales rep': its navigation shows only Customers.",
+            "The Run App window runs as 'Sales rep': its navigation shows only Customers, with the customers list open.",
             "The 'Run as' select reads 'Sales rep'.",
         ],
     );

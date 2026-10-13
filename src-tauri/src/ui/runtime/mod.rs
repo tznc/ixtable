@@ -176,6 +176,12 @@ impl Runtime {
         self.changed(cx);
     }
 
+    /// Rebuilds the page shown, so it picks up the latest definitions.
+    pub fn reload(&mut self, cx: &mut Context<Self>) {
+        self.visit += 1;
+        self.changed(cx);
+    }
+
     pub fn back(&mut self, cx: &mut Context<Self>) {
         self.visit += 1;
         self.history.pop();
