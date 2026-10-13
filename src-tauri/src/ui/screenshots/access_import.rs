@@ -1,12 +1,10 @@
 //! Importing an Access template: inventory, report, assets preview and the migration tab
 //! (`access-*`). Port of scripts/screenshot/specs/access-import.spec.tsx.
-//!
-//! Not ported: `access-03-runtime` and `access-08-open-form` (the Runtime page and the form
-//! designer belong to other areas) and `access-05-action-query` (Query mode); the action
-//! query itself is covered by the access tests.
 
 use crate::ui::access::migration::{MigrationFilter, StatusFilter, filter_items, item_key, read_migration};
 use crate::ui::access::tests::template;
+use crate::ui::query::tests_support::wait_until;
+use crate::ui::runtime::tests::{nav, wait};
 use crate::ui::screenshot::context;
 use crate::ui::shell::ModeId;
 use crate::ui::testing::Harness;
@@ -53,6 +51,20 @@ fn access_import_template() {
     h.settle();
     h.click("access-open");
     assert!(h.has_shell());
+    h.switch_mode(ModeId::Run);
+    wait(&mut h);
+    let page = nav(&mut h, "Customer List");
+    h.click(page);
+    wait(&mut h);
+    assert!(h.exists("row:0"));
+    h.capture(
+        "access-03-runtime",
+        &[
+            "The imported Order Desk app opens in the Runtime with navigation built from the Access forms and report.",
+            "The Customer List page shows the template's sample customers.",
+        ],
+    );
+
     h.switch_mode(ModeId::App);
     h.click("tab-assets");
     h.click("view-asset:Access VBA.txt");
@@ -66,6 +78,26 @@ fn access_import_template() {
         ],
     );
 
+    h.switch_mode(ModeId::Query);
+    let config = crate::read_document_config(h.label.clone()).unwrap();
+    let raise = config.saved_queries.iter().find(|q| q.name == "RaiseBigOrders").expect("RaiseBigOrders");
+    h.click(SharedString::from(format!("query-open:{}", raise.id)));
+    assert_eq!(h.label("query-mode-badge"), "Action query");
+    h.fill("param-value:minimum", "0");
+    h.click("preview-changes");
+    wait_until(&mut h, "the preview", |h| h.exists("action-result") || h.exists("action-error"));
+    assert!(!h.exists("action-error"), "{:?}", h.try_label("action-error"));
+    assert!(h.label("action-result").starts_with("Would update "), "{}", h.label("action-result"));
+    h.capture(
+        "access-05-action-query",
+        &[
+            "The imported Access update query opens in Query mode as an action query (Update rows on Orders); action tags in the list sit inside their rows.",
+            "The minimum parameter declared in Access is a typed query parameter with a value to run with.",
+            "Preview changes reports how many rows it would update, and that nothing was changed.",
+        ],
+    );
+
+    h.switch_mode(ModeId::App);
     h.click("tab-access");
     assert!(h.label("access-intro").starts_with("Imported from Order Desk.accdt, an Access template"));
     h.update(|w, cx| w.scroll("settings-panel", ScrollDelta::Pixels(point(px(0.), px(5000.))), cx));
@@ -96,6 +128,19 @@ fn access_import_template() {
             "Show is set to Everything and Kind to Forms, so only forms are listed, converted ones included.",
             "The form marked reviewed has its checkbox ticked and the review count above went down by one.",
             "Each converted form has an Open form link.",
+        ],
+    );
+
+    let linked = forms.iter().find(|i| i.target.is_some()).expect("a form with a link");
+    let name = linked.name.clone();
+    h.click(SharedString::from(format!("open-item:{}", item_key(linked))));
+    assert_eq!(h.mode(), ModeId::Design);
+    assert_eq!(h.label("form-title"), name);
+    h.capture(
+        "access-08-open-form",
+        &[
+            "Open form switched to Design mode with the converted Access form selected.",
+            "The form's name field shows the Access form's name.",
         ],
     );
 }

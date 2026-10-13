@@ -1,9 +1,8 @@
-//! Settings tabs: migrations, YAML and Problems (`settings-03..05`). Port of
-//! scripts/screenshot/specs/settings.spec.tsx.
-//!
-//! Not ported: `settings-01-datasource` and `settings-02-entities`, whose tabs belong to
-//! another area and are placeholders in this tree.
+//! Settings tabs: datasource, entities, migrations, YAML and Problems (`settings-01..05`).
+//! Port of scripts/screenshot/specs/settings.spec.tsx.
 
+use super::runtime::seed_sales;
+use crate::ui::data::testkit::choose;
 use crate::ui::screenshot::context;
 use crate::ui::shell::{ModeId, settings::AppSettings, yaml::YamlTab};
 use crate::ui::testing::{Harness, UiContext as _};
@@ -33,9 +32,34 @@ fn settings_migrations_yaml_and_problems() {
     let mut h = Harness::start_sized(&mut cx, TALL);
     h.click("new-document");
     assert!(h.has_shell());
-    h.create_table("orders", &[("id", "INTEGER", 1), ("total", "REAL", 0)]);
+    seed_sales(&mut h);
 
     h.switch_mode(ModeId::App);
+    h.click("tab-datasource");
+    assert!(h.exists("tab-title"));
+    choose(&mut h, "Record store", "PostgreSQL");
+    choose(&mut h, "TLS (sslmode)", "disable (no TLS)");
+    assert!(h.label("plaintext-warning").contains("Severe security warning"));
+    assert!(h.exists("accept-plaintext"));
+    assert!(h.label("shared-credentials-note").contains("Shared credentials reduce revocation"));
+    h.capture(
+        "settings-01-datasource",
+        &[
+            "PostgreSQL connection fields (host, port, database, user, password, TLS) are labelled.",
+            "Disabling TLS shows a severe warning with an explicit acceptance checkbox; Save is disabled.",
+            "A note warns that shared credentials reduce revocation.",
+        ],
+    );
+    choose(&mut h, "Record store", "Embedded SQLite (in the .ixt file)");
+
+    h.click("tab-entities");
+    choose(&mut h, "Concurrency policy for orders", "Last write wins");
+    assert!(h.exists("entity:orders"));
+    h.capture(
+        "settings-02-entities",
+        &["Each table has a concurrency policy selector; orders uses last-write-wins."],
+    );
+
     h.click("tab-migrations");
     assert_eq!(h.label("migrations"), "Migrations");
     h.click("new-migration");

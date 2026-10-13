@@ -1,12 +1,10 @@
 //! Runtime bundles: export, password prompt, runtime-only window, update, confirm dialogs
 //! and diagnostics (`release-*`). Port of scripts/screenshot/specs/release.spec.tsx.
-//!
-//! Not ported: the generated Customers form and its list page in the runtime window
-//! (Design and Runtime pages are other areas), so the runtime captures show the bundle bar
-//! and the absence of Studio chrome only.
 
 use crate::data::DataValue;
+use crate::ui::data::testkit::choose;
 use crate::ui::persistence::tests::unique;
+use crate::ui::runtime::tests::{nav, wait};
 use crate::ui::screenshot::context;
 use crate::ui::shell::ModeId;
 use crate::ui::testing::Harness;
@@ -59,6 +57,11 @@ fn release_export_runtime_and_update() {
     h.click("new-document");
     assert!(h.has_shell());
     seed(&mut h);
+    // Give recipients a real page: a generated Customers list and detail form.
+    h.switch_mode(ModeId::Design);
+    choose(&mut h, "generate-table", "customers");
+    h.click("generate-form");
+    assert!(h.config().design.forms.iter().any(|f| f.name == "Customers"));
     h.switch_mode(ModeId::App);
     h.click("tab-release");
     let v1 = bundle(&h, "orders-1.0.0.ixtr");
@@ -89,11 +92,16 @@ fn release_export_runtime_and_update() {
         assert!(!h.exists(hidden), "{hidden}");
     }
     assert_eq!(h.read_page("customers").total, 2);
+    let customers = nav(&mut h, "Customers");
+    h.click(customers);
+    wait(&mut h);
+    assert!((0..5).any(|n| h.try_label(format!("cell:{n}:name")).as_deref() == Some("Runtime Rita")));
     h.capture(
         "release-03-runtime-only",
         &[
             "The runtime-only window shows a Runtime bundle bar with Version 1.0.0.",
             "No ribbon (Undo/Redo), mode switch, Preview as role, PROJECT breadcrumb, or Save buttons.",
+            "The Customers list shows the bundled records plus the recipient's own Runtime Rita.",
         ],
     );
 
