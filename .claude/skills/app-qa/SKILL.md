@@ -20,9 +20,9 @@ the visual expectations. See `src-tauri/src/ui/screenshot.rs`.
 - Linux needs a Vulkan driver. Mesa's lavapipe works without a GPU:
   `apt-get install mesa-vulkan-drivers`.
 - Windows has no headless renderer, so run `/app-qa` on Linux or macOS.
-- On Linux, a run very occasionally ends in SIGSEGV inside the Vulkan driver.
-  This was seen twice in about 20 runs, both while other builds were loading
-  the machine. Rerun it; a crash that keeps happening is a real bug.
+- If several builds share one `CARGO_TARGET_DIR`, another build can overwrite the
+  test binary while it runs, and the run dies with SIGSEGV. When builds run in
+  parallel, copy the binary out first, or give each its own target dir.
 
 ## Invariants
 
