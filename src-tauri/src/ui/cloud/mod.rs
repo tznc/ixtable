@@ -20,8 +20,14 @@ pub mod types;
 pub mod versions;
 
 #[cfg(test)]
+mod install_tests;
+#[cfg(test)]
 pub mod mock;
+#[cfg(test)]
+pub mod mockhttp;
 #[cfg(test)]
 mod studio_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod wire_tests;
