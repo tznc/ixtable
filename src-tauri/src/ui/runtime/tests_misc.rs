@@ -5,12 +5,12 @@
 use super::tests::{at, grid, nav, seed, uid, wait};
 use crate::data::DataValue;
 use crate::ui::shell::ModeId;
-use crate::ui::testing::Harness;
+use crate::ui::testing::{Harness, UiContext};
 use crate::validation::Severity;
 use gpui_kit::TestAppContext;
 use serde_json::{Value, json};
 
-pub(super) fn table_with_keys(h: &mut Harness, name: &str, columns: Value, foreign_keys: Value) {
+pub(crate) fn table_with_keys<C: UiContext>(h: &mut Harness<C>, name: &str, columns: Value, foreign_keys: Value) {
     let columns: Vec<Value> = columns
         .as_array()
         .expect("columns")

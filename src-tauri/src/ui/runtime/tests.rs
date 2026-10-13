@@ -6,17 +6,17 @@ use super::{FormRenderer, RunBody, RunMode};
 use crate::data::DataValue;
 use crate::forms::actions::{ActionContext, ActionResult, ActionRunner, set_action_runner};
 use crate::ui::shell::ModeId;
-use crate::ui::testing::Harness;
+use crate::ui::testing::{Harness, UiContext};
 use gpui_kit::{Entity, TestAppContext};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
-pub(super) fn customers(h: &mut Harness) {
+pub(crate) fn customers(h: &mut Harness) {
     h.create_table("customers", &[("id", "INTEGER", 1), ("name", "TEXT", 0)]);
 }
 
 /// The id of the navigation button labelled `label`.
-pub(super) fn nav(h: &mut Harness, label: &str) -> String {
+pub(crate) fn nav<C: UiContext>(h: &mut Harness<C>, label: &str) -> String {
     fn find<'a>(items: &'a [crate::design::NavigationItem], label: &str) -> Option<&'a crate::design::NavigationItem> {
         items.iter().find_map(|n| {
             if n.label == label && n.kind != crate::design::NavKind::Group {
@@ -31,17 +31,17 @@ pub(super) fn nav(h: &mut Harness, label: &str) -> String {
     format!("nav:{}", item.id)
 }
 
-pub(super) fn generate(h: &mut Harness) {
+pub(crate) fn generate<C: UiContext>(h: &mut Harness<C>) {
     h.switch_mode(ModeId::Run);
     h.click("generate-app");
 }
 
-pub(super) fn uid() -> String {
+pub(crate) fn uid() -> String {
     uuid::Uuid::new_v4().to_string()
 }
 
 /// Applies a definition edit through the document's ConfigStore.
-pub(super) fn seed(h: &mut Harness, mutate: impl FnOnce(&mut crate::archive::DocumentConfig) + 'static) {
+pub(crate) fn seed<C: UiContext>(h: &mut Harness<C>, mutate: impl FnOnce(&mut crate::archive::DocumentConfig) + 'static) {
     let store = h.read_shell(|s, _| s.store.clone());
     h.cx.update(|cx| {
         store
@@ -51,7 +51,7 @@ pub(super) fn seed(h: &mut Harness, mutate: impl FnOnce(&mut crate::archive::Doc
     h.settle();
 }
 
-pub(super) fn grid() -> serde_json::Value {
+pub(crate) fn grid() -> serde_json::Value {
     serde_json::json!({
         "columns": (0..12).map(|_| serde_json::json!({"kind": "fr", "value": 1})).collect::<Vec<_>>(),
         "rows": [], "columnGap": 16, "rowGap": 16, "padding": 0,
@@ -59,18 +59,18 @@ pub(super) fn grid() -> serde_json::Value {
     })
 }
 
-pub(super) fn at(row: u32) -> serde_json::Value {
+pub(crate) fn at(row: u32) -> serde_json::Value {
     serde_json::json!({"column": 1, "row": row, "columnSpan": 6, "rowSpan": 1})
 }
 
-pub(super) fn title_field() -> serde_json::Value {
+pub(crate) fn title_field() -> serde_json::Value {
     serde_json::json!({
         "id": uid(), "kind": "text", "label": "Title", "binding": {"column": "title"},
         "validation": {"required": true}, "placement": at(1),
     })
 }
 
-pub(super) fn seed_tasks(h: &mut Harness, titles: &[&str]) {
+pub(crate) fn seed_tasks<C: UiContext>(h: &mut Harness<C>, titles: &[&str]) {
     h.create_table("tasks", &[("id", "INTEGER", 1), ("title", "TEXT", 0)]);
     for (index, title) in titles.iter().enumerate() {
         h.insert_row(
@@ -85,7 +85,7 @@ pub(super) fn seed_tasks(h: &mut Harness, titles: &[&str]) {
 
 /// Replaces the first form with a "Task" form over `tasks` (patched by `patch`) and points
 /// the first navigation item ("Tasks") at it.
-pub(super) fn task_form(h: &mut Harness, patch: serde_json::Value) {
+pub(crate) fn task_form<C: UiContext>(h: &mut Harness<C>, patch: serde_json::Value) {
     seed(h, move |config| {
         let id = config.design.forms[0].id.clone();
         let mut form = serde_json::json!({
@@ -104,14 +104,14 @@ pub(super) fn task_form(h: &mut Harness, patch: serde_json::Value) {
 }
 
 /// The Run mode body of the open document.
-pub(super) fn run_body(h: &mut Harness) -> Entity<RunBody> {
+pub(crate) fn run_body(h: &mut Harness) -> Entity<RunBody> {
     let view = h.read_shell(|s, _| s.mode_view()).expect("a mode view");
     let mode: Entity<RunMode> = view.downcast().expect("RunMode");
     h.cx.read(|cx| mode.read(cx).body().cloned()).expect("the Run body is rendered")
 }
 
 /// The form renderer of the page shown.
-pub(super) fn renderer(h: &mut Harness) -> Entity<FormRenderer> {
+pub(crate) fn renderer(h: &mut Harness) -> Entity<FormRenderer> {
     let body = run_body(h);
     let view = h.cx.read(|cx| body.read(cx).page_view_entity()).expect("a page");
     view.downcast().expect("a FormRenderer page")
@@ -128,7 +128,7 @@ impl ActionRunner for FnRunner {
 }
 
 /// Keeps the process-wide action runner to one test at a time; clears it on drop.
-pub(super) struct RunnerGuard(#[allow(dead_code)] MutexGuard<'static, ()>);
+pub(crate) struct RunnerGuard(#[allow(dead_code)] MutexGuard<'static, ()>);
 
 impl Drop for RunnerGuard {
     fn drop(&mut self) {
@@ -139,7 +139,7 @@ impl Drop for RunnerGuard {
 static RUNNER_LOCK: Mutex<()> = Mutex::new(());
 
 /// Installs a test-double action runner (for the tests that do not need real actions).
-pub(super) fn with_runner(
+pub(crate) fn with_runner(
     run: impl Fn(&str, &ActionContext) -> ActionResult + Send + Sync + 'static,
 ) -> RunnerGuard {
     let guard = RunnerGuard(RUNNER_LOCK.lock().unwrap_or_else(|e| e.into_inner()));
@@ -148,7 +148,7 @@ pub(super) fn with_runner(
 }
 
 /// Installs the real Automation runner through the Runtime's bridge.
-pub(super) fn with_real_runner() -> RunnerGuard {
+pub(crate) fn with_real_runner() -> RunnerGuard {
     let guard = RunnerGuard(RUNNER_LOCK.lock().unwrap_or_else(|e| e.into_inner()));
     set_action_runner(Some(Arc::new(super::automation_bridge::AutomationRunner)));
     guard
@@ -156,7 +156,7 @@ pub(super) fn with_real_runner() -> RunnerGuard {
 
 /// Lets background work finish: the test clock advances in steps, with real time between
 /// them for the threads that run actions.
-pub(super) fn wait(h: &mut Harness) {
+pub(crate) fn wait<C: UiContext>(h: &mut Harness<C>) {
     for _ in 0..16 {
         h.advance(Duration::from_millis(20));
         std::thread::sleep(Duration::from_millis(5));
