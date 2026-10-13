@@ -43,6 +43,10 @@ mod tests_template;
 mod tests_views;
 #[cfg(test)]
 mod tests_writes;
+#[cfg(test)]
+mod tests_keyboard;
+#[cfg(test)]
+mod tests_preview;
 
 use crate::archive::DocumentConfig;
 use crate::forms::actions::{NavigationTarget, NoticeTone};

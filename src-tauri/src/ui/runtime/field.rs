@@ -626,24 +626,33 @@ impl FieldView {
     fn render_multi_select(&mut self, id: &SharedString, _cx: &mut Context<Self>) -> impl IntoElement {
         let props = self.props().clone();
         let selected = parse_choices(&props.value);
-        h_flex().id(id.clone()).flex_wrap().gap_1().children(props.control.options.iter().map(|option| {
-            let on = selected.contains(&option.value);
-            let value = option.value.clone();
-            let current = selected.clone();
+        // The listed options, then stored choices the list no longer has (so they stay visible and removable).
+        let mut all: Vec<(String, String)> = props
+            .control
+            .options
+            .iter()
+            .map(|o| (o.value.clone(), if o.label.is_empty() { o.value.clone() } else { o.label.clone() }))
+            .collect();
+        for choice in selected.iter().filter(|c| !props.control.options.iter().any(|o| &o.value == *c)) {
+            all.push((choice.clone(), choice.clone()));
+        }
+        let order: Vec<String> = all.iter().map(|(value, _)| value.clone()).collect();
+        h_flex().id(id.clone()).flex_wrap().gap_1().children(all.into_iter().map(|(value, label)| {
+            let on = selected.contains(&value);
+            let (current, order) = (selected.clone(), order.clone());
             let on_change = props.on_change.clone();
-            Button::new(SharedString::from(format!("{id}:option:{}", widgets::slug(&option.value))))
+            Button::new(SharedString::from(format!("{id}:option:{}", widgets::slug(&value))))
                 .small()
                 .outline()
-                .label(if option.label.is_empty() { option.value.clone() } else { option.label.clone() })
+                .label(label)
                 .selected(on)
                 .disabled(props.read_only)
                 .on_click(move |_, _, cx| {
-                    let mut next = current.clone();
-                    if on {
-                        next.retain(|v| v != &value);
-                    } else {
-                        next.push(value.clone());
-                    }
+                    let next: Vec<String> = order
+                        .iter()
+                        .filter(|o| if **o == value { !on } else { current.contains(*o) })
+                        .cloned()
+                        .collect();
                     on_change(choices_value(&next), cx);
                 })
         }))
@@ -766,3 +775,7 @@ impl Render for FieldView {
             })
     }
 }
+
+#[cfg(test)]
+#[path = "field_tests.rs"]
+mod tests;

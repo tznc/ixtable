@@ -394,3 +394,55 @@ fn every_template_id_is_a_uuid_v7() {
         }
     }
 }
+
+// Port of the "golden template files" and boolean-control cases of tests/unit/golden-templates.test.tsx.
+
+fn golden_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("golden")
+}
+
+#[test]
+fn every_asset_placeholder_names_a_file_the_template_carries() {
+    for app in ["crm", "inventory", "work-orders", "work-orders/v2"] {
+        let yaml = std::fs::read_to_string(golden_dir().join(app).join("app.yaml")).expect("app.yaml");
+        let assets = golden_dir().join(app.split('/').next().unwrap()).join("assets");
+        let files: Vec<String> = std::fs::read_dir(&assets)
+            .map(|dir| dir.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect())
+            .unwrap_or_default();
+        let definitions: String = yaml.lines().filter(|l| !l.trim().starts_with('#')).collect::<Vec<_>>().join("\n");
+        let mut rest = definitions.as_str();
+        while let Some(start) = rest.find("{{asset:") {
+            let after = &rest[start + "{{asset:".len()..];
+            let end = after.find("}}").expect("closing braces");
+            assert!(files.iter().any(|f| f == &after[..end]), "{app}: {} is not in {files:?}", &after[..end]);
+            rest = &after[end..];
+        }
+    }
+}
+
+#[test]
+fn seed_sql_only_inserts_rows() {
+    for app in ["crm", "inventory", "work-orders"] {
+        let text = std::fs::read_to_string(golden_dir().join(app).join("seed.sql")).expect("seed.sql");
+        let sql: String = text.lines().filter(|l| !l.trim().starts_with("--")).collect::<Vec<_>>().join("\n");
+        let statements: Vec<&str> = sql.split(';').map(str::trim).filter(|s| !s.is_empty()).collect();
+        assert!(statements.len() > 3, "{app}");
+        for statement in statements {
+            let ok = statement.strip_prefix("INSERT INTO ").is_some_and(|rest| {
+                let name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+                !name.is_empty() && rest[name.len()..].starts_with(" (")
+            });
+            assert!(ok, "{app}: {statement}");
+        }
+    }
+}
+
+#[test]
+fn boolean_controls_bound_to_integer_columns_write_integers_not_the_text_true() {
+    use crate::data::DataValue;
+    use crate::forms::values::to_column_value;
+    use serde_json::json;
+    assert_eq!(to_column_value(&json!(true), "INTEGER"), DataValue::Integer(1));
+    assert_eq!(to_column_value(&json!(false), "INTEGER"), DataValue::Integer(0));
+    assert_eq!(to_column_value(&json!(true), "BOOLEAN"), DataValue::Boolean(true));
+}

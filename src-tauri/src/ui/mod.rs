@@ -13,6 +13,10 @@ pub mod events;
 pub mod export;
 pub mod fields;
 pub mod forms;
+#[cfg(test)]
+mod golden;
+#[cfg(test)]
+mod store_tests;
 pub mod grid;
 pub mod import;
 pub mod migrations;

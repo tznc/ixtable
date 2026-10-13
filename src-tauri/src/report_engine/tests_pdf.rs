@@ -458,3 +458,16 @@ fn sends_pngs_with_trns_transparency_or_16_bit_samples_to_the_fallback_instead_o
     gray16[8 + 8 + 9] = 0;
     assert!(png_image(&gray16).is_none());
 }
+
+// Port of "writes PDFs with gray color operators only" (tests/unit/a11y-styles.test.tsx).
+#[test]
+fn writes_pdfs_with_gray_color_operators_only() {
+    let mut doc = tiny();
+    doc.pages[0].items.push(sized_image("i", 120.0, "missing", "image/png"));
+    let text = ascii(&write_pdf(&doc, &opts(Some("T"), "2026-01-01T00:00:00Z")));
+    let operators: Vec<&str> = text.lines().filter_map(|line| line.split_whitespace().last()).collect();
+    assert!(operators.contains(&"g"), "fill gray operators are written");
+    for color in ["rg", "RG", "k", "K", "sc", "SC", "scn", "SCN"] {
+        assert!(!operators.contains(&color), "no {color} operator");
+    }
+}
