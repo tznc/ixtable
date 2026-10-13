@@ -5,6 +5,7 @@
 pub mod access;
 pub mod app;
 pub mod assets;
+pub mod automation;
 pub mod autosave;
 pub mod cloud;
 pub mod dialogs;
@@ -14,12 +15,17 @@ pub mod migrations;
 pub mod persistence;
 pub mod prelude;
 pub mod release;
+pub mod query;
 pub mod shell;
 pub mod start;
 pub mod start_sections;
 pub mod store;
 pub mod task;
 pub mod widgets;
+#[cfg(test)]
+pub mod screenshot;
+#[cfg(test)]
+mod screenshots;
 #[cfg(test)]
 pub mod testing;
 
