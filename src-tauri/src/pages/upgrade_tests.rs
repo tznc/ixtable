@@ -91,6 +91,8 @@ fn wrapper_ids_are_stable_across_loads() {
     let ids = |c: &DocumentConfig| c.pages.iter().map(|p| p.id.clone()).collect::<Vec<_>>();
     assert_eq!(ids(&a), ids(&b));
     assert!(a.pages.iter().all(|p| p.id == "d1" || uuid::Uuid::parse_str(&p.id).is_ok_and(|u| u.get_version_num() == 7)));
+    let wrappers: Vec<&str> = a.pages.iter().filter(|p| is_wrapper(p)).map(|p| p.name.as_str()).collect();
+    assert_eq!(wrappers, ["Customers", "Sales"]);
 }
 
 #[test]

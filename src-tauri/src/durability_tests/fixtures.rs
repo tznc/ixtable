@@ -106,7 +106,8 @@ fn describe(
         forms: c.design.forms.iter().map(|f| f.id.clone()).collect(),
         queries: c.saved_queries.iter().map(|q| q.id.clone()).collect(),
         reports: c.reports.iter().map(|r| r.id.clone()).collect(),
-        dashboards: c.pages.iter().map(|d| d.id.clone()).collect(),
+        // Released fixtures list their dashboards; pages made for forms and reports on open are extra.
+        dashboards: c.pages.iter().filter(|p| !crate::pages::upgrade::is_wrapper(p)).map(|d| d.id.clone()).collect(),
         rows: tables
             .iter()
             .map(|t| (t.to_string(), count_rows(m, window, t)))

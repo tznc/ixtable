@@ -144,6 +144,18 @@ pub fn wrapper_page(
     }
 }
 
+/// Whether `page` is the page the migration made for a form or report (its id derives
+/// from the definition it holds).
+pub(crate) fn is_wrapper(page: &Page) -> bool {
+    let [only] = page.components.as_slice() else { return false };
+    let target = match only.kind {
+        ComponentKind::Form => only.form_id.as_ref().map(|id| ("form", id)),
+        ComponentKind::Report => only.report_id.as_ref().map(|id| ("report", id)),
+        _ => None,
+    };
+    target.is_some_and(|(key, id)| page.id == stable_id(&format!("{key}-page:{id}")))
+}
+
 /// A UUIDv7-shaped id derived from `seed` (every definition id is a UUIDv7). The bytes
 /// come from a UUIDv5 of the seed, so the same seed always gives the same id.
 fn stable_id(seed: &str) -> String {
