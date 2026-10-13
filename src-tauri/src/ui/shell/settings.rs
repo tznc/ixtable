@@ -41,6 +41,15 @@ fn build_tab(key: &str, shell: &Entity<Shell>, window: &mut Window, cx: &mut App
         "yaml" => cx
             .new(|cx| super::yaml::YamlTab::new(shell.clone(), window, cx))
             .into(),
+        "datasource" => cx
+            .new(|cx| crate::ui::schema::datasource::DatasourceTab::new(shell.clone(), window, cx))
+            .into(),
+        "entities" => cx
+            .new(|cx| crate::ui::schema::entities::EntitiesTab::new(shell.clone(), cx))
+            .into(),
+        "files" => cx
+            .new(|cx| crate::ui::import::sources_tab::FileSourcesTab::new(shell.clone(), window, cx))
+            .into(),
         "problems" => cx
             .new(|cx| super::problems::ProblemsTab::new(shell.clone(), cx))
             .into(),
