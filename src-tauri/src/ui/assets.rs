@@ -20,11 +20,14 @@ gpui_kit::assets::icon_assets!(
         Pencil,
         Save,
         SaveAll,
+        Scan,
         Shapes,
         Table2,
         WandSparkles,
         X,
-        Zap
+        Zap,
+        ZoomIn,
+        ZoomOut
     ]
 );
 
