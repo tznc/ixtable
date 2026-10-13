@@ -13,6 +13,28 @@ use gpui_kit::component::{
 use gpui_kit::*;
 use gpui_kit::prelude::FluentBuilder as _;
 
+/// Left-aligned button content. gpui-component centers a button's icon and label and
+/// ignores `justify_start`, so list and navigation buttons put both in a full-width row.
+/// The label stays the button's accessibility label, so tests still find it by name.
+pub trait StartAligned: Sized {
+    fn start_label(self, icon: Option<gpui_kit::component::Icon>, label: impl Into<SharedString>) -> Self;
+}
+
+impl StartAligned for Button {
+    fn start_label(self, icon: Option<gpui_kit::component::Icon>, label: impl Into<SharedString>) -> Self {
+        let label = label.into();
+        self.accessibility_label(label.clone()).child(
+            h_flex()
+                .w_full()
+                .min_w_0()
+                .gap_1()
+                .justify_start()
+                .when_some(icon, |row, icon| row.child(icon.small()))
+                .child(div().min_w_0().overflow_hidden().whitespace_nowrap().text_ellipsis().child(label)),
+        )
+    }
+}
+
 /// Observed text: `id` gets `label` as its accessibility label so tests can read it.
 pub fn text(id: impl Into<ElementId>, label: impl Into<SharedString>) -> impl IntoElement {
     styled_text(id, label, |d| d)

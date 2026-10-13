@@ -62,11 +62,9 @@ impl ResultTable {
     }
 
     /// Every cell as shown.
+    #[cfg(test)]
     pub fn cells(&self) -> Vec<Vec<String>> {
-        self.rows
-            .iter()
-            .map(|r| r.iter().map(|c| c.to_string()).collect())
-            .collect()
+        self.rows.iter().map(|r| r.iter().map(|c| c.to_string()).collect()).collect()
     }
 
     fn visible_rows(&self, range: Range<usize>, cx: &App) -> Vec<Div> {

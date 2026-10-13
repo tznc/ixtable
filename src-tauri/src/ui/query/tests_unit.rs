@@ -3,6 +3,7 @@
 //! (tests/unit/action-queries.test.ts, `describeRun`). The record-hook parts of that
 //! file live in `records_tests.rs`.
 
+use crate::forms::values::to_data_value;
 use super::{
     action_text::describe_run,
     compile::{compile_builder, quote_ident, quote_literal, try_compile},
@@ -12,7 +13,7 @@ use super::{
         GroupColumn, Item, JoinCondition, JoinKind, Literal, alias_for, builder_parameter_names,
         empty_model, normalize_model,
     },
-    sql::{placeholder_names, to_data_value, to_named_values},
+    sql::{placeholder_names, to_named_values},
 };
 use crate::{archive::ActionKind, data::DataValue};
 use serde_json::json;

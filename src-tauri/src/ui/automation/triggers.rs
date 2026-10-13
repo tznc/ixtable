@@ -191,9 +191,8 @@ impl TriggersPanel {
                 Button::new(SharedString::from(format!("trigger-item-{}", i + 1)))
                     .ghost()
                     .small()
-                    .justify_start()
                     .w_full()
-                    .label(label)
+                    .start_label(None, label)
                     .selected(selected.as_deref() == Some(id.as_str()))
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.selected = Some(id.clone());

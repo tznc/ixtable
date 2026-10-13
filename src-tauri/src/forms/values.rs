@@ -53,6 +53,9 @@ pub fn to_data_value(value: &Value) -> DataValue {
                 _ => DataValue::Null,
             },
         },
+        Value::Object(o) if o.contains_key("type") => {
+            serde_json::from_value(value.clone()).unwrap_or_else(|_| DataValue::Text(value.to_string()))
+        }
         Value::String(s) => DataValue::Text(s.clone()),
         other => DataValue::Text(other.to_string()),
     }

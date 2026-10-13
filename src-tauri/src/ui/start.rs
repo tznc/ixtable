@@ -12,6 +12,7 @@ use crate::{
     ui::{dialogs, task, widgets},
 };
 use gpui_kit::assets::IconName;
+use crate::ui::widgets::StartAligned as _;
 use gpui_kit::component::{
     ActiveTheme as _, Disableable as _, Icon,
     button::{Button, ButtonVariants as _},
@@ -306,10 +307,8 @@ impl Render for StartScreen {
                                     let name = t.name.clone();
                                     Button::new(SharedString::from(format!("template:{}", t.id)))
                                         .outline()
-                                        .justify_start()
                                         .w_full()
-                                        .icon(Icon::new(IconName::LayoutDashboard))
-                                        .label(format!("{} — {} (v{})", t.name, t.description, t.version))
+                                        .start_label(Some(Icon::new(IconName::LayoutDashboard)), format!("{} — {} (v{})", t.name, t.description, t.version))
                                         .disabled(busy)
                                         .on_click(cx.listener(move |this, _, _, cx| {
                                             let id = id.clone();
@@ -352,10 +351,8 @@ impl Render for StartScreen {
                                 let path = recent.path.clone();
                                 Button::new(SharedString::from(format!("recent:{name}")))
                                     .ghost()
-                                    .justify_start()
                                     .w_full()
-                                    .icon(Icon::new(IconName::FileText))
-                                    .label(format!("{name} — {}", recent.path))
+                                    .start_label(Some(Icon::new(IconName::FileText)), format!("{name} — {}", recent.path))
                                     .tooltip(format!("Open recent {name}"))
                                     .disabled(busy)
                                     .on_click(cx.listener(move |this, _, _, cx| {

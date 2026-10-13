@@ -7,6 +7,7 @@
 use super::{ModeId, Selection, SelectionKind, Shell};
 use crate::ui::widgets;
 use gpui_kit::assets::IconName;
+use crate::ui::widgets::StartAligned as _;
 use gpui_kit::component::{
     ActiveTheme as _, Icon, Selectable as _, Sizable as _,
     button::{Button, ButtonVariants as _},
@@ -165,14 +166,13 @@ impl Render for ObjectBrowser {
                     Button::new(SharedString::from(format!("{kind_key}:{}", item.id)))
                         .ghost()
                         .small()
-                        .justify_start()
                         .w_full()
                         .icon(Icon::new(if item.kind == SelectionKind::View {
                             IconName::Eye
                         } else {
                             IconName::Table2
                         }))
-                        .label(label)
+                        .start_label(None, label)
                         .selected(selected)
                         .on_click(move |_, window, cx| {
                             let selection = selection.clone();

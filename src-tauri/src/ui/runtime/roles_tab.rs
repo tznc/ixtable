@@ -169,8 +169,7 @@ impl Render for RolesTab {
                 Button::new(SharedString::from(format!("role-select:{}", item.id)))
                     .ghost()
                     .small()
-                    .justify_start()
-                    .label(if item.name.is_empty() { "Untitled role".to_string() } else { item.name.clone() })
+                    .start_label(None, if item.name.is_empty() { "Untitled role".to_string() } else { item.name.clone() })
                     .selected(role.as_ref().is_some_and(|r| r.id == item.id))
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.selected = Some(id.clone());

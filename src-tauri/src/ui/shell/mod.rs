@@ -24,6 +24,7 @@ use crate::{
     },
 };
 use gpui_kit::assets::IconName;
+use crate::ui::widgets::StartAligned as _;
 use gpui_kit::component::{
     ActiveTheme as _, Disableable as _, Icon, Selectable as _, Sizable as _,
     button::{Button, ButtonVariants as _},
@@ -583,10 +584,8 @@ impl Shell {
             Button::new(mode.button_id())
                 .ghost()
                 .small()
-                .justify_start()
                 .w_full()
-                .icon(Icon::new(mode.icon()))
-                .label(mode.label())
+                .start_label(Some(Icon::new(mode.icon())), mode.label())
                 .selected(active)
                 .disabled(busy)
                 .on_click(cx.listener(move |this, _, window, cx| this.change_mode(mode, window, cx)))

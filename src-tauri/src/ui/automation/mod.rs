@@ -152,8 +152,7 @@ impl AutomationMode {
                 Button::new("issues-toggle")
                     .ghost()
                     .small()
-                    .justify_start()
-                    .label(summary)
+                    .start_label(None, summary)
                     .on_click(cx.listener(|this, _, _, cx| {
                         this.issues_open = !this.issues_open;
                         cx.notify();

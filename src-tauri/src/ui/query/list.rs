@@ -108,10 +108,8 @@ impl QueryMode {
                         Button::new(SharedString::from(format!("query-open:{id}")))
                             .ghost()
                             .small()
-                            .justify_start()
                             .flex_1()
-                            .icon(IconName::CodeXml)
-                            .label(if q.action.is_some() { format!("{name} (action)") } else { name })
+                            .start_label(Some(Icon::new(IconName::CodeXml)), if q.action.is_some() { format!("{name} (action)") } else { name })
                             .selected(selected)
                             .on_click(cx.listener(move |this, _, window, cx| this.open_id(&open_id, window, cx))),
                     )

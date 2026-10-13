@@ -313,9 +313,8 @@ impl RunBody {
                 Button::new(SharedString::from(format!("nav:{}", item.id)))
                     .ghost()
                     .small()
-                    .justify_start()
                     .w_full()
-                    .label(item.label.clone())
+                    .start_label(None, item.label.clone())
                     .selected(active == Some(item.id.as_str()))
                     .on_click(move |_, _, cx| {
                         if let Some(page) = page.clone() {

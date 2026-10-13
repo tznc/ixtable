@@ -449,8 +449,7 @@ impl ReportPreview {
                     Button::new("diagnostics-toggle")
                         .ghost()
                         .small()
-                        .justify_start()
-                        .label(summary)
+                        .start_label(None, summary)
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.diagnostics_open = !this.diagnostics_open;
                             cx.notify();

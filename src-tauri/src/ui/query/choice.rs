@@ -109,9 +109,8 @@ impl<V: 'static> Choice<V> {
                 Button::new(SharedString::from(format!("{id}/{}", opt.value)))
                     .ghost()
                     .small()
-                    .justify_start()
                     .w_full()
-                    .label(opt.label.clone())
+                    .start_label(None, opt.label.clone())
                     .selected(opt.value == self.current)
                     .on_click(cx.listener(move |this, _, window, cx| {
                         set_open(this, false, cx);

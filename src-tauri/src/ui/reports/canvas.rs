@@ -161,8 +161,7 @@ impl ReportDesigner {
                         Button::new(SharedString::from(format!("band-{key_id}")))
                             .ghost()
                             .xsmall()
-                            .justify_start()
-                            .label(label)
+                            .start_label(None, label)
                             .selected(entry.key == active)
                             .on_click(cx.listener(move |this, _, _, cx| this.select_band(pick_key.clone(), cx))),
                     )

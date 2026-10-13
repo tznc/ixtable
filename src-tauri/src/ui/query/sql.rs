@@ -6,7 +6,6 @@ use crate::{
     archive::SavedQuery,
     data::{DataValue, NamedValue},
 };
-use serde_json::Value;
 use std::collections::BTreeMap;
 
 /// `$name` placeholders in SQL, in first-use order, skipping strings, quoted
@@ -85,30 +84,6 @@ pub fn run_params(values: &BTreeMap<String, String>) -> BTreeMap<String, String>
         .filter(|(_, v)| !v.is_empty())
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect()
-}
-
-/// Converts a plain JSON value (or a tagged `DataValue`) to the value sent to the backend.
-pub fn to_data_value(value: &Value) -> DataValue {
-    match value {
-        Value::Null => DataValue::Null,
-        Value::Bool(b) => DataValue::Boolean(*b),
-        Value::Number(n) => match n.as_i64() {
-            Some(i) => DataValue::Integer(i),
-            None => {
-                let f = n.as_f64().unwrap_or(0.0);
-                if f.fract() == 0.0 {
-                    DataValue::Integer(f as i64)
-                } else {
-                    DataValue::Real(f)
-                }
-            }
-        },
-        Value::Object(o) if o.contains_key("type") => {
-            serde_json::from_value(value.clone()).unwrap_or_else(|_| DataValue::Text(value.to_string()))
-        }
-        Value::String(s) => DataValue::Text(s.clone()),
-        other => DataValue::Text(other.to_string()),
-    }
 }
 
 /// Run parameters (text from the "Run with" fields) as named backend values.

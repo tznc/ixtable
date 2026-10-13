@@ -544,9 +544,8 @@ impl FieldView {
                 Button::new(SharedString::from(format!("{id}:option:none")))
                     .ghost()
                     .small()
-                    .justify_start()
                     .w_full()
-                    .label("—")
+                    .start_label(None, "—")
                     .on_click(cx.listener(|this, _, _, cx| this.choose(None, cx))),
             );
         for (index, choice) in self.choices.iter().enumerate() {
@@ -560,9 +559,8 @@ impl FieldView {
                 Button::new(SharedString::from(format!("{id}:option:{slug}")))
                     .ghost()
                     .small()
-                    .justify_start()
                     .w_full()
-                    .label(choice.label.clone())
+                    .start_label(None, choice.label.clone())
                     .selected(selected_index == Some(index))
                     .on_click(cx.listener(move |this, _, _, cx| this.choose(Some(picked.clone()), cx))),
             );
@@ -603,9 +601,8 @@ impl FieldView {
         let toggle = Button::new(id.clone())
             .outline()
             .small()
-            .justify_start()
             .w_full()
-            .label(shown)
+            .start_label(None, shown)
             .on_click(cx.listener(|this, _, _, cx| this.toggle_open(cx)));
         let dropdown = self.open.then(|| {
             let search = self.search.clone();
