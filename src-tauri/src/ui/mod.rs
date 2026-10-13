@@ -15,6 +15,10 @@ pub mod store;
 pub mod task;
 pub mod widgets;
 #[cfg(test)]
+pub mod screenshot;
+#[cfg(test)]
+mod screenshots;
+#[cfg(test)]
 pub mod testing;
 
 use gpui_kit::*;
