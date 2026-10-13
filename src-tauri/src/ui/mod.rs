@@ -4,6 +4,7 @@
 
 pub mod app;
 pub mod assets;
+pub mod automation;
 pub mod autosave;
 pub mod dialogs;
 pub mod events;

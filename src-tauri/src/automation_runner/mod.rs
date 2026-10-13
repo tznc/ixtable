@@ -24,6 +24,8 @@ pub mod worker;
 #[cfg(test)]
 mod tests_actions;
 #[cfg(test)]
+mod tests_rbac;
+#[cfg(test)]
 mod tests_support;
 #[cfg(test)]
 mod tests_triggers;

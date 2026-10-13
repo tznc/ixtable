@@ -473,3 +473,42 @@ fn headless_contexts_fail_navigation_and_confirmation_clearly() {
     assert_eq!(messages.len(), 1);
     assert_eq!((messages[0].text.as_str(), messages[0].tone.as_str()), ("hi 1", "info"));
 }
+
+#[test]
+fn rollback_runs_record_writes_as_one_transaction_and_reports_the_duplicate_key() {
+    let db = orders_db();
+    let steps = |message: &str, with_first: bool| {
+        let mut steps = vec![];
+        if with_first {
+            steps.push(step(json!({"id": "s1", "kind": "createRecord", "table": "audit",
+                "values": {"message": "'first'"}})));
+        }
+        steps.push(step(json!({"id": "s2", "kind": "createRecord", "table": "audit",
+            "values": {"id": "1", "message": message}})));
+        steps
+    };
+    let failing = action_with("a", "rollback", steps("'duplicate key'", true));
+    with_actions(&db, vec![failing.clone()]);
+    let result = run_action(&failing, db.ctx(host()));
+    assert!(!result.ok);
+    let error = result.error.unwrap_or_default();
+    assert!(error.starts_with("Transaction failed: "), "{error}");
+    assert!(error.contains("no record changes were saved"), "{error}");
+    assert!(db.rows("audit").is_empty());
+
+    let passing = action_with("b", "rollback", steps("'second'", false));
+    with_actions(&db, vec![passing.clone()]);
+    let result = run_action(&passing, db.ctx(host()));
+    assert!(result.ok, "{:?}", result.error);
+    assert_eq!(db.column("audit", "message"), [json!("second")]);
+}
+
+#[test]
+fn definitions_keep_the_order_of_a_value_map() {
+    // The step editor lists value rows in the order they were added, so serde_json must
+    // preserve the order of a step's map (feature preserve_order).
+    let step = step(json!({"kind": "createRecord", "table": "audit",
+        "values": {"message": "'m'", "id": "1", "a": "'x'"}}));
+    let keys: Vec<&String> = step.fields["values"].as_object().unwrap().keys().collect();
+    assert_eq!(keys, ["message", "id", "a"]);
+}

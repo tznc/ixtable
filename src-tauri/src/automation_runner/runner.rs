@@ -36,7 +36,7 @@ use crate::data::{DataValue, NamedValue};
 use crate::expr::{self, EvaluateOptions};
 use crate::records::{self, RecordOperation, RecordWrite, RecordWriteMeta, WriteError};
 use crate::trigger_auth::TriggerWrite;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -48,16 +48,17 @@ pub const MAX_ACTION_DEPTH: usize = 10;
 
 /// One logged step. `path` is nested for steps inside conditions or called actions
 /// (`2.then.0`).
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct StepLog {
     pub step_index: usize,
+    #[serde(default)]
     pub path: String,
     pub kind: String,
     pub ok: bool,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub skipped: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     pub duration_ms: u64,
 }
