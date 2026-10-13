@@ -10,7 +10,7 @@ Use this skill after changing the Docusaurus website under `web/`. It tests the 
 ## Invariants
 
 - Test the real production Docusaurus build with Playwright Chromium.
-- Web screenshots must use the locally served production build. Live-server screenshots are reserved for `/web-qa` and `/service-qa`; `/app-qa` uses serialized jsdom instead.
+- Web screenshots must use the locally served production build. Live-server screenshots are reserved for `/web-qa` and `/service-qa`; `/app-qa` renders the native GPUI app headlessly instead.
 - Use accessible roles, names, and labels for interactions and assertions.
 - Cover both desktop and mobile viewports for user-facing layout changes.
 - Keep DOM assertions alongside screenshots. A passing build alone is not visual proof.

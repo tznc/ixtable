@@ -101,7 +101,9 @@ pub fn build_view(
         ModeId::Design => placeholder(cx, "Form builder", "Forms"),
         ModeId::Reports => placeholder(cx, "Reports", "Printable reports"),
         ModeId::Dashboards => placeholder(cx, "Dashboards", "Charts and KPIs"),
-        ModeId::Automation => placeholder(cx, "Automation", "Actions and triggers"),
+        ModeId::Automation => cx
+            .new(|cx| crate::ui::automation::AutomationMode::new(shell.clone(), window, cx))
+            .into(),
         ModeId::Run => placeholder(cx, "Runtime", "The running application"),
     }
 }
