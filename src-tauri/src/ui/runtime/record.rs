@@ -59,6 +59,10 @@ pub struct RecordProps {
     pub on_notify: Option<NotifyFn>,
     pub on_dirty: Option<Rc<dyn Fn(bool, &mut App)>>,
     pub on_saved: Option<Rc<dyn Fn(RecordValues, &mut App)>>,
+    /// A message to show on opening (the one the previous view of this form ended with).
+    pub initial_notice: Option<Notice>,
+    /// Receives the view's message just before it hands over to the next view of the form.
+    pub on_carry: Option<Rc<dyn Fn(Notice, &mut App)>>,
 }
 
 /// Runs `f` once the current update has finished, so a callback may rebuild this view.
@@ -109,6 +113,7 @@ impl RecordView {
         if let Some(runtime) = props.env.runtime.clone() {
             observers.push(cx.observe(&runtime, |_, _, cx| cx.notify()));
         }
+        let initial_notice = props.initial_notice.clone();
         let mut view = Self {
             props,
             form: Rc::new(form),
@@ -120,7 +125,7 @@ impl RecordView {
             form_state: Map::new(),
             errors: FormErrors::default(),
             status: None,
-            notice: None,
+            notice: initial_notice,
             busy: false,
             running: false,
             loaded: false,
@@ -638,7 +643,13 @@ impl RecordView {
                 later(cx, move |cx| on_close(cx));
             } else {
                 let on_mode = this.props.on_mode.clone();
-                later(cx, move |cx| on_mode(FormMode::Detail, Some(next_id), cx));
+                let (carry, notice) = (this.props.on_carry.clone(), this.notice.clone());
+                later(cx, move |cx| {
+                    if let (Some(carry), Some(notice)) = (carry, notice) {
+                        carry(notice, cx);
+                    }
+                    on_mode(FormMode::Detail, Some(next_id), cx);
+                });
             }
         };
         if (creating || changes) && event_action(&self.form, FormEvent::AfterUpdate).is_some() {

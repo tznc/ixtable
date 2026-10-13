@@ -30,6 +30,8 @@ mod tests;
 mod tests_rbac;
 #[cfg(test)]
 mod tests_views;
+#[cfg(test)]
+mod tests_writes;
 
 use crate::archive::DocumentConfig;
 use crate::forms::actions::{NavigationTarget, NoticeTone};

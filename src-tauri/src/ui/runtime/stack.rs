@@ -10,7 +10,7 @@
 //! does not exist or the role may not read it; the views bring their own ids.
 
 use super::{
-    BackLink, RuntimeEnv,
+    BackLink, Notice, RuntimeEnv,
     back::back_crumb,
     continuous::ContinuousView,
     list::{ListProps, ListView},
@@ -97,6 +97,8 @@ pub struct FormRenderer {
     /// The built view and the signature (entry and form definition) it was built for.
     shown: Option<(String, Shown)>,
     dirty: bool,
+    /// The message the previous record view ended with, shown by the next one.
+    carry: Option<Notice>,
     _observer: Subscription,
 }
 
@@ -108,7 +110,7 @@ impl FormRenderer {
         let store = props.env.store.clone();
         // A definition edit rebuilds the shown view (the Design studio's live preview).
         let observer = cx.observe(&store, |_, _, cx| cx.notify());
-        Self { props, stack: vec![entry], shown: None, dirty: false, _observer: observer }
+        Self { props, stack: vec![entry], shown: None, dirty: false, carry: None, _observer: observer }
     }
 
     fn top(&self) -> &Entry {
@@ -291,6 +293,7 @@ impl FormRenderer {
             }
             FormMode::Detail | FormMode::Create | FormMode::Edit => {
                 let (mode_to, close_to, nav_to, dirty_to) = (this.clone(), this.clone(), this.clone(), this.clone());
+                let carry_to = this.clone();
                 let (form_id, cursor) = (form.id.clone(), entry.cursor.clone());
                 let record = cx.new(|cx| {
                     RecordView::new(
@@ -318,6 +321,10 @@ impl FormRenderer {
                                 let _ = dirty_to.update(cx, |t, cx| t.set_dirty(dirty, cx));
                             })),
                             on_saved: self.props.on_saved.clone(),
+                            initial_notice: self.carry.take(),
+                            on_carry: Some(Rc::new(move |notice, cx| {
+                                let _ = carry_to.update(cx, |t, _| t.carry = Some(notice));
+                            })),
                         },
                         cx,
                     )
