@@ -41,6 +41,9 @@ fn build_tab(key: &str, shell: &Entity<Shell>, window: &mut Window, cx: &mut App
         "assets" => cx
             .new(|cx| crate::ui::persistence::assets_tab::AssetsTab::new(shell.clone(), cx))
             .into(),
+        "release" => cx
+            .new(|cx| crate::ui::release::release_tab::ReleaseTab::new(shell.clone(), window, cx))
+            .into(),
         "logs" => {
             let label = shell.read(cx).label().to_string();
             cx.new(|cx| crate::ui::persistence::logs_tab::LogsTab::new(label, cx))

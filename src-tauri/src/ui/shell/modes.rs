@@ -116,6 +116,12 @@ pub fn build_sidebar(
             cx.new(|cx| super::object_browser::ObjectBrowser::new(shell.clone(), window, cx))
                 .into(),
         ),
+        // Runtime-only windows (bundles) show the bundle block and Diagnostics; in
+        // Studio the view renders nothing.
+        ModeId::Run => Some(
+            cx.new(|_| crate::ui::release::sidebar::RuntimeSidebar::new(shell.clone()))
+                .into(),
+        ),
         _ => None,
     }
 }

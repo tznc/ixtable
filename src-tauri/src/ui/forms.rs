@@ -15,6 +15,11 @@ use gpui_kit::component::{
 };
 use gpui_kit::*;
 
+/// An element id built from text (`export-asset:logo.png`).
+pub fn eid(text: String) -> ElementId {
+    SharedString::from(text).into()
+}
+
 /// A single-line input state.
 pub fn line_state<V: 'static>(
     window: &mut Window,
@@ -145,6 +150,53 @@ pub fn dialog(id: &'static str, title: &str, cx: &App) -> Stateful<Div> {
         .bg(theme.popover)
         .shadow_md()
         .child(heading(id, title))
+}
+
+/// Shows a dialog above the whole window, beside the 250 px sidebar, instead of inside
+/// its parent. For dialogs owned by narrow, clipped containers (the runtime sidebar).
+pub fn overlay(dialog: impl IntoElement) -> impl IntoElement {
+    deferred(
+        anchored()
+            .position(point(px(272.), px(72.)))
+            .snap_to_window_with_margin(px(8.))
+            .child(
+                div()
+                    .id("overlay")
+                    .w(px(720.))
+                    .max_h(px(680.))
+                    .overflow_y_scroll()
+                    .occlude()
+                    .child(dialog),
+            ),
+    )
+}
+
+/// `overlay` when asked, otherwise the dialog stays where it is.
+pub fn placed(dialog: impl IntoElement + 'static, overlaid: bool) -> AnyElement {
+    if overlaid {
+        overlay(dialog).into_any_element()
+    } else {
+        dialog.into_any_element()
+    }
+}
+
+/// Makes a dialog panel close on Escape, unless `busy`. Port of src/components/
+/// DialogFrame.tsx: the panel takes keyboard focus (call `window.focus(&focus, cx)`
+/// when it opens) so Escape reaches it, and the owner restores focus when it closes.
+pub fn escapable(
+    panel: Stateful<Div>,
+    focus: &FocusHandle,
+    busy: bool,
+    on_close: impl Fn(&mut Window, &mut App) + 'static,
+) -> Stateful<Div> {
+    panel
+        .track_focus(focus)
+        .on_key_down(move |event, window, cx| {
+            if event.keystroke.key == "escape" && !busy {
+                on_close(window, cx);
+                cx.stop_propagation();
+            }
+        })
 }
 
 /// A row of buttons.

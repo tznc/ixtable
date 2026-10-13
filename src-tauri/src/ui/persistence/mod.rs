@@ -12,9 +12,4 @@ pub mod text_sections;
 #[cfg(test)]
 mod tests;
 
-use gpui_kit::{ElementId, SharedString};
-
-/// An element id built from text (`export-asset:logo.png`).
-pub fn eid(text: String) -> ElementId {
-    SharedString::from(text).into()
-}
+pub use crate::ui::forms::eid;

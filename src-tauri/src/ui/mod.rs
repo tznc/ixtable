@@ -10,6 +10,7 @@ pub mod events;
 pub mod forms;
 pub mod persistence;
 pub mod prelude;
+pub mod release;
 pub mod shell;
 pub mod start;
 pub mod start_sections;
