@@ -35,7 +35,7 @@ mod tests;
 #[cfg(test)]
 mod tests_builder;
 #[cfg(test)]
-mod tests_support;
+pub(crate) mod tests_support;
 #[cfg(test)]
 mod tests_unit;
 

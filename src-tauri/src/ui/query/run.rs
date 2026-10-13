@@ -12,11 +12,15 @@ use crate::{
     queries::QueryRun,
     ui::{prelude::*, widgets},
 };
-use std::{collections::BTreeMap, time::Duration};
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 /// PRD §27.3: long queries expose progress and cancellation after 2 seconds.
 pub const SLOW_QUERY_MS: u64 = 2000;
-const TICK_MS: u64 = 250;
+const TICK_MS: u64 = 50;
 
 #[derive(Default)]
 pub struct RunState {
@@ -73,21 +77,18 @@ impl QueryMode {
         self.run.slow = false;
         self.run.elapsed_ms = 0;
         self.run.error.clear();
-        let job = {
-            let run_id = run_id.clone();
-            tauri::async_runtime::spawn_blocking(move || work(run_id))
-        };
-        cx.spawn({
-            let run_id = run_id.clone();
-            async move |this, cx| {
-                let outcome = job
-                    .await
-                    .unwrap_or_else(|e| Err(AppError::new("DATABASE_ERROR", e)));
-                let _ = this.update(cx, |this, cx| this.finish_run(&run_id, outcome, cx));
-            }
-        })
-        .detach();
-        // The elapsed clock: progress and Cancel appear after SLOW_QUERY_MS.
+        // The query runs on a worker thread and leaves its outcome in `slot`; the tick loop
+        // below picks it up (waking GPUI tasks from a foreign thread is not deterministic).
+        let slot: Arc<Mutex<Option<Result<QueryRun, AppError>>>> = Arc::new(Mutex::new(None));
+        {
+            let (run_id, slot) = (run_id.clone(), slot.clone());
+            tauri::async_runtime::spawn_blocking(move || {
+                let outcome = work(run_id);
+                *slot.lock().unwrap() = Some(outcome);
+            });
+        }
+        // The tick loop also keeps the elapsed clock: progress and Cancel appear after
+        // SLOW_QUERY_MS.
         cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor()
@@ -96,6 +97,10 @@ impl QueryMode {
                 let live = this
                     .update(cx, |this, cx| {
                         if this.run.current.as_deref() != Some(run_id.as_str()) {
+                            return false;
+                        }
+                        if let Some(outcome) = slot.lock().unwrap().take() {
+                            this.finish_run(&run_id, outcome, cx);
                             return false;
                         }
                         this.run.elapsed_ms += TICK_MS;

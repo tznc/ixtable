@@ -241,7 +241,7 @@ fn joins_on_several_conditions_with_an_outer_join_groups_by_and_sorts_on_fields_
     click(&mut h, "output:c.id");
     pick(&mut h, "group-by-column", "c.id");
     click(&mut h, "add-group-by");
-    assert!(h.label("group-by-list").contains("c.id"));
+    assert_eq!(h.label("group-by:c.id"), "c.id");
     click(&mut h, "add-sort");
     let id = field_id(&mut h, "c.id");
     pick(&mut h, "sort-1-field", &id);

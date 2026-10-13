@@ -1,7 +1,7 @@
 //! The builder's Group by and Sort-and-limit panels. Port of
 //! src/query/builder/GroupByPanel.tsx and SortPanel.tsx.
 //!
-//! Test ids: `group-by-list` (text of the chosen columns), `group-by-column` (drop-down),
+//! Test ids: `group-by:<alias.column>` (one per chosen column), `group-by-column` (drop-down),
 //! `add-group-by`, `remove-group-by:<alias.column>`; `sort-<n>-field`,
 //! `sort-<n>-direction`, `add-sort`, `remove-sort-<n>`, `row-limit` (input).
 
@@ -49,7 +49,7 @@ impl QueryMode {
             h_flex()
                 .gap_2()
                 .items_center()
-                .child(div().text_sm().child(k.clone()))
+                .child(widgets::text(format!("group-by:{k}"), k.clone()))
                 .child(
                     Button::new(SharedString::from(format!("remove-group-by:{k}")))
                         .ghost()
@@ -62,10 +62,9 @@ impl QueryMode {
                         })),
                 )
         });
-        let list_text = used.join(", ");
         let chosen = self.group_choice.clone();
         super::panel("query-group", "Group by", cx)
-            .child(widgets::text("group-by-list", list_text))
+            
             .children(rows)
             .child(
                 h_flex().gap_2().items_center().child(choose).child(

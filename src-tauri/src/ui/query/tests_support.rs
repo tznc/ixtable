@@ -2,6 +2,7 @@
 //! the SQL editor and waiting for runs (which execute on a worker thread).
 
 use super::QueryMode;
+use crate::ui::testing::UiContext;
 use crate::{
     data::DataValue,
     ui::{shell::ModeId, testing::Harness},
@@ -18,14 +19,14 @@ pub fn column(name: &str, declared: &str, pk: u32) -> serde_json::Value {
     })
 }
 
-pub fn create_table(h: &mut Harness, spec: serde_json::Value) {
+pub fn create_table<C: UiContext>(h: &mut Harness<'_, C>, spec: serde_json::Value) {
     crate::create_database_table(h.label.clone(), serde_json::from_value(spec).unwrap())
         .expect("create table");
     h.database_changed();
 }
 
 /// customers(id, name) and orders(id, customer_id, amount) with a foreign key, plus rows.
-pub fn seed_sales(h: &mut Harness) {
+pub fn seed_sales<C: UiContext>(h: &mut Harness<'_, C>) {
     create_table(
         h,
         json!({
@@ -71,8 +72,15 @@ pub fn seed_sales(h: &mut Harness) {
     }
 }
 
+/// Seeds a document's sales data and opens Query mode (for any harness).
+pub fn open_query<C: UiContext>(h: &mut Harness<'_, C>) {
+    seed_sales(h);
+    h.switch_mode(ModeId::Query);
+    assert_eq!(h.label("mode-title"), "Query");
+}
+
 /// A new document with the sales data, in Query mode.
-pub fn open_query_mode(cx: &mut TestAppContext) -> Harness<'_> {
+pub fn open_query_mode(cx: &mut TestAppContext) -> Harness<'_, TestAppContext> {
     let mut h = Harness::new_document(cx);
     seed_sales(&mut h);
     h.switch_mode(ModeId::Query);
@@ -80,26 +88,26 @@ pub fn open_query_mode(cx: &mut TestAppContext) -> Harness<'_> {
     h
 }
 
-pub fn query_mode(h: &mut Harness) -> Entity<QueryMode> {
+pub fn query_mode<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<QueryMode> {
     let view = h.read_shell(|s, _| s.mode_view()).expect("mode view");
     view.downcast().expect("QueryMode")
 }
 
 /// Reads the mode.
-pub fn with_mode<R>(h: &mut Harness, f: impl FnOnce(&QueryMode, &App) -> R) -> R {
+pub fn with_mode<C: UiContext, R>(h: &mut Harness<'_, C>, f: impl FnOnce(&QueryMode, &App) -> R) -> R {
     let mode = query_mode(h);
     h.cx.read(|cx| f(mode.read(cx), cx))
 }
 
 /// Selects `value` in the drop-down `id` (open it, then click the option).
-pub fn pick(h: &mut Harness, id: &str, value: &str) {
+pub fn pick<C: UiContext>(h: &mut Harness<'_, C>, id: &str, value: &str) {
     click(h, id);
     click(h, &format!("{id}/{value}"));
 }
 
 /// Repeats `check` until it holds. Runs execute on a worker thread, so a result arrives
 /// in real time after the test executor has been driven.
-pub fn wait_until(h: &mut Harness, what: &str, mut check: impl FnMut(&mut Harness) -> bool) {
+pub fn wait_until<C: UiContext>(h: &mut Harness<'_, C>, what: &str, mut check: impl FnMut(&mut Harness<'_, C>) -> bool) {
     let deadline = Instant::now() + Duration::from_secs(60);
     loop {
         h.settle();
@@ -108,16 +116,18 @@ pub fn wait_until(h: &mut Harness, what: &str, mut check: impl FnMut(&mut Harnes
         }
         assert!(Instant::now() < deadline, "timed out waiting for {what}");
         std::thread::sleep(Duration::from_millis(10));
+        // Runs report back on the mode's fake-clock tick.
+        h.advance(Duration::from_millis(50));
     }
 }
 
 /// The result table's cells once a result is showing.
-pub fn grid(h: &mut Harness) -> Vec<Vec<String>> {
+pub fn grid<C: UiContext>(h: &mut Harness<'_, C>) -> Vec<Vec<String>> {
     with_mode(h, |q, cx| q.results.read(cx).cells())
 }
 
 /// Waits for the results table to show exactly `expected`.
-pub fn expect_grid(h: &mut Harness, expected: &[&[&str]]) {
+pub fn expect_grid<C: UiContext>(h: &mut Harness<'_, C>, expected: &[&[&str]]) {
     let want: Vec<Vec<String>> = expected
         .iter()
         .map(|r| r.iter().map(|c| c.to_string()).collect())
@@ -128,7 +138,7 @@ pub fn expect_grid(h: &mut Harness, expected: &[&[&str]]) {
 /// Replaces the SQL editor's text the way an edit does: the mode takes the new text as the
 /// editor reports it (programmatic edits of the editor emit no change event) and the view
 /// shows it. Keystrokes into the code editor are not reliable in the headless harness.
-pub fn type_sql(h: &mut Harness, text: &str) {
+pub fn type_sql<C: UiContext>(h: &mut Harness<'_, C>, text: &str) {
     h.settle();
     let mode = query_mode(h);
     let text = text.to_string();
@@ -136,12 +146,12 @@ pub fn type_sql(h: &mut Harness, text: &str) {
     h.settle();
 }
 
-pub fn editor_text(h: &mut Harness) -> String {
+pub fn editor_text<C: UiContext>(h: &mut Harness<'_, C>) -> String {
     with_mode(h, |q, cx| q.sql_editor.read(cx).value().to_string())
 }
 
 /// The id of the builder field `alias.column`.
-pub fn field_id(h: &mut Harness, name: &str) -> String {
+pub fn field_id<C: UiContext>(h: &mut Harness<'_, C>, name: &str) -> String {
     with_mode(h, |q, _| {
         q.model()
             .expect("a builder model")
@@ -155,7 +165,7 @@ pub fn field_id(h: &mut Harness, name: &str) -> String {
 }
 
 /// Scrolls the query pane until `id` lies fully inside it (clicks need a visible target).
-pub fn reveal(h: &mut Harness, id: &ElementId) {
+pub fn reveal<C: UiContext>(h: &mut Harness<'_, C>, id: &ElementId) {
     h.settle();
     for _ in 0..80 {
         let (Some(el), Some(pane)) = (h.try_find(id.clone()), h.try_find("query-pane")) else {
@@ -176,18 +186,18 @@ pub fn reveal(h: &mut Harness, id: &ElementId) {
     }
 }
 
-pub fn click(h: &mut Harness, id: &str) {
+pub fn click<C: UiContext>(h: &mut Harness<'_, C>, id: &str) {
     let id = ElementId::from(SharedString::from(id.to_string()));
     reveal(h, &id);
     h.click(id);
 }
 
-pub fn fill(h: &mut Harness, id: &str, text: &str) {
+pub fn fill<C: UiContext>(h: &mut Harness<'_, C>, id: &str, text: &str) {
     let id = ElementId::from(SharedString::from(id.to_string()));
     reveal(h, &id);
     h.fill(id, text);
 }
 
-pub fn exists(h: &mut Harness, id: &str) -> bool {
+pub fn exists<C: UiContext>(h: &mut Harness<'_, C>, id: &str) -> bool {
     h.exists(SharedString::from(id.to_string()))
 }

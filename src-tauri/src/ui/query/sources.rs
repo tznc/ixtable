@@ -185,7 +185,7 @@ impl QueryMode {
                     h_flex()
                         .gap_2()
                         .items_center()
-                        .child(div().w(px(24.)).text_sm().child(if i == 0 { "on" } else { "and" }))
+                        .child(div().w(px(36.)).text_sm().child(if i == 0 { "on" } else { "and" }))
                         .child(left)
                         .child("=")
                         .child(right)
