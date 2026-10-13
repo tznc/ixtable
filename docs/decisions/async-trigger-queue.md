@@ -203,7 +203,9 @@ authorized against both the active role and the role it was enqueued under
   `UiHandlers`: navigate steps queue a page that a poller applies to the
   `Runtime`, setState (app scope) writes the Runtime's shared app state at
   once, and `app.user` / `app.role` come from the role in force (`Developer`
-  without a preview). Studio modes install none, so they only show the
+  without a preview). Popups work too: `open_popup` queues the form and blocks the
+  action thread on a channel until the popup closes (saved record, `closeForm`
+  value, or null when dismissed). Studio modes install none, so they only show the
   "open it in the Runtime" notice.
 - `tests/unit/automation-triggers.test.ts`: sync triggers inside the write,
   old values on update, failure propagation, recursion depth limit.

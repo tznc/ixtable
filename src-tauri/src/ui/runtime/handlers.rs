@@ -5,10 +5,11 @@
 
 use super::{Runtime, RuntimeEnv};
 use crate::automation_runner::{context::NavigationTarget, host::UiHandlers};
+use crate::forms::actions::NavigationTarget as FormTarget;
 use crate::forms::navigation::{PageKind, RuntimePage};
 use crate::ui::prelude::*;
 use serde_json::{Map, Value};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc::{Sender, channel}};
 use std::time::Duration;
 
 const POLL: Duration = Duration::from_millis(50);
@@ -18,6 +19,22 @@ pub struct RunHandlers {
     // `user` and `role`, refreshed on the UI thread (they depend on the role in force).
     identity: Mutex<Map<String, Value>>,
     pages: Mutex<Vec<RuntimePage>>,
+    popups: Mutex<Vec<Popup>>,
+}
+
+/// A popup request from an action thread, which waits on the sender's receiver.
+enum Popup {
+    Open(FormTarget, Sender<Option<Value>>),
+    Close(Value, Sender<bool>),
+}
+
+// Drops unanswered requests when the Run body goes away, so waiting action threads wake.
+struct Flush(Arc<RunHandlers>);
+
+impl Drop for Flush {
+    fn drop(&mut self) {
+        lock(&self.0.popups).clear();
+    }
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -26,14 +43,14 @@ fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 
 impl RunHandlers {
     pub fn new(state: Arc<Mutex<Map<String, Value>>>) -> Arc<Self> {
-        Arc::new(Self { state, identity: Mutex::default(), pages: Mutex::default() })
+        Arc::new(Self { state, identity: Mutex::default(), pages: Mutex::default(), popups: Mutex::default() })
     }
 
     /// Applies queued navigation and refreshes the identity, until the body goes away.
     pub fn relay(self: &Arc<Self>, runtime: Entity<Runtime>, env: RuntimeEnv, cx: &mut Context<super::RunBody>) -> Task<()> {
-        let handlers = self.clone();
+        let handlers = Flush(self.clone());
         cx.spawn(async move |this, cx| loop {
-            handlers.apply(&runtime, &env, cx);
+            handlers.0.apply(&runtime, &env, cx);
             cx.background_executor().timer(POLL).await;
             if this.update(cx, |_, _| {}).is_err() {
                 break;
@@ -43,6 +60,7 @@ impl RunHandlers {
 
     fn apply(&self, runtime: &Entity<Runtime>, env: &RuntimeEnv, cx: &mut AsyncApp) {
         let pages = std::mem::take(&mut *lock(&self.pages));
+        let popups = std::mem::take(&mut *lock(&self.popups));
         let _ = cx.update(|cx| {
             let app = runtime.read(cx).app(env.config(cx));
             let mut identity = lock(&self.identity);
@@ -54,6 +72,21 @@ impl RunHandlers {
             drop(identity);
             for page in pages {
                 runtime.update(cx, |r, cx| r.navigate(page, cx));
+            }
+            for popup in popups {
+                match popup {
+                    Popup::Open(target, reply) => runtime.update(cx, |r, cx| r.open_popup(target, Some(reply), cx)),
+                    Popup::Close(value, reply) => {
+                        // Like the buttons' closeForm: the topmost popup, else back out of the page.
+                        let closed = runtime.update(cx, |r, cx| {
+                            if !r.close_popup(Some(value), cx) && r.can_go_back() {
+                                r.back(cx);
+                            }
+                            true
+                        });
+                        let _ = reply.send(closed);
+                    }
+                }
             }
         });
     }
@@ -79,6 +112,26 @@ impl UiHandlers for RunHandlers {
         }
         lock(&self.state).insert(key.to_string(), value.clone());
         true
+    }
+
+    fn open_popup(&self, target: &NavigationTarget) -> Option<Value> {
+        let target = FormTarget {
+            kind: target.kind.clone(),
+            id: target.id.clone(),
+            mode: target.mode.clone(),
+            record_id: target.record_id.clone(),
+            params: target.params.clone().unwrap_or_default(),
+        };
+        let (tx, rx) = channel();
+        lock(&self.popups).push(Popup::Open(target, tx));
+        // Dismissed (or the body went away): null, like the TS runtime.
+        Some(rx.recv().ok().flatten().unwrap_or(Value::Null))
+    }
+
+    fn close_form(&self, value: &Value) -> bool {
+        let (tx, rx) = channel();
+        lock(&self.popups).push(Popup::Close(value.clone(), tx));
+        rx.recv().unwrap_or(false)
     }
 
     fn app_state(&self) -> Map<String, Value> {
