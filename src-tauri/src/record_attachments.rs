@@ -211,7 +211,6 @@ fn attachment_field(window: &str, table: &str, column: &str) -> Result<bool, App
 
 /// Stores a file for an attachment field and returns the entry the form adds to the
 /// field's JSON array. Needs permission to create or update records of the table.
-#[tauri::command]
 pub fn upload_record_attachment(
     window_label: String,
     table: String,
@@ -255,7 +254,6 @@ pub fn upload_record_attachment(
 }
 
 /// Reads one attachment's content, for a role that can read the record's table.
-#[tauri::command]
 pub fn read_record_attachment(
     window_label: String,
     id: String,
@@ -274,22 +272,7 @@ pub fn read_record_attachment(
     Ok(content)
 }
 
-/// Writes one attachment to a path the user chose in a save dialog.
-#[tauri::command]
-pub fn save_record_attachment(
-    window_label: String,
-    id: String,
-    path: String,
-) -> Result<(), AppError> {
-    let content = read_record_attachment(window_label, id)?;
-    let bytes = STANDARD
-        .decode(content.content_base64.as_bytes())
-        .map_err(|e| AppError::new("IO_ERROR", e.to_string()))?;
-    std::fs::write(&path, bytes).map_err(|e| AppError::new("IO_ERROR", e))
-}
-
 /// Deletes stored files no record refers to any more (Studio only). Returns how many.
-#[tauri::command]
 pub fn remove_unused_record_attachments(window_label: String) -> Result<usize, AppError> {
     let window = window_label.as_str();
     crate::authz::require_unrestricted(window, "remove unused attachments")?;

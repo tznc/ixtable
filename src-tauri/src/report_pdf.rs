@@ -300,7 +300,6 @@ pub fn pdf_resources(
 /// Font subsets for the characters Helvetica can't print and decoded PNGs
 /// (base64) that the writer can't pass through (alpha, tRNS, interlacing,
 /// 16-bit). Runs on a worker thread: subsetting and deflating take a while.
-#[tauri::command(async)]
 pub fn prepare_report_pdf(
     window_label: String,
     code_points: Vec<u32>,

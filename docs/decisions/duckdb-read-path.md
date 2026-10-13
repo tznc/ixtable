@@ -209,8 +209,9 @@ the page `params`, which TypeScript evaluates (`sourceParams` in
   (`tauri.windows.conf.json`). On Linux the binary links with
   `--exclude-libs,ALL`: WebKitGTK references `sqlite3_*`, so the linker would
   export rusqlite's bundled SQLite, and `sqlite_scanner`, which carries its
-  own SQLite, crashes on close when some of its calls bind to ours. The NAPI
-  test bridge skips the flag because node needs its registration symbol.
+  own SQLite, crashes on close when some of its calls bind to ours. The removed
+  NAPI test bridge used to skip the flag because node needs its registration
+  symbol.
 - `scripts/prepare-duckdb-artifacts.sh <linux-x64|macos-universal|windows-x64>`
   downloads `sqlite_scanner` and `postgres_scanner` v1.5.5 from
   `extensions.duckdb.org`, and the platform's libduckdb archive from the

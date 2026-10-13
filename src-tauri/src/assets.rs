@@ -416,7 +416,6 @@ impl DocumentManager {
 }
 
 /// Imports a file as an application asset; reports whether identical content was reused.
-#[tauri::command]
 pub fn import_asset(
     window_label: String,
     path: String,
@@ -424,15 +423,12 @@ pub fn import_asset(
 ) -> Result<AssetImport, AppError> {
     crate::manager()?.import_asset(&window_label, Path::new(&path), media_type.as_deref())
 }
-#[tauri::command]
 pub fn list_orphan_assets(window_label: String) -> Result<Vec<Attachment>, AppError> {
     crate::manager()?.orphan_assets(&window_label)
 }
-#[tauri::command]
 pub fn cleanup_orphan_assets(window_label: String) -> Result<OrphanCleanup, AppError> {
     crate::manager()?.cleanup_orphan_assets(&window_label)
 }
-#[tauri::command]
 pub fn archive_size_report(window_label: String) -> Result<ArchiveSizeReport, AppError> {
     crate::manager()?.archive_size_report(&window_label)
 }

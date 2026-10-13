@@ -99,4 +99,4 @@ release CSP (see [security.md](./security.md)).
 
 A local `tauri build` without `IXTABLE_RELEASE=1` is a development build: it
 may pin no cloud key. Only release.yml sets the opt-in. A local
-`npm run tauri build` needs no signing secret.
+`node scripts/tauri.mjs build` needs no signing secret.

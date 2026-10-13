@@ -650,13 +650,11 @@ pub fn document(window: &str) -> Result<String, AppError> {
     Ok(store_key(&state.session_id, &state.document_id))
 }
 
-#[tauri::command]
 pub fn enqueue_job(window_label: String, job: crate::jobs::EnqueueJob) -> Result<Job, AppError> {
     let state = crate::manager()?.state(&window_label)?;
     let key = store_key(&state.session_id, &state.document_id);
     store()?.enqueue_for(&key, &state.document_id, &job, Utc::now())
 }
-#[tauri::command]
 pub fn claim_next_job(
     window_label: String,
     lease_ms: Option<u64>,
@@ -667,7 +665,6 @@ pub fn claim_next_job(
         lease_ms.unwrap_or(DEFAULT_LEASE_MS),
     )
 }
-#[tauri::command]
 pub fn complete_job(
     window_label: String,
     id: String,
@@ -682,7 +679,6 @@ pub fn complete_job(
         Utc::now(),
     )
 }
-#[tauri::command]
 pub fn fail_job(
     window_label: String,
     id: String,
@@ -699,22 +695,18 @@ pub fn fail_job(
         Utc::now(),
     )
 }
-#[tauri::command]
 pub fn cancel_job(window_label: String, id: String) -> Result<Job, AppError> {
     store()?.cancel(&document(&window_label)?, &id, Utc::now())
 }
-#[tauri::command]
 pub fn retry_job(window_label: String, id: String) -> Result<Job, AppError> {
     store()?.retry(&document(&window_label)?, &id, Utc::now())
 }
-#[tauri::command]
 pub fn list_jobs(
     window_label: String,
     filter: Option<crate::jobs::JobFilter>,
 ) -> Result<Vec<Job>, AppError> {
     store()?.list(&document(&window_label)?, &filter.unwrap_or_default())
 }
-#[tauri::command]
 pub fn job_attempts(window_label: String, id: String) -> Result<Vec<JobAttempt>, AppError> {
     store()?.attempts(&document(&window_label)?, &id)
 }

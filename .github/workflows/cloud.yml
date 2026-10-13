@@ -3,7 +3,7 @@ name: Cloud contracts
 # ixtable Cloud contract tests against a real local Supabase stack (PRD §26.5):
 # Edge Function Deno unit tests, the service-qa API contract specs (RLS
 # private-by-default, revocation, key grants, backups, billing), and the desktop
-# cloud integration tests through the real Rust bridge. Ubuntu only: the stack
+# cloud integration tests (Rust, headless UI). Ubuntu only: the stack
 # runs in Docker, and the desktop side is covered on every OS by desktop.yml.
 
 on:
@@ -12,13 +12,11 @@ on:
     paths:
       - 'supabase/**'
       - 'scripts/cloud/**'
-      - 'src/cloud/**'
+      - 'src-tauri/src/ui/cloud/**'
       - 'src-tauri/src/cloud/**'
       - 'src-tauri/src/bundle*.rs'
       - 'src-tauri/src/installation*.rs'
       - 'src-tauri/Cargo.lock'
-      - 'package-lock.json'
-      - 'tests/integration/cloud-*'
       - 'web/e2e/service-qa/**'
       - 'web/playwright.service-qa.config.ts'
       - '.github/workflows/cloud.yml'
@@ -26,13 +24,11 @@ on:
     paths:
       - 'supabase/**'
       - 'scripts/cloud/**'
-      - 'src/cloud/**'
+      - 'src-tauri/src/ui/cloud/**'
       - 'src-tauri/src/cloud/**'
       - 'src-tauri/src/bundle*.rs'
       - 'src-tauri/src/installation*.rs'
       - 'src-tauri/Cargo.lock'
-      - 'package-lock.json'
-      - 'tests/integration/cloud-*'
       - 'web/e2e/service-qa/**'
       - 'web/playwright.service-qa.config.ts'
       - '.github/workflows/cloud.yml'
@@ -63,7 +59,6 @@ jobs:
         with:
           cache-key: cloud
           npm-cache-paths: |
-            package-lock.json
             web/package-lock.json
             supabase/functions/package-lock.json
       # Pinned to the CLI version the stack is developed against. A maintainer
@@ -90,22 +85,21 @@ jobs:
           restore-keys: deno-${{ runner.os }}-
       # Deno comes from npm (npx deno@<pinned>) inside the script.
       - name: Edge Function type check and Deno unit tests
-        run: npm run service-qa:deno
+        run: node scripts/cloud/deno-test.mjs
       - name: Install website dependencies
         run: npm ci --prefix web
       # API-level specs only: no browser and no web server.
       - name: Service contract specs
-        run: npm run service-qa:contracts
-      - name: Build NAPI test bridge
-        run: npm run pretest
-      - name: Desktop cloud integration tests
-        run: >-
-          npx vitest run --config vitest.integration.config.ts
-          tests/integration/cloud-auth.test.tsx tests/integration/cloud-distribution.test.tsx
-          --reporter=default --reporter=junit --outputFile.junit=reports/cloud.xml
-      # Skipped suites would pass silently: fail if the stack was not detected.
-      - name: Check the cloud tests ran
-        run: node scripts/ci/check-junit-no-skips.mjs reports/cloud.xml "cloud integration tests"
+        run: npm run service-qa:contracts --prefix web
+      - name: Export Supabase env
+        run: |
+          STATUS=$(supabase status -o env)
+          echo "SUPABASE_URL=$(echo "$STATUS" | sed -n 's/^API_URL=//p' | tr -d '"')" >> "$GITHUB_ENV"
+          echo "SUPABASE_ANON_KEY=$(echo "$STATUS" | sed -n 's/^ANON_KEY=//p' | tr -d '"')" >> "$GITHUB_ENV"
+      # The desktop cloud tests are #[ignore]d without a stack; the script runs them and
+      # fails unless each one ran and passed.
+      - name: Desktop cloud integration tests (Rust)
+        run: node scripts/ci/run-ignored-rust-tests.mjs "Desktop cloud" cloud_live --test-threads=1
       - name: Supabase logs on failure
         if: failure()
         run: docker ps -a --format '{{.Names}}' | grep supabase | while read -r name; do echo "::group::$name"; docker logs --tail 200 "$name" 2>&1; echo "::endgroup::"; done
@@ -114,8 +108,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cloud-evidence
-          path: |
-            reports/
-            web/test-results/service-qa/
+          path: web/test-results/service-qa/
           if-no-files-found: ignore
           retention-days: 7

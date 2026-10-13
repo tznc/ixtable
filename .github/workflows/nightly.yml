@@ -128,4 +128,5 @@ jobs:
           tagName: ${{ env.TAG }}
           releaseName: Nightly
           prerelease: true
+          tauriScript: node scripts/tauri.mjs
           args: ${{ matrix.args }} --config ${{ runner.temp }}/tauri.release.json

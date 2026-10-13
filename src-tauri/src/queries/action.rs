@@ -611,7 +611,6 @@ pub fn run(
 
 /// Runs an action query by id (`docs/decisions/action-queries.md`). With
 /// `dry_run` the changes roll back and only the counts come back.
-#[tauri::command]
 pub async fn run_action_query(
     window_label: String,
     id: String,
@@ -632,7 +631,6 @@ pub async fn run_action_query(
 }
 
 /// Checks an action query's SQL before it is saved (the guard and placeholders).
-#[tauri::command]
 pub fn check_action_query_sql(
     window_label: String,
     sql: String,

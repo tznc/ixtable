@@ -10,7 +10,7 @@ Use this skill after changing the Docusaurus website under `web/`. It tests the 
 ## Invariants
 
 - Test the real production Docusaurus build with Playwright Chromium.
-- Web screenshots must use the locally served production build. Live-server screenshots are reserved for `/web-qa` and `/service-qa`; `/app-qa` uses serialized jsdom instead.
+- Web screenshots must use the locally served production build. Live-server screenshots are reserved for `/web-qa` and `/service-qa`; `/app-qa` renders the native GPUI app headlessly instead.
 - Use accessible roles, names, and labels for interactions and assertions.
 - Cover both desktop and mobile viewports for user-facing layout changes.
 - Keep DOM assertions alongside screenshots. A passing build alone is not visual proof.
@@ -22,7 +22,7 @@ Use this skill after changing the Docusaurus website under `web/`. It tests the 
 
 1. Identify the changed pages, navigation paths, responsive states, and critical user actions.
 2. Reuse or extend `web/e2e/web-qa.spec.ts`. Add focused Playwright specs when a flow needs its own setup.
-3. Run `npm run web-qa` from the repository root. The command builds Docusaurus, starts the production server, and drives it with Chromium.
+3. Run `npm run test:web-qa --prefix web`. The command builds Docusaurus, starts the production server, and drives it with Chromium.
 4. Read the manifests under `web/web-qa/.generated/` and inspect every matching PNG.
 5. Check for clipped content, broken images, unexpected horizontal scrolling, illegible contrast, missing focus states, and mobile navigation problems.
 6. Send relevant proof with `treq send web/web-qa/.generated/<capture>.png`.

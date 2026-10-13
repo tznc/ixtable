@@ -73,7 +73,6 @@ fn find<'a>(config: &'a DocumentConfig, id: &str) -> Result<&'a Migration, AppEr
         .ok_or_else(|| AppError::new("NOT_FOUND", format!("Migration {id} not found")))
 }
 
-#[tauri::command]
 pub fn migration_status(window_label: String) -> Result<Vec<MigrationStatus>, AppError> {
     let config = config(&window_label)?;
     // A PostgreSQL document never runs migrations, so its store is not touched.
@@ -103,7 +102,6 @@ pub fn migration_status(window_label: String) -> Result<Vec<MigrationStatus>, Ap
     Ok(out)
 }
 
-#[tauri::command]
 pub fn migration_history(window_label: String) -> Result<Vec<MigrationLog>, AppError> {
     if config(&window_label)?.datasource.is_postgres() {
         return Ok(vec![]);
@@ -112,7 +110,6 @@ pub fn migration_history(window_label: String) -> Result<Vec<MigrationLog>, AppE
 }
 
 /// The SQL that would run, split into statements, with execution warnings.
-#[tauri::command]
 pub fn preview_migration(
     window_label: String,
     id: String,
@@ -170,7 +167,6 @@ pub fn preview_migration(
 
 /// Validates migrations without keeping changes by running them on a copy of the
 /// SQLite database. `ids` defaults to every pending migration.
-#[tauri::command]
 pub fn dry_run_migrations(
     window_label: String,
     ids: Option<Vec<String>>,
@@ -259,7 +255,6 @@ fn checkpoint(window: &str, reason: String) -> Result<CheckpointInfo, AppError> 
 
 /// Applies every pending migration in order after a mandatory checkpoint.
 /// Stops at the first failure; the failed migration's transaction is rolled back.
-#[tauri::command]
 pub fn apply_migrations(window_label: String) -> Result<MigrationRun, AppError> {
     crate::installation::ensure_studio(&window_label)?;
     let config = config(&window_label)?;
@@ -325,7 +320,6 @@ fn run_pending(
 }
 
 /// Runs the `down` SQL of the most recently applied migration (reversible only).
-#[tauri::command]
 pub fn rollback_migration(window_label: String) -> Result<MigrationRun, AppError> {
     crate::installation::ensure_studio(&window_label)?;
     let config = config(&window_label)?;

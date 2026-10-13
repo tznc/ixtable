@@ -46,7 +46,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
-      # Fails when the tag, tauri.conf.json, package.json and Cargo.toml disagree.
+      # Fails when the tag, tauri.conf.json and Cargo.toml disagree.
       - id: plan
         env:
           RELEASE_CHANNEL: ${{ inputs.channel }}
@@ -71,20 +71,15 @@ jobs:
       - uses: ./.github/actions/setup-desktop
         with:
           cache-key: release-gates
-      - name: Typecheck and lint
+      - name: Lint (ast-grep, unused public Rust functions)
         if: runner.os == 'Linux'
-        run: npx tsc --noEmit && npm run lint
-      - name: Rust unit tests
+        run: |
+          npx --yes --package @ast-grep/cli@0.38.7 ast-grep scan --warning
+          node scripts/ci/unused-pub-rust.mjs
+      # Includes the UI tests (headless GPUI) and the golden application suites.
+      - name: Rust tests
         working-directory: src-tauri
         run: cargo test --lib
-      - name: Build NAPI test bridge
-        run: npm run pretest
-      - name: Unit tests
-        run: npx vitest run --passWithNoTests
-      - name: Integration tests
-        run: npx vitest run --config vitest.integration.config.ts --exclude "tests/integration/golden/**"
-      - name: Golden application suites
-        run: npx vitest run --config vitest.integration.config.ts tests/integration/golden
 
   build:
     name: Build ${{ matrix.platform }}

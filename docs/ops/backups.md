@@ -40,7 +40,7 @@ database snapshot without the KEK versions it references.
 ## Restore drill (quarterly)
 
 1. Restore the latest PITR point into a scratch project.
-2. Run `npm run service-qa:contracts` against a local stack seeded from the
+2. Run `npm run service-qa:contracts --prefix web` against a local stack seeded from the
    scratch dump (never against production).
 3. Pick five `app_versions` rows, download the objects from the versioned
    bucket, and compare `sha256` with `archive_sha256`.

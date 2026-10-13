@@ -23,7 +23,7 @@ an automated gate fails. Sign-offs are enforced by the required reviewers on
 the GitHub draft release: a maintainer publishes it by hand once every
 sign-off is recorded in the release issue.
 
-`tests/unit/release-gates.test.ts` fails if this page and the script list
+`scripts/tests/release-gates.test.mjs` fails if this page and the script list
 different gates.
 
 ## Automated gates
@@ -33,17 +33,17 @@ gate. The tests themselves run in Desktop CI and Cloud contracts CI.
 
 | Gate | PRD | What is checked | Where it is enforced |
 |---|---|---|---|
-| `no-plaintext-credentials` | §27.2 | The credential store encrypts with XChaCha20-Poly1305, and an integration test proves the password never lands in the document | `recordstore/secrets.rs`, `tests/integration/datasource.test.tsx` |
+| `no-plaintext-credentials` | §27.2 | The credential store encrypts with XChaCha20-Poly1305, and an integration test proves the password never lands in the document | `recordstore/secrets.rs`, `ui/data/tests_settings.rs` |
 | `no-custom-crypto` | §21.3, §27.2 | Every crypto dependency in `Cargo.toml` and `package.json` is on `ALLOWED_CRYPTO_CRATES` (ed25519-dalek, chacha20poly1305, argon2, sha2, rustls, and so on) | `scripts/ci/release-gates.mjs` |
 | `bundles-fail-closed` | §27.2 | A build with no pinned cloud key refuses every install (`CLOUD_KEY_MISSING`). Release builds take the key from `vars.IXTABLE_CLOUD_PUBLIC_KEY_RAW` (blank falls back to the SPKI variable) and `build.rs` refuses a missing or dev key | `src-tauri/src/cloud/config.rs`, `src-tauri/build.rs`, `release.yml` |
 | `no-committed-private-keys` | §27.2 | No tracked file is a PEM private key, a minisign or Tauri secret key, an Ed25519 PKCS8 key (base64 or hex; listed test fixtures may hold only keys in `dev-cloud-keys.json`), or a `.p12`, `.pfx`, `.p8`, or `.key` file | `scripts/ci/release-gates.mjs` |
 | `private-by-default` | §27.2 | The RLS private-by-default contract spec exists and Cloud contracts CI runs the contract specs | `web/e2e/service-qa/specs/rls-private-by-default.spec.ts`, `cloud.yml` |
-| `runtime-authorization` | §27.2 | Role and trigger authorization tests exist | `tests/integration/runtime-rbac*.test.tsx`, `src-tauri/src/trigger_auth_tests.rs` |
+| `runtime-authorization` | §27.2 | Role and trigger authorization tests exist | `ui/runtime/tests_rbac.rs`, `src-tauri/src/trigger_auth_tests.rs` |
 | `log-redaction` | §27.2 | `logging::redact` exists and has unit tests | `src-tauri/src/logging.rs` |
 | `key-renewal-24h` | §21.3 | Key grants live 24 hours | `supabase/functions/_shared/credentials.ts` (`GRANT_TTL_MS`) |
 | `three-os-ci` | §6.1, Phase 5 | The Desktop test and golden jobs, and the release `gates` job, run on Windows, macOS, and Linux | `desktop.yml`, `release.yml` |
 | `signed-installers` | Phase 5 | macOS codesign, notarization, and Gatekeeper checks, Windows Authenticode checks, and signing secrets for both | `release.yml`, `scripts/release/signing.mjs` |
-| `bundle-icons` | Phase 5 | `bundle.icon` lists every desktop icon, and each one in `src-tauri/icons` has the right size, RGBA and ICO/ICNS entries. Regenerate with `npm run icons` from `branding/app-icon.svg` | `scripts/release/icons.mjs`, `tauri.conf.json` |
+| `bundle-icons` | Phase 5 | `bundle.icon` lists every desktop icon, and each one in `src-tauri/icons` has the right size, RGBA and ICO/ICNS entries. Regenerate with `node scripts/release/icons.mjs generate` from `branding/app-icon.svg` | `scripts/release/icons.mjs`, `tauri.conf.json` |
 | `versions-agree` | Phase 5 | `tauri.conf.json`, `package.json`, and `Cargo.toml` carry one version | `scripts/release/plan.mjs` |
 | `operations-docs` | Phase 5 | The security, monitoring, backup, incident, support, and production-config documents exist | `docs/release/security.md`, `docs/ops/` |
 

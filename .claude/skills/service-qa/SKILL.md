@@ -25,7 +25,7 @@ description: >-
 
 | Skill | Proves | Stack |
 |---|---|---|
-| `/app-qa` | desktop Studio/Runtime UI and the Rust bridge | jsdom + real Rust bridge, no cloud |
+| `/app-qa` | desktop Studio/Runtime UI | headless GPUI harness + real Rust backend, no cloud |
 | `/web-qa` | public website pages, layout, accessibility | Docusaurus production build in Chromium |
 | `/service-qa` | Auth, RLS, Storage, Edge Functions, and the authenticated website pages that consume them | real local Supabase CLI stack + Docusaurus production build |
 
@@ -60,7 +60,7 @@ does not prove the website page wires it up; capture the page too. Never use
 
 - Docker (the script starts `dockerd` when run as root without one), the
   Supabase CLI 2.x, Node 20+.
-- `npm run service-qa:up` (= `node scripts/cloud/up.mjs`): generates local
+- `npm run service-qa:up --prefix web` (= `node scripts/cloud/up.mjs`): generates local
   secrets in `supabase/functions/.env.local` (and `.env`, which
   `supabase start` loads), installs the functions' npm deps into
   `supabase/functions/node_modules`, starts the stack without studio,
@@ -80,8 +80,8 @@ does not prove the website page wires it up; capture the page too. Never use
 | `seed.ts` | `createTestUser()`, `signIn()`, `deleteTestUser()`, `createOrg()`, `createApp()`, `createRole()`, `addMember()`, `grantSubscription()`, `createVersion()`, `createInstallation()`, `sha256Hex()` |
 | `fixture.ts` | Playwright `test` with a `cloud` fixture: `cloud.user()`, `cloud.org(owner)`, `cloud.app(org, owner)`, `cloud.trackApp()`, guaranteed teardown; `withCloudFixture(fn)` |
 | `record.ts` | `recordOutcome(name, {expectations, details})` → `.generated/<name>.json`; `captureOutcome(page, name, {...})` → `.generated/<name>.png` + JSON |
-| `contract.ts` + `specs/contract.spec.ts` | recorded client-facing replies in `fixtures/contract/*.json`: the spec fails when a live reply changes shape; `CONTRACT_RECORD=1` re-records after an intended change (then fix the clients: `src/cloud/contract.ts`, `src-tauri/src/cloud/contract.rs`, `web/src/lib/cloud/types.ts`, and run `node scripts/cloud/contract-doc.mjs`) |
-| `fixtures/crm.ixt` | a real CRM archive from the desktop's Rust code (`node scripts/cloud/make-qa-archive.mjs` after `npm run pretest`) for UI journeys |
+| `contract.ts` + `specs/contract.spec.ts` | recorded client-facing replies in `fixtures/contract/*.json`: the spec fails when a live reply changes shape; `CONTRACT_RECORD=1` re-records after an intended change (then fix the clients: `src-tauri/src/cloud/contract.rs`, `web/src/lib/cloud/types.ts`, and run `node scripts/cloud/contract-doc.mjs`) |
+| `fixtures/crm.ixt` | a real CRM archive from the desktop's Rust code (`cd src-tauri && cargo test --lib write_service_qa_crm_fixture -- --ignored`) for UI journeys |
 | `health.ts` / `global-setup.ts` | health gate (Auth, PostgREST, `functions/v1/health`) before any spec, then the deterministic e2e user for UI specs |
 
 Specs: contract specs (no browser) in `web/e2e/service-qa/specs/*.spec.ts`
@@ -142,10 +142,10 @@ in the spec body too.
    positive control so a denial is not just an empty table.
 3. **Run it.**
    - First run in a session, or after `config.toml`/secret changes:
-     `npm run service-qa:up` (add `--restart` if the stack was already up).
-   - Contracts: `npm run service-qa:contracts`, or one file:
+     `npm run service-qa:up --prefix web` (add `--restart` if the stack was already up).
+   - Contracts: `npm run service-qa:contracts --prefix web`, or one file:
      `cd web && npx playwright test --config playwright.service-qa.config.ts --project=contracts specs/<file>`.
-   - `_shared` Deno unit tests and type checks: `npm run service-qa:deno`.
+   - `_shared` Deno unit tests and type checks: `npm run service-qa:deno --prefix web`.
 4. **Verify every outcome against DB state.** Read each
    `web/e2e/service-qa/.generated/<name>.json` and confirm or refute each
    expectation from the test output and a follow-up query (service client, or
@@ -155,16 +155,15 @@ in the spec body too.
 5. **Capture the UI** when a website page consumes the contract: a spec in
    `web/e2e/service-qa/ui/` logs in with email/password, drives the page by
    role/label, asserts the result, and calls `captureOutcome(page, name, …)`.
-   Run `npm run service-qa:ui` (builds and serves the production site; needs
+   Run `npm run service-qa:ui --prefix web` (builds and serves the production site; needs
    a Playwright Chromium or `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`). Open every
    PNG and confirm it shows the authenticated result, not an error or a
    loading state.
 6. **Report.** Which contracts passed, any expectation that did not hold
    (quoted), the spec files added or extended, and the PNG/JSON paths under
    `web/e2e/service-qa/.generated/` for the reviewer to open.
-7. **Lint, format and typecheck last:** `npx biome format --write <files>`,
-   `cd web && npx tsc && npx eslint e2e/service-qa && npx oxlint e2e/service-qa`,
-   and `npm run service-qa:deno` for function code.
+7. **Lint and typecheck last:** `cd web && npx tsc && npx eslint e2e/service-qa && npx oxlint e2e/service-qa`,
+   and `npm run service-qa:deno --prefix web` for function code.
 
 ## Keep specs around
 

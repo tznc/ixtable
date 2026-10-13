@@ -61,10 +61,9 @@ cancel stops the query.
   p95, and samples in `reports/perf/rust.json` (`IXTABLE_PERF_OUT` moves it).
   It also writes `reports/perf/perf-fixture.ixt`. The PostgreSQL row needs
   `IXTABLE_TEST_POSTGRES_URL`.
-- UI: `tests/perf/ui.perf.test.tsx` (`vitest.perf.config.ts`) opens that
-  fixture in the real app in jsdom over the test bridge and writes
-  `reports/perf/ui.json`. jsdom does no layout or paint, so UI numbers cover
-  React and the backend, not the webview.
+- UI: the React UI harness (`tests/perf/ui.perf.test.tsx`, jsdom over the
+  NAPI test bridge) was removed with the React frontend. No native GPUI perf
+  harness exists yet, so only the Rust half runs.
 - `scripts/ci/perf-report.mjs` prints both files as a Markdown table, marks
   each budget within or over by p95, writes `reports/perf/summary.md`, and
   appends it to the GitHub job summary.
@@ -73,13 +72,8 @@ Run it locally:
 
 ```bash
 cd src-tauri && IXTABLE_PERF=1 cargo test --release --lib perf_tests -- --include-ignored --test-threads=1
-cd .. && node scripts/ci/build-test-bridge.mjs --release
-npx vitest run --config vitest.perf.config.ts
-node scripts/ci/perf-report.mjs
+cd .. && node scripts/ci/perf-report.mjs
 ```
-
-The test bridge loader prefers a debug build in `src-tauri/target/debug`, so
-remove that build first when one exists.
 
 ### CI
 
@@ -133,7 +127,7 @@ difference is noise between runs.
 ## Evidence
 
 - `src-tauri/src/perf_tests/`: the Rust harness and fixture.
-- `tests/perf/ui.perf.test.tsx`: the UI harness.
+- `tests/perf/ui.perf.test.tsx`: the removed UI harness (see above).
 - `src-tauri/src/archive_io/reuse_tests.rs`,
   `src-tauri/src/durability_tests/incremental.rs`: incremental saves.
 - `src-tauri/src/recordstore/conformance.rs`: PostgreSQL refresh keeps the

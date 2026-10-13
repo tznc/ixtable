@@ -28,7 +28,7 @@ The Data mode grid moved from `DatabaseWorkbench` into `src/data/sheet/`.
   reads every matching row, asks for confirmation, and sends one
   `writeRecordBatch` with `expected` values.
 - **Hidden and frozen columns and the totals row** are saved per table in
-  `navigationState.datasheetLayouts` through `useDocumentConfig().update`, like
+  `navigationState.datasheetLayouts` through `ConfigStore::update`, like
   the relationship layout (`layout.ts`). Each change is one undo step. Frozen
   columns are the leftmost visible columns, made `position: sticky` at offsets
   measured from the rendered headers. Hiding a column never reorders columns.

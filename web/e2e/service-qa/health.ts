@@ -26,7 +26,7 @@ export async function assertLocalStackUp(): Promise<void> {
   if (failures.length > 0) {
     throw new Error(
       `Local Supabase stack at ${url} is not healthy (${failures.join("; ")}). ` +
-        "Run `npm run service-qa:up` from the repo root (see .claude/skills/service-qa/SKILL.md).",
+        "Run `npm run service-qa:up --prefix web` from the repo root (see .claude/skills/service-qa/SKILL.md).",
     );
   }
 }

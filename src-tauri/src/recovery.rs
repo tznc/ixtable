@@ -333,15 +333,13 @@ impl DocumentManager {
 }
 
 /// Reopens unsaved work left by a session that did not close, and saves it back.
-#[tauri::command]
 pub fn recover_session(window_label: String, session_id: String) -> Result<SessionState, AppError> {
     crate::manager()?.recover_session(&window_label, &session_id)
 }
 
-/// Test-bridge only: forgets a session the way a crash would (no close, no cleanup),
+/// Tests only: forgets a session the way a crash would (no close, no cleanup),
 /// so integration tests can exercise recovery inside one process.
-#[cfg(feature = "test-bridge")]
-#[tauri::command]
+#[cfg(test)]
 pub fn simulate_crash(window_label: String) -> Result<(), AppError> {
     let m = crate::manager()?;
     let session = m.sessions.lock().unwrap().remove(&window_label);

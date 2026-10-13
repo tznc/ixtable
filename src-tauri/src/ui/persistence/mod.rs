@@ -1,0 +1,15 @@
+//! Persistence views: assets, archive size, checkpoints, logs and crash recovery.
+//! Ports of src/persistence/*.
+
+pub mod archive_size;
+pub mod asset_preview;
+pub mod assets_tab;
+pub mod checkpoints;
+pub mod format;
+pub mod logs_tab;
+pub mod recovery_list;
+pub mod text_sections;
+#[cfg(test)]
+pub(crate) mod tests;
+
+pub use crate::ui::forms::eid;

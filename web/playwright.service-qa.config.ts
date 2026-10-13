@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// service-qa: real local Supabase stack only (`npm run service-qa:up`).
+// service-qa: real local Supabase stack only (`npm run service-qa:up --prefix web`).
 // - contracts: API-level specs in e2e/service-qa/specs (Auth, PostgREST/RLS,
 //   Storage, Edge Functions). No browser, no web server.
 // - ui: authenticated pages of the Docusaurus production build in Chromium.

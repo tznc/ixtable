@@ -4,50 +4,12 @@
   "version": "0.1.0",
   "identifier": "com.ixtable.desktop",
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
+    "frontendDist": []
   },
   "app": {
-    "windows": [
-      {
-        "title": "ixtable",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 800,
-        "minHeight": 600,
-        "resizable": true,
-        "fullscreen": false,
-        "center": true
-      }
-    ],
+    "windows": [],
     "security": {
-      "csp": {
-        "default-src": "'self'",
-        "script-src": "'self'",
-        "style-src": "'self' 'unsafe-inline'",
-        "img-src": "'self' data: blob:",
-        "font-src": "'self' data:",
-        "connect-src": "'self' ipc: http://ipc.localhost http://127.0.0.1:54321",
-        "worker-src": "'self' blob:",
-        "object-src": "'none'",
-        "base-uri": "'self'",
-        "form-action": "'none'"
-      },
-      "devCsp": {
-        "default-src": "'self'",
-        "script-src": "'self'",
-        "style-src": "'self' 'unsafe-inline'",
-        "img-src": "'self' data: blob:",
-        "font-src": "'self' data:",
-        "connect-src": "'self' ipc: http://ipc.localhost http://127.0.0.1:54321 ws://127.0.0.1:1420 http://127.0.0.1:1420",
-        "worker-src": "'self' blob:",
-        "object-src": "'none'",
-        "base-uri": "'self'",
-        "form-action": "'none'"
-      },
-      "dangerousDisableAssetCspModification": ["style-src"]
+      "csp": null
     }
   },
   "bundle": {
@@ -62,17 +24,23 @@
       "icons/icon.ico",
       "icons/icon.png"
     ],
-    "resources": ["resources/duckdb/*/*.duckdb_extension.gz"],
+    "resources": [
+      "resources/duckdb/*/*.duckdb_extension.gz"
+    ],
     "fileAssociations": [
       {
-        "ext": ["ixt"],
+        "ext": [
+          "ixt"
+        ],
         "name": "ixtable Document",
         "description": "Portable ixtable database archive",
         "role": "Editor",
         "mimeType": "application/x-ixtable"
       },
       {
-        "ext": ["ixtr"],
+        "ext": [
+          "ixtr"
+        ],
         "name": "ixtable Runtime Bundle",
         "description": "Signed ixtable application bundle",
         "role": "Viewer",
@@ -86,10 +54,7 @@
     },
     "windows": {
       "digestAlgorithm": "sha256",
-      "timestampUrl": "http://timestamp.digicert.com",
-      "webviewInstallMode": {
-        "type": "downloadBootstrapper"
-      }
+      "timestampUrl": "http://timestamp.digicert.com"
     },
     "linux": {
       "deb": {
