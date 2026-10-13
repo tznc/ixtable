@@ -28,6 +28,8 @@ mod tests;
 #[cfg(test)]
 mod tests_designer;
 #[cfg(test)]
+pub(crate) mod test_support;
+#[cfg(test)]
 mod tests_run;
 
 pub use designer::ReportDesigner;

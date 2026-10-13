@@ -5,3 +5,4 @@
 //! Run them with `cargo screenshot [filter]` from `src-tauri/`.
 
 mod app_shell;
+mod reports;

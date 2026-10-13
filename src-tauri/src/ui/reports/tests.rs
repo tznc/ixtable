@@ -4,87 +4,12 @@
 //! The designer is driven through the window like a user would. A component is found by
 //! its stored id (`component-<id>`), read back from the config.
 
-use super::{ReportPreview, ReportsMode};
-use crate::archive::{DocumentConfig, SavedQuery};
-use crate::data::DataValue;
-use crate::reports::{Component, Report};
-use crate::ui::shell::ModeId;
+use super::test_support::{
+    add_component, add_query, choose, id, last_component, new_report, page_texts, pick_orders_dataset, report,
+    seed_orders, validation_issues_for_reports, wait_for_page, wait_until,
+};
 use crate::ui::testing::Harness;
-use gpui_kit::{Entity, SharedString, TestAppContext};
-use std::time::Duration;
-
-pub fn id(name: &str) -> SharedString {
-    SharedString::from(name.to_string())
-}
-
-/// Opens the options menu of the choice `button` and picks the option labeled `option`.
-pub fn choose(h: &mut Harness, button: &str, option: &str) {
-    h.click(id(button));
-    let mut seen = vec![];
-    for index in 0..64usize {
-        let label = h.update(|w, _| {
-            use gpui_kit::test::TestWindowExt as _;
-            w.within("popup-menu")
-                .try_find(index)
-                .map(|item| item.label().unwrap_or_default().to_string())
-        });
-        match label {
-            Some(label) if label == option => {
-                h.click_in("popup-menu", index);
-                return;
-            }
-            Some(label) => seen.push(label),
-            None => break,
-        }
-    }
-    panic!("{button} has no option {option:?}; options are {seen:?}");
-}
-
-/// Polls (with real sleeps: loads run on worker threads) until `done` holds.
-pub fn wait_until(h: &mut Harness, what: &str, mut done: impl FnMut(&mut Harness) -> bool) {
-    for _ in 0..400 {
-        h.settle();
-        if done(h) {
-            return;
-        }
-        std::thread::sleep(Duration::from_millis(50));
-        h.advance(Duration::from_millis(250));
-    }
-    panic!("timed out waiting for {what}");
-}
-
-/// Edits definitions the way the editors do, through the config store the views read.
-pub fn edit_store(h: &mut Harness, edit: impl FnOnce(&mut DocumentConfig)) {
-    let store = h.read_shell(|s, _| s.store.clone());
-    h.cx.update(|cx| store.update(cx, |s, cx| s.update("Test edit", edit, cx)))
-        .expect("update config");
-    h.settle();
-}
-
-pub fn add_query(h: &mut Harness, id: &str, name: &str, sql: &str) {
-    let query = SavedQuery { id: id.into(), name: name.into(), sql: sql.into(), ..Default::default() };
-    edit_store(h, |c| c.saved_queries.push(query));
-}
-
-/// 60 orders over three regions; amounts 1..=60.
-pub fn seed_orders(h: &mut Harness) {
-    h.create_table(
-        "orders",
-        &[("id", "INTEGER", 1), ("region", "TEXT", 0), ("customer", "TEXT", 0), ("amount", "REAL", 0)],
-    );
-    let regions = ["East", "North", "West"];
-    for i in 0..60usize {
-        h.insert_row(
-            "orders",
-            &[
-                ("id", DataValue::Integer(i as i64 + 1)),
-                ("region", DataValue::Text(regions[i % 3].into())),
-                ("customer", DataValue::Text(format!("Customer {}", i + 1))),
-                ("amount", DataValue::Real(i as f64 + 1.0)),
-            ],
-        );
-    }
-}
+use gpui_kit::TestAppContext;
 
 /// A new document in a window tall enough to show the whole properties panel (the
 /// harness only clicks what is visible).
@@ -93,74 +18,6 @@ pub fn tall_document(cx: &mut TestAppContext) -> Harness<'_> {
     h.click("new-document");
     assert!(h.has_shell(), "New document did not open the shell");
     h
-}
-
-pub fn mode(h: &mut Harness) -> Entity<ReportsMode> {
-    h.read_shell(|s, _| s.mode_view())
-        .expect("a mode is showing")
-        .downcast::<ReportsMode>()
-        .ok()
-        .expect("Reports mode is showing")
-}
-
-pub fn preview(h: &mut Harness) -> Entity<ReportPreview> {
-    let mode = mode(h);
-    h.cx.read(|cx| mode.read(cx).preview()).expect("the preview is showing")
-}
-
-/// The text of every line of the page the preview shows.
-pub fn page_texts(h: &mut Harness) -> Vec<String> {
-    let preview = preview(h);
-    h.cx.read(|cx| preview.read(cx).page_texts())
-}
-
-/// Waits for the preview page labeled `label` ("Page 1 of 2").
-pub fn wait_for_page(h: &mut Harness, label: &str) {
-    wait_until(h, label, |h| h.try_label("report-page").as_deref() == Some(label));
-}
-
-pub fn open_reports(h: &mut Harness) {
-    h.switch_mode(ModeId::Reports);
-    assert_eq!(h.mode(), ModeId::Reports);
-}
-
-/// The first report of the document.
-pub fn report(h: &Harness) -> Report {
-    h.config().reports.into_iter().next().expect("a report")
-}
-
-/// The last component added to a band of the first report.
-pub fn last_component(h: &Harness, band: impl Fn(&Report) -> &crate::reports::Band) -> Component {
-    let report = report(h);
-    band(&report).components.last().cloned().expect("a component")
-}
-
-/// Selects a band, then adds a component of `kind` to it.
-pub fn add_component(h: &mut Harness, band: &str, kind: &str) {
-    h.click(id(&format!("band-{band}")));
-    h.click(id(&format!("add-{kind}")));
-}
-
-pub fn new_report(h: &mut Harness) {
-    open_reports(h);
-    h.click("new-report");
-    assert_eq!(h.label("mode-title"), "Report 1");
-}
-
-/// Picks the dataset and waits until its columns reach the pickers.
-pub fn pick_orders_dataset(h: &mut Harness) {
-    choose(h, "report-dataset", "Query: Orders");
-    h.click("add-group");
-    wait_until(h, "the dataset columns", |h| h.exists("group-1-field"));
-}
-
-pub fn validation_issues_for_reports(h: &Harness) -> Vec<String> {
-    crate::validation::validate_document(h.label.clone())
-        .expect("validate")
-        .into_iter()
-        .filter(|i| i.object_kind == "report")
-        .map(|i| i.message)
-        .collect()
 }
 
 #[gpui_kit::test]

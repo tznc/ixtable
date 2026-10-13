@@ -3,7 +3,7 @@
 //! its own, which is what the Runtime shows for a report page. The Runtime navigation
 //! itself (the "Sales report" button) is tested with the Runtime port.
 
-use super::tests::{edit_store, wait_for_page, wait_until};
+use super::test_support::{edit_store, wait_for_page, wait_until};
 use super::{ReportPreview, ReportRun};
 use crate::data::DataValue;
 use crate::reports::Report;

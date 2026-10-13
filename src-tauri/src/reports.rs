@@ -1,8 +1,8 @@
 //! Report definitions (PRD §15): a freeform, band-based report canvas.
 //!
-//! Rust only stores and validates report definitions and writes exported PDF
-//! bytes; layout, pagination, expression evaluation and PDF generation live in
-//! the TypeScript engine (`src/reports/engine`, `src/reports/pdf.ts`).
+//! This module stores and validates report definitions and writes exported PDF
+//! bytes; layout, pagination, expression evaluation and PDF generation are in
+//! `crate::report_engine` (docs/decisions/report-engine.md).
 use crate::archive::{check_named_ids, DocumentConfig, Issue};
 use crate::manager::AppError;
 use base64::Engine as _;
@@ -164,7 +164,7 @@ pub struct Band {
 }
 
 /// A positioned component. Kind-specific settings (text, expression, format,
-/// style, columns, …) are kept verbatim in `extra`; the TS engine owns them.
+/// style, columns, …) are kept verbatim in `extra`; `report_engine` owns them.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Component {
@@ -413,7 +413,7 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
     issues
 }
 
-/// Writes PDF bytes produced by the TS PDF writer to `path` (Export PDF…).
+/// Writes PDF bytes produced by `report_engine::pdf` to `path` (Export PDF…).
 /// A runtime role must be allowed to read `report_id`.
 pub fn write_report_pdf(
     window_label: String,

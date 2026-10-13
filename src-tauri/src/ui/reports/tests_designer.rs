@@ -2,8 +2,9 @@
 //! `tests/integration/report-phase6.test.tsx`), a subreport (the "prints each order's lines
 //! through a subreport" test of `nested-subforms.test.tsx`) and the table editor.
 
-use super::tests::{
-    add_component, add_query, choose, edit_store, id, last_component, new_report, open_reports, page_texts, tall_document,
+use super::tests::tall_document;
+use super::test_support::{
+    add_component, add_query, choose, edit_store, id, last_component, new_report, open_reports, page_texts,
     preview, report, validation_issues_for_reports, wait_for_page, wait_until,
 };
 use crate::data::DataValue;
