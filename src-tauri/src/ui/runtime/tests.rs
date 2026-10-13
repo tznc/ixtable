@@ -2,7 +2,7 @@
 //! Forms come from the generate logic (the React tests built them in the Design studio).
 //! Imports are explicit: `gpui_kit::*` would shadow `#[test]`.
 
-use super::{FormRenderer, Runtime, RunBody, RunMode};
+use super::{FormRenderer, RunBody, RunMode};
 use crate::data::DataValue;
 use crate::forms::actions::{ActionContext, ActionResult, ActionRunner, set_action_runner};
 use crate::ui::shell::ModeId;
@@ -117,11 +117,6 @@ pub(super) fn renderer(h: &mut Harness) -> Entity<FormRenderer> {
     view.downcast().expect("a FormRenderer page")
 }
 
-pub(super) fn runtime(h: &mut Harness) -> Entity<Runtime> {
-    let body = run_body(h);
-    h.cx.read(|cx| body.read(cx).runtime().clone())
-}
-
 type RunnerFn = Box<dyn Fn(&str, &ActionContext) -> ActionResult + Send + Sync>;
 
 struct FnRunner(RunnerFn);
@@ -141,13 +136,21 @@ impl Drop for RunnerGuard {
     }
 }
 
-/// Installs a test-double action runner (the Automation port provides the real one).
+static RUNNER_LOCK: Mutex<()> = Mutex::new(());
+
+/// Installs a test-double action runner (for the tests that do not need real actions).
 pub(super) fn with_runner(
     run: impl Fn(&str, &ActionContext) -> ActionResult + Send + Sync + 'static,
 ) -> RunnerGuard {
-    static LOCK: Mutex<()> = Mutex::new(());
-    let guard = RunnerGuard(LOCK.lock().unwrap_or_else(|e| e.into_inner()));
+    let guard = RunnerGuard(RUNNER_LOCK.lock().unwrap_or_else(|e| e.into_inner()));
     set_action_runner(Some(Arc::new(FnRunner(Box::new(run)))));
+    guard
+}
+
+/// Installs the real Automation runner through the Runtime's bridge.
+pub(super) fn with_real_runner() -> RunnerGuard {
+    let guard = RunnerGuard(RUNNER_LOCK.lock().unwrap_or_else(|e| e.into_inner()));
+    set_action_runner(Some(Arc::new(super::automation_bridge::AutomationRunner)));
     guard
 }
 

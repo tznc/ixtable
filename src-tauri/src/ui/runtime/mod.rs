@@ -8,6 +8,7 @@
 //! `list:<form name>` (a list region), `row:<n>` (list rows, "Open X"), `form:<title>`
 //! (a record view region), and `field:<label>` inputs (see `field.rs`).
 
+pub mod automation_bridge;
 pub mod back;
 pub mod body;
 pub mod continuous;

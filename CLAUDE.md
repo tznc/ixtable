@@ -23,7 +23,7 @@ npm run tauri:dev                                    # run the app
 | Rust tests | `cd src-tauri && cargo test --lib [module]` |
 | Rust compile check | `cd src-tauri && cargo check --lib --features test-bridge` |
 | Typecheck / lint / format | `npx tsc --noEmit`, `npm run lint`, `npx biome format --write <files>` |
-| Screenshots | `npm run screenshot` (see `.claude/skills/app-qa/SKILL.md`) |
+| Screenshots | `cd src-tauri && cargo screenshot [flow]` (see `.claude/skills/app-qa/SKILL.md`) |
 
 PostgreSQL tests need
 `IXTABLE_TEST_POSTGRES_URL=postgresql://user:pass@host:5432/db?sslmode=disable`:

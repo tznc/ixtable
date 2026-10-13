@@ -157,7 +157,7 @@ fn keeps_query_forms_off_record_ids(cx: &mut TestAppContext) {
     props.mode = Some(FormMode::Detail);
     props.record_id = Some(json!(3));
     props.params = params("A");
-    let mut embedded = Embedded::open(&mut h, props);
+    let embedded = Embedded::open(&mut h, props);
     assert_eq!(
         embedded.label(&mut h, "status:error").as_deref(),
         Some("This form shows query rows, so it cannot open a record by id.")

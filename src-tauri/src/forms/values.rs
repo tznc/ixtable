@@ -262,4 +262,24 @@ mod tests {
         assert_eq!(boolean_value(&json!(1)), Some(true));
         assert_eq!(boolean_value(&Value::Null), None);
     }
+    #[test]
+    fn decides_boolean_columns_from_definitions() {
+        use crate::data::{Column, LogicalType};
+        let column = |declared: &str, logical: LogicalType| Column {
+            name: "c".into(),
+            declared_type: declared.into(),
+            logical_type: logical,
+            nullable: true,
+            default_value: None,
+            primary_key_position: 0,
+            generated: false,
+            unique: false,
+            auto_increment: false,
+        };
+        assert!(super::is_boolean_column(true, None));
+        assert!(super::is_boolean_column(false, Some(&column("INTEGER", LogicalType::Boolean))));
+        assert!(super::is_boolean_column(false, Some(&column("tinyint(BOOL)", LogicalType::Integer))));
+        assert!(!super::is_boolean_column(false, Some(&column("INTEGER", LogicalType::Integer))));
+        assert!(!super::is_boolean_column(false, None));
+    }
 }

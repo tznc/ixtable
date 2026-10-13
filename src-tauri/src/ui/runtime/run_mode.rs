@@ -162,6 +162,8 @@ impl RunBody {
             let s = shell.read(cx);
             (s.label().to_string(), s.store.clone(), s.bus.clone())
         };
+        // Buttons and form events run through the Automation runner unless a runner is set.
+        super::automation_bridge::ensure_runner();
         let runtime = cx.new(|_| Runtime::new(&label));
         let env = RuntimeEnv { label: label.into(), store: store.clone(), bus, runtime: Some(runtime.clone()) };
         let popups = cx.new(|cx| PopupHost::new(env.clone(), runtime.clone(), cx));

@@ -94,12 +94,20 @@ pub fn build_view(
         ModeId::App => cx
             .new(|cx| super::settings::AppSettings::new(shell.clone(), window, cx))
             .into(),
-        ModeId::Data => placeholder(cx, "Data", "Tables and records"),
-        ModeId::Query => placeholder(cx, "Query", "SQL and visual queries"),
+        ModeId::Data => cx
+            .new(|cx| crate::ui::data::workbench::DataMode::new(shell.clone(), window, cx))
+            .into(),
+        ModeId::Query => cx
+            .new(|cx| crate::ui::query::QueryMode::new(shell.clone(), window, cx))
+            .into(),
         ModeId::Design => placeholder(cx, "Form builder", "Forms"),
-        ModeId::Reports => placeholder(cx, "Reports", "Printable reports"),
+        ModeId::Reports => cx
+            .new(|cx| crate::ui::reports::ReportsMode::new(shell.clone(), window, cx))
+            .into(),
         ModeId::Dashboards => placeholder(cx, "Dashboards", "Charts and KPIs"),
-        ModeId::Automation => placeholder(cx, "Automation", "Actions and triggers"),
+        ModeId::Automation => cx
+            .new(|cx| crate::ui::automation::AutomationMode::new(shell.clone(), window, cx))
+            .into(),
         ModeId::Run => cx
             .new(|cx| crate::ui::runtime::RunMode::new(shell.clone(), window, cx))
             .into(),
@@ -116,6 +124,12 @@ pub fn build_sidebar(
     match mode {
         ModeId::Data => Some(
             cx.new(|cx| super::object_browser::ObjectBrowser::new(shell.clone(), window, cx))
+                .into(),
+        ),
+        // Runtime-only windows (bundles) show the bundle block and Diagnostics; in
+        // Studio the view renders nothing.
+        ModeId::Run => Some(
+            cx.new(|_| crate::ui::release::sidebar::RuntimeSidebar::new(shell.clone()))
                 .into(),
         ),
         _ => None,
