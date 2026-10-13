@@ -81,6 +81,35 @@ fn follows_navigate_and_set_state_steps_from_a_sync_trigger_in_the_runtime(cx: &
 }
 
 #[gpui_kit::test]
+fn actions_open_popup_forms_and_get_the_value_a_close_form_step_returns(cx: &mut TestAppContext) {
+    use crate::automation_runner::{ActionHost, NavigationTarget, host::SessionHost};
+    use std::sync::Arc;
+    let mut h = Harness::new_document(cx);
+    setup(&mut h, |_| {});
+    let form = h.config().design.forms.iter().find(|f| f.name == "Orders").map(|f| f.id.clone())
+        .unwrap_or_else(|| h.config().design.forms[0].id.clone());
+    let host = Arc::new(SessionHost::new(&h.label, Arc::new(|_| true), Arc::new(|_, _| {}), Arc::new(|| {})));
+    let target = NavigationTarget::new("form", &form);
+    // The action thread blocks until the popup closes.
+    let (opener, closer) = (host.clone(), host.clone());
+    let t = target.clone();
+    let opened = std::thread::spawn(move || opener.open_popup(&t));
+    wait(&mut h);
+    assert!(h.exists("popup:1"));
+    let closing = std::thread::spawn(move || closer.close_form(&json!("picked")));
+    wait(&mut h);
+    closing.join().expect("close thread");
+    assert!(!h.exists("popup:1"));
+    assert_eq!(opened.join().expect("open thread").expect("popup host"), Some(json!("picked")));
+    // Dismissing the popup returns null.
+    let dismissed = std::thread::spawn(move || host.open_popup(&target));
+    wait(&mut h);
+    h.click("popup-close:2");
+    wait(&mut h);
+    assert_eq!(dismissed.join().expect("thread").expect("popup host"), Some(serde_json::Value::Null));
+}
+
+#[gpui_kit::test]
 fn runs_the_custom_concurrency_action_instead_of_writing_a_custom_action_entity(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     setup(&mut h, |config| {
