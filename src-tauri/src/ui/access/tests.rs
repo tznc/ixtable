@@ -26,7 +26,7 @@ fn scratch(name: &str) -> PathBuf {
 }
 
 /// A gzipped binary fixture, unpacked to a temporary file.
-fn binary(name: &str) -> PathBuf {
+pub(crate) fn binary(name: &str) -> PathBuf {
     let gz = std::fs::read(fixtures().join(format!("{name}.gz"))).unwrap();
     let mut bytes = vec![];
     flate2::read::GzDecoder::new(&gz[..]).read_to_end(&mut bytes).unwrap();
@@ -36,7 +36,7 @@ fn binary(name: &str) -> PathBuf {
 }
 
 /// The template fixture folder packed into an `.accdt` (zip).
-fn template() -> PathBuf {
+pub(crate) fn template() -> PathBuf {
     let out = scratch("Order Desk.accdt");
     let root = fixtures().join("template");
     let mut zip = zip::ZipWriter::new(std::fs::File::create(&out).unwrap());

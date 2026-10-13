@@ -166,6 +166,7 @@ pub fn overlay(dialog: impl IntoElement) -> impl IntoElement {
                     .max_h(px(680.))
                     .overflow_y_scroll()
                     .occlude()
+                    .test_support()
                     .child(dialog),
             ),
     )

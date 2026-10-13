@@ -10,6 +10,6 @@ pub mod logs_tab;
 pub mod recovery_list;
 pub mod text_sections;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 pub use crate::ui::forms::eid;

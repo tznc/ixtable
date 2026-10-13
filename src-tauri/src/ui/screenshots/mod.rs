@@ -6,3 +6,9 @@
 
 mod app_shell;
 mod query;
+mod access_import;
+mod migrations;
+mod persistence;
+mod release;
+mod settings;
+mod templates;

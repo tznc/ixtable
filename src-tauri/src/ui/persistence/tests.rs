@@ -47,11 +47,11 @@ fn import(h: &mut Harness, path: PathBuf) {
     h.click("import-asset");
 }
 
-fn unique(prefix: &str) -> String {
+pub(crate) fn unique(prefix: &str) -> String {
     format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
 }
 
-fn archive_path(name: &str) -> PathBuf {
+pub(crate) fn archive_path(name: &str) -> PathBuf {
     crate::paths::state_dir().join(format!("{}.ixt", unique(name)))
 }
 
@@ -317,7 +317,7 @@ static RECOVERY: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Recovery tests share one process-wide list of crashed sessions, so they run one at a
 /// time on an emptied list (the start screen shows every record).
-fn exclusive_recovery() -> std::sync::MutexGuard<'static, ()> {
+pub(crate) fn exclusive_recovery() -> std::sync::MutexGuard<'static, ()> {
     let guard = RECOVERY.lock().unwrap_or_else(|e| e.into_inner());
     for record in crate::list_recovery_sessions().unwrap_or_default() {
         let _ = crate::discard_recovery(record.session_id);
@@ -325,7 +325,7 @@ fn exclusive_recovery() -> std::sync::MutexGuard<'static, ()> {
     guard
 }
 
-fn seed_crashed_session(window: &str, name: &str, path: Option<&PathBuf>) -> SessionState {
+pub(crate) fn seed_crashed_session(window: &str, name: &str, path: Option<&PathBuf>) -> SessionState {
     crate::new_document(window.into()).unwrap();
     let mut config = crate::read_document_config(window.into()).unwrap();
     config.name = name.into();

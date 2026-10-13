@@ -7,4 +7,4 @@ pub mod migration_tab;
 pub mod summary;
 pub mod wizard;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
