@@ -47,6 +47,8 @@ pub fn expected_values(schema: &TableSchema, original: &RecordValues) -> Vec<Nam
 pub struct WriteOutcome {
     pub record: RecordValues,
     pub problem: Option<String>,
+    /// The inserted row's identity (create only).
+    pub identity: Vec<DataValue>,
 }
 
 /// A write that committed but whose sync trigger failed still counts as saved.
@@ -82,14 +84,14 @@ pub fn create_row(
         WriteResult::Changed(_) => Vec::new(),
     };
     let mut record = values.clone();
-    let mut keys = schema.columns.iter().filter(|c| c.primary_key_position > 0);
-    for (i, column) in keys.by_ref().enumerate() {
+    let keys = schema.columns.iter().filter(|c| c.primary_key_position > 0);
+    for (i, column) in keys.enumerate() {
         if null(&column.name) {
             let value = identity.get(i).map_or(serde_json::Value::Null, from_data_value);
             record.insert(column.name.clone(), value);
         }
     }
-    Ok(WriteOutcome { record, problem })
+    Ok(WriteOutcome { record, problem, identity })
 }
 
 /// Updates the changed columns of the row `identity`; a no-op when nothing changed.
@@ -113,7 +115,7 @@ pub fn update_row(
     let mut record = original.clone();
     record.extend(values.clone());
     if changed.is_empty() {
-        return Ok(WriteOutcome { record, problem: None });
+        return Ok(WriteOutcome { record, problem: None, identity: Vec::new() });
     }
     let meta = RecordWriteMeta {
         expected: Some(expected_values(schema, original)),
@@ -123,7 +125,32 @@ pub fn update_row(
     let write = records::RecordWrite::update(table, named_values(values, &changed, None), identity.to_vec())
         .with_meta(meta);
     let (_, problem) = committed(records::write(label, write))?;
-    Ok(WriteOutcome { record, problem })
+    Ok(WriteOutcome { record, problem, identity: Vec::new() })
+}
+
+/// Deletes the row `identity`, checking the loaded values (`original`) as `expected`.
+pub fn delete_row(
+    label: &str,
+    table: &str,
+    schema: &TableSchema,
+    identity: &[DataValue],
+    original: &RecordValues,
+) -> Result<(), AppError> {
+    let meta = RecordWriteMeta {
+        expected: Some(expected_values(schema, original)),
+        old: Some(original.clone()),
+        ..Default::default()
+    };
+    let write = records::RecordWrite::delete(table, identity.to_vec()).with_meta(meta);
+    records::write(label, write).map(|_| ()).map_err(|e| e.error)
+}
+
+/// The text shown for a failed write: a concurrent change explains how to recover.
+pub fn write_message(error: &AppError) -> String {
+    if error.code == "CONFLICT" {
+        return "Someone else changed this record since you opened it. Go back and open it again to see the latest values.".into();
+    }
+    error.message.clone()
 }
 
 #[cfg(test)]
