@@ -848,7 +848,8 @@ impl Render for DataMode {
                                 .min_h_0()
                                 .border_t_1()
                                 .border_color(border)
-                                .child(pane),
+                                .child(pane)
+                                .test_support(),
                         )
                     }),
             )

@@ -25,3 +25,5 @@ mod tests_schema;
 mod tests_io;
 #[cfg(test)]
 mod tests_fields;
+#[cfg(test)]
+mod tests_settings;
