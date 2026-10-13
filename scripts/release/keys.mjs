@@ -7,10 +7,10 @@
 //   embedded --binary f   check a built binary pins the release cloud key
 //   build <tauri args>    tauri-action's tauriScript: `tauri build`, then, when IXTABLE_RELEASE=1, the
 //                         embedded check on IXTABLE_RELEASE_BINARY, so a bad binary fails before upload
-import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { runTauri } from "../tauri.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -105,9 +105,6 @@ export function embeddedKeyProblems(binary, env) {
   return problems;
 }
 
-/** The Tauri CLI's JavaScript entry point in this checkout. */
-export const tauriCli = (root = ROOT) => join(root, "node_modules/@tauri-apps/cli/tauri.js");
-
 function arg(name) {
   const index = process.argv.indexOf(`--${name}`);
   return index > 0 ? process.argv[index + 1] : undefined;
@@ -124,11 +121,8 @@ async function main() {
   }
   if (command === "build") {
     // Runs inside tauri-action, which uploads to the draft release only when this exits 0.
-    const run = spawnSync(process.execPath, [tauriCli(), ...process.argv.slice(2)], {
-      cwd: ROOT,
-      stdio: "inherit",
-    });
-    if (run.status !== 0) process.exit(run.status ?? 1);
+    const status = runTauri(process.argv.slice(2));
+    if (status !== 0) process.exit(status);
     if (env.IXTABLE_RELEASE !== "1") return;
     if (!present(env.IXTABLE_RELEASE_BINARY)) throw new Error("IXTABLE_RELEASE_BINARY is not set");
     const problems = embeddedKeyProblems(readFileSync(env.IXTABLE_RELEASE_BINARY), env);

@@ -17,6 +17,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:web-qa": "playwright test e2e/web-qa.spec.ts",
     "service-qa": "playwright test --config playwright.service-qa.config.ts",
+    "service-qa:up": "node ../scripts/cloud/up.mjs",
+    "service-qa:deno": "node ../scripts/cloud/deno-test.mjs",
     "service-qa:contracts": "playwright test --config playwright.service-qa.config.ts --project=contracts",
     "service-qa:ui": "playwright test --config playwright.service-qa.config.ts --project=ui",
     "format": "biome format --write .",

@@ -47,9 +47,9 @@ Pushing the tag runs these gates. Any failure stops the release.
 
 | Gate | Windows | macOS | Linux |
 |---|---|---|---|
-| Typecheck, lint | | | `gates` |
-| Rust, unit, integration tests | `gates` | `gates` | `gates` |
-| Golden application suites (`tests/integration/golden`) | `gates` | `gates` | `gates` |
+| Lint | | | `gates` |
+| Rust tests (`cargo test --lib`) | `gates` | `gates` | `gates` |
+| Golden application suites (`ui::golden`) | `gates` | `gates` | `gates` |
 | DuckDB sqlite + postgres scanners fetched and hash-checked | `build` | `build` (arm64 + x64) | `build` |
 | Automated release gates (`scripts/ci/release-gates.mjs`) | | | `plan` |
 | Signing secrets present (beta/stable fail closed) | `build` | `build` | `build` |

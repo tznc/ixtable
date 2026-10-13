@@ -7,8 +7,8 @@
  * server change that would break a client fails the contracts run.
  *
  * Consumers: web/e2e/service-qa/contract/website-types.ts (compile-time check
- * of web/src/lib/cloud FunctionMap), tests/unit/cloud-contract.test.ts
- * (desktop decoders) and src-tauri/src/cloud/tests.rs (Rust parsers).
+ * of web/src/lib/cloud FunctionMap) and the desktop decoders and parsers
+ * tested in src-tauri/src/cloud/tests.rs.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

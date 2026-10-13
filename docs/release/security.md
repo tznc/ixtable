@@ -21,8 +21,9 @@ grants included. The CSP in `src-tauri/tauri.conf.json`
 a nonce to `style-src`. A nonce would make browsers ignore `'unsafe-inline'`
 and break runtime styles. Tauri still hashes inline scripts into `script-src`.
 
-`devCsp` (`npm run tauri:dev`) is the same, plus the Vite dev server
-(`http://127.0.0.1:1420`, `ws://127.0.0.1:1420` for HMR).
+`devCsp` (`node scripts/tauri.mjs dev`) is the same, plus the former Vite dev
+server origins (`http://127.0.0.1:1420`, `ws://127.0.0.1:1420`). Tauri hosts
+no webview now, so the CSP is kept only for the config.
 
 ## Release builds
 
@@ -45,10 +46,9 @@ offline.
 
 ## Evidence
 
-- `tests/unit/release-scripts.test.ts` ("content security policy") checks
+- `scripts/tests/release-scripts.test.mjs` ("content security policy") checks
   that `default-src` and `script-src` are `'self'`, that neither policy has
   `unsafe-eval`, wildcards, or remote origins, and how release builds rewrite
   `connect-src`.
-- The production web build (`npm run build`) has no `eval` or `new Function`.
-  It was loaded in Chromium with this CSP as a response header, with a stub
-  Tauri IPC. The start screen rendered and there were no CSP violations.
+- The UI is native Rust and Tauri hosts no webview, so the app loads no
+  script at runtime. The CSP guards only the bundled config.

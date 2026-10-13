@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Resolves what a release run builds: channel, version, and tag (release.yml `plan` job).
-// Fails when the tag and the three version files disagree.
+// Fails when the tag and the two version files disagree.
 import { appendFileSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -8,13 +8,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 export const CHANNELS = ["draft", "beta", "stable"];
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
 
-/** Versions declared by tauri.conf.json, package.json, and Cargo.toml. */
+/** Versions declared by tauri.conf.json and Cargo.toml. */
 export function readVersions(root) {
   const json = (file) => JSON.parse(readFileSync(join(root, file), "utf8"));
   const cargo = readFileSync(join(root, "src-tauri/Cargo.toml"), "utf8");
   return {
     tauri: json("src-tauri/tauri.conf.json").version,
-    npm: json("package.json").version,
     cargo: cargo.match(/^\[package\][^[]*?^version\s*=\s*"([^"]+)"/m)?.[1],
   };
 }
@@ -49,12 +48,10 @@ export function compareVersions(a, b) {
  * a channel; beta and stable must still run from the matching tag.
  */
 export function resolvePlan({ event, ref, channelInput, versions }) {
-  const { tauri, npm, cargo } = versions;
+  const { tauri, cargo } = versions;
   if (!parseVersion(tauri)) throw new Error(`tauri.conf.json version is not semver: ${tauri}`);
-  if (tauri !== npm || tauri !== cargo)
-    throw new Error(
-      `Versions disagree: tauri.conf.json ${tauri}, package.json ${npm}, Cargo.toml ${cargo}`,
-    );
+  if (tauri !== cargo)
+    throw new Error(`Versions disagree: tauri.conf.json ${tauri}, Cargo.toml ${cargo}`);
   const version = tauri;
   const prerelease = parseVersion(version).pre.length > 0;
   const tagged = ref?.startsWith("refs/tags/") ? ref.slice("refs/tags/".length) : "";

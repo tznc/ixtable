@@ -28,7 +28,6 @@ export const ALLOWED_CRYPTO_CRATES = [
 ];
 const CRYPTO_CRATE =
   /^(ring|rsa|ecdsa|p256|p384|hmac|hkdf|scrypt|pbkdf2|argon2|getrandom|sha2|sha1|sha3|md-?5|aes.*|.*crypt.*|.*cipher.*|chacha.*|.*poly1305|ed25519.*|x25519.*|curve25519.*|blake.*|.*tls.*|rand.*|minisign.*|.*sodium.*|openssl.*)$/;
-const CRYPTO_NPM = /crypt|nacl|forge|noble|sodium|cipher|jsrsasign|elliptic/;
 
 /** Dependency names from every `*dependencies*` table of a Cargo.toml. */
 export function cargoDependencies(toml) {
@@ -46,14 +45,10 @@ export function cargoDependencies(toml) {
 }
 
 /** Crypto dependencies that are not on the allowlist. */
-export function unreviewedCrypto(cargoToml, packageJson) {
-  const cargo = cargoDependencies(cargoToml).filter(
+export function unreviewedCrypto(cargoToml) {
+  return cargoDependencies(cargoToml).filter(
     (name) => CRYPTO_CRATE.test(name) && !ALLOWED_CRYPTO_CRATES.includes(name),
   );
-  const npm = Object.keys({ ...packageJson.dependencies, ...packageJson.devDependencies }).filter(
-    (name) => CRYPTO_NPM.test(name),
-  );
-  return [...cargo, ...npm];
 }
 
 // PEM private keys, Tauri/minisign secret key files (raw or base64, as `tauri signer generate`
@@ -141,7 +136,7 @@ export const GATES = [
     check: (root) =>
       evidence(root, {
         "src-tauri/src/recordstore/secrets.rs": /chacha20poly1305|XChaCha20Poly1305/i,
-        "tests/integration/datasource.test.tsx": /without storing the password in the document/,
+        "src-tauri/src/ui/data/tests_settings.rs": /without_storing_the_password_in_the_document/,
       }),
   },
   {
@@ -149,10 +144,7 @@ export const GATES = [
     prd: "§21.3, §27.2",
     title: "Crypto comes only from established crates (no custom primitives)",
     check: (root) =>
-      unreviewedCrypto(
-        file(root, "src-tauri/Cargo.toml"),
-        JSON.parse(file(root, "package.json")),
-      ).map((name) => `${name} is not on ALLOWED_CRYPTO_CRATES; review it before adding`),
+      unreviewedCrypto(file(root, "src-tauri/Cargo.toml")).map((name) => `${name} is not on ALLOWED_CRYPTO_CRATES; review it before adding`),
   },
   {
     id: "bundles-fail-closed",
@@ -206,8 +198,7 @@ export const GATES = [
     title: "Authorization checks at every Runtime object and action entry point",
     check: (root) =>
       evidence(root, {
-        "tests/integration/runtime-rbac.test.tsx": null,
-        "tests/integration/runtime-rbac-triggers.test.tsx": null,
+        "src-tauri/src/ui/runtime/tests_rbac.rs": null,
         "src-tauri/src/trigger_auth_tests.rs": null,
       }),
   },
@@ -277,12 +268,10 @@ export const GATES = [
   {
     id: "versions-agree",
     prd: "Phase 5",
-    title: "tauri.conf.json, package.json, and Cargo.toml carry one version",
+    title: "tauri.conf.json and Cargo.toml carry one version",
     check: (root) => {
       const v = readVersions(root);
-      return v.tauri === v.npm && v.npm === v.cargo
-        ? []
-        : [`versions differ: tauri ${v.tauri}, npm ${v.npm}, cargo ${v.cargo}`];
+      return v.tauri === v.cargo ? [] : [`versions differ: tauri ${v.tauri}, cargo ${v.cargo}`];
     },
   },
   {

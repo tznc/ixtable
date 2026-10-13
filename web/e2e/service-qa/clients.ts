@@ -143,7 +143,7 @@ export async function callFunction<T = Record<string, unknown>>(
 export function devSecret(name: string): string {
   const file = join(REPO_ROOT, "supabase", "functions", ".env.local");
   if (!existsSync(file))
-    throw new Error("Missing supabase/functions/.env.local. Run `npm run service-qa:up`.");
+    throw new Error("Missing supabase/functions/.env.local. Run `npm run service-qa:up --prefix web`.");
   const match = new RegExp(`^${name}=(.*)$`, "m").exec(readFileSync(file, "utf8"));
   if (!match) throw new Error(`${name} is not set in supabase/functions/.env.local`);
   return match[1].trim();

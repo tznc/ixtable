@@ -1,18 +1,24 @@
 name: Set up desktop toolchain
 description: >
-  Node + npm ci, stable Rust with a shared cargo cache, Linux WebKitGTK
+  Node (for the CI scripts), stable Rust with a shared cargo cache, Linux WebKitGTK
   build deps, and the pinned prebuilt libduckdb and DuckDB extensions for the runner's platform.
 inputs:
   cache-key:
     description: Shared rust-cache key (jobs that build the same artifacts share one).
     default: desktop
   npm-cache-paths:
-    description: Lockfiles that key the npm cache (add web/ or supabase/ ones when the job installs them).
-    default: package-lock.json
+    description: Lockfiles that key the npm cache, for jobs that install web/ or supabase/ packages.
+    default: ''
 runs:
   using: composite
   steps:
     - uses: actions/setup-node@v4
+      if: inputs.npm-cache-paths == ''
+      with:
+        node-version: lts/*
+
+    - uses: actions/setup-node@v4
+      if: inputs.npm-cache-paths != ''
       with:
         node-version: lts/*
         cache: npm
@@ -66,7 +72,3 @@ runs:
       if: steps.duckdb-cache.outputs.cache-hit != 'true'
       shell: bash
       run: bash scripts/prepare-duckdb-artifacts.sh "${{ steps.duckdb.outputs.platform }}"
-
-    - name: Install npm dependencies
-      shell: bash
-      run: npm ci

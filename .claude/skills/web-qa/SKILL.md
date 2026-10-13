@@ -22,7 +22,7 @@ Use this skill after changing the Docusaurus website under `web/`. It tests the 
 
 1. Identify the changed pages, navigation paths, responsive states, and critical user actions.
 2. Reuse or extend `web/e2e/web-qa.spec.ts`. Add focused Playwright specs when a flow needs its own setup.
-3. Run `npm run web-qa` from the repository root. The command builds Docusaurus, starts the production server, and drives it with Chromium.
+3. Run `npm run test:web-qa --prefix web`. The command builds Docusaurus, starts the production server, and drives it with Chromium.
 4. Read the manifests under `web/web-qa/.generated/` and inspect every matching PNG.
 5. Check for clipped content, broken images, unexpected horizontal scrolling, illegible contrast, missing focus states, and mobile navigation problems.
 6. Send relevant proof with `treq send web/web-qa/.generated/<capture>.png`.

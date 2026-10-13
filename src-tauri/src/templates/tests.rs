@@ -394,3 +394,25 @@ fn every_template_id_is_a_uuid_v7() {
         }
     }
 }
+
+/// Writes web/e2e/service-qa/fixtures/crm.ixt and crm.roles.json (the roles Studio sends to
+/// roles-sync) from the CRM template, so service-qa journeys publish the bytes Studio would
+/// upload. Run after an archive format change:
+/// `cargo test --lib write_service_qa_crm_fixture -- --ignored`.
+#[test]
+#[ignore = "writes the service-qa fixture"]
+fn write_service_qa_crm_fixture() {
+    let m = manager();
+    create(m, "service-qa", "crm").unwrap();
+    let out = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../web/e2e/service-qa/fixtures/crm.ixt");
+    m.save("service-qa", Some(out.clone())).unwrap();
+    let roles: Vec<_> = m
+        .config("service-qa")
+        .unwrap()
+        .roles
+        .into_iter()
+        .map(|r| serde_json::json!({ "id": r.id, "name": r.name, "permissions": r.permissions }))
+        .collect();
+    let json = serde_json::to_string_pretty(&roles).unwrap();
+    std::fs::write(out.with_extension("roles.json"), format!("{json}\n")).unwrap();
+}

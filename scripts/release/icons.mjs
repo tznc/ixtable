@@ -2,9 +2,8 @@
 // Desktop icon set for Tauri bundles: `tauri icon` renders every platform's icons from one
 // source image; only the desktop files listed in DESKTOP_ICONS are kept (no Square*Logo,
 // StoreLogo, android or ios output). iconProblems() validates headers with no dependencies.
-import { execFileSync } from "node:child_process";
+import { runTauri } from "../tauri.mjs";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -103,13 +102,10 @@ export function iconProblems(dir) {
   return problems;
 }
 
-/** Runs the local Tauri CLI through node, so no shell or .cmd shim is involved on Windows. */
+/** Runs the pinned Tauri CLI (scripts/tauri.mjs). */
 function runTauriIcon(source, out) {
-  const cli = createRequire(join(ROOT, "package.json")).resolve("@tauri-apps/cli/tauri.js");
-  execFileSync(process.execPath, [cli, "icon", source, "-o", out], {
-    cwd: ROOT,
-    stdio: ["ignore", "ignore", "inherit"],
-  });
+  const status = runTauri(["icon", source, "-o", out], ["ignore", "ignore", "inherit"]);
+  if (status !== 0) throw new Error(`tauri icon exited with ${status}`);
 }
 
 /** Renders icons from `source` (.svg or .png) and copies only DESKTOP_ICONS into `outDir`. */

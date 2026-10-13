@@ -48,8 +48,7 @@ Name captures `<flow>-NN-<what>`.
 |---|---|
 | `app_shell` | start screen, shell, settings YAML, Problems (`app-qa-*`) |
 
-Each area adds its spec as it is ported. The old jsdom specs in
-`scripts/screenshot/specs/` list the flows still to cover: datasheet, schema,
+Each area adds its spec as it is ported. Flows still to cover: datasheet, schema,
 query, forms, reports, dashboards, automation, persistence, release,
 settings, templates, access-import and export.
 

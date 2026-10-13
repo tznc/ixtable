@@ -44,15 +44,15 @@ You can share an application two ways. Send the `.ixt` file to give someone an e
 
 ## Generated screenshots
 
-The images in these docs come from `scripts/screenshot/specs/app-shell.spec.tsx`. The test renders the app, performs user actions, and captures the resulting app state with Playwright.
+The images in these docs come from the screenshot specs in `src-tauri/src/ui/screenshots/`. Each spec renders the real app headlessly, performs user actions, and captures the resulting app state.
 
-Regenerate the documentation images from the repository root:
+Regenerate the documentation images:
 
 ```shell
-npm run screenshot
+cd src-tauri && IXTABLE_SCREENSHOT_DOCS=1 cargo screenshot
 ```
 
-The command tests the captured states before it copies selected images beside the documentation in `web/docs/assets`. Docusaurus fingerprints these relative assets when it builds the site.
+The command checks the captured states before it copies selected images beside the documentation in `web/docs/assets`. Docusaurus fingerprints these relative assets when it builds the site.
 
 ## Next steps
 

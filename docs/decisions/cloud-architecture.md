@@ -224,7 +224,7 @@ outcomes) and `billing_test.ts`.
 
 ### Local stack and secrets
 
-`node scripts/cloud/up.mjs` (`npm run service-qa:up`) starts the stack with
+`node scripts/cloud/up.mjs` (`npm run service-qa:up --prefix web`) starts the stack with
 only the services ixtable uses, resets the database, and gates on
 `functions/v1/health`. `scripts/cloud/dev-secrets.mjs` writes throwaway
 secrets to `supabase/functions/.env.local` (mirrored to `.env`, which
@@ -254,7 +254,7 @@ variable. Google and Microsoft sign-in are configured but disabled locally;
   privileged RPCs, append-only audit, immutable versions, signed-URL-only
   storage.
 - `web/e2e/service-qa/specs/health.spec.ts`: health and error contract.
-- `supabase/functions/_shared/*_test.ts` (`npm run service-qa:deno`): crypto
+- `supabase/functions/_shared/*_test.ts` (`npm run service-qa:deno --prefix web`): crypto
   vectors and Node interoperability, Stripe signatures, CORS, error mapping,
   validators.
 

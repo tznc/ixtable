@@ -2,7 +2,11 @@
 
 Each record explains one architecture decision for the ixtable desktop app:
 the context, the decision, its consequences, its status, and the tests that
-prove it. PRD §28 Phase 0 requires a written record and automated proof for
+prove it. The test lists in older records name TypeScript tests under
+`tests/unit` and `tests/integration` that were removed with the React frontend.
+Their flows are now Rust unit tests and `#[gpui_kit::test]` UI tests in a
+`tests.rs` beside the view (see [Native GPUI user interface](./gpui-ui.md)).
+PRD §28 Phase 0 requires a written record and automated proof for
 every risk-retirement spike. This index maps each spike to its record.
 
 | Record | Phase 0 spike | Status |
@@ -20,7 +24,7 @@ every risk-retirement spike. This index maps each spike to its record.
 | [Cloud security model](./cloud-security-model.md) | signed personalized bundle and envelope-encryption threat model | accepted, implemented, external security review pending |
 | [Desktop signing and webview CSP](./desktop-updates.md) | none. Signed installers, webview CSP (PRD Phase 5). In-app updates removed from the MVP (2026-10-06) | accepted; release key gate in CI, production key ceremony pending |
 | [Performance budgets](./performance-budgets.md) | none. PRD §27.3 targets, reference hardware, fixture, and the report-only harness | accepted, report-only |
-| [Windows support](./windows-support.md) | none. Windows-only failures in Rust tests and the NAPI test bridge | accepted, pending Windows CI (no run has reached a runner yet) |
+| [Windows support](./windows-support.md) | none. Windows-only failures in Rust tests (and the former NAPI test bridge) | accepted, pending Windows CI (no run has reached a runner yet) |
 | [Action queries](./action-queries.md) | none. Saved queries that change rows: DuckDB SQL through a writable attach, per-row triggers | accepted |
 | [Access import](./access-import.md) | none. One-way import of Access databases and templates. Format spec in [`docs/access-format.md`](../access-format.md) | accepted |
 | [Field formats](./field-formats.md) | none. Rich text, attachment, and multi-select fields and input masks (PRD Phase 6) | accepted |

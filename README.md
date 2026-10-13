@@ -11,14 +11,16 @@ in [`docs/decisions/`](./docs/decisions/README.md).
 
 ## Prerequisites
 
-- Node.js 20 or newer, with npm
 - Rust stable, through [rustup](https://rustup.rs)
-- The [Tauri 2 system dependencies](https://v2.tauri.app/start/prerequisites/)
-  for your OS. On Debian or Ubuntu:
+- Node.js 20 or newer, for the helper scripts under `scripts/` (the desktop
+  app has no JavaScript dependencies)
+- The system libraries GPUI and Tauri need for your OS. On Debian or Ubuntu:
 
   ```bash
   sudo apt-get install libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev \
-    libjavascriptcoregtk-4.1-dev librsvg2-dev libssl-dev pkg-config
+    libjavascriptcoregtk-4.1-dev librsvg2-dev libssl-dev pkg-config \
+    libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libfontconfig1-dev \
+    libfreetype-dev libwayland-dev libvulkan-dev mesa-vulkan-drivers
   ```
 
 - `bash`, `curl`, and `gzip` for the DuckDB extension script. On Windows, use
@@ -27,7 +29,6 @@ in [`docs/decisions/`](./docs/decisions/README.md).
 ## Setup
 
 ```bash
-npm ci
 bash scripts/prepare-duckdb-artifacts.sh linux-x64   # or macos-universal, windows-x64
 ```
 
@@ -45,73 +46,75 @@ it has run, because `tauri.conf.json` bundles the compressed files.
 ## Develop
 
 ```bash
-npm run tauri:dev     # Vite dev server on :1420 plus the desktop window
-npm run tauri:build   # release build and installers
+node scripts/tauri.mjs dev     # the desktop window
+node scripts/tauri.mjs build   # release build and installers
 ```
+
+The script runs a pinned Tauri CLI through `npx`. `cargo tauri` also works if
+you have it installed.
 
 ## Test
 
 | Command | What it runs |
 |---|---|
-| `npm test` | builds the test bridge, then unit and integration tests |
-| `npx vitest run tests/unit/<file>` | one unit test file (jsdom, no Rust) |
-| `npm run pretest` | builds the NAPI test bridge (`scripts/ci/build-test-bridge.mjs`) |
-| `npx vitest run --config vitest.integration.config.ts tests/integration/<file>` | one integration file against the real Rust commands |
-| `cd src-tauri && cargo test --lib` | Rust unit tests and the RecordStore conformance suite |
-| `npm run screenshot` | renders real UI flows and captures PNGs under `scripts/screenshot/.generated/` |
-| `npm run lint` | oxlint, eslint, and ast-grep rules |
-| `npx tsc --noEmit` | TypeScript type check |
-| `npm run format:check` | biome formatting |
+| `cd src-tauri && cargo test --lib [filter]` | every Rust test: unit tests, the RecordStore conformance suite, headless UI tests, and the golden suites |
+| `cd src-tauri && cargo check --lib --tests` | compile check |
+| `cd src-tauri && cargo screenshot [flow]` | renders real UI flows headlessly and captures PNGs under `scripts/screenshot/.generated/` |
+| `npx --yes --package @ast-grep/cli@0.38.7 ast-grep scan --warning` | ast-grep lint rules |
+| `node scripts/ci/unused-pub-rust.mjs` | finds unused `pub` functions |
+| `node --test "scripts/tests/*.test.mjs"` | release-script tests |
+| `node scripts/ci/release-gates.mjs` | release gates |
 
-Integration tests render the real React UI in jsdom and send each Tauri
-command through a native Node module built from `src-tauri` with the
-`test-bridge` feature. Rebuild it with `npm run pretest` after any Rust
-change. The bridge loads the library from `src-tauri/target/debug`, so keep
-the default target directory.
+UI tests are `#[gpui_kit::test]` functions that drive the real GPUI app
+through `ui::testing::Harness` with no window and no GPU. The golden suites
+live in `ui::golden`.
 
-The PostgreSQL tests skip unless you point them at a server. Any empty
-database works, because each run creates and drops its own schema:
+PostgreSQL, heavy, performance, and live-cloud tests are `#[ignore]`d. The
+PostgreSQL tests need a server. Any empty database works, because each run
+creates and drops its own schema:
 
 ```bash
 docker run --rm -d -p 5432:5432 -e POSTGRES_PASSWORD=ixtable postgres:16
 export IXTABLE_TEST_POSTGRES_URL=postgresql://postgres:ixtable@localhost:5432/postgres?sslmode=disable
-(cd src-tauri && cargo test --lib recordstore)
-npx vitest run --config vitest.integration.config.ts tests/integration/datasource
+(cd src-tauri && cargo test --lib -- --include-ignored recordstore)
 ```
 
-Screenshots need Chromium: run `npx playwright install chromium` once.
+Screenshots need a Vulkan driver on Linux. Mesa's lavapipe works without a
+GPU (`mesa-vulkan-drivers`).
 
 ## Architecture
 
-The desktop app is a Tauri 2 shell. React and TypeScript in `src/` render
-Studio and the Runtime. Rust in `src-tauri/src/` owns files, databases, and
-cryptography, and the UI reaches it only through Tauri commands.
+The desktop app is a Tauri 2 shell with a native Rust UI. GPUI (through
+`tauri-plugin-gpui` and `gpui-kit`) renders Studio and the Runtime from
+`src-tauri/src/ui/`, and Tauri hosts no webview. The UI calls the backend
+modules in `src-tauri/src/` directly. See
+[`docs/decisions/gpui-ui.md`](./docs/decisions/gpui-ui.md).
 
 ### Modes
 
-Studio has one mode per area. The registry is `src/shell/modes.tsx`.
+Studio has one mode per area. The registry is `src-tauri/src/ui/shell/modes.rs`.
 
 | Mode | Directory | Purpose |
 |---|---|---|
-| Data | `src/data/`, `src/schema/` | tables, schema designer, relationships, record grid |
-| Query | `src/query/` | SQL and visual query builder, parameters, saved queries |
-| Design | `src/design/` | form designer on the shared grid |
-| Reports | `src/reports/` | freeform report designer, pagination, print and PDF |
-| Dashboards | `src/dashboards/` | dashboards on the shared grid |
-| Automation | `src/automation/` | actions, record triggers, background jobs |
-| Settings | `src/shell/AppSettings.tsx` | assets, release, datasource, entities, migrations, roles, YAML, problems, logs |
-| Runtime | `src/runtime/`, `src/release/` | runs the application, opens runtime-only bundles |
+| Data | `ui/data/`, `ui/schema/` | tables, schema designer, relationships, record grid |
+| Query | `ui/query/` | SQL and visual query builder, parameters, saved queries |
+| Design | placeholder; `ui/grid/` holds the shared grid | form designer on the shared grid |
+| Reports | `ui/reports/` | freeform report designer, pagination, print and PDF |
+| Dashboards | placeholder | dashboards on the shared grid |
+| Automation | `ui/automation/` | actions, record triggers, background jobs |
+| Settings | `ui/shell/settings.rs` | assets, release, datasource, entities, migrations, roles, YAML, problems, logs |
+| Runtime | `ui/runtime/`, `ui/release/` | runs the application, opens runtime-only bundles |
 
-Shared frontend code:
+Shared code, all under `src-tauri/src/`:
 
 | Path | Contents |
 |---|---|
-| `src/lib/api.ts` | `call()`, the only place that invokes Tauri commands |
-| `src/lib/config-store.tsx` | `useDocumentConfig()`: every definition edit, with undo and redo |
-| `src/lib/records.ts` | `insertRecord`, `updateRecord`, `deleteRecord`: the only record write path |
-| `src/expr/` | the expression language ([reference](./src/expr/README.md)) |
-| `src/grid/` | the grid engine and canvas shared by forms and dashboards |
-| `src/persistence/` | autosave, recovery, checkpoints, assets, logs |
+| `ui/{prelude,widgets,events,dialogs}.rs` | common imports, widgets, change notices, native dialogs |
+| `ui/store.rs` | `ConfigStore`: every definition edit, with undo and redo |
+| `records.rs` | `insert`, `update`, `delete`, `write_batch`, `run_action_query`: the only record write path |
+| `expr/` | the expression language |
+| `forms/`, `report_engine/`, `automation_runner/` | form state, report layout, and the automation runner |
+| `ui/autosave.rs`, `ui/persistence/` | autosave, recovery, checkpoints UI |
 
 ### Rust modules
 
@@ -131,18 +134,16 @@ Shared frontend code:
 
 ## Rules for changes
 
-- Write records only through `src/lib/records.ts`. Triggers, autosave, and
-  the Runtime cache hook into every write there.
-- Change definitions only through `useDocumentConfig().update`. A direct
-  command call bypasses undo and is overwritten by the next store update.
+- Write records only through `crate::records`. Triggers and the Runtime cache
+  hook into every write there. Writes block, so call them inside
+  `ui::task::spawn_call`.
+- Change definitions only through `ConfigStore::update(label, mutate, cx)`.
+  Anything else bypasses undo.
 - Read through DuckDB. Never read records through a RecordStore connection.
-- Call Tauri commands only through `call()` in `src/lib/api.ts`. A lint rule
-  enforces it.
 - Give every definition object a stable uuid. Names are labels, not identity.
-- New Rust commands are `pub fn` with a literal `#[tauri::command]`, take
-  `window_label: String` first, and are registered in `src-tauri/src/lib.rs`.
-- Add tests for every change: Rust unit tests in the module, TypeScript unit
-  tests under `tests/unit/`, and UI flows under `tests/integration/`.
+- There are no Tauri commands. UI code calls backend `pub fn`s directly.
+- Add tests for every change: Rust unit tests in the module and
+  `#[gpui_kit::test]` UI tests for UI flows.
 - Record architecture decisions in `docs/decisions/`.
 
 ## Continuous integration
@@ -150,17 +151,15 @@ Shared frontend code:
 `.github/workflows/desktop.yml` runs on pushes to `main` and on pull requests
 that touch the desktop app:
 
-- `lint`: type check, lint, and a format check, which stays advisory until
-  the tree is formatted
-- `test`: Rust unit tests, unit tests, and integration tests on Ubuntu, macOS
-  (arm64), and Windows
+- `lint`: ast-grep rules, unused `pub` functions, release-script tests, and
+  release gates
+- `test`: `cargo test --lib` on Ubuntu, macOS (arm64), and Windows
 - `postgres`: the RecordStore conformance suite and PostgreSQL datasource
   tests against a `postgres:16` service on Ubuntu
-- `golden`: the golden application suites under
-  `tests/integration/golden/` on all three OSes
+- `golden`: the golden application suites in `ui::golden` on all three OSes
 - `build`: a debug `tauri build` on Ubuntu that proves the binary links
 
-Failed jobs upload JUnit reports and screenshot output as artifacts.
+Failed jobs upload test reports and screenshot output as artifacts.
 
 ## Website
 
