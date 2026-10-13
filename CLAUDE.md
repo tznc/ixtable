@@ -57,7 +57,8 @@ a real session and a real backend; only native dialogs are faked
 - UI: `src-tauri/src/ui/<feature>/` (data, query, schema, forms, reports,
   automation, settings, runtime and so on). Modes are registered in
   `ui/shell/modes.rs`, settings tabs in `ui/shell/settings.rs`.
-- Shared UI: `ui/{prelude,widgets,store,events,dialogs,testing,screenshot}.rs`.
+- Shared UI: `ui/{prelude,widgets,controls,store,events,dialogs,testing,screenshot}.rs`
+  (`controls.rs` holds the form controls: inputs, selects, checks, badges).
 - Logic: `expr/` (expression language), `records.rs` (record write path and
   hooks), `forms/`, `report_engine/`, `automation_runner/`.
 - Backend: `manager.rs` (sessions, save), `archive*.rs` (`.ixt` format),
