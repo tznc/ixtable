@@ -21,6 +21,7 @@ use super::{
 use crate::design::{Form, FormMode};
 use crate::forms::actions::NavigationTarget;
 use crate::forms::cursor::RecordCursor;
+use crate::forms::events::EventState;
 use crate::forms::navigation::{PageKind, RuntimePage};
 use crate::forms::rbac::Operation;
 use crate::forms::registry::{is_designed_form, resolve_form};
@@ -99,6 +100,7 @@ pub struct FormRenderer {
     dirty: bool,
     /// The message the previous record view ended with, shown by the next one.
     carry: Option<Notice>,
+    events: Rc<std::cell::RefCell<EventState>>,
     _observer: Subscription,
 }
 
@@ -110,7 +112,7 @@ impl FormRenderer {
         let store = props.env.store.clone();
         // A definition edit rebuilds the shown view (the Design studio's live preview).
         let observer = cx.observe(&store, |_, _, cx| cx.notify());
-        Self { props, stack: vec![entry], shown: None, dirty: false, carry: None, _observer: observer }
+        Self { props, stack: vec![entry], shown: None, dirty: false, carry: None, events: Rc::default(), _observer: observer }
     }
 
     fn top(&self) -> &Entry {
@@ -157,6 +159,7 @@ impl FormRenderer {
     }
 
     fn push(&mut self, entry: Entry, cx: &mut Context<Self>) {
+        *self.events.borrow_mut() = EventState::default();
         self.stack.push(entry);
         self.reset(cx);
     }
@@ -185,6 +188,7 @@ impl FormRenderer {
 
     fn close(&mut self, cx: &mut Context<Self>) {
         if self.stack.len() > 1 {
+            *self.events.borrow_mut() = EventState::default();
             self.stack.pop();
             self.reset(cx);
             return;
@@ -322,6 +326,7 @@ impl FormRenderer {
                             })),
                             on_saved: self.props.on_saved.clone(),
                             initial_notice: self.carry.take(),
+                            events: Some(self.events.clone()),
                             on_carry: Some(Rc::new(move |notice, cx| {
                                 let _ = carry_to.update(cx, |t, _| t.carry = Some(notice));
                             })),

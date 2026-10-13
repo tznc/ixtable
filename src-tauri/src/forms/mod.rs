@@ -28,3 +28,5 @@ pub mod values;
 
 #[cfg(test)]
 pub mod testkit;
+#[cfg(test)]
+mod race_tests;

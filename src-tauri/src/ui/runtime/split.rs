@@ -112,6 +112,7 @@ impl SplitView {
                     params: Map::new(),
                     initial_notice: None,
                     on_carry: None,
+                    events: None,
                     on_mode: Rc::new(move |next, id, cx| {
                         let _ = mode_to.update(cx, |t, cx| {
                             let next = if matches!(next, FormMode::Edit | FormMode::Create) { next } else { FormMode::Detail };

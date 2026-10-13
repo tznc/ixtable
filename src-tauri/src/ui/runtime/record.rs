@@ -63,6 +63,9 @@ pub struct RecordProps {
     pub initial_notice: Option<Notice>,
     /// Receives the view's message just before it hands over to the next view of the form.
     pub on_carry: Option<Rc<dyn Fn(Notice, &mut App)>>,
+    /// Event bookkeeping shared by the views of one form session (detail, edit and create of
+    /// the same record do not raise on load or on current again).
+    pub events: Option<Rc<std::cell::RefCell<EventState>>>,
 }
 
 /// Runs `f` once the current update has finished, so a callback may rebuild this view.
@@ -87,7 +90,7 @@ pub struct RecordView {
     busy: bool,
     running: bool,
     loaded: bool,
-    event_state: EventState,
+    event_state: Rc<std::cell::RefCell<EventState>>,
     navigated: bool,
     ignore_refresh: bool,
     reported_dirty: bool,
@@ -114,6 +117,7 @@ impl RecordView {
             observers.push(cx.observe(&runtime, |_, _, cx| cx.notify()));
         }
         let initial_notice = props.initial_notice.clone();
+        let events = props.events.clone().unwrap_or_default();
         let mut view = Self {
             props,
             form: Rc::new(form),
@@ -129,7 +133,7 @@ impl RecordView {
             busy: false,
             running: false,
             loaded: false,
-            event_state: EventState::default(),
+            event_state: events,
             navigated: false,
             ignore_refresh: false,
             reported_dirty: false,
@@ -486,7 +490,7 @@ impl RecordView {
             if self.props.mode == FormMode::Create { Value::from("new") } else { self.props.record_id.clone().unwrap_or(Value::Null) }
         ])
         .to_string();
-        let events = events_to_raise(&mut self.event_state, &key);
+        let events = events_to_raise(&mut self.event_state.borrow_mut(), &key);
         if !events.iter().any(|e| event_action(&self.form, *e).is_some()) {
             return;
         }
