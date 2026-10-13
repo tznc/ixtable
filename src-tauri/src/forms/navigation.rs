@@ -79,8 +79,14 @@ pub fn page_for(item: &NavigationItem) -> Option<RuntimePage> {
 }
 
 /// True when the role may open what the page points at.
+/// A page that shows only one form or report also opens for a role that reads that form or
+/// report: the page adds nothing the role could not already see.
 pub fn can_open(config: &DocumentConfig, role_id: Option<&str>, page: &RuntimePage) -> bool {
-    can(config, role_id, page.kind.key(), &page.id, Operation::Read)
+    if can(config, role_id, page.kind.key(), &page.id, Operation::Read) {
+        return true;
+    }
+    let solo = solo_page(config, page);
+    solo.kind != page.kind && can(config, role_id, solo.kind.key(), &solo.id, Operation::Read)
 }
 
 /// Navigation filtered by RBAC: items need `view` on the item and `read` on the target; empty
@@ -150,10 +156,14 @@ pub fn solo_page(config: &DocumentConfig, page: &RuntimePage) -> RuntimePage {
     let Some(target) = target.filter(|t| !t.is_empty()) else {
         return page.clone();
     };
+    // The component's mode only while the form still offers it (the form's edits can drop it).
+    let offered = |m: &crate::design::FormMode| {
+        config.design.forms.iter().find(|f| Some(&f.id) == component.form_id.as_ref()).is_some_and(|f| f.modes.contains(m))
+    };
     let mode = page
         .mode
         .clone()
-        .or_else(|| component.mode.map(|m| super::schema::form_mode_key(m).to_string()));
+        .or_else(|| component.mode.filter(offered).map(|m| super::schema::form_mode_key(m).to_string()));
     let params = shown.map_or_else(|| page.params.clone(), |p| crate::page_engine::links::with_defaults(p, page.params.clone()));
     RuntimePage {
         kind,

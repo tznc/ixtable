@@ -2,7 +2,7 @@
 # Pure definition data: the same DocumentConfig YAML the Settings › YAML tab edits.
 # v2/app.yaml is the next version of this application (migration fixture).
 # Object ids are fixed UUIDv7 literals. A trailing comment names each top-level object.
-version: 7
+version: 8
 name: Work orders
 activeMode: run
 settings:
@@ -150,23 +150,23 @@ design:
   version: 3
   startPage: 01a1016b-bbe4-750b-af5b-42f9f8f0ca7c
   navigation:
-    - { id: 01a1016b-bbe4-750b-af5b-42f9f8f0ca7c, label: Operations, kind: dashboard, targetId: 01a1016b-bbd9-7399-ba18-e437f8b1d17b }  # wo-nav-dashboard
+    - { id: 01a1016b-bbe4-750b-af5b-42f9f8f0ca7c, label: Operations, kind: page, targetId: 01a1016b-bbd9-7399-ba18-e437f8b1d17b }  # wo-nav-dashboard
     - id: 01a1016b-bbdc-7f91-afc7-702d150d736e  # wo-nav-maintenance
       label: Maintenance
       kind: group
       children:
-        - { id: 01a1016b-bbf0-713b-9e71-e42a854b914f, label: Work orders, kind: form, targetId: 01a1016b-bbed-7069-9243-717d20e70ac1 }  # wo-nav-orders
-        - { id: 01a1016b-bbf1-708a-9df4-d3f47ffcbca0, label: Assets, kind: form, targetId: 01a1016b-bbef-7c2c-b264-0630cd6b53e3 }  # wo-nav-assets
+        - { id: 01a1016b-bbf0-713b-9e71-e42a854b914f, label: Work orders, kind: page, targetId: bbb14e94-3943-700e-aaf4-10b48b27eeb4 }  # wo-nav-orders
+        - { id: 01a1016b-bbf1-708a-9df4-d3f47ffcbca0, label: Assets, kind: page, targetId: 8670164a-1663-7cd9-899c-0bcc6ecf26f9 }  # wo-nav-assets
     - id: 01a1016b-bbee-7c2e-95e0-dee191eddda3  # wo-nav-reports
       label: Reports
       kind: group
       children:
-        - { id: 01a1016b-bbf8-7d45-ab31-11bd820e5589, label: Work order sheet, kind: report, targetId: 01a1016b-bbe7-774e-b9b9-2cb9c2f58f92 }  # wo-nav-sheet
+        - { id: 01a1016b-bbf8-7d45-ab31-11bd820e5589, label: Work order sheet, kind: page, targetId: c7aa467b-8da5-7a0a-99d1-bb519d8d0520 }  # wo-nav-sheet
     - id: 01a1016b-bbf7-7e11-9697-6a1f5faa2d68  # wo-nav-setup
       label: Setup
       kind: group
       children:
-        - { id: 01a1016b-bbe3-78f9-9fb9-81315b4c0fdf, label: Assignees, kind: form, targetId: 01a1016b-bbdf-739a-bfeb-01f25c6e2fa2 }  # wo-nav-assignees
+        - { id: 01a1016b-bbe3-78f9-9fb9-81315b4c0fdf, label: Assignees, kind: page, targetId: 15ed85cf-0fc0-76ba-8632-c98bc04bbf6a }  # wo-nav-assignees
         - id: 01a1016b-bbe2-770a-ad76-5a0db84502b6  # wo-nav-reference
           label: Reference data
           kind: group
@@ -382,7 +382,7 @@ reports:
         height: 22
         components:
           - { id: 01a1016b-bbb8-7ec5-b125-ed732b125af4, kind: calculated, x: 0, y: 4, w: 523, h: 16, expression: "'All work orders: ' & sum(rows.hours) & ' hours'", style: { bold: true, align: right } }
-dashboards:
+pages:
   - id: 01a1016b-bbd9-7399-ba18-e437f8b1d17b  # wo-dash-operations
     name: Operations
     filters:
@@ -400,6 +400,38 @@ dashboards:
         columns: [number, title, asset, priority, status, assignee, progress]
         pageSize: 10
         placement: { column: 6, row: 3, columnSpan: 7, rowSpan: 2 }
+  - id: bbb14e94-3943-700e-aaf4-10b48b27eeb4  # wrapper page: Work orders
+    name: Work orders
+    components:
+      - { id: 76e8bd82-036c-76c1-a6df-3f018bab21ef, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a1016b-bbed-7069-9243-717d20e70ac1, mode: list }
+  - id: 52b2dfab-2c68-7bfb-b1ce-5159b64115c3  # wrapper page: Work order
+    name: Work order
+    components:
+      - { id: 903baa88-d159-7d87-a4c3-66c03fd36e70, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a1016b-bbf3-7b94-8cf2-ed22b1d54da5, mode: detail }
+  - id: 9f61ef76-c5c2-793a-b25c-f467cf4929b2  # wrapper page: Task
+    name: Task
+    components:
+      - { id: d8dee72a-ff83-7032-8c53-1970dff92e33, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a1016b-bbf6-7b88-be19-d5134ba27d9f, mode: detail }
+  - id: 8670164a-1663-7cd9-899c-0bcc6ecf26f9  # wrapper page: Assets
+    name: Assets
+    components:
+      - { id: 52aefdd7-438c-7c49-aefe-ddf06ac202f0, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a1016b-bbef-7c2c-b264-0630cd6b53e3, mode: list }
+  - id: cf1adf4e-fed6-72f2-8a30-74ae3cc36949  # wrapper page: Asset
+    name: Asset
+    components:
+      - { id: 4eab9ff8-250a-7b0d-971a-03f652e2abc8, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a1016b-bbf4-75cb-ae6e-4f966907418f, mode: detail }
+  - id: 15ed85cf-0fc0-76ba-8632-c98bc04bbf6a  # wrapper page: Assignees
+    name: Assignees
+    components:
+      - { id: 199385e8-887c-70e5-b89a-a007c40c5741, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a1016b-bbdf-739a-bfeb-01f25c6e2fa2, mode: list }
+  - id: 3e0c40e8-7ff9-7fee-b8c7-14453da44d14  # wrapper page: Assignee
+    name: Assignee
+    components:
+      - { id: 8b4ab29d-9d76-738d-bdcb-6cf3d7ff70fc, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a1016b-bbe0-7dff-8758-ba35c1e5dd81, mode: detail }
+  - id: c7aa467b-8da5-7a0a-99d1-bb519d8d0520  # wrapper page: Work order sheet
+    name: Work order sheet
+    components:
+      - { id: e33f28c1-dae9-7437-85aa-3f17a6068ba5, kind: report, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, reportId: 01a1016b-bbe7-774e-b9b9-2cb9c2f58f92 }
 actions:
   - id: 01a1016b-bbea-709e-a7ee-3b15a997f87c  # wo-action-start
     name: Start work order
@@ -544,7 +576,7 @@ roles:
       navigation: [01a1016b-bbe4-750b-af5b-42f9f8f0ca7c, 01a1016b-bbdc-7f91-afc7-702d150d736e, 01a1016b-bbf0-713b-9e71-e42a854b914f, 01a1016b-bbf1-708a-9df4-d3f47ffcbca0, 01a1016b-bbee-7c2e-95e0-dee191eddda3, 01a1016b-bbf8-7d45-ab31-11bd820e5589]
       actions: [01a1016b-bbea-709e-a7ee-3b15a997f87c, 01a1016b-bbd7-7de2-96d2-0e869063ea09, 01a1016b-bbe6-7f87-94fb-88c6a06c4738]
       objects:
-        - { kind: dashboard, id: 01a1016b-bbd9-7399-ba18-e437f8b1d17b, read: true }  # wo-dash-operations
+        - { kind: page, id: 01a1016b-bbd9-7399-ba18-e437f8b1d17b, read: true }  # wo-dash-operations
         - { kind: report, id: 01a1016b-bbe7-774e-b9b9-2cb9c2f58f92, read: true }  # wo-report-sheet
         - { kind: form, id: 01a1016b-bbed-7069-9243-717d20e70ac1, read: true }  # wo-form-orders
         - { kind: form, id: 01a1016b-bbf3-7b94-8cf2-ed22b1d54da5, read: true, update: true }  # wo-form-order
@@ -558,3 +590,9 @@ roles:
         - { kind: query, id: 01a1016b-bbec-72c2-ad92-de12b83e0fc4, read: true }  # wo-q-by-status
         - { kind: query, id: 01a1016b-bbd4-72fa-aca3-9614ac9e7e6f, read: true }  # wo-q-priority-names
         - { kind: query, id: 01a1016b-bbf9-7819-bcc0-70b949774707, read: true }  # wo-q-sheet
+        - { kind: page, id: c7aa467b-8da5-7a0a-99d1-bb519d8d0520, read: true }
+        - { kind: page, id: bbb14e94-3943-700e-aaf4-10b48b27eeb4, read: true }
+        - { kind: page, id: 52b2dfab-2c68-7bfb-b1ce-5159b64115c3, read: true }
+        - { kind: page, id: 9f61ef76-c5c2-793a-b25c-f467cf4929b2, read: true }
+        - { kind: page, id: 8670164a-1663-7cd9-899c-0bcc6ecf26f9, read: true }
+        - { kind: page, id: cf1adf4e-fed6-72f2-8a30-74ae3cc36949, read: true }

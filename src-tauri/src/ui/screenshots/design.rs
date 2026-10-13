@@ -155,11 +155,12 @@ fn design_nesting_child_form_picker() {
     seed(&mut h, move |config| {
         config.design.forms.extend(forms.into_iter().map(|f| serde_json::from_value(f).expect("form")));
         config.design.navigation[0].label = "Customers".into();
+        config.design.navigation[0].kind = crate::design::NavKind::Form;
         config.design.navigation[0].target_id = Some(customers);
     });
 
     open_designer(&mut h);
-    h.click(format!("form:{items_form}"));
+    crate::ui::design::test_support::open_form(&mut h, &items_form);
     assert_eq!(h.label("form-title"), "Order items");
     let items = h.config().design.forms.into_iter().find(|f| f.id == items_form).expect("Order items form");
     let related = items.controls.iter().find(|c| c.kind == ControlKind::RelatedList).expect("the Allocations list");

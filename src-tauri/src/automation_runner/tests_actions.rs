@@ -155,7 +155,7 @@ fn passes_evaluated_parameters_to_open_dashboard() {
     assert!(run_action(&a, ctx).ok);
     assert_eq!(
         events(&h),
-        vec![json!(["navigate", {"kind": "dashboard", "id": "d1", "params": {"region": "East"}}])]
+        vec![json!(["navigate", {"kind": "page", "id": "d1", "params": {"region": "East"}}])]
     );
 }
 

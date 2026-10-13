@@ -90,7 +90,7 @@ fn wrapper_ids_are_stable_across_loads() {
     let b = v7().upgrade().expect("upgrade");
     let ids = |c: &DocumentConfig| c.pages.iter().map(|p| p.id.clone()).collect::<Vec<_>>();
     assert_eq!(ids(&a), ids(&b));
-    assert!(a.pages.iter().all(|p| p.id == "d1" || uuid::Uuid::parse_str(&p.id).is_ok()));
+    assert!(a.pages.iter().all(|p| p.id == "d1" || uuid::Uuid::parse_str(&p.id).is_ok_and(|u| u.get_version_num() == 7)));
 }
 
 #[test]

@@ -4,8 +4,8 @@
 //! Dashboards already are pages (serde reads the old `dashboards` key). Every form and
 //! report that no page shows gets a page of its own holding it full width, and navigation
 //! items and role permissions that pointed at the form or report now point at that page.
-//! Wrapper page ids derive from the form or report id, so loading the same older document
-//! twice gives the same ids.
+//! Wrapper page ids derive from the form or report id (UUIDv7-shaped), so loading the same
+//! older document twice gives the same ids.
 use super::{ComponentKind, Page, PageComponent};
 use crate::archive::DocumentConfig;
 use crate::design::{FormMode, GridLayout, NavKind, NavigationItem, Placement};
@@ -50,7 +50,8 @@ pub fn wrap_definitions(config: &mut DocumentConfig) -> Vec<(String, String)> {
     let mut reports = HashMap::new();
     let mut added = vec![];
     for form in &config.design.forms {
-        if placed(ComponentKind::Form, &form.id, &config.pages) {
+        // A duplicate id (a validation error of its own) gets one page.
+        if forms.contains_key(&form.id) || placed(ComponentKind::Form, &form.id, &config.pages) {
             continue;
         }
         let mode = form.modes.first().copied().unwrap_or(FormMode::List);
@@ -62,7 +63,7 @@ pub fn wrap_definitions(config: &mut DocumentConfig) -> Vec<(String, String)> {
         added.push(page);
     }
     for report in &config.reports {
-        if placed(ComponentKind::Report, &report.id, &config.pages) {
+        if reports.contains_key(&report.id) || placed(ComponentKind::Report, &report.id, &config.pages) {
             continue;
         }
         let page = wrapper_page("report", &report.id, &report.name, ComponentKind::Report, |c| {
@@ -143,8 +144,11 @@ pub fn wrapper_page(
     }
 }
 
+/// A UUIDv7-shaped id derived from `seed` (every definition id is a UUIDv7). The bytes
+/// come from a UUIDv5 of the seed, so the same seed always gives the same id.
 fn stable_id(seed: &str) -> String {
-    uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, seed.as_bytes()).to_string()
+    let bytes = *uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, seed.as_bytes()).as_bytes();
+    uuid::Builder::from_bytes(bytes).with_version(uuid::Version::SortRand).with_variant(uuid::Variant::RFC4122).into_uuid().to_string()
 }
 
 fn retarget_navigation(

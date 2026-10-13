@@ -78,6 +78,7 @@ fn titles_a_page_by_its_nav_label_else_its_targets_name() {
 #[test]
 fn a_page_with_only_a_form_or_report_opens_it_full_page() {
     let mut config = DocumentConfig::default();
+    config.design.forms.push(crate::design::Form { id: "f".into(), modes: crate::design::default_modes(), ..Default::default() });
     config.pages = serde_json::from_value(json!([
         {"id": "p1", "name": "Orders", "components": [{"id": "c", "kind": "form", "formId": "f", "mode": "detail"}]},
         {"id": "p2", "name": "Sales", "components": [{"id": "c", "kind": "report", "reportId": "r"}]},
@@ -95,4 +96,12 @@ fn a_page_with_only_a_form_or_report_opens_it_full_page() {
     assert_eq!((report.kind, report.id.as_str(), report.mode), (PageKind::Report, "r", None));
     let mixed = RuntimePage::new(PageKind::Page, "p3");
     assert_eq!(solo_page(&config, &mixed), mixed);
+
+    // Reading the form opens its page; a page with more on it needs its own grant.
+    config.roles = serde_json::from_value(json!([{"id": "reader", "name": "Reader", "permissions": {
+        "objects": [{"kind": "form", "id": "f", "read": true}]
+    }}]))
+    .unwrap();
+    assert!(can_open(&config, Some("reader"), &RuntimePage::new(PageKind::Page, "p1")));
+    assert!(!can_open(&config, Some("reader"), &mixed));
 }

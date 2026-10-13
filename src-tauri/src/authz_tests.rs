@@ -170,7 +170,7 @@ fn dashboard_config() -> DocumentConfig {
 #[test]
 fn a_dashboard_grants_read_on_its_component_and_filter_queries_only() {
     let c = dashboard_config();
-    let r = role(vec![grant("dashboard", "d-sales", &[Op::Read])], &[]);
+    let r = role(vec![grant("page", "d-sales", &[Op::Read])], &[]);
     let queries = ["q-kpi", "q-chart", "q-table", "q-regions"];
     for q in queries {
         assert!(allows(&c, &r, "query", q, Op::Read, &no_fk), "{q}");
@@ -186,7 +186,7 @@ fn a_dashboard_grants_read_on_its_component_and_filter_queries_only() {
     // Granting the embedded form opens its queries through the form.
     let both = role(
         vec![
-            grant("dashboard", "d-sales", &[Op::Read]),
+            grant("page", "d-sales", &[Op::Read]),
             grant("form", "f-summary", &[Op::Read]),
         ],
         &[],
@@ -208,7 +208,7 @@ fn a_dashboard_grants_read_on_its_component_and_filter_queries_only() {
     assert!(!allows(&c, &r, "action", "act-1", Op::Execute, &no_fk));
     // Without the dashboard grant nothing is implied.
     assert!(!allows(&c, &deny_all(), "query", "q-kpi", Op::Read, &no_fk));
-    let none = role(vec![grant("dashboard", "d-other", &[Op::Read])], &[]);
+    let none = role(vec![grant("page", "d-other", &[Op::Read])], &[]);
     assert!(!allows(&c, &none, "query", "q-kpi", Op::Read, &no_fk));
     assert!(allows(&c, &none, "query", "q-other", Op::Read, &no_fk));
 }
@@ -218,7 +218,7 @@ fn a_previewed_role_granted_only_a_dashboard_runs_its_queries() {
     let (m, base) = session();
     m.with_session("w", |s| {
         s.doc.config.pages = dashboard_config().pages;
-        s.doc.config.roles = vec![role(vec![grant("dashboard", "d-sales", &[Op::Read])], &[])];
+        s.doc.config.roles = vec![role(vec![grant("page", "d-sales", &[Op::Read])], &[])];
         preview_role(s, Some("clerk".into()))
     })
     .unwrap();

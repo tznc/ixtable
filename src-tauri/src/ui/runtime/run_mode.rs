@@ -297,8 +297,8 @@ impl RunBody {
                 let Ok(schemas) = schemas else { return };
                 let (store, env) = (this.env.store.clone(), this.env.clone());
                 let entities = env.config(cx).entities.clone();
-                let design = env.config(cx).design.clone();
-                match add_generated_app(&design, &schemas, None, &entities) {
+                let (design, pages) = (env.config(cx).design.clone(), env.config(cx).pages.clone());
+                match add_generated_app(&design, &pages, &schemas, None, &entities) {
                     Some(next) => {
                         let _ = store.update(cx, |s, cx| s.update("Generate app", move |c| {
                             c.design = next;

@@ -110,7 +110,7 @@ fn lets_a_role_granted_only_a_dashboard_read_the_dashboards_queries(cx: &mut Tes
     );
     let nav = nav_home(&mut h, &home);
     let nav_item = nav.trim_start_matches("nav:").to_string();
-    let grant = ObjectPermission { kind: "dashboard".into(), id: home.clone(), read: true, ..Default::default() };
+    let grant = ObjectPermission { kind: "page".into(), id: home.clone(), read: true, ..Default::default() };
     let role = Role {
         id: "viewer".into(),
         name: "Viewer".into(),
@@ -204,7 +204,7 @@ fn marks_the_queries_of_an_unreadable_dashboard_denied_in_a_hosted_view(cx: &mut
         .expect("open the hosting window")
     });
     wait(&mut h);
-    let dashboard = h.config().pages[0].clone();
+    let dashboard = h.config().pages.into_iter().find(|p| p.name == "Home").expect("Home");
     h.cx.read(|cx| {
         let view = view.read(cx);
         assert!(view.runnable_queries(&dashboard, cx).is_empty());

@@ -111,7 +111,7 @@ fn lets_a_dashboard_grant_read_the_dashboards_queries_and_nothing_else() {
         id: "viewer".into(),
         name: "Viewer".into(),
         permissions: Permissions {
-            objects: vec![object("dashboard", "d1", [true, false, false, false])],
+            objects: vec![object("page", "d1", [true, false, false, false])],
             ..Default::default()
         },
     };

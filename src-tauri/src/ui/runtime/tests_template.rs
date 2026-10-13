@@ -138,7 +138,7 @@ fn replaces_the_legacy_main_ids_with_uuid_v7_on_open(cx: &mut TestAppContext) {
     assert!(is_v7(&config.design.forms[0].id));
     config.design.forms[0].id = "main".into();
     config.design.navigation[0].id = "main".into();
-    config.design.navigation[0].target_id = Some("main".into());
+    config.pages[0].components[0].form_id = Some("main".into());
     config.design.start_page = Some("main".into());
     config.roles = serde_json::from_value(json!([{
         "id": "r", "name": "Clerk",
@@ -158,7 +158,8 @@ fn replaces_the_legacy_main_ids_with_uuid_v7_on_open(cx: &mut TestAppContext) {
     let item = &opened.design.navigation[0];
     assert!(is_v7(&form));
     assert!(is_v7(&item.id));
-    assert_eq!(item.target_id.as_deref(), Some(form.as_str()));
+    assert_eq!(item.target_id.as_deref(), Some(opened.pages[0].id.as_str()));
+    assert_eq!(opened.pages[0].components[0].form_id.as_deref(), Some(form.as_str()));
     assert_eq!(opened.design.start_page.as_deref(), Some(item.id.as_str()));
     let permissions = &opened.roles[0].permissions;
     assert_eq!(permissions.navigation, [item.id.clone()]);

@@ -173,6 +173,7 @@ fn popup_design(h: &mut Harness, add: String, pick: String) -> String {
     });
     seed(h, move |config| {
         config.design.forms.push(serde_json::from_value(planner).expect("planner form"));
+        config.design.navigation[0].kind = crate::design::NavKind::Form;
         config.design.navigation[0].target_id = Some(launcher);
         config.design.navigation[0].mode = Some(FormMode::Create);
         for (id, name) in [(add, "Add a task"), (pick, "Use this task")] {

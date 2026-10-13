@@ -24,6 +24,12 @@ pub fn open_designer<C: UiContext>(h: &mut Harness<'_, C>) {
     assert_eq!(h.label("design-studio"), "Form builder");
 }
 
+/// Opens the form `form_id` in the form designer, as its page's "Edit form" does.
+pub fn open_form<C: UiContext>(h: &mut Harness<'_, C>, form_id: &str) {
+    let (design, form_id) = (crate::ui::pages::test_support::design_mode(h), form_id.to_string());
+    h.update(|_, cx| design.update(cx, |d, cx| d.open_form(&form_id, None, cx)));
+}
+
 /// The form designer of the Design mode.
 pub fn studio<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<DesignStudio> {
     let design = crate::ui::pages::test_support::design_mode(h);

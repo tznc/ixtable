@@ -122,7 +122,7 @@ fn a_form_on_no_page_is_listed_and_opens(cx: &mut TestAppContext) {
     let form = h.config().design.forms[0].id.clone();
     let component = h.config().pages[0].components[0].id.clone();
     h.click(id(&component));
-    h.press("delete");
+    h.click("prop-delete");
     assert!(h.config().pages[0].components.is_empty());
     let loose = format!("loose-form:{form}");
     assert_eq!(h.label(id(&loose)), "Main form");

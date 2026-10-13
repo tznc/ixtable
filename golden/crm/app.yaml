@@ -2,7 +2,7 @@
 # Pure definition data: the same DocumentConfig YAML the Settings › YAML tab edits.
 # Records come from seed.sql, applied as the "Seed sample data" migration.
 # Object ids are fixed UUIDv7 literals. A trailing comment names each top-level object.
-version: 7
+version: 8
 name: CRM
 activeMode: run
 settings:
@@ -130,16 +130,16 @@ design:
   version: 3
   startPage: 01a100fd-ded3-764b-97e4-c46a9e999500
   navigation:
-    - { id: 01a100fd-ded3-764b-97e4-c46a9e999500, label: Pipeline, kind: dashboard, targetId: 01a100fd-dece-7ec7-a993-1e618e8684b8 }  # crm-nav-dashboard
-    - { id: 01a100fd-ded2-778f-953e-fbcc4871657e, label: Companies, kind: form, targetId: 01a100fd-decd-7fa8-ae27-1bb43f0171af }  # crm-nav-companies
-    - { id: 01a100fd-deda-784b-8095-d38a29060e3c, label: Contacts, kind: form, targetId: 01a100fd-ded1-7daa-8f27-c1eb7dea313a }  # crm-nav-contacts
-    - { id: 01a100fd-dee2-78ba-80f1-c20f98fb9755, label: Deals, kind: form, targetId: 01a100fd-dedd-7ddb-98e1-141bd197f27f }  # crm-nav-deals
-    - { id: 01a100fd-decb-75a5-a55c-16bf565e6366, label: Activities, kind: form, targetId: 01a100fd-dec6-7c64-9f90-16a158f3a460 }  # crm-nav-activities
+    - { id: 01a100fd-ded3-764b-97e4-c46a9e999500, label: Pipeline, kind: page, targetId: 01a100fd-dece-7ec7-a993-1e618e8684b8 }  # crm-nav-dashboard
+    - { id: 01a100fd-ded2-778f-953e-fbcc4871657e, label: Companies, kind: page, targetId: c3b3fe31-8389-7527-9729-5492024b59b0 }  # crm-nav-companies
+    - { id: 01a100fd-deda-784b-8095-d38a29060e3c, label: Contacts, kind: page, targetId: 0c113eec-6b3b-75d7-aff5-a970f2fafdd3 }  # crm-nav-contacts
+    - { id: 01a100fd-dee2-78ba-80f1-c20f98fb9755, label: Deals, kind: page, targetId: 179b270f-ef23-754e-b3d8-5531c0f2f231 }  # crm-nav-deals
+    - { id: 01a100fd-decb-75a5-a55c-16bf565e6366, label: Activities, kind: page, targetId: d15326db-e52c-7246-a112-b5c941362a03 }  # crm-nav-activities
     - id: 01a100fd-dedb-7766-a131-0a379d03e51c  # crm-nav-reports
       label: Reports
       kind: group
       children:
-        - { id: 01a100fd-debf-7ecb-b083-7b298b6014c1, label: Activity report, kind: report, targetId: 01a100fd-dec2-729c-b560-f6a9abbde37b }  # crm-nav-activity-report
+        - { id: 01a100fd-debf-7ecb-b083-7b298b6014c1, label: Activity report, kind: page, targetId: 97d51cc2-3e24-724a-bf1c-38fc08bc0f87 }  # crm-nav-activity-report
     - id: 01a100fd-dee1-7033-bc69-347fc55ae1e3  # crm-nav-setup
       label: Setup
       kind: group
@@ -376,7 +376,7 @@ reports:
         height: 24
         components:
           - { id: 01a100fd-deb1-7145-a3bc-ee775439ce6c, kind: calculated, x: 0, y: 4, w: 523, h: 16, expression: "'Total activities: ' & count(rows.subject)", style: { bold: true } }
-dashboards:
+pages:
   - id: 01a100fd-dece-7ec7-a993-1e618e8684b8  # crm-dash-pipeline
     name: Pipeline
     filters:
@@ -414,6 +414,42 @@ dashboards:
         columns: [title, company, stage, amount]
         pageSize: 10
         placement: { column: 9, row: 2, columnSpan: 4, rowSpan: 3 }
+  - id: c3b3fe31-8389-7527-9729-5492024b59b0  # wrapper page: Companies
+    name: Companies
+    components:
+      - { id: 40c20635-cc5f-7e44-a992-2fcd67138287, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a100fd-decd-7fa8-ae27-1bb43f0171af, mode: list }
+  - id: a0fdd8bb-36a4-7a1b-a971-810d3efa5809  # wrapper page: Company
+    name: Company
+    components:
+      - { id: d2c7a1d3-e417-70f8-89df-232f9ff9eef4, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a100fd-ded8-7edf-9282-be48911524cb, mode: detail }
+  - id: 0c113eec-6b3b-75d7-aff5-a970f2fafdd3  # wrapper page: Contacts
+    name: Contacts
+    components:
+      - { id: bdc09565-c379-7a9f-abe9-6344dc17bedb, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a100fd-ded1-7daa-8f27-c1eb7dea313a, mode: list }
+  - id: 2310ac8f-aef1-7b6e-9f6e-38fc7cba2e11  # wrapper page: Contact
+    name: Contact
+    components:
+      - { id: ee7f63c9-1298-72b5-a204-8d23ab24a7bb, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a100fd-ded7-7b45-956a-5253f9d931a3, mode: detail }
+  - id: 179b270f-ef23-754e-b3d8-5531c0f2f231  # wrapper page: Deals
+    name: Deals
+    components:
+      - { id: e776e902-dd8e-7bb3-8c25-c3ba06627e54, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a100fd-dedd-7ddb-98e1-141bd197f27f, mode: list }
+  - id: 959f1a50-0b19-7c37-8b82-74768d50d874  # wrapper page: Deal
+    name: Deal
+    components:
+      - { id: 859d7b35-a494-7bc5-aba0-f231702ab049, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a100fd-dee0-73b4-978e-dc64352cd567, mode: detail }
+  - id: d15326db-e52c-7246-a112-b5c941362a03  # wrapper page: Activities
+    name: Activities
+    components:
+      - { id: 9c2ef4bb-e097-779e-a605-d50df9cb2177, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a100fd-dec6-7c64-9f90-16a158f3a460, mode: list }
+  - id: fca64f17-1732-7391-9219-5ef177a080f8  # wrapper page: Activity
+    name: Activity
+    components:
+      - { id: e32096f5-7aa3-7ff0-98e7-0282b009319e, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a100fd-decf-7db0-80c0-f982bf87375c, mode: detail }
+  - id: 97d51cc2-3e24-724a-bf1c-38fc08bc0f87  # wrapper page: Activity report
+    name: Activity report
+    components:
+      - { id: 2b2f6075-809e-77ea-8a80-673267a8a0bb, kind: report, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, reportId: 01a100fd-dec2-729c-b560-f6a9abbde37b }
 actions:
   - id: 01a100fd-dec8-7447-bac5-36865210bf78  # crm-action-mark-won
     name: Mark deal won
@@ -487,7 +523,7 @@ roles:
       navigation: [01a100fd-ded3-764b-97e4-c46a9e999500, 01a100fd-ded2-778f-953e-fbcc4871657e, 01a100fd-deda-784b-8095-d38a29060e3c, 01a100fd-dee2-78ba-80f1-c20f98fb9755, 01a100fd-decb-75a5-a55c-16bf565e6366, 01a100fd-dedb-7766-a131-0a379d03e51c, 01a100fd-debf-7ecb-b083-7b298b6014c1]
       actions: [01a100fd-dec8-7447-bac5-36865210bf78, 01a100fd-debe-7dfd-8498-03b3edb6f7cf]
       objects:
-        - { kind: dashboard, id: 01a100fd-dece-7ec7-a993-1e618e8684b8, read: true }  # crm-dash-pipeline
+        - { kind: page, id: 01a100fd-dece-7ec7-a993-1e618e8684b8, read: true }  # crm-dash-pipeline
         - { kind: report, id: 01a100fd-dec2-729c-b560-f6a9abbde37b, read: true }  # crm-report-activities
         - { kind: form, id: 01a100fd-decd-7fa8-ae27-1bb43f0171af, read: true }  # crm-form-companies
         - { kind: form, id: 01a100fd-ded8-7edf-9282-be48911524cb, read: true, create: true, update: true, delete: false }  # crm-form-company
@@ -506,3 +542,12 @@ roles:
         - { kind: query, id: 01a100fd-ded9-704a-8479-c35c56a14fde, read: true }  # crm-q-open-deals
         - { kind: query, id: 01a100fd-ded0-719e-a76c-eb7f2875fe0a, read: true }  # crm-q-stage-names
         - { kind: query, id: 01a100fd-ded4-7fb1-a6fe-bcb430b1d314, read: true }  # crm-q-activities
+        - { kind: page, id: 97d51cc2-3e24-724a-bf1c-38fc08bc0f87, read: true }
+        - { kind: page, id: c3b3fe31-8389-7527-9729-5492024b59b0, read: true }
+        - { kind: page, id: a0fdd8bb-36a4-7a1b-a971-810d3efa5809, read: true }
+        - { kind: page, id: 0c113eec-6b3b-75d7-aff5-a970f2fafdd3, read: true }
+        - { kind: page, id: 2310ac8f-aef1-7b6e-9f6e-38fc7cba2e11, read: true }
+        - { kind: page, id: 179b270f-ef23-754e-b3d8-5531c0f2f231, read: true }
+        - { kind: page, id: 959f1a50-0b19-7c37-8b82-74768d50d874, read: true }
+        - { kind: page, id: d15326db-e52c-7246-a112-b5c941362a03, read: true }
+        - { kind: page, id: fca64f17-1732-7391-9219-5ef177a080f8, read: true }

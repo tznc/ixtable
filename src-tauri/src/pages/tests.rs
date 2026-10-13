@@ -175,7 +175,7 @@ fn placements_follow_the_shared_grid_rules() {
     let errors = messages(&validate(&config_with(dashboard)), Severity::Error);
     assert_eq!(
         errors,
-        vec!["dashboard:d1: Sales: grid layout requires at least one column track"]
+        vec!["page:d1: Sales: grid layout requires at least one column track"]
     );
 }
 

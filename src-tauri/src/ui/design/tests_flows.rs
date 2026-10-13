@@ -3,7 +3,7 @@
 //! (`expression-problems.test.tsx`), orphaned query bindings (`data-binding-guards.test.tsx`)
 //! and the generated-forms offer and navigation editor (`guided-crud.test.tsx`).
 
-use super::test_support::{choose, form, open_designer, studio, wait_until};
+use super::test_support::{choose, form, open_designer, open_form, studio, wait_until};
 use super::tests::tall_document;
 use crate::data::DataValue;
 use crate::design::{Control, Form, NavKind, SourceKind, Tone};
@@ -92,6 +92,9 @@ fn generate_form(h: &mut Harness, table: &str, list_name: &str) {
     choose(h, "generate-table", table);
     h.click("generate-form");
     wait_until(h, "the generated forms", |h| h.config().design.forms.iter().any(|f| f.name == list_name));
+    // Open the generated detail form, as its page's "Edit form" does.
+    let detail = form_named(h, list_name.trim_end_matches(" list"));
+    open_form(h, &detail.id);
 }
 
 #[gpui_kit::test]
@@ -122,7 +125,7 @@ fn applies_designer_authored_filters_to_a_list_form_a_related_list_and_a_lookup_
     h.fill("related-filter", "record.quantity > 0");
 
     let list = form_named(&h, "Orders list");
-    h.click(format!("form:{}", list.id));
+    open_form(&mut h, &list.id);
     h.fill("list-filter", "record.nope > 0");
     assert!(h.exists("list-filter-problem"));
     h.fill("list-filter", "record.qty > 0");
@@ -225,7 +228,7 @@ fn lists_orphaned_query_parameter_bindings_with_a_remove_action(cx: &mut TestApp
         });
     }
     open_designer(&mut h);
-    h.click(format!("form:{form_id}"));
+    open_form(&mut h, &form_id);
     assert_eq!(h.label("orphan-old"), "$old is no longer a parameter of this query.");
     h.click("remove-binding:old");
     let source = h.config().design.forms.iter().find(|f| f.id == form_id).and_then(|f| f.source.clone()).expect("source");
@@ -262,7 +265,7 @@ fn offers_forms_for_a_new_table_and_generates_the_app_from_the_form_list(cx: &mu
     h.switch_mode(ModeId::Design);
     h.click("generate-app");
     wait_until(&mut h, "the notice", |h| h.try_label("generate-notice").is_some());
-    assert_eq!(h.label("generate-notice"), "Added 3 forms and pages.");
+    assert_eq!(h.label("generate-notice"), "Added 3 forms and navigation items, each form on a page.");
     h.click("generate-app");
     wait_until(&mut h, "the second notice", |h| {
         h.try_label("generate-notice").as_deref() == Some("Every table already has forms.")
@@ -277,7 +280,7 @@ fn retargets_a_navigation_item_to_a_table_page_in_the_navigation_editor(cx: &mut
     let mut h = tall_document(cx);
     seed(&mut h);
     open_designer(&mut h);
-    h.click("tab-navigation");
+    h.click("design-navigation");
     assert_eq!(h.label("navigation-editor"), "Navigation editor");
     let main = h.config().design.navigation[0].clone();
     assert_eq!(main.label, "Main form");

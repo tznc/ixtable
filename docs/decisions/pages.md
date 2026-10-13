@@ -24,7 +24,7 @@ page is built from any of these parts.
 - **Migration** (`pages::upgrade`). `DocumentConfig::upgrade` turns a config older than
   version 8 into pages. Each dashboard keeps its id. Each form and report that no page
   shows gets a page holding it full width, with an id derived from the definition id
-  (UUIDv5), so loading the same file twice gives the same ids. Navigation items for forms
+  (UUIDv5 bytes stamped as version 7, like every other id), so loading the same file twice gives the same ids. Navigation items for forms
   and reports point at those pages and keep their form mode. Roles that read a form or a
   report also read its page. Stored `dashboard` role kinds become `page`.
 - **Keeping pages in step.** `pages::upgrade::sync` drops a page whose only component
@@ -37,10 +37,23 @@ page is built from any of these parts.
   (`PagePanel`), or, after "Edit form" or "Edit report" on a component, the form designer
   (`DesignStudio`) or report designer (`ReportPanel`) with a link back to the page. Every
   Design reveal (Problems links, edit buttons) goes through `DesignMode`.
+- **Page parameters.** `Page.parameters` declares named, typed inputs with an optional
+  default and a required flag, edited under "Page settings" in the page designer. In the
+  Runtime the values arrive as `params`, merged with the page filters and the defaults
+  (`page_engine::links::with_defaults`).
+- **Links between pages.** Three things open a page and pass parameter expressions:
+  navigation items (`NavigationItem.params`, evaluated over the app scope), page buttons
+  (`PageComponent.target_page_id` and `page_params`, evaluated over the page's `params`;
+  a button with an action opens the page after the action succeeds), and `openDashboard`
+  steps. `page_engine::links::page_links` lists them, and the navigation editor shows the
+  list as "Page links". `link_issues` (run by validation) reports a missing target page,
+  a required parameter with no value, and a value for a parameter the page does not
+  declare.
 - **Runtime.** Navigation opens pages through `PageBuilders::page`. A page whose only
   component is a form or report is shown through the form renderer or the report run
   (`forms::navigation::solo_page`), so migrated apps behave as before; the navigation
-  item's form mode wins over the component's.
+  item's form mode wins over the component's. Such a page also opens for a role that
+  reads its form or report (`forms::navigation::can_open`), since it shows nothing more.
 
 ## Consequences
 
@@ -55,4 +68,6 @@ page is built from any of these parts.
 
 - `src-tauri/src/pages/upgrade_tests.rs`: migration, ids, navigation, roles.
 - `src-tauri/src/ui/pages/tests_design_mode.rs`: page list, Edit form / Edit report and
-  back, new forms and reports, navigation, loose definitions, runtime full-page forms.
+  back, new forms and reports, navigation, loose definitions, runtime full-page forms,
+  page parameters, and button links that open a page with values.
+- `src-tauri/src/page_engine/links_tests.rs`: link listing, issues, defaults.

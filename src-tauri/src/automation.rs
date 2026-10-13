@@ -298,7 +298,7 @@ fn check_step(config: &DocumentConfig, action: &ActionDef, step: &Step, issues: 
             match kind {
                 "form" => missing(issues, "form", id, &forms),
                 "report" => missing(issues, "report", id, &reports),
-                "page" => missing(issues, "page", id, &dashboards),
+                "page" | "dashboard" => missing(issues, "page", id, &dashboards),
                 "table" if !id.is_empty() => {}
                 _ => err(issues, "navigation target is not set".into()),
             }
@@ -526,7 +526,7 @@ mod tests {
         );
         let all = messages(&validate(&c)).join("\n");
         assert!(all.contains("params.region expression is empty"), "{all}");
-        assert!(all.contains("dashboard none does not exist"), "{all}");
+        assert!(all.contains("page none does not exist"), "{all}");
     }
 
     #[test]

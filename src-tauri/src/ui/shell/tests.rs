@@ -160,7 +160,7 @@ fn edits_yaml_reports_errors_and_undoes_an_applied_change(cx: &mut TestAppContex
     assert_eq!(h.label("yaml-status"), "YAML applied.");
     assert!(!h.exists("yaml-error"));
     assert_eq!(h.label("document-name"), "Inventory");
-    assert!(yaml_text(&mut h, &tab).contains("version: 7"));
+    assert!(yaml_text(&mut h, &tab).contains("version: 8"));
 
     h.click("undo");
     assert_eq!(h.config().name, "Untitled");

@@ -1062,7 +1062,7 @@ fn exists(config: &DocumentConfig, kind: &str, id: &str) -> StepResult {
     let found = match kind {
         "form" => Some(config.design.forms.iter().any(|f| f.id == id)),
         "report" => Some(config.reports.iter().any(|r| r.id == id)),
-        "page" => Some(config.pages.iter().any(|d| d.id == id)),
+        "page" | "dashboard" => Some(config.pages.iter().any(|d| d.id == id)),
         _ => None,
     };
     match found {
