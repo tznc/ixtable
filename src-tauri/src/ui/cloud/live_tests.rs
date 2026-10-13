@@ -41,6 +41,10 @@ impl Stack {
             .expect("IXTABLE_CLOUD_PUBLIC_KEY_RAW is not set (run scripts/cloud/dev-secrets.mjs)");
         let _ = rustls::crypto::ring::default_provider().install_default();
         let http = Client::builder().timeout(Duration::from_secs(60)).build().expect("http client");
+        // The sealed session outlives a test (one state dir per process), so every test starts signed out.
+        crate::cloud::commands::cloud_auth_storage_remove("main".into(), "sb-ixtable-auth".into()).expect("clear the stored session");
+        // Installed apps persist too and are listed for any user, so start with none.
+        let _ = std::fs::remove_dir_all(crate::cloud::install::cloud_root());
         let stack = Self { url, anon, service, http };
         let health = stack.http.get(format!("{}/functions/v1/health", stack.url)).send();
         assert!(
@@ -161,7 +165,8 @@ fn sign_in_ui<C: UiContext>(h: &mut Harness<C>, email: &str) {
 fn close_to_start<C: UiContext>(h: &mut Harness<C>) {
     h.dialogs.queue_confirm(true);
     h.click("close-project");
-    wait_for(h, "the start screen", |h| h.exists("cloud-apps-card"));
+    // The card is only a scope; its heading `cloud-apps` is the observed element.
+    wait_for(h, "the start screen", |h| h.exists("cloud-apps"));
 }
 
 fn switch_account<C: UiContext>(h: &mut Harness<C>, email: &str) {
@@ -203,6 +208,7 @@ fn cloud_live_signs_up_in_the_cloud_tab_and_keeps_the_session_only_in_the_secret
 
     close_to_start(&mut h);
     wait_for(&mut h, "the account on the start screen", |h| account(h).as_deref() == Some(want.as_str()));
+    wait_for(&mut h, "the empty application list", |h| h.exists("cloud-apps-empty"));
     assert_eq!(h.label("cloud-apps-empty"), "No applications have been shared with you yet.");
     h.click("cloud-signout");
     wait_for(&mut h, "the sign-in button", |h| h.exists("cloud-apps-signin"));
@@ -252,7 +258,8 @@ fn cloud_live_publishes_installs_with_the_assigned_role_updates_in_place_and_rev
     let runtime_email = Stack::unique_email("runtime");
     let runtime_id = stack.create_confirmed_user(&runtime_email, PASSWORD);
     live(cx);
-    let mut h = Harness::start(cx);
+    // Tall enough that the whole cloud panel (publish card included) is on screen.
+    let mut h = Harness::start_sized(cx, (1280.0, 2800.0));
     h.click("template:crm");
     assert!(h.has_shell());
     open_cloud_tab(&mut h);
@@ -269,7 +276,10 @@ fn cloud_live_publishes_installs_with_the_assigned_role_updates_in_place_and_rev
     stack.grant_subscription(&app_id);
 
     let archive = h.temp_path("crm-cloud.ixt");
+    // Publishing needs the file on disk, so save the untitled document first.
     h.dialogs.queue_save(Some(archive));
+    h.click("save-project");
+    wait_for(&mut h, "the saved document", |h| h.try_label("document-status").as_deref() == Some("Saved archive"));
     publish(&mut h, "1.0.0");
     wait_for(&mut h, "the version history", |h| h.try_label("version:0").is_some_and(|t| t.contains("1.0.0")));
 
