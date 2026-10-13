@@ -64,6 +64,11 @@ fn draft_of(fk: &CreateForeignKey) -> ForeignKeyDraft {
 }
 
 impl RelateDialog {
+    /// The relationship last sent to preview (kept so a cancelled preview restores it).
+    pub fn draft(&self) -> Option<&CreateForeignKey> {
+        self.draft.as_ref()
+    }
+
     pub fn new(
         shell: Entity<Shell>,
         schemas: Vec<TableSchema>,

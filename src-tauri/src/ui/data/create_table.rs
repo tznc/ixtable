@@ -421,7 +421,8 @@ impl Render for CreateTableForm {
                     .child(self.unique_editor.clone())
                     .child(self.check_editor.clone())
                     .child(self.index_editor.clone()),
-            );
+            )
+            .test_support();
         v_flex()
             .id("create-table-form")
             .size_full()

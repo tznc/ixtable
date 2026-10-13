@@ -19,3 +19,5 @@ mod tests;
 pub mod testkit;
 #[cfg(test)]
 mod tests_sheet;
+#[cfg(test)]
+mod tests_schema;

@@ -88,6 +88,8 @@ pub struct TableSchemaDesigner {
     plan_generation: u64,
     error: String,
     busy: bool,
+    // Set by the workbench while the schemas reload; edits are held until they are fresh.
+    locked: bool,
     dialog: Option<Dialog>,
     _subscriptions: Vec<Subscription>,
 }
@@ -216,6 +218,7 @@ impl TableSchemaDesigner {
             plan_generation: 0,
             error: String::new(),
             busy: false,
+            locked: false,
             dialog: None,
             _subscriptions: subscriptions,
         };
@@ -569,6 +572,17 @@ impl TableSchemaDesigner {
         );
     }
 
+    pub fn set_locked(&mut self, locked: bool, cx: &mut Context<Self>) {
+        if self.locked != locked {
+            self.locked = locked;
+            cx.notify();
+        }
+    }
+
+    pub fn locked(&self) -> bool {
+        self.locked
+    }
+
     #[cfg(test)]
     pub fn busy(&self) -> bool {
         self.busy
@@ -602,7 +616,7 @@ fn badge(id: SharedString, label: &str, destructive: bool, cx: &App) -> impl Int
 impl Render for TableSchemaDesigner {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let schema = self.schema.clone();
-        let busy = self.busy;
+        let busy = self.busy || self.locked;
         let store = store_label(self.capabilities.as_ref());
         let theme = cx.theme();
         let (muted, border, danger) = (theme.muted_foreground, theme.border, theme.danger);
@@ -676,7 +690,7 @@ impl Render for TableSchemaDesigner {
                         .outline()
                         .small()
                         .label("Rename table")
-                        .disabled(typed_name.trim().is_empty() || typed_name == schema.name)
+                        .disabled(busy || typed_name.trim().is_empty() || typed_name == schema.name)
                         .on_click(cx.listener(|this, _, _, cx| {
                             let name = input_text(&this.table_name, cx).trim().to_string();
                             this.stage(vec![AlterTable::RenameTable { new_name: name }], cx);
@@ -735,7 +749,7 @@ impl Render for TableSchemaDesigner {
                             .small()
                             .icon(IconName::Plus)
                             .label("Add column")
-                            .disabled(new_name_empty)
+                            .disabled(new_name_empty || busy)
                             .on_click(cx.listener(|this, _, window, cx| this.add_column(window, cx))),
                     ),
             );
@@ -954,7 +968,8 @@ impl Render for TableSchemaDesigner {
                     .child(relationships_section)
                     .child(constraints_section)
                     .child(indexes_section)
-                    .child(pending_section),
+                    .child(pending_section)
+                    .test_support(),
             )
             .when_some(self.dialog.as_ref().map(|d| d.view.clone()), |el, view| el.child(view))
     }

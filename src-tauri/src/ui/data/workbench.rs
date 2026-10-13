@@ -266,6 +266,7 @@ impl DataMode {
     fn reload_schemas(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.schema_generation += 1;
         self.schemas_fresh = false;
+        self.lock_designer(true, cx);
         let generation = self.schema_generation;
         let label = self.shell.read(cx).label().to_string();
         let names: Vec<String> = self
@@ -305,6 +306,7 @@ impl DataMode {
                     Ok(schemas) => {
                         this.schemas = schemas;
                         this.schemas_fresh = true;
+                        this.lock_designer(false, cx);
                         this.update_diagram(cx);
                         this.push_tables(cx);
                         this.sync_designer(window, cx);
@@ -314,6 +316,20 @@ impl DataMode {
                 cx.notify();
             },
         );
+    }
+
+    fn lock_designer(&mut self, locked: bool, cx: &mut Context<Self>) {
+        if let Some(designer) = &self.designer {
+            designer.update(cx, |d, cx| d.set_locked(locked, cx));
+        }
+    }
+
+    pub fn relating(&self) -> Option<&Entity<RelateDialog>> {
+        self.relating.as_ref()
+    }
+
+    pub fn schemas_fresh(&self) -> bool {
+        self.schemas_fresh
     }
 
     fn push_capabilities(&mut self, cx: &mut Context<Self>) {
