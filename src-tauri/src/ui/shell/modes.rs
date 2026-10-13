@@ -97,7 +97,9 @@ pub fn build_view(
         ModeId::Data => placeholder(cx, "Data", "Tables and records"),
         ModeId::Query => placeholder(cx, "Query", "SQL and visual queries"),
         ModeId::Design => placeholder(cx, "Form builder", "Forms"),
-        ModeId::Reports => placeholder(cx, "Reports", "Printable reports"),
+        ModeId::Reports => cx
+            .new(|cx| crate::ui::reports::ReportsMode::new(shell.clone(), window, cx))
+            .into(),
         ModeId::Dashboards => placeholder(cx, "Dashboards", "Charts and KPIs"),
         ModeId::Automation => cx
             .new(|cx| crate::ui::automation::AutomationMode::new(shell.clone(), window, cx))

@@ -48,6 +48,8 @@ mod tests_pdf;
 #[cfg(test)]
 mod tests_phase6;
 #[cfg(test)]
+mod tests_resources;
+#[cfg(test)]
 mod tests_subreport;
 
 pub use layout::layout_report;
