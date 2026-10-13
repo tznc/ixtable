@@ -16,7 +16,7 @@
 mod canvas;
 mod designer;
 mod extra;
-mod fields;
+pub(crate) mod fields;
 mod page_view;
 mod preview;
 mod props;

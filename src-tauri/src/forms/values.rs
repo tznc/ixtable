@@ -17,11 +17,6 @@ pub fn number_value(n: f64) -> Value {
     Number::from_f64(n).map_or(Value::Null, Value::Number)
 }
 
-/// The JSON number as f64.
-pub fn as_number(value: &Value) -> Option<f64> {
-    value.as_f64()
-}
-
 /// A RecordStore value as a plain JSON value for expression scopes.
 pub fn from_data_value(value: &DataValue) -> Value {
     match value {

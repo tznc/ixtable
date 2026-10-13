@@ -6,8 +6,8 @@
 //! the `Datasheet`. It reloads the schemas and the page when the document announces a
 //! database or record change, dropping answers that a newer request has overtaken.
 //!
-//! Not ported: the "create forms" offer after a table is created (it belongs to the form
-//! generator in Design mode).
+//! After a table is created the workbench shows the Design module's `CreateFormsOffer` over
+//! that table's datasheet until it is dismissed or the selection moves.
 //!
 //! Test ids: `relationship-title` ("N tables · M relationships"), `import-records`,
 //! `new-relationship`, `table-name`, `read-only-badge`, `record-count`, `Filter first
@@ -26,6 +26,7 @@ use super::{
     },
 };
 use crate::data::{DbObject, Filter, Page, Sort, TableSchema};
+use crate::ui::design::{CreateFormsOffer, OfferEvent};
 use crate::recordstore::capabilities::StoreCapabilities;
 use crate::ui::{
     events::DocEvent,
@@ -68,6 +69,8 @@ pub struct DataMode {
     designer: Option<Entity<TableSchemaDesigner>>,
     designer_key: String,
     create_form: Option<Entity<CreateTableForm>>,
+    // The table just created and the offer to build its forms.
+    created: Option<(String, Entity<CreateFormsOffer>)>,
     relating: Option<Entity<RelateDialog>>,
     importing: Option<Entity<ImportWizard>>,
     export: Entity<ExportMenu>,
@@ -141,6 +144,7 @@ impl DataMode {
             designer: None,
             designer_key: String::new(),
             create_form: None,
+            created: None,
             relating: None,
             importing: None,
             export,
@@ -417,13 +421,27 @@ impl DataMode {
         let (shell, caps) = (self.shell.clone(), self.capabilities.clone());
         let form = cx.new(|cx| CreateTableForm::new(shell, refs, caps, window, cx));
         let subscription = cx.subscribe_in(&form, window, |this, _, e: &CreateTableEvent, window, cx| match e {
-            CreateTableEvent::Created(name) => this.after_schema_change(Some(name.clone()), window, cx),
+            CreateTableEvent::Created(name) => {
+                this.offer_forms(name, window, cx);
+                this.after_schema_change(Some(name.clone()), window, cx)
+            }
             CreateTableEvent::Cancelled => {
                 this.shell.update(cx, |s, cx| s.select(None, cx));
             }
         });
         self._child_subscriptions.push(subscription);
         self.create_form = Some(form);
+    }
+
+    fn offer_forms(&mut self, table: &str, window: &mut Window, cx: &mut Context<Self>) {
+        let shell = self.shell.clone();
+        let offer = cx.new(|cx| CreateFormsOffer::new(shell, table, cx));
+        let subscription = cx.subscribe_in(&offer, window, |this, _, _: &OfferEvent, _, cx| {
+            this.created = None;
+            cx.notify();
+        });
+        self._child_subscriptions.push(subscription);
+        self.created = Some((table.to_string(), offer));
     }
 
     /// After DDL: entities may have changed in the backend config, and metadata is stale.
@@ -723,10 +741,12 @@ impl Render for DataMode {
             };
             let can_next = page_total.is_some_and(|t| offset + PAGE_SIZE < t);
             let (prev, next) = (entity.clone(), entity);
+            let offer = self.created.as_ref().filter(|(table, _)| *table == selected).map(|(_, offer)| offer.clone());
             Some(
                 v_flex()
                     .size_full()
                     .min_h_0()
+                    .children(offer.map(|offer| div().px_3().pt_2().child(offer)))
                     .child(
                         h_flex()
                             .gap_3()

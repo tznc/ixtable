@@ -23,6 +23,7 @@ pub mod registry;
 pub mod row_writes;
 pub mod schema;
 pub mod state;
+pub mod track_input;
 pub mod trigger_warnings;
 pub mod values;
 

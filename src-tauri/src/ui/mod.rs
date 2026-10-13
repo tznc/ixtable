@@ -24,6 +24,7 @@ pub mod reports;
 pub mod runtime;
 pub mod schema;
 pub mod data;
+pub mod design;
 pub mod shell;
 pub mod start;
 pub mod start_sections;

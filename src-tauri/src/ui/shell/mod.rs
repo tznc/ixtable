@@ -2,6 +2,7 @@
 //! status), ribbon (view menu, undo/redo), banners and the active mode's workspace.
 //! `Shell` is also the document-level state every mode reads (port of `ShellApi`).
 
+pub mod expression_issues;
 pub mod modes;
 pub mod object_browser;
 pub mod placeholder;
@@ -202,6 +203,7 @@ impl Shell {
             }),
             cx.observe(&autosave, |_, _, cx| cx.notify()),
         ];
+        expression_issues::register_gate(label);
         let mut this = Self {
             label: label.to_string().into(),
             doc: Doc::from_session(&initial),

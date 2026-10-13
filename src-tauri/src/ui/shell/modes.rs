@@ -100,7 +100,9 @@ pub fn build_view(
         ModeId::Query => cx
             .new(|cx| crate::ui::query::QueryMode::new(shell.clone(), window, cx))
             .into(),
-        ModeId::Design => placeholder(cx, "Form builder", "Forms"),
+        ModeId::Design => cx
+            .new(|cx| crate::ui::design::DesignStudio::new(shell.clone(), window, cx))
+            .into(),
         ModeId::Reports => cx
             .new(|cx| crate::ui::reports::ReportsMode::new(shell.clone(), window, cx))
             .into(),
