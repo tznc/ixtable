@@ -6,6 +6,7 @@
 pub mod actions;
 pub mod conditions;
 pub mod constraints;
+pub mod cursor;
 pub mod data;
 pub mod events;
 pub mod fields;
@@ -18,6 +19,8 @@ pub mod nesting;
 pub mod operations;
 pub mod pushdown;
 pub mod rbac;
+pub mod registry;
+pub mod row_writes;
 pub mod schema;
 pub mod state;
 pub mod trigger_warnings;
