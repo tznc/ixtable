@@ -2,13 +2,13 @@
 //! generic over the harness's context, so they drive both the test and the headless-renderer
 //! apps.
 
-use super::{DashboardEditor, DashboardView, DashboardsMode};
+use super::DashboardView;
 
 use crate::archive::{DocumentConfig, QueryParameter, SavedQuery};
 use crate::dashboards::{Dashboard, DashboardComponent};
 use crate::data::DataValue;
 pub use crate::ui::reports::test_support::edit_store;
-use crate::ui::reports::test_support::{choose, id, wait_until};
+use crate::ui::reports::test_support::{id, wait_until};
 use crate::ui::shell::ModeId;
 use crate::ui::testing::{Harness, UiContext};
 use gpui_kit::Entity;
@@ -49,24 +49,6 @@ pub fn open_dashboards<C: UiContext>(h: &mut Harness<'_, C>) {
     assert_eq!(h.mode(), ModeId::Dashboards);
 }
 
-pub fn mode<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<DashboardsMode> {
-    h.read_shell(|s, _| s.mode_view())
-        .expect("a mode is showing")
-        .downcast::<DashboardsMode>()
-        .ok()
-        .expect("Dashboards mode is showing")
-}
-
-pub fn editor<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<DashboardEditor> {
-    let mode = mode(h);
-    h.cx.read(|cx| mode.read(cx).editor()).expect("the designer is showing")
-}
-
-pub fn live<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<DashboardView> {
-    let mode = mode(h);
-    h.cx.read(|cx| mode.read(cx).live()).expect("the live view is showing")
-}
-
 /// Opens the mode and creates "Dashboard 1".
 pub fn new_dashboard<C: UiContext>(h: &mut Harness<'_, C>) {
     open_dashboards(h);
@@ -91,16 +73,6 @@ pub fn pick_query<C: UiContext>(h: &mut Harness<'_, C>, query_id: &str) {
 /// Waits until the query's columns reached the pickers of the properties panel.
 pub fn wait_for_columns<C: UiContext>(h: &mut Harness<'_, C>, what: &str, probe: &str) {
     wait_until(h, what, |h| h.exists(id(probe)));
-}
-
-/// Picks `option` in the choice `button`.
-pub fn pick<C: UiContext>(h: &mut Harness<'_, C>, button: &str, option: &str) {
-    choose(h, button, option);
-}
-
-/// Opens the View tab and waits for the first queries to finish.
-pub fn open_view<C: UiContext>(h: &mut Harness<'_, C>) {
-    h.click("tab-view");
 }
 
 use super::QueryRunner;
