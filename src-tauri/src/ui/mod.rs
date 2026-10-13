@@ -8,6 +8,7 @@ pub mod assets;
 pub mod automation;
 pub mod autosave;
 pub mod cloud;
+pub mod dashboards;
 pub mod dialogs;
 pub mod events;
 pub mod export;
@@ -48,6 +49,7 @@ pub fn init(dialogs: Arc<dyn dialogs::DialogProvider>, cx: &mut App) {
     gpui_kit::init(cx);
     shell::bind_keys(cx);
     cx.set_global(dialogs::Dialogs(dialogs));
+    dashboards::register(cx);
 }
 
 pub fn is_runtime_bundle(path: &str) -> bool {

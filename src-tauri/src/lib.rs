@@ -12,6 +12,7 @@ pub mod bundle;
 pub mod bundle_export;
 pub mod checkpoints;
 pub mod cloud;
+pub mod dashboard_engine;
 pub mod dashboards;
 pub mod data;
 pub mod design;

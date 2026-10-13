@@ -243,6 +243,27 @@ impl<'a, C: UiContext> Harness<'a, C> {
             .map(|s| s.label().unwrap_or_default().to_string())
     }
 
+    /// The element `id` inside the scope `scope` (for ids repeated in several places).
+    pub fn try_find_in(&mut self, scope: impl Into<ElementId>, id: impl Into<ElementId>) -> Option<ElementSnapshot> {
+        let (scope, id) = (scope.into(), id.into());
+        self.update(|w, _| w.within(scope).try_find(id))
+    }
+
+    pub fn exists_in(&mut self, scope: impl Into<ElementId>, id: impl Into<ElementId>) -> bool {
+        self.try_find_in(scope, id).is_some()
+    }
+
+    /// The label of `id` inside `scope`, if it exists.
+    pub fn try_label_in(&mut self, scope: impl Into<ElementId>, id: impl Into<ElementId>) -> Option<String> {
+        self.try_find_in(scope, id).map(|s| s.label().unwrap_or_default().to_string())
+    }
+
+    /// The label of `id` inside `scope`.
+    pub fn label_in(&mut self, scope: impl Into<ElementId>, id: impl Into<ElementId>) -> String {
+        let (scope, id) = (scope.into(), id.into());
+        self.try_label_in(scope.clone(), id.clone()).unwrap_or_else(|| panic!("missing {id:?} in {scope:?}"))
+    }
+
     /// Advances GPUI's fake clock (debounced autosave, timers) and settles.
     pub fn advance(&mut self, duration: std::time::Duration) {
         self.cx.advance_clock(duration);

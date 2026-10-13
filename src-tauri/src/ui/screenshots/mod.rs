@@ -5,6 +5,7 @@
 //! Run them with `cargo screenshot [filter]` from `src-tauri/`.
 
 mod app_shell;
+mod dashboards;
 mod query;
 mod datasheet;
 mod export;

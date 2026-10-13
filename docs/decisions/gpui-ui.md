@@ -73,6 +73,27 @@ Two rules apply to test modules:
 
 Run the tests with `cd src-tauri && cargo test --lib`.
 
+## Dashboards
+
+`dashboard_engine/` holds the non-UI logic of the former `src/dashboards/` (model,
+filter-to-parameter mapping, KPI and table slices, chart figures, run state). Views live in
+`ui/dashboards/`. Charts reuse `report_engine`'s chart geometry and drawing through
+`chart_item`, so a dashboard chart and a report chart cannot drift apart. Embedded forms are a
+detached `ui::runtime::FormRenderer`; query pickers are `ui::query::QueryPicker`. The Runtime
+shows a dashboard through the `PageBuilders` hook that `ui::dashboards::register` installs.
+
+Differences from the React app:
+
+- A chart has a fixed 250 x 140 pt box (zoom 1.5), not a measured one. SVG tooltips become
+  labelled elements (`chart-row:*`).
+- The grid settings are columns, padding, gaps and alignment. Tracks, named regions and
+  breakpoints are edited in YAML until the Design studio's layout editor is shared.
+- The Runtime list of a form restarts, and clears search and sort, when dashboard
+  parameters change.
+- A set-state step in a dashboard button shows a notice, since there is no form to hold state.
+- Queries run through `QueryRunner` (a global that tests replace) and are polled on a 50 ms
+  timer, so tests step the clock in 50 ms ticks.
+
 ## Status
 
 Accepted (2026-10-13).

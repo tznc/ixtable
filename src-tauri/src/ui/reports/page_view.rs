@@ -30,12 +30,12 @@ pub fn page_image(media_type: &str, data: &[u8]) -> Option<Arc<Image>> {
 }
 
 /// Gray level (0 black, 1 white) as a color.
-fn gray(level: f64) -> Hsla {
+pub(crate) fn gray(level: f64) -> Hsla {
     hsla(0.0, 0.0, level.clamp(0.0, 1.0) as f32, 1.0)
 }
 
 /// `#rrggbb` as a color.
-fn hex(color: &str) -> Hsla {
+pub(crate) fn hex(color: &str) -> Hsla {
     let value = u32::from_str_radix(color.trim_start_matches('#'), 16).unwrap_or(0);
     rgb(value).into()
 }
@@ -44,7 +44,7 @@ fn at(v: f64, zoom: f32) -> Pixels {
     px(v as f32 * zoom)
 }
 
-fn text_lines(item: &TextItem, key: &str, zoom: f32) -> Vec<AnyElement> {
+pub(crate) fn text_lines(item: &TextItem, key: &str, zoom: f32) -> Vec<AnyElement> {
     let size = item.font_size;
     item.lines
         .iter()
@@ -69,7 +69,7 @@ fn text_lines(item: &TextItem, key: &str, zoom: f32) -> Vec<AnyElement> {
         .collect()
 }
 
-fn chart_paths(chart: &ChartItem) -> impl Iterator<Item = &PathItem> {
+pub(crate) fn chart_paths(chart: &ChartItem) -> impl Iterator<Item = &PathItem> {
     chart.marks.iter().filter_map(|m| match m {
         Mark::Path(p) => Some(p),
         Mark::Text(_) => None,
@@ -77,7 +77,7 @@ fn chart_paths(chart: &ChartItem) -> impl Iterator<Item = &PathItem> {
 }
 
 /// Paints the chart paths of a page; `origin` is the page's top-left corner.
-fn paint_paths(paths: Vec<PathItem>, zoom: f32, bounds: Bounds<Pixels>, window: &mut Window) {
+pub(crate) fn paint_paths(paths: Vec<PathItem>, zoom: f32, bounds: Bounds<Pixels>, window: &mut Window) {
     let point_at = |x: f64, y: f64| point(bounds.origin.x + px(x as f32 * zoom), bounds.origin.y + px(y as f32 * zoom));
     let trace = |builder: &mut PathBuilder, ops: &[PathOp]| {
         for op in ops {
@@ -194,4 +194,31 @@ pub fn page_view(doc: &ReportDocument, page: &Page, zoom: f32, label: &str, imag
         .child(charts)
         .children(items)
         .test_support()
+}
+
+/// One chart on its own (a dashboard widget): `chart` is laid out at the origin in points,
+/// drawn at `zoom`. Text marks are `<key>-m<mark>-<line>` lines (see [`text_lines`]).
+pub fn chart_element(chart: &ChartItem, key: &str, zoom: f32) -> impl IntoElement {
+    let paths: Vec<PathItem> = chart_paths(chart).cloned().collect();
+    let painted = canvas(|_, _, _| (), move |bounds, _, window, _| paint_paths(paths, zoom, bounds, window))
+        .absolute()
+        .size_full();
+    let texts: Vec<AnyElement> = chart
+        .marks
+        .iter()
+        .enumerate()
+        .filter_map(|(k, mark)| match mark {
+            Mark::Text(t) => Some(text_lines(t, &format!("{key}-m{k}"), zoom)),
+            Mark::Path(_) => None,
+        })
+        .flatten()
+        .collect();
+    div()
+        .relative()
+        .flex_none()
+        .w(at(chart.w, zoom))
+        .h(at(chart.h, zoom))
+        .overflow_hidden()
+        .child(painted)
+        .children(texts)
 }
