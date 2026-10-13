@@ -139,14 +139,14 @@ impl DashboardView {
         let border = theme.border;
         let header = h_flex().border_b_1().border_color(border).children(slice.columns.iter().enumerate().map(|(c, column)| {
             widgets::styled_text(format!("col:{name}:{c}"), column.clone(), |d| {
-                d.flex_1().min_w(px(80.)).px_2().py_1().text_sm().font_weight(FontWeight::SEMIBOLD)
+                d.flex_1().min_w(px(48.)).px_2().py_1().text_sm().font_weight(FontWeight::SEMIBOLD)
             })
         }));
         let rows = slice.rows.iter().enumerate().map(|(r, row)| {
             h_flex().border_b_1().border_color(border).children(row.iter().enumerate().map(|(c, text)| {
                 let color = slice.tones[r][c].as_ref().and_then(|t| tone_color(t, cx));
                 widgets::styled_text(format!("cell:{name}:{r}:{c}"), text.clone(), move |d| {
-                    d.flex_1().min_w(px(80.)).px_2().py_1().text_sm().when_some(color, |d, color| d.text_color(color))
+                    d.flex_1().min_w(px(48.)).px_2().py_1().text_sm().when_some(color, |d, color| d.text_color(color))
                 })
             }))
         });
@@ -179,7 +179,15 @@ impl DashboardView {
                         })),
                 )
         });
-        v_flex().gap_2().child(v_flex().child(header).children(rows)).children(pager).into_any_element()
+        // Columns keep a minimum width; a wider table scrolls inside its card.
+        let min_width = px(48. * slice.columns.len() as f32);
+        let table = v_flex().w_full().min_w(min_width).child(header).children(rows);
+        let scroller = div()
+            .id(SharedString::from(format!("table-scroll:{name}")))
+            .w_full()
+            .overflow_x_scroll()
+            .child(table);
+        v_flex().gap_2().w_full().min_w_0().child(scroller).children(pager).into_any_element()
     }
 
     pub(super) fn button_body(&mut self, component: &DashboardComponent, name: &str, cx: &mut Context<Self>) -> AnyElement {

@@ -114,7 +114,16 @@ pub fn chart_body(figure: &Figure, cx: &App) -> AnyElement {
         .id(SharedString::from(format!("chart:{name}")))
         .aria_label(figure.label.clone())
         .gap_2()
-        .child(drawn)
+        .w_full()
+        .min_w_0()
+        // A chart wider than its cell scrolls inside it instead of spilling over its neighbour.
+        .child(
+            div()
+                .id(SharedString::from(format!("chart-scroll:{name}")))
+                .w_full()
+                .overflow_x_scroll()
+                .child(drawn),
+        )
         .child(legend)
         .child(table)
         .test_support()
