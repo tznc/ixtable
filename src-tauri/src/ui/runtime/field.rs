@@ -74,6 +74,8 @@ pub struct FieldView {
     scope_key: String,
     seq: u64,
     pending: Option<Task<()>>,
+    // The disabled state last given to the inputs (setting it again would notify and re-render).
+    disabled: Option<bool>,
 }
 
 fn date_input(value: &Value, kind: ControlKind) -> String {
@@ -166,6 +168,7 @@ impl FieldView {
             scope_key: String::new(),
             seq: 0,
             pending: None,
+            disabled: None,
         }
     }
 
@@ -184,14 +187,19 @@ impl FieldView {
         let value = props.value.clone();
         let read_only = props.read_only;
         let key_before = self.props.as_ref().map(|p| key_signature(p));
+        // Typing changes the input before its change reaches the form: only a new value from
+        // outside replaces the text.
+        let value_changed = first || self.props.as_ref().is_none_or(|p| !same_value(&p.value, &value));
         self.props = Some(props);
         if let Some(input) = self.text.clone() {
             let typed = input.read(cx).value().to_string();
-            if !parse_input(kind, &typed).is_some_and(|v| same_value(&v, &value)) {
+            if value_changed && !parse_input(kind, &typed).is_some_and(|v| same_value(&v, &value)) {
                 let shown = self.masked_text(&input_text(&value, kind));
                 input.update(cx, |s, cx| s.set_value(shown, window, cx));
             }
-            input.update(cx, |s, cx| s.set_disabled(read_only, cx));
+            if self.disabled != Some(read_only) {
+                input.update(cx, |s, cx| s.set_disabled(read_only, cx));
+            }
         }
         if let Some(area) = self.area.clone() {
             let typed = area.read(cx).value().to_string();
@@ -201,11 +209,14 @@ impl FieldView {
             } else {
                 typed == shown
             };
-            if !matches {
+            if value_changed && !matches {
                 area.update(cx, |s, cx| s.set_value(shown, window, cx));
             }
-            area.update(cx, |s, cx| s.set_disabled(read_only, cx));
+            if self.disabled != Some(read_only) {
+                area.update(cx, |s, cx| s.set_disabled(read_only, cx));
+            }
         }
+        self.disabled = Some(read_only);
         if matches!(kind, ControlKind::Relationship | ControlKind::Select) {
             let key_now = key_signature(self.props());
             if first || key_before.as_deref() != Some(key_now.as_str()) {

@@ -77,9 +77,7 @@ impl Render for PopupHost {
             layers.push(
                 div()
                     .absolute()
-                    .top_0()
-                    .left_0()
-                    .size_full()
+                    .inset_0()
                     .flex()
                     .items_center()
                     .justify_center()
@@ -90,7 +88,7 @@ impl Render for PopupHost {
                             .aria_label(name.clone())
                             .occlude()
                             .w(px(720.))
-                            .max_h(px(640.))
+                            .h(px(560.))
                             .p_4()
                             .gap_2()
                             .rounded_lg()
@@ -111,6 +109,7 @@ impl Render for PopupHost {
                     ),
             );
         }
-        div().children(layers).into_any_element()
+        // Absolute children position against their parent, so the host covers the mode first.
+        div().absolute().inset_0().children(layers).into_any_element()
     }
 }

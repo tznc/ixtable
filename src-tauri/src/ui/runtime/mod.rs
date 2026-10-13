@@ -24,6 +24,11 @@ pub mod run_mode;
 pub mod split;
 pub mod stack;
 
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+mod tests_views;
+
 use crate::archive::DocumentConfig;
 use crate::forms::actions::{NavigationTarget, NoticeTone};
 use crate::forms::navigation::{RuntimePage, page_title, start_page};
@@ -34,7 +39,7 @@ use serde_json::{Map, Value, json};
 use std::sync::mpsc::Sender;
 
 pub use back::BackLink;
-pub use run_mode::RunMode;
+pub use run_mode::{RunBody, RunMode};
 pub use stack::{FormRenderer, FormRendererProps};
 
 /// Prefix of the element ids of a repeated body (empty for a single form).

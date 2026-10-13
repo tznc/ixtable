@@ -58,11 +58,14 @@ impl SplitView {
                 ListProps {
                     env: env.clone(),
                     form: form.clone(),
+                    // The list is mid-update when it calls back, and the pane updates it.
                     on_open: Rc::new(move |id, cursor, cx| {
-                        open_to.update(cx, |t, cx| t.show(id, cursor, cx));
+                        let open_to = open_to.clone();
+                        cx.defer(move |cx| open_to.update(cx, |t, cx| t.show(id, cursor, cx)));
                     }),
                     on_create: Rc::new(move |cx| {
-                        create_to.update(cx, |t, cx| t.create(cx));
+                        let create_to = create_to.clone();
+                        cx.defer(move |cx| create_to.update(cx, |t, cx| t.create(cx)));
                     }),
                     params,
                 },
@@ -79,6 +82,10 @@ impl SplitView {
 
     pub fn record(&self) -> Option<&Entity<RecordView>> {
         self.pane.as_ref().map(|p| &p.record)
+    }
+
+    pub fn nav_bar(&self) -> Option<Entity<RecordNavBar>> {
+        self.pane.as_ref().and_then(|p| p.bar.clone())
     }
 
     pub fn is_dirty(&self) -> bool {

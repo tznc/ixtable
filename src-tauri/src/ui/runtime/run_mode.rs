@@ -114,7 +114,40 @@ impl Render for TablePage {
     }
 }
 
+/// The Run mode view. The shell builds a mode's view while it is itself being updated, so
+/// the body (which reads the shell) is created by the first render.
 pub struct RunMode {
+    shell: Entity<Shell>,
+    body: Option<Entity<RunBody>>,
+}
+
+impl RunMode {
+    pub fn new(shell: Entity<Shell>, _: &mut Window, _: &mut Context<Self>) -> Self {
+        Self { shell, body: None }
+    }
+
+    /// The running body, once rendered.
+    pub fn body(&self) -> Option<&Entity<RunBody>> {
+        self.body.as_ref()
+    }
+}
+
+impl Render for RunMode {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let body = match &self.body {
+            Some(body) => body.clone(),
+            None => {
+                let shell = self.shell.clone();
+                let body = cx.new(|cx| RunBody::new(shell, window, cx));
+                self.body = Some(body.clone());
+                body
+            }
+        };
+        body
+    }
+}
+
+pub struct RunBody {
     shell: Entity<Shell>,
     env: RuntimeEnv,
     runtime: Entity<Runtime>,
@@ -123,7 +156,7 @@ pub struct RunMode {
     _subscriptions: Vec<Subscription>,
 }
 
-impl RunMode {
+impl RunBody {
     pub fn new(shell: Entity<Shell>, _: &mut Window, cx: &mut Context<Self>) -> Self {
         let (label, store, bus) = {
             let s = shell.read(cx);
@@ -138,6 +171,11 @@ impl RunMode {
             cx.subscribe(&store, |_, _, _: &StoreEvent, cx| cx.notify()),
         ];
         Self { shell, env, runtime, popups, page: None, _subscriptions: subscriptions }
+    }
+
+    /// The view of the page shown (tests downcast it to a `FormRenderer`).
+    pub fn page_view_entity(&self) -> Option<AnyView> {
+        self.page.as_ref().map(|(_, view)| view.clone())
     }
 
     pub fn runtime(&self) -> &Entity<Runtime> {
@@ -288,7 +326,7 @@ impl RunMode {
     }
 }
 
-impl Render for RunMode {
+impl Render for RunBody {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
         let config = self.env.config(cx).clone();
@@ -366,6 +404,7 @@ impl Render for RunMode {
             .child(
                 h_flex()
                     .flex_1()
+                    .items_stretch()
                     .min_h_0()
                     .child(
                         v_flex()

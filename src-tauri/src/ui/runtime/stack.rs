@@ -139,6 +139,14 @@ impl FormRenderer {
         }
     }
 
+    /// The shown split view, if the top view is a split.
+    pub fn split(&self) -> Option<Entity<SplitView>> {
+        match &self.shown {
+            Some((_, Shown::Split(split))) => Some(split.clone()),
+            _ => None,
+        }
+    }
+
     pub fn nav_bar(&self) -> Option<Entity<RecordNavBar>> {
         match &self.shown {
             Some((_, Shown::Record(_, bar))) => bar.clone(),
