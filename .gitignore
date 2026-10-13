@@ -13,4 +13,4 @@ web/test-results/
 .claude/skills/treq*/
 src-tauri/resources/duckdb/*/
 src-tauri/gen/schemas/linux-schema.json
-reports/
+/reports/
