@@ -24,7 +24,6 @@ use std::sync::Arc;
 
 /// The panels of a linked document, built for one cloud application.
 struct Linked {
-    app_id: String,
     roles: Entity<RolesPanel>,
     credentials: Option<Entity<CredentialsPanel>>,
     publish: Entity<PublishPanel>,
@@ -158,13 +157,11 @@ impl Render for CloudTab {
             return panel.child(view).into_any_element();
         };
         self.link = None;
-        if self.linked.as_ref().is_none_or(|l| l.app_id != link.app_id) {
-            let (shell, app_id, app) = (self.shell.clone(), link.app_id.clone(), self.app.clone());
-            let roles = cx.new(|cx| RolesPanel::new(shell.clone(), app_id.clone(), cx));
-            let credentials = (config.datasource.kind == "postgres").then(|| {
-                let (shell, app_id) = (shell.clone(), app_id.clone());
-                cx.new(|cx| CredentialsPanel::new(shell, app_id, window, cx))
-            });
+        // The panels outlive a change of application (a fork), keeping their outcomes.
+        if self.linked.is_none() {
+            let (shell, app) = (self.shell.clone(), self.app.clone());
+            let roles = cx.new(|cx| RolesPanel::new(shell.clone(), cx));
+            let credentials = None;
             let publish = cx.new(|cx| PublishPanel::new(shell.clone(), app.clone(), window, cx));
             let versions = cx.new(|cx| VersionsPanel::new(shell.clone(), app, cx));
             self._subscriptions.push(cx.subscribe(&publish, |this, _, _: &PublishEvent, cx| {
@@ -178,7 +175,17 @@ impl Render for CloudTab {
                 let VersionsEvent::Restored(state) = event;
                 open_in_window(&open_shell, state.clone(), cx);
             }));
-            self.linked = Some(Linked { app_id: link.app_id.clone(), roles, credentials, publish, versions });
+            self.linked = Some(Linked { roles, credentials, publish, versions });
+        }
+        // Credentials exist only for a PostgreSQL datasource.
+        let postgres = config.datasource.kind == "postgres";
+        if let Some(linked) = self.linked.as_mut() {
+            if !postgres {
+                linked.credentials = None;
+            } else if linked.credentials.is_none() {
+                let shell = self.shell.clone();
+                linked.credentials = Some(cx.new(|cx| CredentialsPanel::new(shell, window, cx)));
+            }
         }
         // The panels that depend on the application row follow it.
         let app = self.app.clone();

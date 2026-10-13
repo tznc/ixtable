@@ -18,3 +18,10 @@ pub mod studio_panels;
 pub mod transfer;
 pub mod types;
 pub mod versions;
+
+#[cfg(test)]
+pub mod mock;
+#[cfg(test)]
+mod studio_tests;
+#[cfg(test)]
+mod tests;

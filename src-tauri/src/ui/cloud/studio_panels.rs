@@ -41,6 +41,11 @@ pub fn role_payload(config: &crate::archive::DocumentConfig) -> Value {
     )
 }
 
+/// The cloud application the definition is linked to.
+pub fn linked_app(config: &crate::archive::DocumentConfig) -> Option<String> {
+    config.cloud.as_ref().map(|l| l.app_id.clone())
+}
+
 /// Records the cloud link in the definition (undoable).
 pub fn set_link(
     shell: &Entity<Shell>,
@@ -240,20 +245,20 @@ impl Render for LinkPanel {
 pub struct RolesPanel {
     shell: Entity<Shell>,
     services: Arc<dyn CloudServices>,
-    app_id: String,
     action: Action,
     _watch: Subscription,
 }
 
 impl RolesPanel {
-    pub fn new(shell: Entity<Shell>, app_id: String, cx: &mut Context<Self>) -> Self {
+    pub fn new(shell: Entity<Shell>, cx: &mut Context<Self>) -> Self {
         let watch = cx.observe(&shell.read(cx).store.clone(), |_, _, cx| cx.notify());
-        Self { shell, services: Services::get(cx), app_id, action: Action::default(), _watch: watch }
+        Self { shell, services: Services::get(cx), action: Action::default(), _watch: watch }
     }
 
     fn sync(&mut self, cx: &mut Context<Self>) {
         let config = self.shell.read(cx).config(cx).clone();
-        let (services, app_id) = (self.services.clone(), self.app_id.clone());
+        let Some(app_id) = linked_app(&config) else { return };
+        let services = self.services.clone();
         let count = config.roles.len();
         self.action.begin();
         task::spawn_call(
@@ -301,7 +306,6 @@ impl Render for RolesPanel {
 pub struct CredentialsPanel {
     shell: Entity<Shell>,
     services: Arc<dyn CloudServices>,
-    app_id: String,
     shared: bool,
     user_id: Entity<InputState>,
     username: Entity<InputState>,
@@ -310,12 +314,11 @@ pub struct CredentialsPanel {
 }
 
 impl CredentialsPanel {
-    pub fn new(shell: Entity<Shell>, app_id: String, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(shell: Entity<Shell>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let shared = shell.read(cx).config(cx).datasource.credential_mode != "perUser";
         Self {
             shell,
             services: Services::get(cx),
-            app_id,
             shared,
             user_id: forms::line_state(window, cx, "Runtime user id", ""),
             username: forms::line_state(window, cx, "Database user", ""),
@@ -326,6 +329,7 @@ impl CredentialsPanel {
 
     fn upload(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let window_label = self.shell.read(cx).label().to_string();
+        let Some(app_id) = linked_app(self.shell.read(cx).config(cx)) else { return };
         let (user_id, username, password) = (
             forms::text_of(&self.user_id, cx).trim().to_string(),
             forms::text_of(&self.username, cx).trim().to_string(),
@@ -340,7 +344,7 @@ impl CredentialsPanel {
             cx.notify();
             return;
         }
-        let (services, app_id) = (self.services.clone(), self.app_id.clone());
+        let services = self.services.clone();
         self.action.begin();
         task::spawn_call_in(
             window,

@@ -5,21 +5,38 @@
 //! Port of expressionBlocker in src/shell/expressionIssues.ts.
 
 use crate::archive::DocumentConfig;
+#[cfg(not(test))]
 use std::sync::Mutex;
 
 /// Counts the expression errors of a definition.
 pub type ExpressionGate = fn(&DocumentConfig) -> usize;
 
+#[cfg(not(test))]
 static GATE: Mutex<Option<ExpressionGate>> = Mutex::new(None);
+
+// Tests run in parallel, each on its own thread: a gate one test registers must not
+// block another test's publish.
+#[cfg(test)]
+thread_local! {
+    static GATE: std::cell::Cell<Option<ExpressionGate>> = const { std::cell::Cell::new(None) };
+}
 
 /// Registers the document-wide expression check (the Problems view does this once).
 pub fn set_expression_gate(gate: Option<ExpressionGate>) {
-    *GATE.lock().unwrap_or_else(|e| e.into_inner()) = gate;
+    #[cfg(not(test))]
+    {
+        *GATE.lock().unwrap_or_else(|e| e.into_inner()) = gate;
+    }
+    #[cfg(test)]
+    GATE.with(|g| g.set(gate));
 }
 
 /// How many expressions of `config` do not check; 0 until a check is registered.
 pub fn expression_error_count(config: &DocumentConfig) -> usize {
+    #[cfg(not(test))]
     let gate = *GATE.lock().unwrap_or_else(|e| e.into_inner());
+    #[cfg(test)]
+    let gate = GATE.with(std::cell::Cell::get);
     gate.map_or(0, |gate| gate(config))
 }
 

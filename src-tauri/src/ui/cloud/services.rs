@@ -116,7 +116,12 @@ impl Services {
     /// The services installed for this app, creating the live ones on first use.
     pub fn get(cx: &mut App) -> Arc<dyn CloudServices> {
         if cx.try_global::<Services>().is_none() {
-            cx.set_global(Services(Arc::new(super::client::LiveServices::default())));
+            // Tests never reach the network or the user's stored session.
+            #[cfg(test)]
+            let services: Arc<dyn CloudServices> = Arc::new(super::mock::Mock::default());
+            #[cfg(not(test))]
+            let services: Arc<dyn CloudServices> = Arc::new(super::client::LiveServices::default());
+            cx.set_global(Services(services));
         }
         cx.global::<Services>().0.clone()
     }

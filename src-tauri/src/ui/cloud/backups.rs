@@ -265,7 +265,8 @@ impl Render for InstallationBackups {
                 .on_click(cx.listener(|this, _, _, cx| this.check_size(cx))),
         );
         if let Some(report) = self.size_check.clone() {
-            block = block.child(backup_size_dialog(
+            // The sidebar is narrow: the dialog floats above the window instead.
+            block = block.child(forms::overlay(backup_size_dialog(
                 &report,
                 busy,
                 |this: &mut Self, window, cx| this.backup(window, cx),
@@ -274,14 +275,13 @@ impl Render for InstallationBackups {
                     cx.notify();
                 },
                 cx,
-            ));
+            )));
         }
         for (i, item) in self.backups.clone().unwrap_or_default().into_iter().enumerate() {
             let at = when(&item.created_at);
             block = block.child(
-                h_flex()
-                    .gap_2()
-                    .items_center()
+                v_flex()
+                    .gap_1()
                     .child(widgets::text(
                         eid(format!("backup:{i}")),
                         format!("{at} · {}", format_transfer_bytes(item.archive_size)),
@@ -313,7 +313,7 @@ impl Render for InstallationBackups {
                     ),
                 ));
             }
-            block = block.child(
+            block = block.child(forms::overlay(
                 dialog.child(
                     forms::actions()
                         .child(
@@ -333,7 +333,7 @@ impl Render for InstallationBackups {
                                 })),
                         ),
                 ),
-            );
+            ));
         }
         if let Some(bar) =
             transfer_bar("backup-progress", "Backup transfer progress", self.transfer.progress.as_ref(), cx)
