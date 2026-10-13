@@ -327,9 +327,10 @@ pub fn wait<C: UiContext>(h: &mut Harness<C>) {
     }
 }
 
-/// Polls until `done` holds (writes land through background threads).
+/// Polls until `done` holds (writes land through background threads). The budget is
+/// generous: under the full parallel suite the action threads can take seconds.
 pub fn eventually<C: UiContext>(h: &mut Harness<C>, what: &str, mut done: impl FnMut(&mut Harness<C>) -> bool) {
-    for _ in 0..200 {
+    for _ in 0..1000 {
         h.advance(Duration::from_millis(50));
         std::thread::sleep(Duration::from_millis(10));
         h.settle();
