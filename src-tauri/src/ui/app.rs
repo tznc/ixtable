@@ -73,6 +73,10 @@ impl AppView {
 
     fn show_shell(&mut self, state: SessionState, window: &mut Window, cx: &mut Context<Self>) {
         let label = self.label.to_string();
+        // A window that stops showing the cloud installation drops its cloud role.
+        let session_id = state.session_id.clone();
+        crate::ui::cloud::session::CloudRuntime::global(cx)
+            .update(cx, |r, cx| r.release_unless(Some(&session_id), cx));
         let store = match crate::ui::store::ConfigStore::load(&label) {
             Ok(store) => store,
             Err(e) => {
@@ -83,6 +87,9 @@ impl AppView {
             }
         };
         let shell = cx.new(|cx| Shell::new(&label, state, store, window, cx));
+        if let Some(notice) = crate::ui::cloud::open::take_open_notice(cx) {
+            shell.update(cx, |s, cx| s.set_notice(notice, cx));
+        }
         self._subscription = Some(cx.subscribe_in(
             &shell,
             window,

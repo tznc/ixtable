@@ -53,7 +53,7 @@ impl StartScreen {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let panels = super::start_sections::panels(&cx.entity(), window, cx);
+        let panels = super::start_sections::panels(&cx.entity(), label, window, cx);
         let mut this = Self {
             label: label.to_string().into(),
             pending: None,

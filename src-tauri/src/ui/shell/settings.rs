@@ -38,6 +38,26 @@ fn visible(key: &str, shell: &Shell, cx: &App) -> bool {
 
 fn build_tab(key: &str, shell: &Entity<Shell>, window: &mut Window, cx: &mut App) -> AnyView {
     match key {
+        "assets" => cx
+            .new(|cx| crate::ui::persistence::assets_tab::AssetsTab::new(shell.clone(), cx))
+            .into(),
+        "release" => cx
+            .new(|cx| crate::ui::release::release_tab::ReleaseTab::new(shell.clone(), window, cx))
+            .into(),
+        "cloud" => cx
+            .new(|cx| crate::ui::cloud::cloud_tab::CloudTab::new(shell.clone(), cx))
+            .into(),
+        "logs" => {
+            let label = shell.read(cx).label().to_string();
+            cx.new(|cx| crate::ui::persistence::logs_tab::LogsTab::new(label, cx))
+                .into()
+        }
+        "access" => cx
+            .new(|cx| crate::ui::access::migration_tab::AccessMigrationTab::new(shell.clone(), window, cx))
+            .into(),
+        "migrations" => cx
+            .new(|cx| crate::ui::migrations::tab::MigrationsTab::new(shell.clone(), cx))
+            .into(),
         "yaml" => cx
             .new(|cx| super::yaml::YamlTab::new(shell.clone(), window, cx))
             .into(),
@@ -141,7 +161,9 @@ impl Render for AppSettings {
                     .min_h_0()
                     .overflow_y_scroll()
                     .p_4()
-                    .when_some(body, |el, b| el.child(b)),
+                    .when_some(body, |el, b| el.child(b))
+                    .aria_label("Settings panel")
+                    .test_support(),
             )
     }
 }
