@@ -1,9 +1,9 @@
 //! Run mode captures (`runtime-*`, `guided-*`, `form-views-*`, `nesting-02`). Port of the
 //! Runtime captures of scripts/screenshot/specs/{forms,guided,form-views,nesting}.spec.tsx.
 //!
-//! Not ported: the Design studio captures (`forms-01-designer`, `form-views-07-properties`,
-//! `nesting-01-child-form-picker`, all of `grid-*`) and the report captures (`nesting-03/04`),
-//! which belong to the Design and Reports features. Where the React specs designed forms in
+//! The Design studio captures (`forms-01-designer`, `form-views-07-properties`,
+//! `nesting-01-child-form-picker`, `grid-*`, `app-qa-06/07`) are in `design.rs`; the report
+//! captures (`nesting-03/04`) belong to Reports. Where the React specs designed forms in
 //! the studio, these generate the app or write the definitions through the ConfigStore.
 
 use crate::data::DataValue;
@@ -18,29 +18,29 @@ use serde_json::{Value, json};
 
 const WINDOW: (f32, f32) = (1280.0, 1000.0);
 
-fn int(n: i64) -> DataValue {
+pub(super) fn int(n: i64) -> DataValue {
     DataValue::Integer(n)
 }
 
-fn text(s: &str) -> DataValue {
+pub(super) fn text(s: &str) -> DataValue {
     DataValue::Text(s.into())
 }
 
-fn keyed(column: &str, target: &str) -> Value {
+pub(super) fn keyed(column: &str, target: &str) -> Value {
     json!([{"columns": [column], "targetTable": target, "targetColumns": ["id"],
             "onUpdate": null, "onDelete": null}])
 }
 
-fn id_column() -> Value {
+pub(super) fn id_column() -> Value {
     json!({"name": "id", "declaredType": "INTEGER", "primaryKeyPosition": 1})
 }
 
-fn column(name: &str, declared: &str) -> Value {
+pub(super) fn column(name: &str, declared: &str) -> Value {
     json!({"name": name, "declaredType": declared})
 }
 
 /// Customers, orders and order items (the sales fixture of the React specs).
-fn seed_sales<C: UiContext>(h: &mut Harness<C>) {
+pub(super) fn seed_sales<C: UiContext>(h: &mut Harness<C>) {
     table_with_keys(h, "customers", json!([id_column(), column("name", "TEXT"), column("city", "TEXT")]), json!([]));
     table_with_keys(
         h,
@@ -231,7 +231,7 @@ fn runtime_guided() {
     );
 }
 
-fn field(label: &str, column: &str, kind: &str, row: u32, col: u32, span: u32) -> Value {
+pub(super) fn field(label: &str, column: &str, kind: &str, row: u32, col: u32, span: u32) -> Value {
     json!({
         "id": uid(), "kind": kind, "label": label, "binding": {"column": column},
         "validation": {"required": column == "title"},
@@ -239,7 +239,7 @@ fn field(label: &str, column: &str, kind: &str, row: u32, col: u32, span: u32) -
     })
 }
 
-fn seed_task_table<C: UiContext>(h: &mut Harness<C>) {
+pub(super) fn seed_task_table<C: UiContext>(h: &mut Harness<C>) {
     h.create_table(
         "tasks",
         &[("id", "INTEGER", 1), ("title", "TEXT", 0), ("owner", "TEXT", 0), ("priority", "INTEGER", 0)],

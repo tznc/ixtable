@@ -4,7 +4,7 @@
 
 use crate::design::{
     Control, ControlKind, ControlParent, DesignSchema, Form, FormMode, FormSource, GridLayout,
-    KeyPair, NavKind, NavigationItem, Placement, RelatedList, SourceKind, TabPage, Validation,
+    KeyPair, NavigationItem, Placement, RelatedList, SourceKind, TabPage, Validation,
 };
 use crate::ui::grid::engine::{self, default_grid_layout};
 
@@ -252,17 +252,6 @@ pub fn related_keys(related: &RelatedList) -> Vec<KeyPair> {
         }]
     } else {
         related.keys.clone()
-    }
-}
-
-/// A navigation entry that opens a form.
-pub fn form_nav(id: String, label: &str, form_id: &str) -> NavigationItem {
-    NavigationItem {
-        id,
-        label: label.into(),
-        kind: NavKind::Form,
-        target_id: Some(form_id.into()),
-        ..Default::default()
     }
 }
 

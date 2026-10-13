@@ -414,7 +414,7 @@ fn image_view(ctx: &BodyContext, control: &Control, window: &mut Window, cx: &mu
         .into_any_element()
 }
 
-fn decode_data_url(url: &str) -> Result<Arc<Image>, String> {
+pub(crate) fn decode_data_url(url: &str) -> Result<Arc<Image>, String> {
     use base64::Engine as _;
     let (head, body) = url.split_once(',').ok_or("Not a data URL")?;
     let media = head.trim_start_matches("data:").split(';').next().unwrap_or("");

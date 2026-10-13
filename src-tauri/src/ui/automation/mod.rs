@@ -26,6 +26,7 @@ mod tests_runtime;
 pub use actions::ActionsPanel;
 pub use host::AutomationHost;
 pub use jobs::JobsPanel;
+pub use fields::AUTOMATION_SCOPE_NAMES;
 pub use picker::action_picker;
 pub use step_editor::StepEditor;
 pub use triggers::TriggersPanel;

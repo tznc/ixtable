@@ -22,6 +22,7 @@ gpui_kit::assets::icon_assets!(
         SaveAll,
         Shapes,
         Table2,
+        WandSparkles,
         X,
         Zap
     ]
