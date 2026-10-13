@@ -187,7 +187,8 @@ fn switches_reads_and_writes_to_postgres_without_storing_the_password_in_the_doc
     assert!(h.label("connection-report").contains("WITHOUT TLS"));
     h.click("save-datasource");
     wait_for(&mut h, "datasource-status");
-    assert!(h.label("datasource-status").contains("Reads now use the PostgreSQL store"));
+    let status = h.label("datasource-status");
+    assert!(status.contains("Reads now use the PostgreSQL store"), "{status}");
 
     let config = h.config();
     let reference = config.datasource.password_ref.clone().expect("password ref");

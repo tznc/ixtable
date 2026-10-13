@@ -183,13 +183,14 @@ impl DatasourceTab {
         self.status.clear();
         cx.notify();
         let label = self.shell.read(cx).label().to_string();
-        let mut draft = self.draft.clone();
-        if draft.id.is_empty() {
-            draft.id = uuid::Uuid::new_v4().to_string();
+        // The id is settled once, so the stored password and the saved datasource name the same one.
+        if self.draft.id.is_empty() {
+            self.draft.id = uuid::Uuid::new_v4().to_string();
         }
-        if draft.port == 0 {
-            draft.port = 5432;
+        if self.draft.port == 0 {
+            self.draft.port = 5432;
         }
+        let draft = self.draft.clone();
         let password = input_text(&self.password, cx);
         task::spawn_call_in(
             window,
@@ -217,12 +218,6 @@ impl DatasourceTab {
     fn persist(&mut self, password_ref: Option<String>, window: &mut Window, cx: &mut Context<Self>) {
         let plaintext = self.plaintext();
         let mut next = self.draft.clone();
-        if next.id.is_empty() {
-            next.id = uuid::Uuid::new_v4().to_string();
-        }
-        if next.port == 0 {
-            next.port = 5432;
-        }
         next.password_ref = password_ref;
         if plaintext {
             if next.insecure_transport_confirmed_at.is_none() {
