@@ -7,6 +7,10 @@
 
 use super::{
     access::host::AccessHost,
+    cloud::{
+        cloud_apps::{CloudApps, CloudAppsEvent},
+        open::{adopt_runtime, set_open_notice},
+    },
     persistence::recovery_list::RecoveryList,
     release::bundle_flow::{Act, BundleEvent, BundleFlow},
     start::StartScreen,
@@ -117,9 +121,22 @@ pub fn panels(
         cx.new(|_| AccessHost::new(label, weak))
     };
     with_extras(screen.entity_id(), cx, |e| e.access = Some(access.downgrade()));
+    let apps = cx.new(|cx| CloudApps::new(label.clone(), cx));
+    let weak_screen = screen.downgrade();
+    cx.subscribe(&apps, move |_, event: &CloudAppsEvent, cx| {
+        let CloudAppsEvent::Opened(opened) = event;
+        // The cloud installation takes effect (its role) and the opened window shows
+        // what the update did.
+        adopt_runtime(opened, cx);
+        set_open_notice(&opened.notice, cx);
+        let state = opened.state.clone();
+        let _ = weak_screen.update(cx, |screen, cx| screen.run("Opening cloud app…", move |_| Ok(state), cx));
+    })
+    .detach();
     vec![
         flow.into(),
         access.into(),
+        apps.into(),
         cx.new(|cx| RecoveryList::new(screen, cx)).into(),
     ]
 }

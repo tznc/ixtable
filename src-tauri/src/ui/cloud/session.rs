@@ -110,8 +110,8 @@ impl CloudRuntime {
         }
     }
 
-    pub fn set(&mut self, session_id: &str, info: CloudRuntimeInfo, cx: &mut Context<Self>) {
-        self.active = Some(Active { session_id: session_id.to_string(), info: Arc::new(info) });
+    pub fn set(&mut self, session_id: &str, info: Arc<CloudRuntimeInfo>, cx: &mut Context<Self>) {
+        self.active = Some(Active { session_id: session_id.to_string(), info });
         self.changed(cx);
     }
 

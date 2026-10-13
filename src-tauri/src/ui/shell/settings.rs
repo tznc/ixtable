@@ -44,6 +44,9 @@ fn build_tab(key: &str, shell: &Entity<Shell>, window: &mut Window, cx: &mut App
         "release" => cx
             .new(|cx| crate::ui::release::release_tab::ReleaseTab::new(shell.clone(), window, cx))
             .into(),
+        "cloud" => cx
+            .new(|cx| crate::ui::cloud::cloud_tab::CloudTab::new(shell.clone(), cx))
+            .into(),
         "logs" => {
             let label = shell.read(cx).label().to_string();
             cx.new(|cx| crate::ui::persistence::logs_tab::LogsTab::new(label, cx))

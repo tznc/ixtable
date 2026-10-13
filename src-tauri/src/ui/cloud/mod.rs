@@ -1,11 +1,20 @@
 //! ixtable Cloud in the GPUI app: sign-in, publishing, versions, installs and the cloud
 //! runtime bar. Port of src/cloud/.
 
+pub mod action;
 pub mod auth;
+pub mod backups;
 pub mod client;
+pub mod cloud_apps;
+pub mod cloud_tab;
 pub mod contract;
 pub mod errors;
+pub mod open;
+pub mod publish;
+pub mod runtime_bar;
 pub mod services;
 pub mod session;
+pub mod studio_panels;
 pub mod transfer;
 pub mod types;
+pub mod versions;

@@ -29,6 +29,11 @@ pub trait CloudServices: Send + Sync + 'static {
 
     /// The stored session, refreshed when it is about to expire; None when signed out.
     fn load_session(&self) -> Option<Session>;
+    /// The signed-in session, or UNAUTHENTICATED.
+    fn require_session(&self) -> Result<Session> {
+        self.load_session()
+            .ok_or_else(|| CloudError::new("UNAUTHENTICATED", "Sign in to ixtable Cloud first."))
+    }
     /// None: the account needs email confirmation before it has a session.
     fn sign_in(&self, email: &str, password: &str) -> Result<Option<Session>>;
     fn sign_up(&self, email: &str, password: &str) -> Result<Option<Session>>;
