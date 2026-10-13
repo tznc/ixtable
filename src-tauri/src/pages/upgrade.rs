@@ -146,6 +146,7 @@ pub fn wrapper_page(
 
 /// Whether `page` is the page the migration made for a form or report (its id derives
 /// from the definition it holds).
+#[cfg(test)]
 pub(crate) fn is_wrapper(page: &Page) -> bool {
     let [only] = page.components.as_slice() else { return false };
     let target = match only.kind {

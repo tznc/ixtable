@@ -286,10 +286,17 @@ impl PageEditor {
                 None => "No form".into(),
             },
             ComponentKind::Report => if c.report_id.as_deref().is_some_and(|r| !r.is_empty()) { "Report preview" } else { "No report" }.into(),
-            ComponentKind::Button => match c.action_id.as_deref().filter(|a| !a.is_empty()) {
-                Some(_) => format!("Runs an action · “{}”", c.label.clone().unwrap_or_default()),
-                None => "No action".into(),
-            },
+            ComponentKind::Button => {
+                let opens = c.target_page_id.as_deref().filter(|t| !t.is_empty()).map(|t| {
+                    config.pages.iter().find(|p| p.id == t).map_or("a missing page".to_string(), |p| p.name.clone())
+                });
+                match (c.action_id.as_deref().filter(|a| !a.is_empty()), opens) {
+                    (Some(_), Some(page)) => format!("Runs an action, then opens {page}"),
+                    (Some(_), None) => format!("Runs an action · “{}”", c.label.clone().unwrap_or_default()),
+                    (None, Some(page)) => format!("Opens {page}"),
+                    (None, None) => "No action".into(),
+                }
+            }
             ComponentKind::Text => {
                 let text: String = c.text.clone().unwrap_or_default().chars().take(80).collect();
                 if text.is_empty() { "Empty text".into() } else { text }

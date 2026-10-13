@@ -171,6 +171,7 @@ fn declares_page_parameters_and_links_pages_with_values(cx: &mut TestAppContext)
     let button = &source.components[0];
     assert_eq!(button.target_page_id.as_deref(), Some(target.id.as_str()));
     assert_eq!(button.page_params.get("region").map(String::as_str), Some("'East'"));
+    assert_eq!(h.label(id(&format!("card-summary:{}", button.id))), "Opens Page 1");
 
     // A navigation item to Page 1 takes a value too, and the links overview lists both.
     h.click("design-navigation");
@@ -181,7 +182,7 @@ fn declares_page_parameters_and_links_pages_with_values(cx: &mut TestAppContext)
     let item = h.config().design.navigation.last().cloned().expect("nav item");
     assert_eq!(item.params.get("region").map(String::as_str), Some("'West'"));
     let links: Vec<String> = (1..=3).filter_map(|n| h.try_label(id(&format!("page-link:{n}")))).collect();
-    assert!(links.contains(&"Button Action button 1 on Page 2 opens Page 1 (region = 'East')".to_string()) || links.iter().any(|l| l.contains("on Page 2 opens Page 1 (region = 'East')")), "{links:?}");
+    assert!(links.contains(&"Button Run on Page 2 opens Page 1 (region = 'East')".to_string()), "{links:?}");
     assert!(links.iter().any(|l| l.ends_with("opens Page 1 (region = 'West')")), "{links:?}");
 }
 

@@ -19,12 +19,12 @@ const WINDOW: (f32, f32) = (1500.0, 1500.0);
 fn generate_form<C: UiContext>(h: &mut Harness<'_, C>, table: &str) {
     choose(h, "generate-table", table);
     h.click("generate-form");
-    wait_until(h, "the generated form", |h| h.config().design.forms.iter().any(|f| f.name.to_lowercase().starts_with(table)));
-    // Open the generated detail form, as its page's "Edit form" does.
-    let detail = h.config().design.forms.into_iter().rev().find(|f| f.name.to_lowercase().starts_with(table) && f.modes.contains(&FormMode::Create));
-    if let Some(detail) = detail {
-        crate::ui::design::test_support::open_form(h, &detail.id);
-    }
+    // The detail form is named after the table ("Orders"); a related list may come first.
+    let detail = |h: &Harness<'_, C>| h.config().design.forms.into_iter().find(|f| f.name.to_lowercase() == table);
+    wait_until(h, "the generated form", |h| detail(h).is_some());
+    // Open it, as its page's "Edit form" does.
+    let detail = detail(h).expect("the detail form");
+    crate::ui::design::test_support::open_form(h, &detail.id);
 }
 
 #[test]

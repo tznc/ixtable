@@ -13,7 +13,11 @@
 //! `back-to-page`, `design-crumb`, `duplicate-form`, `delete-form`.
 
 use super::PagePanel;
+use crate::data::TableSchema;
+use crate::forms::generate::{GenerateOptions, GeneratedCrud, generate_crud_forms};
+use crate::manager::AppError;
 use crate::pages::{ComponentKind, Page};
+use crate::recordstore::EntitySettings;
 use crate::ui::{
     controls::choice,
     design::{generate_app, DesignStudio, View},
@@ -21,6 +25,21 @@ use crate::ui::{
     reports::ReportPanel,
     shell::{ModeId, RevealTarget, Shell},
 };
+
+/// Builds list and detail forms for a table, with lookups and related lists from the live
+/// schema of the other tables.
+fn generate_for(label: &str, table: &str, tables: &[String], entities: &[EntitySettings]) -> Result<GeneratedCrud, AppError> {
+    let schema = crate::inspect_table(label.to_string(), table.to_string(), None)?;
+    let others: Vec<TableSchema> = tables
+        .iter()
+        .filter(|name| name.as_str() != table)
+        .filter_map(|name| crate::inspect_table(label.to_string(), name.clone(), None).ok())
+        .collect();
+    let targets = others.iter().map(|t| (t.name.clone(), t)).collect();
+    let children = others.iter().filter(|t| t.foreign_keys.iter().any(|fk| fk.target_table == table)).collect();
+    let options = GenerateOptions { targets, children, child_forms: Default::default(), entities };
+    Ok(generate_crud_forms(&schema, &options))
+}
 
 /// What the Design mode shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -129,7 +148,52 @@ impl DesignMode {
         cx.notify();
     }
 
+    /// "Generate pages from table": a new list and detail form for `table`, each on a page,
+    /// with a navigation item; the detail form opens in the form designer.
+    fn generate_table(&mut self, table: String, cx: &mut Context<Self>) {
+        let (label, entities, tables) = {
+            let shell = self.shell.read(cx);
+            let tables: Vec<String> = shell.objects.iter().filter(|o| o.object_type == "table").map(|o| o.name.clone()).collect();
+            (shell.label().to_string(), shell.config(cx).entities.clone(), tables)
+        };
+        task::spawn_call(
+            cx,
+            move || generate_for(&label, &table, &tables, &entities),
+            |this, result, cx| {
+                match result {
+                    Ok(GeneratedCrud { list, detail, navigation }) => {
+                        let (store, detail_id) = (this.shell.read(cx).store.clone(), detail.id.clone());
+                        let edit = store.update(cx, |s, cx| {
+                            s.update("Generate form", move |c| {
+                                c.design.forms.push(list);
+                                c.design.forms.push(detail);
+                                if c.design.start_page.is_none() {
+                                    c.design.start_page = Some(navigation.id.clone());
+                                }
+                                c.design.navigation.push(navigation);
+                                crate::pages::upgrade::sync(c);
+                            }, cx)
+                        });
+                        match edit {
+                            Ok(_) => {
+                                this.generate.error.clear();
+                                this.generate.notice.clear();
+                                this.open_form(&detail_id, None, cx);
+                            }
+                            Err(e) => this.generate.error = e.message,
+                        }
+                    }
+                    Err(e) => this.generate.error = e.message,
+                }
+                cx.notify();
+            },
+        );
+    }
+
     fn generate(&mut self, table: Option<String>, cx: &mut Context<Self>) {
+        if let Some(table) = table {
+            return self.generate_table(table, cx);
+        }
         let (store, label) = {
             let shell = self.shell.read(cx);
             (shell.store.clone(), shell.label().to_string())

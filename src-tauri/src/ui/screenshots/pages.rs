@@ -235,11 +235,13 @@ fn pages_parameters_and_links() {
 
     new_dashboard(&mut h);
     h.fill("page-name", "Orders by status");
+    h.click("add-text");
+    // Back from the new component to the page settings.
+    h.click("dashboard-settings");
     h.click("add-page-param");
     h.fill("page-param-name:1", "status");
     h.click("page-param-required:1");
     assert!(dashboard(&h).parameters[0].required);
-    h.click("add-text");
     h.capture(
         "pages-02-parameters",
         &[
@@ -251,6 +253,7 @@ fn pages_parameters_and_links() {
     h.click("new-page");
     h.fill("page-name", "Home");
     h.click("add-button");
+    h.fill("prop-label", "Open orders");
     choose(&mut h, "prop-target-page", "Orders by status");
     h.fill("prop-page-param:status", "'open'");
     assert_eq!(dashboard(&h).components[0].page_params.get("status").map(String::as_str), Some("'open'"));
@@ -266,7 +269,7 @@ fn pages_parameters_and_links() {
     assert!(h.exists(id("page-link:1")));
     h.capture(
         "pages-04-page-links",
-        &["The navigation editor ends with a Page links list naming the Home button that opens Orders by status (status = 'open')."],
+        &["The navigation editor ends with a Page links list naming the Open orders button on Home, which opens Orders by status (status = 'open')."],
     );
 
     h.click(id("page-item-1"));
