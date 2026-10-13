@@ -203,7 +203,7 @@ impl Render for RolesTab {
                     })
                 };
                 let rows = self.rows(cx);
-                let matrix = v_flex().gap_0p5().children(rows.iter().map(|row| {
+                let matrix = v_flex().gap_0p5().items_start().children(rows.iter().map(|row| {
                     let cells = FLAGS.iter().map(|name| {
                         let (kind, object_id, name) = (row.kind, row.id.clone(), *name);
                         Checkbox::new(SharedString::from(format!("perm:{kind}:{object_id}:{name}")))
@@ -227,7 +227,7 @@ impl Render for RolesTab {
                     FLAGS.iter().map(|name| div().w(px(24.)).text_xs().child(capitalized(name))),
                 );
                 let nav: Vec<&NavigationItem> = flatten_navigation(&config.design.navigation);
-                let navigation = v_flex().gap_0p5().children(nav.iter().map(|item| {
+                let navigation = v_flex().gap_0p5().items_start().children(nav.iter().map(|item| {
                     let item_id = item.id.clone();
                     Checkbox::new(SharedString::from(format!("nav-perm:{}", item.id)))
                         .checked(permissions.navigation.contains(&item.id))
@@ -244,7 +244,7 @@ impl Render for RolesTab {
                             );
                         }))
                 }));
-                let actions = v_flex().gap_0p5().children(config.actions.iter().map(|action| {
+                let actions = v_flex().gap_0p5().items_start().children(config.actions.iter().map(|action| {
                     let action_id = action.id.clone();
                     Checkbox::new(SharedString::from(format!("action-perm:{}", action.id)))
                         .checked(permissions.actions.contains(&action.id))

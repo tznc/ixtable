@@ -356,7 +356,7 @@ fn navigate(env: &RuntimeEnv, target: NavigationTarget, cx: &mut App) {
 
 impl Render for ContinuousRow {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let this = cx.entity();
+        let this = cx.weak_entity();
         let scope = self.scope(cx);
         let form = self.form.clone();
         let editable = self.editable();
@@ -387,17 +387,17 @@ impl Render for ContinuousRow {
             prefix: BodyKey::from(format!("{}:", self.slot)),
             runnable: Rc::new(runnable),
             on_set: Rc::new(move |column, value, cx| {
-                set_to.update(cx, |v, cx| v.set_field(column, value, cx));
+                let _ = set_to.update(cx, |v, cx| v.set_field(column, value, cx));
             }),
             on_blur: Rc::new(move |id, cx| {
-                blur_to.update(cx, |v, cx| v.blur(id, cx));
+                let _ = blur_to.update(cx, |v, cx| v.blur(id, cx));
             }),
             on_button: Rc::new(move |id, _, cx| {
-                button_to.update(cx, |v, cx| v.run_button(id, cx));
+                let _ = button_to.update(cx, |v, cx| v.run_button(id, cx));
             }),
             on_enter: Rc::new(move |cx| {
                 if editable {
-                    enter_to.update(cx, |v, cx| v.save(cx));
+                    let _ = enter_to.update(cx, |v, cx| v.save(cx));
                 }
             }),
             related: Rc::new(|_, _, _, _| div().into_any_element()),
@@ -587,9 +587,9 @@ impl ContinuousView {
         let (can_update, can_delete) =
             (self.allowed(Operation::Update, Some(FormMode::Edit), cx), self.allowed(Operation::Delete, None, cx));
         let table = self.table();
-        let this = cx.entity();
+        let this = cx.weak_entity();
         let changed: Changed = Rc::new(move |text, tone, cx| {
-            this.update(cx, |v, cx| v.changed(text, tone, cx));
+            let _ = this.update(cx, |v, cx| v.changed(text, tone, cx));
         });
         let mut old: HashMap<String, Entity<ContinuousRow>> = self.rows.drain(..).collect();
         for (index, record) in page.rows.iter().enumerate() {

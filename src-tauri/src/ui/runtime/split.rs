@@ -51,7 +51,7 @@ impl SplitView {
             .filter(|d| !d.is_empty())
             .and_then(|id| resolve_form(env.config(cx), id))
             .unwrap_or_else(|| form.clone());
-        let this = cx.entity();
+        let this = cx.weak_entity();
         let (open_to, create_to) = (this.clone(), this);
         let list = cx.new(|cx| {
             ListView::new(
@@ -61,11 +61,15 @@ impl SplitView {
                     // The list is mid-update when it calls back, and the pane updates it.
                     on_open: Rc::new(move |id, cursor, cx| {
                         let open_to = open_to.clone();
-                        cx.defer(move |cx| open_to.update(cx, |t, cx| t.show(id, cursor, cx)));
+                        cx.defer(move |cx| {
+                            let _ = open_to.update(cx, |t, cx| t.show(id, cursor, cx));
+                        });
                     }),
                     on_create: Rc::new(move |cx| {
                         let create_to = create_to.clone();
-                        cx.defer(move |cx| create_to.update(cx, |t, cx| t.create(cx)));
+                        cx.defer(move |cx| {
+                            let _ = create_to.update(cx, |t, cx| t.create(cx));
+                        });
                     }),
                     params,
                 },
@@ -93,7 +97,7 @@ impl SplitView {
     }
 
     fn open_pane(&mut self, mode: FormMode, record_id: Option<Value>, cursor: Option<RecordCursor>, cx: &mut Context<Self>) {
-        let this = cx.entity();
+        let this = cx.weak_entity();
         let (mode_to, close_to, dirty_to, saved_to) = (this.clone(), this.clone(), this.clone(), this);
         let record = cx.new(|cx| {
             RecordView::new(
@@ -107,14 +111,14 @@ impl SplitView {
                     depth: 0,
                     params: Map::new(),
                     on_mode: Rc::new(move |next, id, cx| {
-                        mode_to.update(cx, |t, cx| {
+                        let _ = mode_to.update(cx, |t, cx| {
                             let next = if matches!(next, FormMode::Edit | FormMode::Create) { next } else { FormMode::Detail };
                             let cursor = t.pane.as_ref().and_then(|p| p.cursor.clone());
                             t.open_pane(next, id, cursor, cx);
                         });
                     }),
                     on_close: Rc::new(move |cx| {
-                        close_to.update(cx, |t, cx| {
+                        let _ = close_to.update(cx, |t, cx| {
                             t.pane = None;
                             t.dirty = false;
                             t.list.update(cx, |l, cx| l.set_selected(None, cx));
@@ -125,13 +129,13 @@ impl SplitView {
                     on_navigate: self.on_navigate.clone(),
                     on_notify: None,
                     on_dirty: Some(Rc::new(move |dirty, cx| {
-                        dirty_to.update(cx, |t, cx| {
+                        let _ = dirty_to.update(cx, |t, cx| {
                             t.dirty = dirty;
                             cx.notify();
                         });
                     })),
                     on_saved: Some(Rc::new(move |_, cx| {
-                        saved_to.update(cx, |t, cx| t.list.update(cx, |l, cx| l.refresh(cx)));
+                        let _ = saved_to.update(cx, |t, cx| t.list.update(cx, |l, cx| l.refresh(cx)));
                     })),
                 },
                 cx,
@@ -165,17 +169,21 @@ impl Render for SplitView {
         let dirty = self.dirty;
         if let Some(pane) = &mut self.pane {
             if pane.mode != FormMode::Create && self.form.navigation_bar {
-                let this = cx.entity();
+                let this = cx.weak_entity();
                 let props = NavBarProps {
                     env: self.env.clone(),
                     form: self.form.clone(),
                     cursor: pane.cursor.clone(),
                     on_go: Rc::new({
                         let this = this.clone();
-                        move |id, cursor, cx| this.update(cx, |t, cx| t.show(id, cursor, cx))
+                        move |id, cursor, cx| {
+                            let _ = this.update(cx, |t, cx| t.show(id, cursor, cx));
+                        }
                     }),
                     on_new: self.detail.modes.contains(&FormMode::Create).then(|| {
-                        Rc::new(move |cx: &mut App| this.update(cx, |t, cx| t.create(cx))) as Rc<dyn Fn(&mut App)>
+                        Rc::new(move |cx: &mut App| {
+                            let _ = this.update(cx, |t, cx| t.create(cx));
+                        }) as Rc<dyn Fn(&mut App)>
                     }),
                     disabled: dirty,
                 };

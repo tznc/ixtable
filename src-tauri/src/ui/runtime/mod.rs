@@ -27,6 +27,8 @@ pub mod stack;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_rbac;
+#[cfg(test)]
 mod tests_views;
 
 use crate::archive::DocumentConfig;

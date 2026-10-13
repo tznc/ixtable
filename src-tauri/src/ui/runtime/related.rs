@@ -311,7 +311,7 @@ impl RelatedRecords {
         let (Some(form), props) = (self.child_form.clone(), self.props().clone()) else { return };
         self.message.clear();
         let link = Self::link(&props);
-        let this = cx.entity();
+        let this = cx.weak_entity();
         let (notify_to, done_to) = (this.clone(), this.clone());
         let renderer = cx.new(|cx| FormRenderer::new(
             FormRendererProps {
@@ -323,16 +323,16 @@ impl RelatedRecords {
                 embedded: true,
                 depth: props.depth + 1,
                 on_done: Some(Rc::new(move |cx| {
-                    done_to.update(cx, |this, cx| {
+                    let _ = done_to.update(cx, |this, cx| {
                         this.editing = None;
                         this.editor = None;
                         this.load(0, cx);
                         cx.notify();
-                    })
+                    });
                 })),
                 back: None,
                 on_notify: Some(Rc::new(move |text, tone, cx| {
-                    notify_to.update(cx, |this, cx| {
+                    let _ = notify_to.update(cx, |this, cx| {
                         if tone == NoticeTone::Error {
                             this.error = text;
                         } else {
@@ -340,7 +340,7 @@ impl RelatedRecords {
                             this.message = format!("{label}: {text}");
                         }
                         cx.notify();
-                    })
+                    });
                 })),
                 params: Map::new(),
                 on_dirty: None,

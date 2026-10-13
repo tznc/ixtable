@@ -232,7 +232,7 @@ impl FormRenderer {
     }
 
     fn build(&mut self, entry: &Entry, form: &Form, window: &mut Window, cx: &mut Context<Self>) -> Shown {
-        let this = cx.entity();
+        let this = cx.weak_entity();
         let env = self.props.env.clone();
         let params = self.props.params.clone();
         let detail_id = form.detail_form_id.clone().filter(|d| !d.is_empty()).unwrap_or_else(|| form.id.clone());
@@ -253,7 +253,7 @@ impl FormRenderer {
                                     record_id: Some(id),
                                     cursor: Some(cursor),
                                 };
-                                open.update(cx, |t, cx| t.push(entry, cx));
+                                let _ = open.update(cx, |t, cx| t.push(entry, cx));
                             }),
                             on_create: Rc::new(move |cx| {
                                 let entry = Entry {
@@ -262,7 +262,7 @@ impl FormRenderer {
                                     record_id: None,
                                     cursor: None,
                                 };
-                                create.update(cx, |t, cx| t.push(entry, cx));
+                                let _ = create.update(cx, |t, cx| t.push(entry, cx));
                             }),
                             params,
                         },
@@ -281,7 +281,9 @@ impl FormRenderer {
                         env,
                         form.clone(),
                         params,
-                        Rc::new(move |target, cx| navigate.update(cx, |t, cx| t.navigate(target, cx))),
+                        Rc::new(move |target, cx| {
+                            let _ = navigate.update(cx, |t, cx| t.navigate(target, cx));
+                        }),
                         window,
                         cx,
                     )
@@ -303,17 +305,17 @@ impl FormRenderer {
                             params: params.clone(),
                             on_mode: Rc::new(move |mode, id, cx| {
                                 let entry = Entry { form_id: form_id.clone(), mode, record_id: id, cursor: cursor.clone() };
-                                mode_to.update(cx, |t, cx| t.replace(entry, cx));
+                                let _ = mode_to.update(cx, |t, cx| t.replace(entry, cx));
                             }),
                             on_close: Rc::new(move |cx| {
-                                close_to.update(cx, |t, cx| t.close(cx));
+                                let _ = close_to.update(cx, |t, cx| t.close(cx));
                             }),
                             on_navigate: Rc::new(move |target, cx| {
-                                nav_to.update(cx, |t, cx| t.navigate(target, cx));
+                                let _ = nav_to.update(cx, |t, cx| t.navigate(target, cx));
                             }),
                             on_notify: self.props.on_notify.clone(),
                             on_dirty: Some(Rc::new(move |dirty, cx| {
-                                dirty_to.update(cx, |t, cx| t.set_dirty(dirty, cx));
+                                let _ = dirty_to.update(cx, |t, cx| t.set_dirty(dirty, cx));
                             })),
                             on_saved: self.props.on_saved.clone(),
                         },
@@ -333,9 +335,9 @@ impl FormRenderer {
             let previous = &self.stack[self.stack.len() - 2];
             let label = resolve_form(self.props.env.config(cx), &previous.form_id)
                 .map_or_else(|| "previous view".to_string(), |f| f.name);
-            let this = cx.entity();
+            let this = cx.weak_entity();
             return Some(BackLink::new(label, move |cx| {
-                this.update(cx, |t, cx| t.close(cx));
+                let _ = this.update(cx, |t, cx| t.close(cx));
             }));
         }
         self.props.back.clone()
@@ -382,7 +384,7 @@ impl Render for FormRenderer {
                     cx,
                 );
             if show_bar {
-                let this = cx.entity();
+                let this = cx.weak_entity();
                 let (go_to, new_to) = (this.clone(), this.clone());
                 let form_id = form.id.clone();
                 let new_form_id = form.id.clone();
@@ -397,7 +399,7 @@ impl Render for FormRenderer {
                             record_id: Some(id),
                             cursor: Some(cursor),
                         };
-                        go_to.update(cx, |t, cx| t.replace(entry, cx));
+                        let _ = go_to.update(cx, |t, cx| t.replace(entry, cx));
                     }),
                     on_new: can_create.then(|| {
                         Rc::new(move |cx: &mut App| {
@@ -407,7 +409,7 @@ impl Render for FormRenderer {
                                 record_id: None,
                                 cursor: None,
                             };
-                            new_to.update(cx, |t, cx| t.push(entry, cx));
+                            let _ = new_to.update(cx, |t, cx| t.push(entry, cx));
                         }) as Rc<dyn Fn(&mut App)>
                     }),
                     disabled: self.dirty,
