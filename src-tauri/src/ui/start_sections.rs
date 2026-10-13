@@ -6,6 +6,7 @@
 //! (the screen owns the panel views; the registry never keeps them alive).
 
 use super::{
+    access::host::AccessHost,
     persistence::recovery_list::RecoveryList,
     release::bundle_flow::{Act, BundleEvent, BundleFlow},
     start::StartScreen,
@@ -22,6 +23,7 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Default)]
 pub struct ScreenExtras {
     pub bundle: Option<WeakEntity<BundleFlow>>,
+    pub access: Option<WeakEntity<AccessHost>>,
 }
 
 #[derive(Default)]
@@ -39,10 +41,27 @@ fn bundle_flow(screen: EntityId, cx: &mut App) -> Option<Entity<BundleFlow>> {
     with_extras(screen, cx, |e| e.bundle.as_ref().and_then(WeakEntity::upgrade))
 }
 
+fn access_host(screen: EntityId, cx: &mut App) -> Option<Entity<AccessHost>> {
+    with_extras(screen, cx, |e| e.access.as_ref().and_then(WeakEntity::upgrade))
+}
+
 /// Buttons next to New and Open.
 pub fn actions(screen: &Entity<StartScreen>, busy: bool, _: &mut App) -> Vec<AnyElement> {
     let id = screen.entity_id();
     vec![
+        Button::new("import-access")
+            .icon(Icon::new(IconName::DatabaseZap))
+            .label("Import Access database…")
+            .tooltip("Convert a Microsoft Access file into a new document")
+            .outline()
+            .disabled(busy)
+            .w(px(240.))
+            .on_click(move |_, _, cx| {
+                if let Some(host) = access_host(id, cx) {
+                    host.update(cx, |h, cx| h.open(cx));
+                }
+            })
+            .into_any_element(),
         Button::new("open-bundle")
             .icon(Icon::new(IconName::PackageOpen))
             .label("Open runtime bundle")
@@ -80,7 +99,7 @@ pub fn panels(
             )
         })
     };
-    let flow = cx.new(|cx| BundleFlow::new(label, None, act, false, window, cx));
+    let flow = cx.new(|cx| BundleFlow::new(label.clone(), None, act, false, window, cx));
     let weak_screen = screen.downgrade();
     cx.subscribe(&flow, move |_, event: &BundleEvent, cx| {
         // A verified bundle opened: hand its session to the screen, which opens the shell.
@@ -93,8 +112,14 @@ pub fn panels(
     })
     .detach();
     with_extras(screen.entity_id(), cx, |e| e.bundle = Some(flow.downgrade()));
+    let access = {
+        let (label, weak) = (label.clone(), screen.downgrade());
+        cx.new(|_| AccessHost::new(label, weak))
+    };
+    with_extras(screen.entity_id(), cx, |e| e.access = Some(access.downgrade()));
     vec![
         flow.into(),
+        access.into(),
         cx.new(|cx| RecoveryList::new(screen, cx)).into(),
     ]
 }

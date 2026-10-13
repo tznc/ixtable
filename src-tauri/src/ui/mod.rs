@@ -2,6 +2,7 @@
 //! built from gpui-kit components. There is no WebView; views call the backend
 //! command functions directly (docs/decisions/gpui-ui.md).
 
+pub mod access;
 pub mod app;
 pub mod assets;
 pub mod autosave;
