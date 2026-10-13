@@ -8,6 +8,7 @@ pub mod autosave;
 pub mod dialogs;
 pub mod events;
 pub mod prelude;
+pub mod query;
 pub mod shell;
 pub mod start;
 pub mod start_sections;
