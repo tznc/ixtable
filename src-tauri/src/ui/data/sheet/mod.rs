@@ -3,6 +3,8 @@
 
 pub mod filters;
 pub mod find;
+pub mod find_panel;
+pub mod grid;
 pub mod layout;
 pub mod paste;
 pub mod rows;

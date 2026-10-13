@@ -5,6 +5,7 @@
 pub mod datasheet;
 pub mod mask;
 pub mod richtext;
+pub mod settings_editor;
 pub mod values;
 
 #[cfg(test)]
