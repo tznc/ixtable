@@ -16,6 +16,7 @@ pub mod data;
 pub mod design;
 pub mod export;
 pub mod expr;
+pub mod forms;
 pub mod records;
 pub mod import;
 pub mod installation;
