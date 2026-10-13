@@ -84,10 +84,12 @@ pub fn reveal(h: &mut Harness, container: &str, scope: Option<&str>, id: &str) {
                 Some(scope) => window.within(scope.clone()).find(id.clone()),
                 None => window.find(id.clone()),
             };
-            if target.visible() {
+            let view = window.find(container.clone()).bounds();
+            let centre = target.bounds().center();
+            let inside = centre.y >= view.origin.y && centre.y <= view.origin.y + view.size.height;
+            if target.visible() && inside && centre.y < window.viewport_size().height {
                 return true;
             }
-            let view = window.find(container.clone()).bounds();
             let below = target.bounds().origin.y >= view.origin.y;
             let step = if below { -240. } else { 240. };
             window.scroll(container, ScrollDelta::Pixels(point(px(0.), px(step))), cx);
@@ -106,7 +108,8 @@ pub fn auto_reveal(h: &mut Harness, id: &str) {
     for container in ["table-designer", "create-table-body", "import-dialog"] {
         let (c, i) = (container.to_string(), id.to_string());
         let off_screen = h.update(move |window, _| {
-            window.try_find(c).is_some() && window.try_find(i).is_some_and(|t| !t.visible())
+            window.try_find(c).is_some()
+                && window.try_find(i).is_some_and(|t| !t.visible() || t.bounds().center().y > window.viewport_size().height)
         });
         if off_screen {
             reveal(h, container, None, id);

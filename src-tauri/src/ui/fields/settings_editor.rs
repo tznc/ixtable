@@ -157,6 +157,15 @@ impl FieldSettingsEditor {
         cx.notify();
     }
 
+    /// Types `text` into the choices box of `column` and saves it, as leaving the box does.
+    pub fn set_choices(&mut self, column: &str, text: &str, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(area) = self.choices.get(column) {
+            let text = text.to_string();
+            area.update(cx, |s, cx| s.set_value(text, window, cx));
+        }
+        self.save_choices(column, text, cx);
+    }
+
     /// Choices typed one per line: trimmed, without blanks or repeats.
     fn save_choices(&mut self, column: &str, text: &str, cx: &mut Context<Self>) {
         let mut next: Vec<String> = Vec::new();

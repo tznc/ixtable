@@ -572,6 +572,10 @@ impl TableSchemaDesigner {
         );
     }
 
+    pub fn field_settings(&self) -> &Entity<FieldSettingsEditor> {
+        &self.field_settings
+    }
+
     pub fn set_locked(&mut self, locked: bool, cx: &mut Context<Self>) {
         if self.locked != locked {
             self.locked = locked;

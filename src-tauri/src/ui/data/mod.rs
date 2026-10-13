@@ -23,3 +23,5 @@ mod tests_sheet;
 mod tests_schema;
 #[cfg(test)]
 mod tests_io;
+#[cfg(test)]
+mod tests_fields;
