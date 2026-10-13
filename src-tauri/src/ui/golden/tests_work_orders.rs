@@ -231,8 +231,7 @@ fn golden_work_orders_lifecycle_with_status_actions_sync_and_async_triggers_and_
         });
 
         journey.step("Technician role: no setup, no new or deleted work orders", |j| {
-            let role = h.config().roles.iter().find(|r| r.name == "Technician").expect("Technician role").id.clone();
-            h.click(format!("role:{role}"));
+            crate::ui::runtime::tests::run_as(&mut h, "Technician");
             wait(&mut h);
             let setup = h.config().design.navigation.iter().find(|n| n.label == "Setup").expect("Setup").id.clone();
             assert!(!h.exists(format!("nav-group:{setup}")), "Setup is hidden");

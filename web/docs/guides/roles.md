@@ -37,14 +37,14 @@ Triggers have their own setting, **Run as**. A trigger that runs as the app can 
 
 ## Preview a role
 
-In Studio's Runtime mode, pick a role in **Preview as role**. The navigation, forms, buttons, and dashboards then behave as they will for that role, and the record commands refuse anything the role cannot do. **Developer (full access)** ends the preview. Leaving Runtime mode ends it too, so the design modes always have full access.
+In Studio, open the menu on the **Run App** button and pick a role. The app opens in its own window, and its navigation, forms, buttons, and dashboards behave as they will for that role. The record commands refuse anything the role cannot do. Switch roles with **Run as** in that window. **Owner (default)** runs with full access. The role applies only while the Run App window is in front, so Studio keeps full access, and closing the window ends the preview.
 
 ## Who gets which role
 
 | Where the application runs | Role |
 | --- | --- |
 | Studio design modes | Developer, full access |
-| Studio Runtime mode | Developer, or the role picked in **Preview as role** |
+| Studio Run App window | Owner, or the role picked in **Run as** |
 | Manually distributed runtime bundle | Developer, full access. Roles do not apply |
 | ixtable Cloud installation | The role assigned to the user, shown as `Role: <name>` |
 

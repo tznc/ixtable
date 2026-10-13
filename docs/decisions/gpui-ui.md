@@ -44,6 +44,18 @@ frontend remains, and Tauri hosts no webview.
   - DDL changes announce through `Shell::database_changed`.
   - Record changes announce through `Shell::records_changed`.
   - Both go out over the `DocBus` entity.
+- **Windows:** `ui::windows::open` opens extra OS windows. Under Tauri it builds a
+  Tauri window and attaches GPUI (`WindowHost::Tauri`, set by `ui::launch`), because
+  tauri-plugin-gpui rejects GPUI's `open_window`. Tests and screenshots open GPUI test
+  windows. The Harness directs clicks to `Harness::window`; `focus_window` switches it.
+- **Run App window:** Studio runs the app in a window of its own
+  (`ui::runtime::window`), opened by the "Run App" split button in the sidebar. Its
+  menu runs the app as the owner or as one of the document's roles. `ModeId::Run` is
+  left only for runtime bundles, whose whole window is the app. The window shares
+  the document's session (and window label) with Studio, so the previewed role is
+  enforced in Rust only while the Run App window is active, and Studio keeps full
+  access when it is in front. A document stored in `run` (templates open there) opens Studio in Data with the
+  Run App window beside it.
 - **Native dialogs** go through `ui::dialogs` (`pick_file`, `save_file`, `confirm`, and
   so on). The `TestDialogs` provider queues answers for tests.
 - **In-app dialogs** use `ui::dialog::dialog(id, title)`: a fixed header, a scrolling

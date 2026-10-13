@@ -1,7 +1,8 @@
 //! Studio modes in display order. `DocumentConfig.active_mode` stores `ModeId::key`.
 //! Each feature registers its workspace view (and optional sidebar) in `build_view`
 //! and `build_sidebar`. Saved queries open on the Data page; documents stored with the
-//! former `"query"` mode open there too.
+//! former `"query"` mode open there too. `Run` is the whole window of a runtime bundle;
+//! Studio runs the app in the Run App window instead (`ui::runtime::window`).
 
 use super::Shell;
 use gpui_kit::assets::IconName;
@@ -25,6 +26,9 @@ impl ModeId {
         ModeId::Run,
     ];
 
+    /// The modes Studio switches between (Run opens the Run App window instead).
+    pub const STUDIO: [ModeId; 4] = [ModeId::Data, ModeId::Design, ModeId::Automation, ModeId::App];
+
     pub fn key(self) -> &'static str {
         match self {
             ModeId::Data => "data",
@@ -41,7 +45,7 @@ impl ModeId {
             ModeId::Design => "Design",
             ModeId::Automation => "Automation",
             ModeId::App => "Settings",
-            ModeId::Run => "Runtime",
+            ModeId::Run => "Run App",
         }
     }
 
@@ -55,13 +59,14 @@ impl ModeId {
         }
     }
 
-    /// The mode for a stored key; unknown keys fall back to Data. Reports and dashboards
-    /// were modes of their own before config version 8 and now open Design.
+    /// The Studio mode for a stored key; unknown keys (and "run", from before the Run App
+    /// window) fall back to Data. Reports and dashboards were modes of their own before
+    /// config version 8 and now open Design.
     pub fn from_key(key: &str) -> ModeId {
         if matches!(key, "reports" | "dashboards") {
             return ModeId::Design;
         }
-        Self::ALL
+        Self::STUDIO
             .into_iter()
             .find(|m| m.key() == key)
             .unwrap_or(ModeId::Data)

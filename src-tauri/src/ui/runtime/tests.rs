@@ -104,11 +104,22 @@ pub(crate) fn task_form<C: UiContext>(h: &mut Harness<C>, patch: serde_json::Val
     });
 }
 
-/// The Run mode body of the open document.
-pub(crate) fn run_body(h: &mut Harness) -> Entity<RunBody> {
+/// The running app of the open document: the Run App window's, else a runtime bundle's.
+pub(crate) fn run_body<C: UiContext>(h: &mut Harness<C>) -> Entity<RunBody> {
+    let label = h.label.clone();
+    let window = h.cx.read(|cx| super::window::find(&label, cx).map(|(_, w)| w.read(cx).body().clone()));
+    if let Some(body) = window {
+        return body;
+    }
     let view = h.read_shell(|s, _| s.mode_view()).expect("a mode view");
     let mode: Entity<RunMode> = view.downcast().expect("RunMode");
     h.cx.read(|cx| mode.read(cx).body().cloned()).expect("the Run body is rendered")
+}
+
+/// Runs the app as the role named `name` ("Owner (default)" for the owner) with the Run
+/// App window's "Run as" select.
+pub(crate) fn run_as<C: UiContext>(h: &mut Harness<C>, name: &str) {
+    crate::ui::data::testkit::choose(h, "run-as", name);
 }
 
 /// The form renderer of the page shown.

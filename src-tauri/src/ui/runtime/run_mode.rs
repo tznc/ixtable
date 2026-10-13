@@ -1,10 +1,11 @@
-//! Run mode (port of `RunMode.tsx`): the application as its users see it, with navigation,
-//! start page and role preview. Pages are forms (the `FormRenderer`), tables (generated CRUD
+//! Run App (port of `RunMode.tsx`): the application as its users see it, with navigation,
+//! start page and role preview. `RunBody` is the Run App window's content (`window.rs`) and,
+//! through `RunMode`, the whole window of a runtime bundle. Pages are forms (the `FormRenderer`), tables (generated CRUD
 //! forms built in memory), and reports and dashboards, which other features provide through
 //! `PageBuilders` (a placeholder shows until they register).
 //!
-//! Test ids: `mode-title` ("Runtime"), `rt-role` ("Role: X", cloud-assigned role), the
-//! "Preview as role" buttons `role:developer` / `role:<role id>` (selected = in force),
+//! Test ids: `mode-title` ("Run App"), `rt-role` ("Role: X", cloud-assigned role), the
+//! "Run as" role select `run-as` ("Owner (default)" or a role name),
 //! `rt-nav` ("Application navigation") with `nav:<item id>` buttons (selected = current
 //! page) and `nav-group:<item id>` labels, `rt-nav-empty`, `rt-page` ("Application page"),
 //! `rt-notice` / `rt-notice-error`, `rt-empty` ("Build your app") with `generate-app`,
@@ -369,28 +370,22 @@ impl Render for RunBody {
             ),
             (None, false) => {
                 let runtime = self.runtime.clone();
-                let mut buttons = vec![{
-                    let runtime = runtime.clone();
-                    Button::new("role:developer")
-                        .small()
-                        .label("Developer (full access)")
-                        .selected(role_id.is_none())
-                        .on_click(move |_, _, cx| runtime.update(cx, |r, cx| r.set_role_id(None, cx)))
-                }];
-                buttons.extend(config.roles.iter().map(|role| {
-                    let (runtime, id) = (runtime.clone(), role.id.clone());
-                    Button::new(SharedString::from(format!("role:{}", role.id)))
-                        .small()
-                        .label(role.name.clone())
-                        .selected(role_id.as_deref() == Some(role.id.as_str()))
-                        .on_click(move |_, _, cx| runtime.update(cx, |r, cx| r.set_role_id(Some(id.clone()), cx)))
-                }));
+                let picker = crate::ui::controls::select(
+                    "run-as",
+                    role_id.as_deref().unwrap_or_default(),
+                    super::window::role_options(&config),
+                    super::window::OWNER,
+                    move |value, _, cx| {
+                        let role = (!value.is_empty()).then(|| value.to_string());
+                        runtime.update(cx, |r, cx| r.set_role_id(role, cx));
+                    },
+                );
                 Some(
                     h_flex()
-                        .gap_1()
+                        .gap_2()
                         .items_center()
-                        .child(div().text_sm().child("Preview as role"))
-                        .children(buttons)
+                        .child(div().text_sm().child("Run as"))
+                        .child(picker)
                         .into_any_element(),
                 )
             }
@@ -411,11 +406,11 @@ impl Render for RunBody {
                 }
             }
         };
-        let kicker = format!("PROJECT / RUNTIME · {}", config.name);
+        let kicker = format!("PROJECT / RUN APP · {}", config.name);
         let header = if runtime_only {
             widgets::titlebar("", &config.name, cx)
         } else {
-            widgets::titlebar(&kicker, "Runtime", cx)
+            widgets::titlebar(&kicker, "Run App", cx)
         };
         v_flex()
             .size_full()
