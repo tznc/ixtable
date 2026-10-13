@@ -11,6 +11,7 @@ pub mod events;
 pub mod fields;
 pub mod generate;
 pub mod generate_app;
+pub mod legacy_ids;
 pub mod lookups;
 pub mod navigation;
 pub mod nesting;
