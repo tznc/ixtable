@@ -137,17 +137,24 @@ impl DashboardView {
         };
         let theme = cx.theme().clone();
         let border = theme.border;
-        let header = h_flex().border_b_1().border_color(border).children(slice.columns.iter().enumerate().map(|(c, column)| {
-            widgets::styled_text(format!("col:{name}:{c}"), column.clone(), |d| {
-                d.flex_1().min_w(px(48.)).px_2().py_1().text_sm().font_weight(FontWeight::SEMIBOLD)
+        // Each column is as wide as its longest text (within bounds); longer text truncates.
+        let widths: Vec<f32> = (0..slice.columns.len())
+            .map(|c| {
+                let longest = slice.rows.iter().filter_map(|r| r.get(c)).map(|t| t.chars().count()).chain([slice.columns[c].chars().count()]).max().unwrap_or(0);
+                (longest as f32 * 8.0 + 28.).clamp(56., 260.)
             })
+            .collect();
+        let header = h_flex().border_b_1().border_color(border).children(slice.columns.iter().enumerate().map(|(c, column)| {
+            widgets::styled_text(format!("col:{name}:{c}"), column.clone(), { let w = widths[c]; move |d| {
+                d.flex_none().w(px(w)).px_2().py_1().text_sm().font_weight(FontWeight::SEMIBOLD).whitespace_nowrap().truncate()
+            } })
         }));
         let rows = slice.rows.iter().enumerate().map(|(r, row)| {
             h_flex().border_b_1().border_color(border).children(row.iter().enumerate().map(|(c, text)| {
                 let color = slice.tones[r][c].as_ref().and_then(|t| tone_color(t, cx));
-                widgets::styled_text(format!("cell:{name}:{r}:{c}"), text.clone(), move |d| {
-                    d.flex_1().min_w(px(48.)).px_2().py_1().text_sm().when_some(color, |d, color| d.text_color(color))
-                })
+                widgets::styled_text(format!("cell:{name}:{r}:{c}"), text.clone(), { let w = widths[c]; move |d| {
+                    d.flex_none().w(px(w)).px_2().py_1().text_sm().whitespace_nowrap().truncate().when_some(color, |d, color| d.text_color(color))
+                } })
             }))
         });
         let id = component.id.clone();
@@ -180,7 +187,7 @@ impl DashboardView {
                 )
         });
         // Columns keep a minimum width; a wider table scrolls inside its card.
-        let min_width = px(48. * slice.columns.len() as f32);
+        let min_width = px(widths.iter().sum::<f32>());
         let table = v_flex().w_full().min_w(min_width).child(header).children(rows);
         let scroller = div()
             .id(SharedString::from(format!("table-scroll:{name}")))
