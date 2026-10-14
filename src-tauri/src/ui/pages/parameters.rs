@@ -115,7 +115,7 @@ impl PageEditor {
                                 Button::new(SharedString::from(format!("page-param-remove:{n}")))
                                     .outline()
                                     .small()
-                                    .icon(IconName::Delete)
+                                    .icon(IconName::Trash)
                                     .tooltip(format!("Remove parameter {}", param.name))
                                     .on_click(cx.listener(move |this, _, _, cx| {
                                         this.edit("Remove page parameter", move |p| {

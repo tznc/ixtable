@@ -251,9 +251,10 @@ impl PagePanel {
             )
             .child(
                 Button::new("delete-page")
+                    .danger()
                     .outline()
                     .small()
-                    .icon(IconName::Delete)
+                    .icon(IconName::Trash)
                     .label("Delete page")
                     .on_click(cx.listener(|this, _, _, cx| this.delete(cx))),
             )

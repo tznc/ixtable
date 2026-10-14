@@ -419,9 +419,10 @@ impl DesignMode {
                     )
                     .child(
                         Button::new("delete-form")
+                            .danger()
                             .outline()
                             .small()
-                            .icon(IconName::Delete)
+                            .icon(IconName::Trash)
                             .label("Delete form")
                             .on_click(cx.listener(|this, _, _, cx| {
                                 let id = this.forms.read(cx).form_id.clone().unwrap_or_default();
