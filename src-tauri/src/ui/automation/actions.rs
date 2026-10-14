@@ -352,6 +352,7 @@ impl ActionsPanel {
                     .child(on_error)
                     .child(
                         Button::new("delete-action")
+                            .danger()
                             .outline()
                             .small()
                             .label("Delete action")

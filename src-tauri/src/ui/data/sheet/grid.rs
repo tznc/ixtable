@@ -1087,7 +1087,7 @@ impl Datasheet {
                         Button::new(SharedString::from(format!("delete-row:{i}")))
                             .ghost()
                             .xsmall()
-                            .icon(IconName::Delete)
+                            .icon(IconName::Trash)
                             .tooltip(format!("Delete row {}", self.page.offset as usize + i + 1))
                             .on_click(move |_, _, cx| entity.update(cx, |this, cx| this.remove(i, cx))),
                     ),

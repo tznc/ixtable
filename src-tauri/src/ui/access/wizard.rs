@@ -3,29 +3,41 @@
 //! (docs/decisions/access-import.md). Shows what the file holds first, then a report of
 //! what each object became. Port of src/access/AccessImportWizard.tsx.
 //!
-//! Test ids: dialog title `access-wizard`, `access-choose`, `access-file`,
-//! `access-busy`, `access-error`, `access-import`, `access-cancel`, `access-open`;
-//! contents card `access-contents` with `access-summary`, `access-count:<Label>`,
-//! `access-compiled`, `access-table:<name>` ("name fields rows"), `access-warning:<i>`,
-//! checkbox `access-include-data`; report card `access-report` with `access-created`,
-//! `access-note-about-settings`, `report-row:<kind>` ("Tables: converted C, partly P, not
-//! converted N"), `attention-toggle` ("What did not convert fully (N)"), and when shown
-//! `attention:<kind>:<name>` with `attention-note:<kind>:<name>:<i>`; `report-warning:<i>`.
+//! Test ids: dialog title `access-wizard` ("Import from Access"), `access-choose`,
+//! `access-file`, `access-busy`, `access-progress`, `access-error` (with
+//! `access-error-hint`), `access-import`, `access-cancel`, `access-open`. Contents:
+//! `access-summary`, `access-count:<Label>`, `access-compiled`, table rows
+//! `access-table:<name>` ("name: F fields, R rows"), `access-warning:<i>`, checkbox
+//! `access-include-data`. Report: verdict `access-report`, `access-created`,
+//! `access-note-about-settings`, `access-unsaved`, `report-row:<kind>` ("Tables: converted
+//! C, partly P, not converted N"), `attention-toggle` ("What did not convert fully (N)"),
+//! and when shown `attention:<kind>:<name>` with `attention-note:<kind>:<name>:<i>`;
+//! `report-warning:<i>`.
 
-use super::summary::{
-    ImportItem, items_needing_attention, items_of, kind_label, status_counts,
-    total_rows,
-};
+use super::summary::{ImportItem, items_of, total_rows};
 use crate::{
     access::{Inventory, convert::Options},
     manager::{AppError, SessionState},
     ui::{
+        dialog::dialog,
         dialogs::{self, FileFilter},
-        forms::{self, eid},
+        forms,
         prelude::*,
     },
 };
-use gpui_kit::component::Disableable as _;
+use gpui_kit::component::{Disableable as _, progress::Progress};
+
+mod sections;
+use std::sync::{Arc, Mutex};
+
+/// Rows copied so far, written by the import thread and read by the dialog.
+#[derive(Default)]
+struct Copied {
+    /// Tables finished, with their row counts.
+    finished: Vec<(String, u64)>,
+    /// The table being copied and its rows so far.
+    current: Option<(String, u64)>,
+}
 
 pub const ACCESS_FILES: FileFilter = FileFilter {
     name: "Access databases and templates",
@@ -55,7 +67,8 @@ pub struct AccessImportWizard {
     busy: String,
     error: Option<AppError>,
     result: Option<Imported>,
-    show_attention: bool,
+    show_attention: Option<bool>,
+    copied: Arc<Mutex<Copied>>,
     focus: FocusHandle,
     focus_dialog: bool,
 }
@@ -93,7 +106,8 @@ impl AccessImportWizard {
             busy: String::new(),
             error: None,
             result: None,
-            show_attention: false,
+            show_attention: None,
+            copied: Arc::default(),
             focus: cx.focus_handle(),
             focus_dialog: true,
         }
@@ -106,7 +120,7 @@ impl AccessImportWizard {
     fn choose(&mut self, cx: &mut Context<Self>) {
         self.error = None;
         cx.notify();
-        let pick = dialogs::pick_file(cx, "Import Access database", &[ACCESS_FILES]);
+        let pick = dialogs::pick_file(cx, "Import from Access", &[ACCESS_FILES]);
         task::after(cx, pick, |this, picked, cx| {
             let Some(picked) = picked else { return };
             let path = picked.to_string_lossy().into_owned();
@@ -131,9 +145,36 @@ impl AccessImportWizard {
 
     fn import(&mut self, cx: &mut Context<Self>) {
         self.error = None;
-        self.busy = "Importing… large databases take a while".into();
+        self.busy = "Converting tables, queries, forms and reports…".into();
+        *self.copied.lock().unwrap() = Copied::default();
         cx.notify();
         let (label, path, include_data) = (self.label.clone(), self.path.clone(), self.include_data);
+        let copied = self.copied.clone();
+        let report: Box<dyn FnMut(&str, u64) + Send> = Box::new(move |table, rows| {
+            let mut c = copied.lock().unwrap();
+            if let Some((name, n)) = c.current.take() {
+                if name != table {
+                    c.finished.push((name, n));
+                }
+            }
+            c.current = Some((table.to_string(), rows));
+        });
+        // Redraws the progress while the import runs.
+        cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor().timer(std::time::Duration::from_millis(200)).await;
+                let running = this
+                    .update(cx, |this, cx| {
+                        cx.notify();
+                        this.is_busy()
+                    })
+                    .unwrap_or(false);
+                if !running {
+                    break;
+                }
+            }
+        })
+        .detach();
         task::spawn_call(
             cx,
             move || {
@@ -141,6 +182,7 @@ impl AccessImportWizard {
                     label,
                     path,
                     Some(Options { include_data }),
+                    Some(report),
                 ))
             },
             |this, result, cx| {
@@ -174,124 +216,34 @@ impl AccessImportWizard {
         cx.emit(WizardEvent::Close);
     }
 
-    fn contents(&self, inventory: &Inventory, cx: &mut Context<Self>) -> Stateful<Div> {
-        let rows = total_rows(inventory);
-        let objects = [
-            ("Queries", inventory.queries.len()),
-            ("Forms", inventory.forms.len()),
-            ("Reports", inventory.reports.len()),
-            ("Macros", inventory.macros.len()),
-            ("Modules", inventory.modules.len()),
-        ];
-        let compiled = inventory
-            .compiled
-            .iter()
-            .filter(|(kind, _)| kind == "form" || kind == "report")
-            .count();
-        let format: super::summary::AccessFormat = inventory.format.into();
-        let mut card = forms::card("access-contents", "Access file contents", cx).child(widgets::text(
-            "access-summary",
-            format!(
-                "{}: {}, {}, {}.",
-                format.label(),
-                plural(inventory.tables.len() as u64, "table"),
-                plural(rows, "row"),
-                plural(inventory.relationships as u64, "relationship"),
-            ),
-        ));
-        for (label, n) in objects.into_iter().filter(|(_, n)| *n > 0) {
-            card = card.child(widgets::text(eid(format!("access-count:{label}")), format!("{label}: {n}")));
-        }
-        if compiled > 0 {
-            card = card.child(widgets::text(
-                "access-compiled",
-                format!(
-                    "This file stores its {compiled} forms and reports compiled, so they cannot be read. ixtable creates a list and a detail form for each table instead."
-                ),
-            ));
-        }
-        for t in &inventory.tables {
-            let count = t.rows.map_or("—".to_string(), grouped);
-            card = card.child(widgets::text(
-                eid(format!("access-table:{}", t.name)),
-                format!("{} {} {}", t.name, t.columns, count),
-            ));
-        }
-        for (i, w) in inventory.warnings.iter().enumerate() {
-            card = card.child(widgets::text(eid(format!("access-warning:{i}")), w.clone()));
-        }
-        let entity = cx.entity();
-        card.child(
-            forms::check(
-                "access-include-data",
-                &format!("Import the data ({} rows)", grouped(rows)),
-                self.include_data,
-                move |on, _, cx| {
-                    entity.update(cx, |this, cx| {
-                        this.include_data = on;
-                        cx.notify();
-                    })
-                },
-            )
-            .disabled(self.is_busy()),
-        )
-    }
-
-    fn report(&self, done: &Imported, cx: &mut Context<Self>) -> Stateful<Div> {
-        let attention = items_needing_attention(&done.items);
-        let mut card = forms::card("access-report", "Access import report", cx)
-            .child(widgets::text(
-                "access-created",
-                format!(
-                    "Created a document with {} and {}.",
-                    plural(done.tables as u64, "table"),
-                    plural(done.rows, "row"),
-                ),
-            ))
-            .child(widgets::text(
-                "access-note-about-settings",
-                "Settings › Access migration keeps this report, with links, review marks and export.",
-            ));
-        for c in status_counts(&done.items) {
-            card = card.child(widgets::text(
-                eid(format!("report-row:{}", c.kind)),
-                format!(
-                    "{}: converted {}, partly {}, not converted {}",
-                    kind_label(&c.kind),
-                    c.converted,
-                    c.partial,
-                    c.skipped
-                ),
-            ));
-        }
-        if !attention.is_empty() {
-            card = card.child(
-                forms::link("attention-toggle", &format!("What did not convert fully ({})", attention.len()))
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.show_attention = !this.show_attention;
-                        cx.notify();
-                    })),
-            );
-            if self.show_attention {
-                for item in &attention {
-                    let key = format!("{}:{}", item.kind, item.name);
-                    card = card.child(widgets::text(
-                        eid(format!("attention:{key}")),
-                        format!("{} ({})", item.name, item.kind),
-                    ));
-                    for (i, note) in item.notes.iter().enumerate() {
-                        card = card.child(widgets::text(
-                            eid(format!("attention-note:{key}:{i}")),
-                            note.clone(),
-                        ));
-                    }
-                }
+    /// Copy progress: a line (`access-busy`) and a bar (`access-progress`) over all rows.
+    fn progress(&self, cx: &App) -> Div {
+        let total = self.inventory.as_ref().map_or(0, total_rows);
+        let copied = self.copied.lock().unwrap();
+        let done: u64 = copied.finished.iter().map(|(_, n)| n).sum();
+        let (line, value) = match &copied.current {
+            Some((table, n)) if self.include_data && total > 0 => {
+                let of = self
+                    .inventory
+                    .as_ref()
+                    .and_then(|i| i.tables.iter().find(|t| &t.name == table))
+                    .and_then(|t| t.rows)
+                    .map(|rows| format!(" of {}", grouped(rows)))
+                    .unwrap_or_default();
+                (
+                    format!("Copying {table}: {} rows{of}", grouped(*n)),
+                    ((done + n) as f32 / total as f32 * 100.).min(100.),
+                )
             }
-        }
-        for (i, w) in done.warnings.iter().enumerate() {
-            card = card.child(widgets::text(eid(format!("report-warning:{i}")), w.clone()));
-        }
-        card
+            _ => (self.busy.clone(), 0.),
+        };
+        let theme = cx.theme();
+        v_flex()
+            .gap_1()
+            .child(widgets::styled_text("access-busy", line, |d| {
+                d.text_sm().text_color(theme.muted_foreground)
+            }))
+            .child(Progress::new("access-progress").value(value).loading(value == 0.))
     }
 }
 
@@ -301,59 +253,69 @@ impl Render for AccessImportWizard {
             window.focus(&self.focus, cx);
         }
         let busy = self.is_busy();
-        let mut dialog = forms::dialog("access-wizard", "Import Access database", cx);
+        let mut panel = dialog("access-wizard", "Import from Access");
         if self.result.is_none() {
-            let shown = if self.path.is_empty() {
-                ".accdb, .mdb, or an Access template (.accdt)".to_string()
+            let theme = cx.theme();
+            if self.inventory.is_none() {
+                panel = panel.child(widgets::styled_text(
+                    "access-intro",
+                    "Creates a new ixtable document from a Microsoft Access database (.accdb, .mdb) or template (.accdt). Your Access file is not changed.",
+                    |d| d.text_sm().text_color(theme.muted_foreground),
+                ));
+            }
+            let (choose, shown) = if self.path.is_empty() {
+                (forms::primary("access-choose", "Choose file…"), "No file chosen".to_string())
             } else {
-                file_name(&self.path)
+                (forms::secondary("access-choose", "Choose another file…"), file_name(&self.path))
             };
-            dialog = dialog.child(
-                forms::actions()
-                    .child(
-                        forms::secondary("access-choose", "Choose file…")
-                            .disabled(busy)
-                            .on_click(cx.listener(|this, _, _, cx| this.choose(cx))),
-                    )
-                    .child(widgets::text("access-file", shown)),
+            panel = panel.child(
+                h_flex()
+                    .gap_3()
+                    .items_center()
+                    .child(choose.disabled(busy).on_click(cx.listener(|this, _, _, cx| this.choose(cx))))
+                    .child(widgets::styled_text("access-file", shown, |d| d.text_sm())),
             );
         }
-        if busy {
-            dialog = dialog.child(widgets::text("access-busy", self.busy.clone()));
-        }
         if let (Some(inventory), None) = (self.inventory.clone(), &self.result) {
-            dialog = dialog.child(self.contents(&inventory, cx));
+            panel = panel.child(self.contents(&inventory, cx));
+        }
+        if busy {
+            panel = panel.child(self.progress(cx));
         }
         if let Some(e) = &self.error {
-            dialog = dialog.child(widgets::error_banner("access-error", e, None, cx));
+            panel = panel.child(
+                v_flex()
+                    .gap_1()
+                    .child(widgets::error_banner("access-error", e, None, cx))
+                    .when(self.inventory.is_none(), |el| {
+                        el.child(forms::muted("Choose a .accdb, .mdb or .accdt file.", cx).id("access-error-hint"))
+                    }),
+            );
         }
         if let Some(done) = &self.result {
-            dialog = dialog.child(self.report(done, cx));
+            panel = panel.child(self.report(done, cx));
         }
-        let actions = if self.result.is_some() {
-            forms::actions().child(
+        panel = if self.result.is_some() {
+            panel.footer(
                 forms::primary("access-open", "Open document")
                     .on_click(cx.listener(|this, _, _, cx| this.close(cx))),
             )
         } else {
-            forms::actions()
-                .child(
-                    forms::primary("access-import", "Import")
-                        .disabled(busy || self.inventory.is_none())
-                        .on_click(cx.listener(|this, _, _, cx| this.import(cx))),
-                )
-                .child(
+            panel
+                .footer(
                     forms::secondary("access-cancel", "Cancel")
                         .disabled(busy)
                         .on_click(cx.listener(|this, _, _, cx| this.cancel(cx))),
                 )
+                .footer(
+                    forms::primary("access-import", "Import")
+                        .disabled(busy || self.inventory.is_none())
+                        .on_click(cx.listener(|this, _, _, cx| this.import(cx))),
+                )
         };
         let entity = cx.entity();
-        forms::overlay(forms::escapable(
-            dialog.child(actions),
-            &self.focus,
-            busy,
-            move |_, cx| entity.update(cx, |this, cx| this.close(cx)),
-        ))
+        panel
+            .on_escape(&self.focus, busy, move |_, cx| entity.update(cx, |this, cx| this.close(cx)))
+            .modal()
     }
 }

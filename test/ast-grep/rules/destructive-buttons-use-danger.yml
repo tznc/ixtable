@@ -1,0 +1,16 @@
+id: destructive-buttons-use-danger
+language: rust
+severity: error
+message: >
+  Delete, remove, drop, reset and roll-back buttons use forms::danger (or
+  .danger().outline() on a Button), so they never look like a safe action
+  (docs/decisions/design-language.md).
+files:
+  - "src-tauri/src/ui/**/*.rs"
+rule:
+  any:
+    - pattern: forms::secondary($ID, $LABEL)
+    - pattern: forms::primary($ID, $LABEL)
+constraints:
+  LABEL:
+    regex: ^"(Delete|Remove|Drop|Reset|Roll back)

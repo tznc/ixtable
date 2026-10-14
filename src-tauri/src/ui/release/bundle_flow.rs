@@ -17,6 +17,7 @@ use crate::{
     installation_checks::PendingMigration,
     manager::{AppError, SessionState},
     ui::{
+        dialog::dialog,
         dialogs::{self, FileFilter},
         forms,
         prelude::*,
@@ -281,32 +282,28 @@ impl Render for BundleFlow {
             let title = format!("Password for {} {}", prompt.summary.name, prompt.summary.version);
             let entity = cx.entity();
             let has_password = !forms::text_of(&self.password, cx).is_empty();
-            let panel = forms::escapable(
-                forms::dialog("bundle-password", &title, cx)
-                    .child(forms::input_field(
-                        "bundle-password-input",
-                        "Bundle password",
-                        &self.password,
-                        cx,
-                    ))
-                    .child(
-                        forms::actions()
-                            .child(
-                                forms::primary("bundle-unlock", "Unlock")
-                                    .disabled(busy || !has_password)
-                                    .on_click(cx.listener(|this, _, _, cx| this.unlock(cx))),
-                            )
-                            .child(
-                                forms::secondary("bundle-password-cancel", "Cancel")
-                                    .disabled(busy)
-                                    .on_click(cx.listener(|this, _, _, cx| this.cancel_prompt(cx))),
-                            ),
-                    ),
-                &self.focus,
-                busy,
-                move |_, cx| entity.update(cx, |this, cx| this.cancel_prompt(cx)),
-            );
-            flow = flow.child(forms::placed(panel, self.overlaid));
+            let panel = dialog("bundle-password", &title)
+                .width(crate::ui::dialog::SMALL)
+                .child(forms::input_field(
+                    "bundle-password-input",
+                    "Password",
+                    &self.password,
+                    cx,
+                ))
+                .footer(
+                    forms::secondary("bundle-password-cancel", "Cancel")
+                        .disabled(busy)
+                        .on_click(cx.listener(|this, _, _, cx| this.cancel_prompt(cx))),
+                )
+                .footer(
+                    forms::primary("bundle-unlock", "Unlock")
+                        .disabled(busy || !has_password)
+                        .on_click(cx.listener(|this, _, _, cx| this.unlock(cx))),
+                )
+                .on_escape(&self.focus, busy, move |_, cx| {
+                    entity.update(cx, |this, cx| this.cancel_prompt(cx))
+                });
+            flow = flow.child(panel.modal_if(self.overlaid));
         }
         if let Some(confirm) = &self.confirm {
             let summary = &confirm.pending.summary;
@@ -339,7 +336,7 @@ impl Render for BundleFlow {
                 },
                 cx,
             );
-            flow = flow.child(forms::placed(panel, self.overlaid));
+            flow = flow.child(panel.modal_if(self.overlaid));
         }
         if let Some(e) = &self.error {
             flow = flow.child(bundle_error_banner("bundle-error", e, cx));

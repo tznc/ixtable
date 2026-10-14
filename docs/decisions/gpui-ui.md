@@ -44,8 +44,12 @@ frontend remains, and Tauri hosts no webview.
   - DDL changes announce through `Shell::database_changed`.
   - Record changes announce through `Shell::records_changed`.
   - Both go out over the `DocBus` entity.
-- **Dialogs** go through `ui::dialogs` (`pick_file`, `save_file`, `confirm`, and
+- **Native dialogs** go through `ui::dialogs` (`pick_file`, `save_file`, `confirm`, and
   so on). The `TestDialogs` provider queues answers for tests.
+- **In-app dialogs** use `ui::dialog::dialog(id, title)`: a fixed header, a scrolling
+  body, a footer that stays visible, and `.modal()` for a centered panel over a dimmed
+  backdrop. `.on_escape` wires Escape and the header's close button. Styling rules for
+  dialogs, buttons, callouts and tables are in `design-language.md`.
 - **Imports:** UI files import `ui::prelude::*`.
 - **Element ids:** every interactive element gets a stable kebab-case
   element id. Tests find elements by these ids.

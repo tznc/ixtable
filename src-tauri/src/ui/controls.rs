@@ -293,55 +293,6 @@ pub fn badge(id: SharedString, label: &str, destructive: bool, cx: &App) -> impl
         .child(widgets::text(id, label.to_string()))
 }
 
-/// A modal panel over the whole view: a dimmed backdrop with the panel centred. The
-/// parent must be `relative()`. `id` names the panel for tests.
-pub fn modal(id: impl Into<ElementId>, title: &str, body: impl IntoElement, cx: &App) -> impl IntoElement {
-    modal_sized(id, title, body, 640.0, cx)
-}
-
-/// `modal` with a chosen panel width in pixels.
-pub fn modal_sized(
-    id: impl Into<ElementId>,
-    title: &str,
-    body: impl IntoElement,
-    width: f32,
-    cx: &App,
-) -> impl IntoElement {
-    let theme = cx.theme();
-    div()
-        .absolute()
-        .inset_0()
-        .flex()
-        .items_center()
-        .justify_center()
-        .bg(gpui_kit::black().opacity(0.45))
-        .occlude()
-        .child(
-            v_flex()
-                .id(id)
-                .aria_label(title.to_string())
-                .w(px(width))
-                .max_w_full()
-                .max_h_full()
-                .overflow_y_scroll()
-                .gap_3()
-                .p_4()
-                .rounded_lg()
-                .border_1()
-                .border_color(theme.border)
-                .bg(theme.background)
-                .shadow_lg()
-                .child(
-                    div()
-                        .text_lg()
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(crate::ui::widgets::text("modal-title", title.to_string())),
-                )
-                .child(body)
-                .test_support(),
-        )
-}
-
 /// A muted note line.
 pub fn note(text: impl IntoElement, cx: &App) -> Div {
     div().text_sm().text_color(cx.theme().muted_foreground).child(text)

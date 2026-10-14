@@ -124,7 +124,7 @@ impl QueryMode {
                     Button::new(SharedString::from(format!("join-remove:{alias}")))
                         .ghost()
                         .xsmall()
-                        .icon(IconName::Delete)
+                        .icon(IconName::Trash)
                         .tooltip(format!("Remove join {alias}"))
                         .on_click(cx.listener({
                             let alias = alias.clone();
@@ -194,7 +194,7 @@ impl QueryMode {
                                 Button::new(SharedString::from(format!("join-condition-remove:{alias}:{n}")))
                                     .ghost()
                                     .xsmall()
-                                    .icon(IconName::Delete)
+                                    .icon(IconName::Trash)
                                     .tooltip(format!("Remove join {alias} condition {n}"))
                                     .on_click(cx.listener({
                                         let (join_id, conditions) = (join.id.clone(), conditions.clone());

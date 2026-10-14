@@ -287,9 +287,10 @@ impl DashboardsMode {
             )
             .child(
                 Button::new("delete-dashboard")
+                    .danger()
                     .outline()
                     .small()
-                    .icon(IconName::Delete)
+                    .icon(IconName::Trash)
                     .label("Delete dashboard")
                     .on_click(cx.listener(|this, _, _, cx| this.delete(cx))),
             )

@@ -141,7 +141,7 @@ impl QueryMode {
                             .flex_none()
                             .ghost()
                             .xsmall()
-                            .icon(IconName::Delete)
+                            .icon(IconName::Trash)
                             .tooltip(format!("Delete {}", q.name))
                             .on_click(cx.listener(move |this, _, window, cx| this.delete(&del_id, window, cx))),
                     )

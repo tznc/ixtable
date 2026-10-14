@@ -274,8 +274,10 @@ impl Render for RolesTab {
                             .child(div().w(px(260.)).child(Input::new(&self.name).id("role-name").aria_label("Role name")))
                             .child(
                                 Button::new("delete-role")
+                                    .danger()
+                                    .outline()
                                     .small()
-                                    .icon(IconName::Delete)
+                                    .icon(IconName::Trash)
                                     .label("Delete role")
                                     .on_click(cx.listener(move |this, _, _, cx| this.remove_role(delete_id.clone(), cx))),
                             ),

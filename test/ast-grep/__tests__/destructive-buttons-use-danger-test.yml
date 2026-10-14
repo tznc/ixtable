@@ -1,0 +1,11 @@
+id: destructive-buttons-use-danger
+valid:
+  - |
+    fn view() { forms::danger("remove-asset", "Remove"); }
+  - |
+    fn view() { forms::secondary("refresh", "Refresh"); }
+invalid:
+  - |
+    fn view() { forms::secondary("remove-asset", "Remove"); }
+  - |
+    fn view() { forms::primary("reset-confirm", "Reset installation data"); }

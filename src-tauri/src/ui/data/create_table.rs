@@ -325,7 +325,7 @@ impl Render for CreateTableForm {
                         Button::new(SharedString::from(format!("Remove column {n}")))
                             .ghost()
                             .small()
-                            .icon(IconName::Delete)
+                            .icon(IconName::Trash)
                             .tooltip(format!("Remove column {n}"))
                             .on_click(move |_, _, cx| {
                                 entity2.update(cx, |this, cx| this.remove_row(i, cx))
@@ -385,7 +385,8 @@ impl Render for CreateTableForm {
                             ))
                             .child(
                                 Button::new(SharedString::from(format!("Remove relationship {}", i + 1)))
-                                    .ghost()
+                                    .danger()
+                                    .outline()
                                     .xsmall()
                                     .label("Remove")
                                     .on_click(move |_, _, cx| {

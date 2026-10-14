@@ -348,7 +348,7 @@ impl ReportDesigner {
                 Button::new(SharedString::from(format!("remove-group-{n}")))
                     .outline()
                     .small()
-                    .icon(IconName::Delete)
+                    .icon(IconName::Trash)
                     .label(format!("Remove group {n}"))
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.change("Remove group", move |r| drop(r.bands.groups.remove(i)), cx);

@@ -63,7 +63,7 @@ pub(crate) fn template() -> PathBuf {
 
 fn open_wizard(h: &mut Harness) {
     h.click("import-access");
-    assert_eq!(h.label("access-wizard"), "Import Access database");
+    assert_eq!(h.label("access-wizard"), "Import from Access");
 }
 
 fn choose(h: &mut Harness, path: PathBuf) {
@@ -215,4 +215,53 @@ fn keeps_a_migration_report_in_settings_with_links_review_marks_and_export(
     let linked = forms.iter().find(|i| i.target.is_some()).expect("a form with a link");
     h.click(id(&format!("open-item:{}", item_key(linked))));
     assert_eq!(h.mode(), ModeId::Design);
+}
+
+#[gpui_kit::test]
+fn labels_table_counts_and_explains_extra_tables(cx: &mut TestAppContext) {
+    let mut h = Harness::start(cx);
+    open_wizard(&mut h);
+    assert!(h.exists("access-intro"));
+    choose(&mut h, binary("orders.accdb"));
+    assert_eq!(h.label("access-table:Customers"), "Customers: 6 fields, 5 rows");
+    assert!(!h.exists("access-intro"));
+
+    open_complex(&mut h);
+    h.click("access-import");
+    let created = h.label("access-created");
+    assert!(created.starts_with("Created a document with 1 table (plus "), "{created}");
+    assert!(created.contains("for attachment fields, multi-value fields or make-table queries"));
+    assert!(h.exists("access-unsaved"));
+    // Short attention lists open without a click.
+    if h.exists("attention-toggle") {
+        let key = h.label("attention-toggle");
+        assert!(key.starts_with("What did not convert fully"));
+    }
+    h.click("access-open");
+    assert!(h.has_shell());
+}
+
+fn open_complex(h: &mut Harness) {
+    choose(h, binary("complex-data.accdb"));
+    assert!(h.label("access-summary").contains("1 table"));
+}
+
+#[gpui_kit::test]
+fn shows_the_error_code_apart_from_the_message(cx: &mut TestAppContext) {
+    let mut h = Harness::start(cx);
+    open_wizard(&mut h);
+    let path = scratch("notes.accdb");
+    std::fs::write(&path, "not a database").unwrap();
+    choose(&mut h, path);
+    assert!(!h.label("access-error").contains("IMPORT_FAILED"));
+    assert_eq!(h.label("access-error-code"), "Error code IMPORT_FAILED");
+}
+
+#[gpui_kit::test]
+fn closes_with_the_header_close_button(cx: &mut TestAppContext) {
+    let mut h = Harness::start(cx);
+    open_wizard(&mut h);
+    assert!(h.exists("access-wizard-backdrop"));
+    h.click("access-wizard-dismiss");
+    assert!(!h.exists("access-wizard"));
 }

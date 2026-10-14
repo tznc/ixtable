@@ -13,7 +13,7 @@
 
 use crate::{
     manager::AppError,
-    ui::{forms, prelude::*, shell::Shell},
+    ui::{dialog::dialog, forms, prelude::*, shell::Shell, widgets::Severity},
 };
 use gpui_kit::component::{checkbox::Checkbox, input::InputState};
 use serde_json::Value;
@@ -208,7 +208,7 @@ impl Render for DatabaseLogin {
         if self.open {
             let busy = self.busy;
             let entity = cx.entity();
-            let mut dialog = forms::dialog("database-login", "Database login", cx)
+            let mut panel = dialog("database-login", "Database login")
                 .child(widgets::text(
                     "database-login-intro",
                     format!(
@@ -228,26 +228,29 @@ impl Render for DatabaseLogin {
                     ),
                 ));
             if !verified {
-                dialog = dialog.child(widgets::text(
+                panel = panel.child(widgets::callout(
                     "database-login-warning",
+                    Severity::Warning,
                     "This connection does not verify the database server, so someone on your \
                      network could pose as it and read your password. Continue only on a network \
                      you trust, or ask the developer to use sslmode verify-full.",
+                    None,
+                    cx,
                 ));
             }
             if text(&status, "reason") == "rejected" {
-                dialog = dialog.child(widgets::text(
+                panel = panel.child(widgets::text(
                     "database-login-rejected",
                     "The database refused the saved login. Enter it again.",
                 ));
             }
             if flag(&status, "attached") {
-                dialog = dialog.child(widgets::text(
+                panel = panel.child(widgets::text(
                     "database-login-connected",
                     format!("Connected as {}.", text(&status, "user")),
                 ));
             }
-            dialog = dialog
+            panel = panel
                 .child(forms::input_field("database-user", "Database user", &self.user, cx))
                 .child(forms::input_field(
                     "database-password",
@@ -257,7 +260,7 @@ impl Render for DatabaseLogin {
                 ));
             if !verified {
                 let this = cx.entity();
-                dialog = dialog.child(
+                panel = panel.child(
                     Checkbox::new("database-accept-unverified")
                         .label("I accept sending my password over a connection that does not verify the server")
                         .checked(self.accept_unverified)
@@ -271,44 +274,45 @@ impl Render for DatabaseLogin {
                 );
             }
             if !self.error.is_empty() {
-                dialog = dialog.child(widgets::text("database-login-error", self.error.clone()));
+                panel = panel.child(widgets::callout(
+                    "database-login-error",
+                    Severity::Danger,
+                    &self.error,
+                    None,
+                    cx,
+                ));
             }
             let can_connect = !busy && (verified || self.accept_unverified);
             let close = cx.listener(|this, _, _, cx| {
                 this.open = false;
                 cx.notify();
             });
-            dialog = dialog.child(
-                forms::actions()
-                    .child(
-                        forms::primary("database-connect", "Connect")
-                            .disabled(!can_connect)
-                            .on_click(cx.listener(|this, _, _, cx| this.submit(cx))),
-                    )
-                    .when(text(&status, "source") == "installation", |el| {
-                        el.child(
-                            forms::secondary("database-forget", "Forget saved login")
-                                .disabled(busy)
-                                .on_click(cx.listener(|this, _, _, cx| this.forget(cx))),
-                        )
-                    })
-                    .child(
-                        forms::secondary("database-cancel", "Cancel")
+            let panel = panel
+                .footer(
+                    forms::secondary("database-cancel", "Cancel")
+                        .disabled(busy)
+                        .on_click(close),
+                )
+                .when(text(&status, "source") == "installation", |d| {
+                    d.footer(
+                        forms::danger("database-forget", "Forget saved login")
                             .disabled(busy)
-                            .on_click(close),
-                    ),
-            );
-            flow = flow.child(forms::overlay(forms::escapable(
-                dialog,
-                &self.focus,
-                busy,
-                move |_, cx| {
+                            .on_click(cx.listener(|this, _, _, cx| this.forget(cx))),
+                    )
+                })
+                .footer(
+                    forms::primary("database-connect", "Connect")
+                        .disabled(!can_connect)
+                        .on_click(cx.listener(|this, _, _, cx| this.submit(cx))),
+                )
+                .on_escape(&self.focus, busy, move |_, cx| {
                     entity.update(cx, |this, cx| {
                         this.open = false;
                         cx.notify();
                     })
-                },
-            )));
+                })
+                .modal();
+            flow = flow.child(panel);
         }
         flow.into_any_element()
     }

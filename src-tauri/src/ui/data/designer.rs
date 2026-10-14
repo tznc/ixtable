@@ -652,9 +652,10 @@ impl Render for TableSchemaDesigner {
                     .gap_2()
                     .child(
                         Button::new("drop-table")
+                            .danger()
                             .outline()
                             .small()
-                            .icon(IconName::Delete)
+                            .icon(IconName::Trash)
                             .label("Drop table")
                             .disabled(busy)
                             .on_click(cx.listener(|this, _, _, cx| this.ask_drop_table(cx))),
@@ -710,6 +711,7 @@ impl Render for TableSchemaDesigner {
                     )
                     .child(
                         Button::new(SharedString::from(format!("drop-column:{name}")))
+                            .danger()
                             .outline()
                             .small()
                             .label("Drop")
@@ -895,7 +897,7 @@ impl Render for TableSchemaDesigner {
                         Button::new(SharedString::from(format!("remove-pending:{i}")))
                             .ghost()
                             .xsmall()
-                            .icon(IconName::Delete)
+                            .icon(IconName::Trash)
                             .tooltip(format!("Remove pending change {}", i + 1))
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.pending.remove(i);

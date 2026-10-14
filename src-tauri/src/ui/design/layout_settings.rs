@@ -280,7 +280,7 @@ impl DesignStudio {
             };
             let remove = {
                 let (c, tracks) = (c.clone(), tracks.to_vec());
-                icon_button(format!("{}-remove-{key}-{n}", c.p), IconName::Delete, &format!("Remove {}", label.to_lowercase()))
+                icon_button(format!("{}-remove-{key}-{n}", c.p), IconName::Trash, &format!("Remove {}", label.to_lowercase()))
                     .disabled(tracks.len() <= min_count)
                     .on_click(cx.listener(move |this, _, _, cx| {
                         let mut next = tracks.clone();
@@ -403,7 +403,7 @@ impl DesignStudio {
             };
             let remove = {
                 let (c, regions) = (c.clone(), regions.clone());
-                icon_button(format!("{}-remove-region-{n}", c.p), IconName::Delete, &format!("Remove region {n}")).on_click(
+                icon_button(format!("{}-remove-region-{n}", c.p), IconName::Trash, &format!("Remove region {n}")).on_click(
                     cx.listener(move |this, _, _, cx| {
                         let mut next = regions.clone();
                         next.remove(index);
@@ -525,7 +525,7 @@ impl DesignStudio {
             };
             let remove = {
                 let (c, list) = (c.clone(), breakpoints.clone());
-                icon_button(format!("{}-remove-breakpoint-{n}", c.p), IconName::Delete, &format!("Remove breakpoint {n}")).on_click(
+                icon_button(format!("{}-remove-breakpoint-{n}", c.p), IconName::Trash, &format!("Remove breakpoint {n}")).on_click(
                     cx.listener(move |this, _, _, cx| {
                         let mut next = list.clone();
                         next.remove(index);

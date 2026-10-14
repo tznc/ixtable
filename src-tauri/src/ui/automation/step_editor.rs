@@ -281,6 +281,7 @@ impl StepEditor {
                     ))
                     .child(
                         Button::new(SharedString::from(format!("{row_id}-remove")))
+                            .danger()
                             .outline()
                             .small()
                             .label("Remove")

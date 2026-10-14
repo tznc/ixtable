@@ -18,7 +18,7 @@ fn access_import_template() {
     let mut cx = context();
     let mut h = Harness::start_sized(&mut cx, TALL);
     h.click("import-access");
-    assert_eq!(h.label("access-wizard"), "Import Access database");
+    assert_eq!(h.label("access-wizard"), "Import from Access");
     h.dialogs.queue_open(Some(template()));
     h.click("access-choose");
     assert!(h.exists("access-table:Customers") && h.exists("access-table:Orders"));
@@ -26,7 +26,7 @@ fn access_import_template() {
     h.capture(
         "access-01-inventory",
         &[
-            "The Import Access database dialog names the file as an Access template.",
+            "The Import from Access dialog names the file as an Access template, with a Table, Fields and Rows table.",
             "It lists the Customers and Orders tables with field and row counts, and counts of queries, forms, reports, macros, and modules.",
             "The Import the data option is checked.",
         ],
@@ -34,21 +34,17 @@ fn access_import_template() {
 
     h.click("access-import");
     assert!(h.exists("access-report"));
-    h.click("attention-toggle");
     assert!(h.label("attention-toggle").starts_with("What did not convert fully"));
     assert!(h.exists("report-row:table"));
     h.capture(
         "access-02-report",
         &[
-            "The report says how many tables and rows the new document has, and that Settings › Access migration keeps it.",
-            "A table counts converted, partly converted, and not converted objects per kind.",
-            "The expanded notes explain each loss, such as the VBA module kept as an asset.",
+            "A warning callout says how many items need review; a table counts converted, partly and not converted objects per kind.",
+            "The notes list is open with each item name in bold beside a status badge, notes indented below.",
+            "Open document stays visible in the dialog footer while the body scrolls.",
         ],
     );
 
-    // The report is taller than the dialog: scroll to its buttons.
-    h.update(|w, cx| w.scroll("overlay", ScrollDelta::Pixels(point(px(0.), px(-5000.))), cx));
-    h.settle();
     h.click("access-open");
     assert!(h.has_shell());
     h.switch_mode(ModeId::Run);

@@ -1,0 +1,16 @@
+id: destructive-buttons-use-danger
+snapshots:
+  ? |
+    fn view() { forms::primary("reset-confirm", "Reset installation data"); }
+  : labels:
+    - source: forms::primary("reset-confirm", "Reset installation data")
+      style: primary
+      start: 12
+      end: 70
+  ? |
+    fn view() { forms::secondary("remove-asset", "Remove"); }
+  : labels:
+    - source: forms::secondary("remove-asset", "Remove")
+      style: primary
+      start: 12
+      end: 54

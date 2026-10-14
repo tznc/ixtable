@@ -270,7 +270,7 @@ impl DashboardEditor {
                             .gap_1()
                             .child(button(format!("prop-style-{n}-up"), "Move style up", IconName::ArrowUp, n == 0, |s, n| s.swap(n, n - 1)))
                             .child(button(format!("prop-style-{n}-down"), "Move style down", IconName::ArrowDown, n + 1 == count, |s, n| s.swap(n, n + 1)))
-                            .child(button(format!("prop-style-{n}-remove"), "Remove style", IconName::Delete, false, |s, n| {
+                            .child(button(format!("prop-style-{n}-remove"), "Remove style", IconName::Trash, false, |s, n| {
                                 s.remove(n);
                             })),
                     ),
@@ -611,9 +611,10 @@ impl DashboardEditor {
         panel
             .child(
                 Button::new("prop-delete")
+                    .danger()
                     .outline()
                     .small()
-                    .icon(IconName::Delete)
+                    .icon(IconName::Trash)
                     .label("Delete component")
                     .on_click(cx.listener(|this, _, _, cx| this.remove_selected(cx))),
             )

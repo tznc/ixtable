@@ -379,9 +379,10 @@ impl ReportsMode {
             )
             .child(
                 Button::new("delete-report")
+                    .danger()
                     .outline()
                     .small()
-                    .icon(IconName::Delete)
+                    .icon(IconName::Trash)
                     .label("Delete report")
                     .on_click(cx.listener(|this, _, _, cx| this.delete(cx))),
             )

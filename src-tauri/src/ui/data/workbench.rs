@@ -771,7 +771,7 @@ impl Render for DataMode {
                                 Button::new("Refresh")
                                     .outline()
                                     .small()
-                                    .icon(IconName::Search)
+                                    .icon(IconName::RefreshCw)
                                     .label("Refresh")
                                     .on_click(cx.listener(|this, _, window, cx| this.refresh(window, cx))),
                             )

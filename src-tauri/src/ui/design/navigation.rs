@@ -256,7 +256,7 @@ impl DesignStudio {
             let down = shift("nav-down", IconName::ArrowDown, 1, cx);
             let remove = {
                 let id = id.clone();
-                icon_button(format!("nav-remove:{id}"), IconName::Delete, &format!("Remove {}", item.label)).on_click(cx.listener(
+                icon_button(format!("nav-remove:{id}"), IconName::Trash, &format!("Remove {}", item.label)).on_click(cx.listener(
                     move |this, _, _, cx| {
                         let id = id.clone();
                         this.edit_navigation("Remove navigation item", move |items| take_navigation(items, &id).0, cx)
