@@ -26,6 +26,7 @@ fn app_shell() {
         "app-qa-02-shell",
         &[
             "The sidebar lists the modes, with Data selected",
+            "A gear icon button sits beside Save and Save as at the top of the sidebar",
             "The object browser lists the customers table",
         ],
     );

@@ -328,6 +328,11 @@ impl DataMode {
         }
     }
 
+    #[cfg(test)]
+    pub fn diagram(&self) -> &Entity<RelationshipBrowser> {
+        &self.diagram
+    }
+
     pub fn relating(&self) -> Option<&Entity<RelateDialog>> {
         self.relating.as_ref()
     }

@@ -7,6 +7,7 @@ pub mod diagram;
 pub mod layout;
 pub mod relate;
 pub mod relationships;
+pub mod routing;
 pub mod sheet;
 pub mod workbench;
 
@@ -21,6 +22,8 @@ pub mod testkit;
 mod tests_sheet;
 #[cfg(test)]
 mod tests_schema;
+#[cfg(test)]
+mod tests_diagram;
 #[cfg(test)]
 mod tests_io;
 #[cfg(test)]
