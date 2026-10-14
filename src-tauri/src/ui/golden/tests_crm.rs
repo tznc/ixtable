@@ -105,6 +105,8 @@ fn golden_crm_archive_save_close_and_reopen_keeps_definitions_and_records_identi
 
 #[gpui_kit::test]
 fn golden_crm_runtime_crud_with_master_detail_validation_trigger_action_roles_constraints(cx: &mut TestAppContext) {
+    // The action runner is process-wide: hold the real one so a parallel test's double cannot replace it.
+    let _runner = crate::ui::runtime::tests::with_real_runner();
     with_journey(APP, "crud", |journey| {
         let mut h = journey.step("Create CRM from the start screen", move |_| start_from_template(cx, "crm"));
         let label = h.label.clone();
