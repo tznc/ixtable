@@ -206,7 +206,7 @@ fn keeps_a_migration_report_in_settings_with_links_review_marks_and_export(
     let target = scratch("report.md");
     h.dialogs.queue_save(Some(target.clone()));
     h.click("export-md");
-    assert_eq!(h.label("access-notice"), "Saved report.md");
+    assert_eq!(h.notice().as_deref(), Some("Saved report.md"));
     let md = std::fs::read_to_string(&target).unwrap();
     assert!(md.starts_with("# Access migration report: "));
     assert!(md.contains("| Forms |"));

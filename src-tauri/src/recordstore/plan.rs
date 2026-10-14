@@ -378,7 +378,7 @@ pub fn apply_ops(
                     && col.generated_expression.is_none()
                 {
                     warnings.push(format!(
-                        "{:?} is required but has no default; existing rows cannot be filled.",
+                        "{:?} is required but has no default, so existing rows cannot be filled. Set a default value or make it optional.",
                         col.name
                     ));
                 }
@@ -439,7 +439,7 @@ pub fn apply_ops(
                 destructive = !widening(&prev.logical_type, &next.logical_type);
                 if prev.nullable && !next.nullable {
                     warnings.push(format!(
-                        "Rows with an empty {:?} make this change fail.",
+                        "Rows with an empty {:?} will make this change fail. Fill them in or set a default value first.",
                         prev.name
                     ));
                 }

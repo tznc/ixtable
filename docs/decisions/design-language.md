@@ -5,7 +5,7 @@ follows, so that screens built at different times look and behave alike. It came
 from a "Don't Make Me Think" audit of the whole app. It is built on gpui-kit's
 theme tokens (`theme.primary`, `muted_foreground`, `border`, `danger`, `warning`,
 `success`) and needs no new dependency. The shared helpers in
-`ui/{dialog,widgets,forms,controls}.rs` implement it; see `gpui-ui.md` for the
+`ui/{dialog,display,toast,widgets,forms,controls}.rs` implement it; see `gpui-ui.md` for the
 rest of the UI conventions.
 
 Components marked *(planned)* are specified here but not built yet. Until they
@@ -89,31 +89,32 @@ Each is one function in a shared UI module. **New** marks components that don't 
 - Esc and ✕ both mean Cancel, except while busy.
 - Titles are questions for confirmations ("Apply 2 changes to orders?") and nouns for tools ("Import from Access").
 - Never stack a second close button ("Close Tasks") outside the footer.
+- Risky-change dialogs (the schema impact dialog) lead with warning callouts, then the facts, then one acknowledgement that names what is lost. Generated SQL sits behind a "Show SQL" toggle.
 
-### Callout (`widgets::callout`, `widgets::error_banner`)
+### Callout (`widgets::callout`, `widgets::error_banner`, `widgets::error_callout`)
 - Tones: info, success, warning and danger, each with an icon, a bold one-line title, optional body text, and an optional action.
 - Errors read *what happened. what to do.*, for example "**This file can't be opened.** It isn't an Access database or is damaged. Choose another file."
-- The error code and raw message go in a collapsed "Details" disclosure that has a "Copy" button.
+- The headline is plain language; the message follows; the error code is a muted "Error code X" line for support. A domain with its own codes (runtime bundles) passes its own headline to `error_callout`.
 
-### Toast *(planned)*
-- For transient success: "Exported orders.pdf · Show in folder" or "Added 2 records · Undo".
+### Toast (`ui::toast`, shown with `Shell::toast` or `Shell::set_notice`)
+- For transient success: "Exported orders.pdf · Show in folder" or "Added 2 records". `Toast::info` is for neutral notes such as "Save canceled.".
 - Bottom-right, it dismisses after 6 s, unless it has an action, in which case it stays 10 s.
-- It never changes layout. "Record created." as a page line goes away.
+- It never changes layout. A success message is never an inline line under a toolbar. Errors stay inline, next to what failed.
 
-### DataTable (`widgets::data_table`; the datasheet stays its own grid)
+### DataTable (`display::data_table`; the datasheet stays its own grid)
 - A header row in `Label` style. Text is left-aligned, and numbers are right-aligned with tabular figures.
 - Zero values and "—" show in `muted_foreground`.
 - Row actions appear on hover or selection at the row end.
-- Use it for report summaries, the migration list, problems, assets, archive size and the import inventory.
+- Use it for report summaries, the migration list, problems, assets, archive size, the Access migration summary and the import inventory. Log lines keep the same row shape: time, level badge, area, then the message, which alone wraps.
 
-### KeyValue *(planned)*
+### KeyValue (`display::key_value`, rows from `display::kv`)
 - A two-column grid with a `Label` column and a `Body` value column.
-- Hashes, fingerprints and paths are monospace, with middle ellipsis and a copy button.
-- Paths show the file name with a "Show in folder" button.
+- Hashes, fingerprints and paths use `.code()`: monospace, ellipsized, with a copy button.
+- *(planned)* Paths show the file name with a "Show in folder" button.
 
-### StatusBadge (generalize `controls::badge`)
-- A pill with a tone (neutral, success, warning or danger), an optional icon, and `Caption` text.
-- One fixed vocabulary per domain: Converted / Partly converted / Not converted; Pending / Applied / Failed / Changed after apply; Saved / Not saved.
+### StatusBadge (`display::status_badge`)
+- A pill with a tone (`Tone::{Neutral, Success, Warning, Danger}`) and `Caption` text.
+- One fixed vocabulary per domain: Converted / Partly converted / Not converted; Pending / Applied / Failed / Changed after apply; Policy set / No policy; Saved / Unsaved changes / Not saved / Saving… / Save failed; log levels info / warn / error. Raw codes such as `dry_run_ok` never show.
 
 ### Section (generalize `controls::section` and `widgets::section_heading`)
 - Collapsible, with a `Section` title, an optional count, and a one-line summary when collapsed ("Primary key: id").

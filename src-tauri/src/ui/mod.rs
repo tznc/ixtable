@@ -12,6 +12,7 @@ pub mod controls;
 pub mod dashboards;
 pub mod dialog;
 pub mod dialogs;
+pub mod display;
 pub mod events;
 pub mod export;
 pub mod fields;
@@ -37,6 +38,7 @@ pub mod start;
 pub mod start_sections;
 pub mod store;
 pub mod task;
+pub mod toast;
 pub mod widgets;
 #[cfg(test)]
 pub mod screenshot;

@@ -4,9 +4,10 @@
 //! Test ids: inputs `release-version`, `release-min-runtime`, `release-notes-input`,
 //! `release-password`, `release-confirm`; checkbox `release-protect`; hints
 //! `release-version-hint`, `release-min-hint`, `release-password-hint`;
-//! `export-bundle`, `release-exporting`, `release-status`, `release-error`; result
-//! `exported-bundle` (heading "Exported NAME VERSION"), `bundle-file`, `bundle-size`,
-//! `bundle-sha256`, `bundle-fingerprint`, `bundle-encrypted` ("Yes" / "No").
+//! `export-bundle`, `release-exporting`, `release-error`; result
+//! `exported-bundle` (heading "Exported NAME VERSION"), key-value values `bundle-file`,
+//! `bundle-size`, `bundle-sha256`, `bundle-fingerprint`, `bundle-encrypted` ("Yes" /
+//! "No"), each with a `<id>-copy` button for the file, hash and key.
 
 use super::{
     bundle_error::bundle_error_banner,
@@ -17,7 +18,13 @@ use crate::{
     archive::ReleaseInfo,
     bundle_export::BundleInfo,
     manager::AppError,
-    ui::{dialogs, forms, prelude::*, shell::Shell},
+    ui::{
+        dialogs,
+        display::{key_value, kv},
+        forms,
+        prelude::*,
+        shell::Shell,
+    },
 };
 use gpui_kit::component::{input::{InputState, TextareaState}, checkbox::Checkbox};
 use serde_json::json;
@@ -48,7 +55,6 @@ pub struct ReleaseTab {
     busy: bool,
     error: Option<AppError>,
     info: Option<BundleInfo>,
-    status: String,
     clear_secrets: bool,
     _subscriptions: Vec<Subscription>,
 }
@@ -86,7 +92,6 @@ impl ReleaseTab {
             busy: false,
             error: None,
             info: None,
-            status: String::new(),
             clear_secrets: false,
             _subscriptions: subscriptions,
         }
@@ -132,7 +137,6 @@ impl ReleaseTab {
         self.busy = true;
         self.error = None;
         self.info = None;
-        self.status.clear();
         let version = forms::text_of(&self.version, cx).trim().to_string();
         let notes = forms::area_text(&self.notes, cx);
         let min = forms::text_of(&self.min_runtime, cx).trim().to_string();
@@ -167,7 +171,7 @@ impl ReleaseTab {
         task::after(cx, pick, move |this, path, cx| {
             let Some(path) = path else {
                 this.busy = false;
-                this.status = "Export canceled.".into();
+                this.shell.update(cx, |s, cx| s.set_notice("Export canceled.", cx));
                 return cx.notify();
             };
             let label = this.shell.read(cx).label().to_string();
@@ -301,10 +305,7 @@ impl Render for ReleaseTab {
                         .disabled(self.busy || invalid)
                         .on_click(cx.listener(|this, _, _, cx| this.export(cx))),
                 )
-                .when(self.busy, |el| el.child(widgets::text("release-exporting", "Exporting…")))
-                .when(!self.status.is_empty(), |el| {
-                    el.child(widgets::text("release-status", self.status.clone()))
-                }),
+                .when(self.busy, |el| el.child(widgets::text("release-exporting", "Exporting…"))),
         );
         if let Some(e) = &self.error {
             panel = panel.child(bundle_error_banner("release-error", e, cx));
@@ -312,13 +313,16 @@ impl Render for ReleaseTab {
         if let Some(info) = &self.info {
             panel = panel.child(
                 forms::card("exported-bundle", &format!("Exported {} {}", info.name, info.version), cx)
-                    .child(widgets::text("bundle-file", format!("File: {}", info.path)))
-                    .child(widgets::text("bundle-size", format!("Size: {}", format_size(info.size))))
-                    .child(widgets::text("bundle-sha256", info.sha256.clone()))
-                    .child(widgets::text("bundle-fingerprint", info.signer_fingerprint.clone()))
-                    .child(widgets::text(
-                        "bundle-encrypted",
-                        if info.encrypted { "Yes" } else { "No" },
+                    .child(key_value(
+                        "bundle-details",
+                        vec![
+                            kv("bundle-file", "File", info.path.clone()).code(),
+                            kv("bundle-size", "Size", format_size(info.size)),
+                            kv("bundle-sha256", "SHA-256", info.sha256.clone()).code(),
+                            kv("bundle-fingerprint", "Signing key", info.signer_fingerprint.clone()).code(),
+                            kv("bundle-encrypted", "Password protected", if info.encrypted { "Yes" } else { "No" }),
+                        ],
+                        cx,
                     ))
                     .child(forms::muted(
                         "The signing key is stored on this computer only. It is a local developer \

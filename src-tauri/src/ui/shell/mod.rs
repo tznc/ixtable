@@ -20,7 +20,10 @@ use crate::{
         dialogs,
         events::{DocBus, DocEvent},
         store::{ConfigStore, StoreEvent},
-        task, widgets,
+        display::{Tone, status_badge},
+        task,
+        toast::{self, Toast},
+        widgets,
     },
 };
 use gpui_kit::assets::IconName;
@@ -151,7 +154,7 @@ pub struct Shell {
     pub pending: Option<String>,
     pub error: Option<AppError>,
     dismissed_store_error: Option<String>,
-    pub notice: Option<String>,
+    pub notice: Option<Toast>,
     pub objects: Vec<DbObject>,
     pub metadata_loading: bool,
     pub metadata_error: Option<String>,
@@ -295,9 +298,14 @@ impl Shell {
         }
     }
 
+    /// A neutral toast, such as "Save canceled."
     pub fn set_notice(&mut self, notice: impl Into<String>, cx: &mut Context<Self>) {
-        self.notice = Some(notice.into());
-        cx.notify();
+        self.toast(Toast::info(notice), cx);
+    }
+
+    /// Shows a toast in the corner of the window; it dismisses itself.
+    pub fn toast(&mut self, toast: Toast, cx: &mut Context<Self>) {
+        toast::show(self, |s| &mut s.notice, toast, cx);
     }
 
     pub fn set_error(&mut self, error: Option<AppError>, cx: &mut Context<Self>) {
@@ -437,8 +445,7 @@ impl Shell {
             task::after(cx, pick, move |this, path, cx| match path {
                 None => {
                     this.pending = None;
-                    this.notice = Some("Save canceled.".into());
-                    cx.notify();
+                    this.set_notice("Save canceled.", cx);
                 }
                 Some(path) => this.run_save(move || {
                     crate::save_document_as(label, path.to_string_lossy().into_owned())
@@ -536,7 +543,6 @@ impl Shell {
 
     fn render_sidebar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
-        let muted = theme.muted_foreground;
         let busy = self.pending.is_some();
         let doc = &self.doc;
         let brand = h_flex()
@@ -562,7 +568,7 @@ impl Shell {
                                 .ghost()
                                 .small()
                                 .icon(Icon::new(IconName::Save))
-                                .tooltip("Save project")
+                                .tooltip("Save document")
                                 .disabled(busy)
                                 .on_click(cx.listener(|this, _, _, cx| this.save(false, cx))),
                         )
@@ -571,7 +577,7 @@ impl Shell {
                                 .ghost()
                                 .small()
                                 .icon(Icon::new(IconName::SaveAll))
-                                .tooltip("Save project as")
+                                .tooltip("Save document as…")
                                 .disabled(busy)
                                 .on_click(cx.listener(|this, _, _, cx| this.save(true, cx))),
                         )
@@ -593,7 +599,7 @@ impl Shell {
                             .ghost()
                             .small()
                             .icon(Icon::new(IconName::X))
-                            .tooltip("Close project")
+                            .tooltip("Close document")
                             .disabled(busy)
                             .on_click(cx.listener(|this, _, _, cx| this.close(cx))),
                     ),
@@ -606,20 +612,12 @@ impl Shell {
                 div()
                     .text_xs()
                     .text_color(theme.muted_foreground)
-                    .child("PROJECT"),
+                    .child("DOCUMENT"),
             )
             .child(widgets::styled_text("document-name", doc.name.clone(), |d| {
                 d.font_weight(FontWeight::SEMIBOLD)
             }))
-            .child(widgets::styled_text(
-                "document-status",
-                if doc.path.is_some() {
-                    "Saved archive"
-                } else {
-                    "Not saved yet"
-                },
-                |d| d.text_xs().text_color(muted),
-            ));
+            .child(h_flex().child(self.render_document_status(cx)));
         // Settings is an icon button beside Save, so the list skips it.
         let modes = ModeId::ALL.into_iter().filter(|m| *m != ModeId::App);
         let mode_switch = v_flex().px_2().gap_0p5().children(modes.map(|mode| {
@@ -652,6 +650,20 @@ impl Shell {
                     .when_some(sidebar, |el, s| el.child(s)),
             )
             .child(self.render_save_status(cx))
+    }
+
+    /// One chip for the document's save state (`document-status`): "Not saved" until
+    /// the first save, then "Saved", "Unsaved changes", "Saving…" or "Save failed".
+    fn render_document_status(&self, cx: &App) -> Div {
+        let status = self.autosave.read(cx).status;
+        let (label, tone) = match (self.doc.path.is_some(), status) {
+            (_, SaveStatus::Saving) => ("Saving…", Tone::Neutral),
+            (_, SaveStatus::Error) => ("Save failed", Tone::Danger),
+            (false, _) => ("Not saved", Tone::Warning),
+            (true, SaveStatus::Dirty) => ("Unsaved changes", Tone::Warning),
+            (true, _) => ("Saved", Tone::Success),
+        };
+        status_badge("document-status", label, tone, cx)
     }
 
     fn render_save_status(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -821,7 +833,7 @@ impl Render for Shell {
                     })
                     .when_some(self.notice.clone(), |el, n| {
                         let entity = cx.entity();
-                        el.child(div().p_2().child(widgets::notice_banner(
+                        el.child(toast::render(
                             &n,
                             move |_, cx| {
                                 entity.update(cx, |this, cx| {
@@ -829,8 +841,9 @@ impl Render for Shell {
                                     cx.notify();
                                 })
                             },
+                            window,
                             cx,
-                        )))
+                        ))
                     })
                     .child(
                         div()
@@ -908,9 +921,7 @@ impl Shell {
                     if discard {
                         proceed(this, cx);
                     } else {
-                        this.notice =
-                            Some(format!("Kept {name} open; {target_name} was not opened."));
-                        cx.notify();
+                        this.set_notice(format!("Kept {name} open; {target_name} was not opened."), cx);
                     }
                 });
             },

@@ -129,15 +129,15 @@ fn reports_design_preview_and_export() {
     let (printed, pdf) = (h.temp_path("orders-printed.pdf"), h.temp_path("orders-by-status.pdf"));
     h.dialogs.queue_save(Some(printed));
     h.click("print");
-    wait_until(&mut h, "the print export", |h| h.exists("preview-notice"));
+    wait_until(&mut h, "the print export", |h| h.notice().is_some());
     h.dialogs.queue_save(Some(pdf.clone()));
     h.click("export-pdf");
-    let want = format!("Exported PDF to {}", pdf.display());
-    wait_until(&mut h, "the PDF export", |h| h.try_label("preview-notice").as_deref() == Some(want.as_str()));
+    let want = "Exported orders-by-status.pdf".to_string();
+    wait_until(&mut h, "the PDF export", |h| h.notice().as_deref() == Some(want.as_str()));
     assert_eq!(&std::fs::read(&pdf).expect("pdf")[..5], b"%PDF-");
     h.capture(
         "reports-03-exported",
-        &["The preview toolbar confirms the PDF export path after Print and Export."],
+        &["The preview toolbar toasts the exported PDF name after Print and Export."],
     );
 }
 

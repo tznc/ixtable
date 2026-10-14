@@ -250,7 +250,7 @@ fn golden_inventory_the_product_image_asset_and_records_survive_an_archive_round
         journey.step("Save, close, and reopen", |_| {
             h.dialogs.queue_save(Some(archive.clone()));
             h.click("save-project");
-            assert_eq!(h.label("document-status"), "Saved archive");
+            assert_eq!(h.label("document-status"), "Saved");
             h.click("close-project");
             h.dialogs.queue_open(Some(archive.clone()));
             h.click("open-document");

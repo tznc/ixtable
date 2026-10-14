@@ -49,7 +49,7 @@ fn build_tab(key: &str, shell: &Entity<Shell>, window: &mut Window, cx: &mut App
             .into(),
         "logs" => {
             let label = shell.read(cx).label().to_string();
-            cx.new(|cx| crate::ui::persistence::logs_tab::LogsTab::new(label, cx))
+            cx.new(|cx| crate::ui::persistence::logs_tab::LogsTab::new(label, shell.clone(), cx))
                 .into()
         }
         "access" => cx

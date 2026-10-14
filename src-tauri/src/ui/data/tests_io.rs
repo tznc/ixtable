@@ -157,7 +157,7 @@ fn bundles_a_csv_as_a_read_only_file_source_that_queries_read_after_save_and_reo
     assert_eq!(h.label("source-preview"), "3 rows \u{b7} region (text), amount (integer)");
     assert_eq!(h.find("Source name").value(), Some("sales"));
     h.click("confirm-add-source");
-    assert_eq!(h.label("sources-status"), "Added files.sales.");
+    assert_eq!(h.notice().as_deref(), Some("Added files.sales."));
     assert_eq!(h.label("source:sales"), "files.sales");
     assert_eq!(h.label("source-columns:sales"), "region, amount");
     assert_eq!(h.label("source-rows:sales"), "3");
@@ -232,7 +232,7 @@ fn exports_a_sorted_table_to_csv_from_data_mode_and_reports_the_row_count(cx: &m
     let path = h.temp_path("people.csv");
     h.dialogs.queue_save(Some(path.clone()));
     h.pick("Export", "CSV");
-    assert_eq!(h.label("export-status"), "Exported 3 rows");
+    assert_eq!(h.notice().as_deref(), Some("Exported 3 rows"));
     // A BOM so Excel reads UTF-8, then CRLF rows.
     let text = std::fs::read_to_string(&path).unwrap();
     assert_eq!(text, "\u{feff}id,name\r\n3,Core\r\n2,Bolt\r\n1,ACME\r\n");
@@ -245,7 +245,7 @@ fn does_nothing_when_the_save_dialog_is_cancelled(cx: &mut TestAppContext) {
     h.dialogs.queue_save(None);
     h.pick("Export", "JSON");
     assert_eq!(h.dialogs.count("save"), 1);
-    assert!(!h.exists("export-status"));
+    assert!(h.notice().is_none());
     assert!(!h.exists("export-error"));
     assert!(h.exists("Export"));
 }

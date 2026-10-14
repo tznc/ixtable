@@ -3,7 +3,7 @@
 //! src/query/QueryExport.tsx and src/export/ExportMenu.tsx.
 //!
 //! Test ids: `export` (button), `export/csv`, `export/xlsx`, `export/json` (menu),
-//! `export-status`, `export-error`.
+//! `export-error`.
 
 use super::{
     QueryMode,
@@ -17,14 +17,13 @@ use crate::{
     ui::{
         dialogs::{self, FileFilter},
         prelude::*,
-        task, widgets,
+        task, toast::Toast,
     },
 };
 
 #[derive(Default)]
 pub struct ExportState {
     pub busy: bool,
-    pub status: String,
     pub error: String,
 }
 
@@ -93,9 +92,6 @@ impl QueryMode {
             .gap_3()
             .items_center()
             .child(button)
-            .when(!self.export.status.is_empty(), |el| {
-                el.child(widgets::text("export-status", self.export.status.clone()))
-            })
             .when(!self.export.error.is_empty(), |el| {
                 el.child(self.error_line("export-error", &self.export.error, cx))
             })
@@ -115,7 +111,6 @@ impl QueryMode {
         let Some(&(_, _, ext, format, filters)) = FORMATS.iter().find(|f| f.0 == format_id) else {
             return;
         };
-        self.export.status.clear();
         self.export.error.clear();
         let Some(d) = &self.draft else {
             return;
@@ -153,7 +148,10 @@ impl QueryMode {
                 |this, result, _, cx| {
                     this.export.busy = false;
                     match result {
-                        Ok(summary) => this.export.status = exported_message(summary.rows),
+                        Ok(summary) => {
+                            let toast = Toast::success(exported_message(summary.rows));
+                            this.shell.update(cx, |shell, cx| shell.toast(toast, cx));
+                        }
                         Err(e) => this.export.error = e.message,
                     }
                     cx.notify();

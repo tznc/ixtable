@@ -51,6 +51,16 @@ impl ItemStatus {
         }
     }
 
+    /// The badge tone: green converted, amber partly, red not converted.
+    pub fn tone(self) -> crate::ui::display::Tone {
+        use crate::ui::display::Tone;
+        match self {
+            Self::Converted => Tone::Success,
+            Self::Partial => Tone::Warning,
+            Self::Skipped => Tone::Danger,
+        }
+    }
+
     /// Worst first.
     pub fn rank(self) -> u8 {
         match self {

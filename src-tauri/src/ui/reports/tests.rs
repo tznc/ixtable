@@ -76,11 +76,11 @@ fn builds_a_grouped_report_previews_page_1_of_n_with_totals_prints_and_exports_i
     let (first_pdf, second_pdf) = (h.temp_path("report-a.pdf"), h.temp_path("report-b.pdf"));
     h.dialogs.queue_save(Some(first_pdf.clone()));
     h.click("print");
-    wait_until(&mut h, "the print export", |h| h.try_label("preview-notice").is_some());
+    wait_until(&mut h, "the print export", |h| h.notice().is_some());
     h.dialogs.queue_save(Some(second_pdf.clone()));
     h.click("export-pdf");
-    let want = format!("Exported PDF to {}", second_pdf.display());
-    wait_until(&mut h, "the second export", |h| h.try_label("preview-notice").as_deref() == Some(want.as_str()));
+    let want = "Exported report-b.pdf".to_string();
+    wait_until(&mut h, "the second export", |h| h.notice().as_deref() == Some(want.as_str()));
     let a = std::fs::read(&first_pdf).expect("first pdf");
     let b = std::fs::read(&second_pdf).expect("second pdf");
     assert_eq!(&a[..8], b"%PDF-1.4");

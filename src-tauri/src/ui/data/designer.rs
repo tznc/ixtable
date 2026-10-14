@@ -889,9 +889,9 @@ impl Render for TableSchemaDesigner {
                     .items_center()
                     .gap_2()
                     .child(div().text_sm().child(widgets::text(SharedString::from(format!("pending-op:{i}")), summary)))
-                    .child(crate::ui::controls::badge(SharedString::from(format!("pending-mode:{i}")), mode, false, cx))
+                    .child(crate::ui::display::status_badge(SharedString::from(format!("pending-mode:{i}")), mode, crate::ui::display::Tone::Neutral, cx))
                     .when(planned.is_some_and(|p| p.destructive), |el| {
-                        el.child(crate::ui::controls::badge(SharedString::from(format!("pending-destructive:{i}")), "Destructive", true, cx))
+                        el.child(crate::ui::display::status_badge(SharedString::from(format!("pending-destructive:{i}")), "Destructive", crate::ui::display::Tone::Danger, cx))
                     })
                     .child(
                         Button::new(SharedString::from(format!("remove-pending:{i}")))

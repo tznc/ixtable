@@ -444,7 +444,7 @@ pub fn apply_yaml<C: UiContext>(h: &mut Harness<C>, yaml: &str) {
     h.update(|window, cx| editor.update(cx, |e, cx| e.set_value(text, window, cx)));
     h.settle();
     h.click("apply-yaml");
-    assert_eq!(h.label("yaml-status"), "YAML applied.");
+    assert_eq!(h.notice().as_deref(), Some("YAML applied."));
 }
 
 // ---- reports ---------------------------------------------------------------------------

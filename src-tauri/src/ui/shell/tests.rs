@@ -31,7 +31,7 @@ fn new_document_opens_the_shell(cx: &mut TestAppContext) {
     h.click("new-document");
     assert!(h.has_shell());
     assert_eq!(h.label("document-name"), "Untitled");
-    assert_eq!(h.label("document-status"), "Not saved yet");
+    assert_eq!(h.label("document-status"), "Not saved");
     assert!(!h.can_undo());
 }
 
@@ -41,7 +41,7 @@ fn first_save_chooses_a_destination_then_saves_in_place(cx: &mut TestAppContext)
     let destination = h.temp_path("created.ixt");
     h.dialogs.queue_save(Some(destination.clone()));
     h.click("save-project");
-    assert_eq!(h.label("document-status"), "Saved archive");
+    assert_eq!(h.label("document-status"), "Saved");
     assert_eq!(h.dialogs.count("save"), 1);
     h.click("save-project");
     assert_eq!(h.dialogs.count("save"), 1);
@@ -87,7 +87,7 @@ fn opens_an_archive_and_reports_an_invalid_one(cx: &mut TestAppContext) {
     let mut h = Harness::start(cx);
     h.dialogs.queue_open(Some(archive));
     h.click("open-document");
-    assert_eq!(h.label("document-status"), "Saved archive");
+    assert_eq!(h.label("document-status"), "Saved");
 
     let invalid = h.temp_path("invalid.ixt");
     std::fs::write(&invalid, "not an ixtable archive").unwrap();
@@ -106,7 +106,7 @@ fn lists_recent_documents_and_opens_one(cx: &mut TestAppContext) {
     h.click("save-project");
     h.click("close-project");
     h.click(gpui_kit::SharedString::from(format!("recent:{name}")));
-    assert_eq!(h.label("document-status"), "Saved archive");
+    assert_eq!(h.label("document-status"), "Saved");
     assert_eq!(h.state().path.as_deref(), Some(path.to_str().unwrap()));
 }
 
@@ -159,7 +159,7 @@ fn edits_yaml_reports_errors_and_undoes_an_applied_change(cx: &mut TestAppContex
 
     set_yaml(&mut h, &tab, "name: Inventory\nactiveMode: app\nversion: 2\n");
     h.click("apply-yaml");
-    assert_eq!(h.label("yaml-status"), "YAML applied.");
+    assert_eq!(h.notice().as_deref(), Some("YAML applied."));
     assert!(!h.exists("yaml-error"));
     assert_eq!(h.label("document-name"), "Inventory");
     assert!(yaml_text(&mut h, &tab).contains("version: 7"));
@@ -183,7 +183,7 @@ fn lists_validation_problems(cx: &mut TestAppContext) {
         "name: Broken\nactiveMode: app\nversion: 3\nreports:\n  - id: r1\n    name: Sales\n  - id: r1\n    name: ''\n",
     );
     h.click("apply-yaml");
-    assert_eq!(h.label("yaml-status"), "YAML applied.");
+    assert_eq!(h.notice().as_deref(), Some("YAML applied."));
     h.click("tab-problems");
     let problems: Vec<String> = (0..2usize).map(|i| h.label(("problem", i))).collect();
     assert!(problems.iter().any(|p| p.contains("duplicate report id r1")), "{problems:?}");
