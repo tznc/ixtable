@@ -1,12 +1,12 @@
 //! Choose a `.ixtr` file, verify it, ask for its password when protected, then run `act`
-//! (open or update). An update or downgrade first shows its release notes and pending
-//! migrations for confirmation; a downgrade is applied only from its explicit button.
+//! (open or update). An update first shows its release notes and pending migrations for
+//! confirmation. An older version is refused when the file is inspected.
 //! Port of src/release/BundleFileFlow.tsx.
 //!
 //! Test ids: the button (`id` given to `new`, only when `show_button`), `bundle-progress`,
 //! password dialog title `bundle-password` ("Password for NAME VERSION"), input
 //! `bundle-password-input`, `bundle-unlock`, `bundle-password-cancel`, the update
-//! confirm (see `update_confirm`), `bundle-error`, `bundle-downgrade`.
+//! confirm (see `update_confirm`), `bundle-error`.
 
 use super::{
     bundle_error::{bundle_error_banner, is_password_error},
@@ -31,9 +31,8 @@ pub const IXTR: FileFilter = FileFilter {
     extensions: &["ixtr"],
 };
 
-/// Opens or updates from a verified bundle: `(path, password, allow_downgrade, sha256)`.
-pub type Act =
-    Arc<dyn Fn(&str, &str, bool, &str) -> Result<SessionState, AppError> + Send + Sync>;
+/// Opens or updates from a verified bundle: `(path, password, sha256)`.
+pub type Act = Arc<dyn Fn(&str, &str, &str) -> Result<SessionState, AppError> + Send + Sync>;
 
 pub enum BundleEvent {
     Done(SessionState, Box<BundleSummary>),
@@ -61,7 +60,6 @@ pub struct BundleFlow {
     busy: bool,
     error: Option<AppError>,
     prompt: Option<Pending>,
-    downgrade: Option<Pending>,
     confirm: Option<Confirm>,
     password: Entity<InputState>,
     focus: FocusHandle,
@@ -92,7 +90,6 @@ impl BundleFlow {
             busy: false,
             error: None,
             prompt: None,
-            downgrade: None,
             confirm: None,
             password: forms::secret_state(window, cx, "Bundle password"),
             focus: cx.focus_handle(),
@@ -113,7 +110,6 @@ impl BundleFlow {
 
     fn reset(&mut self) {
         self.error = None;
-        self.downgrade = None;
         self.confirm = None;
         self.prompt = None;
     }
@@ -156,7 +152,7 @@ impl BundleFlow {
         );
     }
 
-    fn attempt(&mut self, pending: Pending, secret: String, allow_downgrade: bool, cx: &mut Context<Self>) {
+    fn attempt(&mut self, pending: Pending, secret: String, cx: &mut Context<Self>) {
         self.busy = true;
         self.error = None;
         cx.notify();
@@ -165,21 +161,17 @@ impl BundleFlow {
         let secret_for_act = secret.clone();
         task::spawn_call(
             cx,
-            move || act(&path, &secret_for_act, allow_downgrade, &sha),
+            move || act(&path, &secret_for_act, &sha),
             move |this, result, cx| {
                 this.busy = false;
                 match result {
                     Ok(state) => {
                         this.prompt = None;
-                        this.downgrade = None;
                         this.confirm = None;
                         this.clear_password = true;
                         cx.emit(BundleEvent::Done(state, Box::new(pending.summary)));
                     }
                     Err(e) => {
-                        if e.code == "BUNDLE_DOWNGRADE" {
-                            this.downgrade = Some(pending.clone());
-                        }
                         if is_password_error(&e) {
                             this.show_prompt(pending);
                         }
@@ -191,11 +183,11 @@ impl BundleFlow {
         );
     }
 
-    /// Updates and downgrades stop at the confirm step; everything else runs `act`.
+    /// Updates stop at the confirm step; everything else runs `act`.
     fn proceed(&mut self, pending: Pending, secret: String, cx: &mut Context<Self>) {
         let summary = &pending.summary;
-        if summary.action != "update" && summary.action != "downgrade" {
-            return self.attempt(pending, secret, false, cx);
+        if summary.action != "update" {
+            return self.attempt(pending, secret, cx);
         }
         self.busy = true;
         self.error = None;
@@ -307,7 +299,6 @@ impl Render for BundleFlow {
         }
         if let Some(confirm) = &self.confirm {
             let summary = &confirm.pending.summary;
-            let downgrade = summary.action == "downgrade";
             let entity = cx.entity();
             let cancel_entity = cx.entity();
             let (to_apply, secret) = (confirm.pending.clone(), confirm.secret.clone());
@@ -319,12 +310,11 @@ impl Render for BundleFlow {
                     release_notes: &summary.release_notes,
                     migrations: confirm.migrations.as_deref(),
                     migrations_unavailable: summary.migrations_unavailable.as_deref(),
-                    downgrade,
                     busy,
                 },
                 move |_, cx| {
                     let (pending, secret) = (to_apply.clone(), secret.clone());
-                    entity.update(cx, |this, cx| this.attempt(pending, secret, downgrade, cx));
+                    entity.update(cx, |this, cx| this.attempt(pending, secret, cx));
                 },
                 move |_, cx| {
                     cancel_entity.update(cx, |this, cx| {
@@ -340,17 +330,6 @@ impl Render for BundleFlow {
         }
         if let Some(e) = &self.error {
             flow = flow.child(bundle_error_banner("bundle-error", e, cx));
-        }
-        if let Some(older) = self.downgrade.clone() {
-            let secret = forms::text_of(&self.password, cx);
-            let label = format!("Install older version {} anyway", older.summary.version);
-            flow = flow.child(
-                forms::secondary("bundle-downgrade", &label)
-                    .disabled(busy)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.attempt(older.clone(), secret.clone(), true, cx)
-                    })),
-            );
         }
         flow
     }

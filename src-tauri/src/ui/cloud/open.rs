@@ -41,7 +41,7 @@ pub fn update_notice(
     let info = services.runtime_installation_info(window).ok();
     // The record says this apply did not change versions (e.g. already installed).
     if let Some(info) = &info {
-        if !matches!(info.last_action.as_deref(), Some("update" | "downgrade")) {
+        if !matches!(info.last_action.as_deref(), Some("update")) {
             return format!("Running version {}.", info.version);
         }
     }

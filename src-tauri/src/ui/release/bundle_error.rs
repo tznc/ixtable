@@ -10,7 +10,7 @@ fn summary(code: &str) -> &'static str {
         "BUNDLE_PASSWORD_REQUIRED" => "This bundle is password protected. Enter its password.",
         "BUNDLE_INCOMPATIBLE" => "This bundle needs a newer version of ixtable.",
         "BUNDLE_SIGNER_MISMATCH" => "This file is signed by a different developer key than the installed application. It was not opened.",
-        "BUNDLE_DOWNGRADE" => "This bundle is older than the installed version.",
+        "BUNDLE_DOWNGRADE" => "A newer version of this application is already installed.",
         "BUNDLE_SAME_VERSION" => "This version is already installed.",
         "BUNDLE_MISMATCH" => "This file is a different application.",
         "BUNDLE_NOT_INSTALLED" => "Open this bundle from the start screen before updating it.",

@@ -321,7 +321,7 @@ VALIDATION, IX423 VALIDATION with `details {requiresConfirm, installations}`).
   `invitations-accept {token}`.
 - **Post-update notice.** After auto-sync installs a newer version, the
   runtime shows the version, the applied migrations (`appliedMigrations` in
-  `bundle.json`, shown only when its `lastAction` is an update or downgrade)
+  `bundle.json`, shown only when its `lastAction` is `update`)
   and the release notes (line breaks kept) (`app_versions.release_notes`, readable
   by members for published versions). `sync-check` and `bundle-manifest` do
   not carry release notes.

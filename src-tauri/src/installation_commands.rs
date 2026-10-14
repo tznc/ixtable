@@ -96,12 +96,11 @@ fn install_and_open(
     window: &str,
     signed: &SignedBundle,
     archive: &[u8],
-    allow_downgrade: bool,
 ) -> Result<SessionState, AppError> {
     let m = crate::manager()?;
     let root = installations_root();
     let reopen = release(m, window, &signed.header.bundle_id)?;
-    match apply_bundle(&root, signed, archive, allow_downgrade) {
+    match apply_bundle(&root, signed, archive) {
         Ok((dir, _)) => open_session(m, window, &dir),
         Err(e) => {
             crate::logging::warn("bundle", &format!("{}: {}", e.code, e.message));
@@ -129,7 +128,7 @@ fn inspect(root: &Path, path: &str) -> Result<BundleSummary, AppError> {
     let action = plan(&signed, installed.as_ref())?;
     // Best effort: a preview failure never blocks opening; the UI shows why.
     let (pending_migrations, migrations_unavailable) = match action {
-        installation::Action::Update | installation::Action::Downgrade
+        installation::Action::Update
             if !signed.header.flags.encrypted =>
         {
             match signed
@@ -190,7 +189,6 @@ pub fn open_runtime_bundle(
     window_label: String,
     path: String,
     password: Option<String>,
-    allow_downgrade: Option<bool>,
     expected_sha256: Option<String>,
 ) -> Result<SessionState, AppError> {
     let (signed, archive) = admit(
@@ -199,22 +197,16 @@ pub fn open_runtime_bundle(
         password.as_deref(),
         expected_sha256.as_deref(),
     )?;
-    install_and_open(
-        &window_label,
-        &signed,
-        &archive,
-        allow_downgrade.unwrap_or(false),
-    )
+    install_and_open(&window_label, &signed, &archive)
 }
 
-/// Manual update of an installed bundle ("Check for update…"). The version must be newer
-/// unless `allow_downgrade`; installation records are kept and migrated.
+/// Manual update of an installed bundle ("Check for update…"). The version must be newer;
+/// installation records are kept and migrated.
 /// `expected_sha256` is the hash `inspect_runtime_bundle` returned for the file.
 pub fn update_runtime_installation(
     window_label: String,
     path: String,
     password: Option<String>,
-    allow_downgrade: Option<bool>,
     expected_sha256: String,
 ) -> Result<SessionState, AppError> {
     let root = installations_root();
@@ -247,12 +239,7 @@ pub fn update_runtime_installation(
             format!("Version {} is already installed.", installed.version),
         ));
     }
-    install_and_open(
-        &window_label,
-        &signed,
-        &archive,
-        allow_downgrade.unwrap_or(false),
-    )
+    install_and_open(&window_label, &signed, &archive)
 }
 
 fn current_runtime(window: &str) -> Result<installation::RuntimeSession, AppError> {
@@ -356,7 +343,7 @@ mod tests {
         fn install(&self, version: &str) {
             let signed = receive(&self.root, &self.write(version, None)).unwrap();
             let archive = signed.archive_bytes(None).unwrap();
-            apply_bundle(&self.root, &signed, &archive, false).unwrap();
+            apply_bundle(&self.root, &signed, &archive).unwrap();
         }
     }
 
