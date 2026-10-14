@@ -143,7 +143,7 @@ fn exports_from_studio_opens_runtime_only_and_updates_keeping_runtime_records(
     h.click("check-update");
     // An older version is refused before any confirm step; the installation is untouched.
     assert!(!h.exists("update-confirm"));
-    let error = h.label("bundle-error");
+    let error = h.error_at("bundle-error");
     assert!(error.starts_with("BUNDLE_DOWNGRADE: A newer version"), "{error}");
     assert!(error.ends_with("Installed: 1.1.0. This file: 1.0.0."), "{error}");
     assert_eq!(h.label("runtime-version"), "Version 1.1.0");
@@ -164,7 +164,7 @@ fn asks_for_the_password_of_a_protected_bundle_and_explains_a_wrong_one(cx: &mut
     assert_eq!(h.label("bundle-password"), "Password for Untitled 2.0.0");
     h.fill("bundle-password-input", "wrong password");
     h.click("bundle-unlock");
-    assert!(h.label("bundle-error").contains("The password is incorrect."));
+    assert!(h.error_at("bundle-error").contains("The password is incorrect."));
 
     h.fill("bundle-password-input", "correct horse");
     h.click("bundle-unlock");
@@ -201,7 +201,7 @@ fn rejects_a_tampered_bundle_before_opening_it(cx: &mut TestAppContext) {
     close_to_start(&mut h);
 
     open_bundle_from_start(&mut h, &path);
-    let error = h.label("bundle-error");
+    let error = h.error_at("bundle-error");
     assert!(error.contains("BUNDLE_SIGNATURE"), "{error}");
     assert!(error.contains("changed after it was signed"), "{error}");
     assert!(!h.exists("runtime-bundle"));
@@ -238,7 +238,7 @@ fn blocks_export_while_expressions_have_errors(cx: &mut TestAppContext) {
     h.dialogs.queue_save(Some(path.clone()));
     h.click("export-bundle");
     super::gate::set_expression_gate(None);
-    let error = h.label("release-error");
+    let error = h.error_at("release-error");
     assert!(error.contains("EXPRESSION_ERRORS"), "{error}");
     assert!(error.contains("2 expression errors must be fixed first"), "{error}");
     assert!(!path.exists());
@@ -298,7 +298,7 @@ fn previews_a_protected_updates_notes_and_migrations_then_shows_jobs_and_logs(
     h.dialogs.queue_open(Some(v1));
     h.click("check-update");
     assert!(!h.exists("update-confirm"));
-    assert!(h.label("bundle-error").starts_with("BUNDLE_DOWNGRADE"));
+    assert!(h.error_at("bundle-error").starts_with("BUNDLE_DOWNGRADE"));
     assert_eq!(h.label("runtime-version"), "Version 2.0.0");
 
     h.click("diagnostics-open");

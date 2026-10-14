@@ -11,8 +11,9 @@ use crate::{
     ui::{store::StoreEvent, task, widgets},
     validation::{Issue, Severity},
 };
+use gpui_kit::assets::IconName;
 use gpui_kit::component::{
-    ActiveTheme as _, Sizable as _,
+    ActiveTheme as _, Icon, Sizable as _,
     button::{Button, ButtonVariants as _},
     h_flex, v_flex,
 };
@@ -106,7 +107,7 @@ impl Render for ProblemsTab {
             }
         };
         let theme = cx.theme();
-        let (danger, warning) = (theme.danger, theme.warning);
+        let (danger, warning, border) = (theme.danger, theme.warning, theme.border.opacity(0.5));
         v_flex()
             .gap_3()
             .child(widgets::section_heading("problems-heading", "Problems"))
@@ -130,24 +131,30 @@ impl Render for ProblemsTab {
                 el.child(widgets::text("no-problems", "No problems found."))
             })
             .children(self.issues.iter().flatten().enumerate().map(|(ix, problem)| {
-                let color = if problem.is_error() { danger } else { warning };
+                let (color, icon) = if problem.is_error() {
+                    (danger, IconName::CircleX)
+                } else {
+                    (warning, IconName::TriangleAlert)
+                };
+                let row = h_flex()
+                    .gap_2()
+                    .items_start()
+                    .py_1()
+                    .border_b_1()
+                    .border_color(border)
+                    .text_sm()
+                    .child(div().pt_0p5().text_color(color).child(Icon::new(icon).small()));
                 match problem {
                     Problem::Plain(issue) => {
                         let text = format!("{} {}: {}", issue.object_kind, issue.object_id, issue.message);
-                        widgets::styled_text(("problem", ix), text, move |d| d.text_sm().text_color(color))
-                            .into_any_element()
+                        row.child(div().flex_1().min_w_0().child(widgets::text(("problem", ix), text)))
                     }
                     Problem::Expression(issue) => {
                         let name = if issue.object_name.is_empty() { &issue.object_id } else { &issue.object_name };
                         let text = format!("{} {}: {}: {}", issue.object_kind, name, issue.field, issue.message);
                         let target = issue.target.clone();
                         let shell = self.shell.clone();
-                        h_flex()
-                            .gap_2()
-                            .items_center()
-                            .child(widgets::styled_text(("problem", ix), text, move |d| {
-                                d.text_sm().text_color(color)
-                            }))
+                        row.child(div().flex_1().min_w_0().child(widgets::text(("problem", ix), text)))
                             .child(
                                 Button::new(("problem-open", ix))
                                     .link()
@@ -158,7 +165,6 @@ impl Render for ProblemsTab {
                                         shell.update(cx, |s, cx| s.request_reveal(target, window, cx));
                                     }),
                             )
-                            .into_any_element()
                     }
                 }
             }))

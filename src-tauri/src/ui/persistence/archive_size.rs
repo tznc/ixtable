@@ -12,7 +12,7 @@ use super::{
 use crate::{
     assets::ArchiveSizeReport,
     manager::AppError,
-    ui::{forms, prelude::*},
+    ui::{display::data_table, forms, prelude::*, widgets::Severity},
 };
 
 pub struct ArchiveSizePanel {
@@ -88,13 +88,12 @@ impl Render for ArchiveSizePanel {
                 ),
             ));
             card = if r.over_cloud_limit {
-                card.child(widgets::text(
+                card.child(widgets::callout(
                     "size-over-limit",
-                    format!(
-                        "Over the cloud limit: this archive is larger than {}. It keeps working \
-                         locally but cannot sync to ixtable Cloud until it is smaller.",
-                        format_bytes(r.cloud_limit_bytes)
-                    ),
+                    Severity::Warning,
+                    &format!("Larger than the {} cloud limit.", format_bytes(r.cloud_limit_bytes)),
+                    Some("It keeps working locally but cannot sync to ixtable Cloud until it is smaller."),
+                    cx,
                 ))
             } else {
                 card.child(widgets::text(
@@ -102,24 +101,35 @@ impl Render for ArchiveSizePanel {
                     format!("Within the {} cloud limit.", format_bytes(r.cloud_limit_bytes)),
                 ))
             };
-            for (name, bytes) in [
+            let sections = [
                 ("Records", r.records_bytes),
                 ("Configuration", r.config_bytes),
                 ("Assets", r.assets_bytes),
                 ("Other", r.other_bytes),
-            ] {
-                card = card.child(widgets::text(
-                    eid(format!("size-section:{name}")),
-                    format!("{name}: {}", format_bytes(bytes)),
-                ));
-            }
-            card = card.child(div().font_weight(FontWeight::MEDIUM).child("Largest entries"));
-            for (i, e) in r.largest.iter().enumerate() {
-                card = card.child(widgets::text(
-                    eid(format!("size-largest:{i}")),
-                    format!("{} ({}) {}", e.name, e.section, format_bytes(e.bytes)),
-                ));
-            }
+            ]
+            .into_iter()
+            .map(|(name, bytes)| {
+                let size = format_bytes(bytes);
+                (eid(format!("size-section:{name}")), format!("{name}: {size}"), vec![name.to_string(), size])
+            })
+            .collect();
+            card = card.child(data_table("size-sections", &["Part", "Size"], sections, cx));
+            let largest = r
+                .largest
+                .iter()
+                .enumerate()
+                .map(|(i, e)| {
+                    let size = format_bytes(e.bytes);
+                    (
+                        eid(format!("size-largest:{i}")),
+                        format!("{} ({}) {size}", e.name, e.section),
+                        vec![e.name.clone(), e.section.clone(), size],
+                    )
+                })
+                .collect();
+            card = card
+                .child(div().font_weight(FontWeight::MEDIUM).child("Largest entries"))
+                .child(data_table("size-largest", &["Entry", "Part", "Size"], largest, cx));
         }
         card
     }

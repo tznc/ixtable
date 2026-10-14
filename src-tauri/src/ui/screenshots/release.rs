@@ -174,7 +174,7 @@ fn release_confirm_update_refuse_older_and_diagnostics() {
     h.dialogs.queue_open(Some(v1));
     h.click("check-update");
     assert!(h.try_label("update-confirm").is_none());
-    let error = h.label("bundle-error");
+    let error = h.error_at("bundle-error");
     assert!(error.contains("A newer version of this application is already installed"), "{error}");
     h.capture(
         "release-06-older-refused",

@@ -3,12 +3,17 @@
 //!
 //! Test ids: `entities-empty`, per table a row `entity:<table>`, selects
 //! `Concurrency policy for <table>` and `Action for <table>`, `entity-status:<table>`
-//! ("No resolved policy" | "Action missing" | "Resolved"), and for settings whose table
+//! ("No policy" | "Action missing" | "Policy set", as a badge), and for settings whose table
 //! is gone `orphan:<table>` and `Remove settings for <table>`.
 
 use crate::ui::controls::select;
 use crate::recordstore::EntitySettings;
-use crate::ui::{prelude::*, shell::Shell, widgets};
+use crate::ui::{
+    display::{Tone, status_badge},
+    prelude::*,
+    shell::Shell,
+    widgets,
+};
 
 const POLICIES: &[(&str, &str)] = &[
     ("optimistic", "Optimistic: reject stale edits"),
@@ -112,12 +117,12 @@ impl Render for EntitiesTab {
             let policy = settings.map(|e| e.concurrency.clone()).unwrap_or_default();
             let action_id = settings.and_then(|e| e.action_id.clone()).unwrap_or_default();
             let missing_action = policy == "customAction" && !config.actions.iter().any(|a| a.id == action_id);
-            let status = if policy.is_empty() {
-                "No resolved policy"
+            let (status, tone) = if policy.is_empty() {
+                ("No policy", Tone::Warning)
             } else if missing_action {
-                "Action missing"
+                ("Action missing", Tone::Danger)
             } else {
-                "Resolved"
+                ("Policy set", Tone::Success)
             };
             let mut options: Vec<(String, String)> =
                 POLICIES.iter().map(|(v, l)| (v.to_string(), l.to_string())).collect();
@@ -165,7 +170,7 @@ impl Render for EntitiesTab {
                             },
                         ))
                     })
-                    .child(widgets::text(SharedString::from(format!("entity-status:{table}")), status))
+                    .child(status_badge(SharedString::from(format!("entity-status:{table}")), status, tone, cx))
                     .test_support(),
             );
         }
