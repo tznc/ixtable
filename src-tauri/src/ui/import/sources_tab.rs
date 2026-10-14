@@ -4,7 +4,7 @@
 //!
 //! Test ids: `add-file-source`, `Source name` (input), `source-header` (checkbox),
 //! `source-preview`, `confirm-add-source`, `cancel-add-source`, `sources-error`,
-//! `sources-status`, `sources-empty`, per source `source:<name>` (label "files.name"),
+//! `sources-empty`, per source `source:<name>` (label "files.name"),
 //! `source-format:<name>`, `source-columns:<name>`, `source-rows:<name>`,
 //! `Remove <name>`.
 
@@ -18,6 +18,7 @@ use crate::ui::{
     prelude::*,
     shell::Shell,
     store::StoreEvent,
+    toast::Toast,
 };
 use gpui_kit::component::input::InputState;
 
@@ -46,7 +47,6 @@ pub struct FileSourcesTab {
     name: Entity<InputState>,
     busy: bool,
     error: Option<AppError>,
-    status: String,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -70,7 +70,6 @@ impl FileSourcesTab {
             name,
             busy: false,
             error: None,
-            status: String::new(),
             _subscriptions: subscriptions,
         };
         this.refresh(cx);
@@ -120,7 +119,6 @@ impl FileSourcesTab {
     fn load(&mut self, path: String, name: String, options: ImportOptions, window: &mut Window, cx: &mut Context<Self>) {
         self.busy = true;
         self.error = None;
-        self.status.clear();
         cx.notify();
         let label = self.shell.read(cx).label().to_string();
         let (work_path, work_options) = (path.clone(), options.clone());
@@ -182,7 +180,7 @@ impl FileSourcesTab {
                         };
                         this.edit(&format!("Add file source {name}"), cx, move |sources| sources.push(source));
                         this.pending = None;
-                        this.status = format!("Added files.{name}.");
+                        this.shell.update(cx, |shell, cx| shell.toast(Toast::success(format!("Added files.{name}.")), cx));
                     }
                     Err(e) => this.error = Some(e),
                 }
@@ -196,10 +194,11 @@ impl FileSourcesTab {
         self.edit(&format!("Remove file source {}", source.name), cx, move |sources| {
             sources.retain(|s| s.id != id)
         });
-        self.status = format!(
+        let text = format!(
             "Removed files.{}. Its file stays in Assets until you remove unused assets.",
             source.name
         );
+        self.shell.update(cx, |shell, cx| shell.toast(Toast::success(text), cx));
         cx.notify();
     }
 
@@ -299,9 +298,6 @@ impl Render for FileSourcesTab {
         }
         if let Some(error) = &self.error {
             panel = panel.child(error_line("sources-error", &format!("{} {}", error.code, error.message), cx));
-        }
-        if !self.status.is_empty() {
-            panel = panel.child(widgets::text("sources-status", self.status.clone()));
         }
         if sources.is_empty() {
             panel = panel.child(widgets::text("sources-empty", "No file sources yet."));

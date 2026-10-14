@@ -31,7 +31,7 @@ fn export() {
     let path = h.temp_path("customers.csv");
     h.dialogs.queue_save(Some(path.clone()));
     choose_open(&mut h, "CSV");
-    let status = h.label("export-status");
+    let status = h.notice().expect("export toast");
     let text = std::fs::read_to_string(&path).expect("exported file");
     let lines: Vec<&str> = text.trim_start_matches('\u{feff}').trim().split("\r\n").collect();
     assert_eq!(lines[0], "id,name,city");

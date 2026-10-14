@@ -212,6 +212,17 @@ pub fn error_banner(
     on_dismiss: Option<Box<dyn Fn(&mut Window, &mut App) + 'static>>,
     cx: &App,
 ) -> Div {
+    error_callout(id, error_headline(&error.code), error, on_dismiss, cx)
+}
+
+/// `error_banner` with a headline the caller chose (for a domain's own error codes).
+pub fn error_callout(
+    id: impl Into<ElementId>,
+    headline: &str,
+    error: &AppError,
+    on_dismiss: Option<Box<dyn Fn(&mut Window, &mut App) + 'static>>,
+    cx: &App,
+) -> Div {
     let id: ElementId = id.into();
     let theme = cx.theme();
     let color = theme.danger;
@@ -232,7 +243,11 @@ pub fn error_banner(
                 .min_w_0()
                 .gap_0p5()
                 .text_sm()
-                .child(div().font_weight(FontWeight::SEMIBOLD).child(error_headline(&error.code)))
+                .child(styled_text(
+                    SharedString::from(format!("{id}-headline")),
+                    headline.to_string(),
+                    |d| d.font_weight(FontWeight::SEMIBOLD),
+                ))
                 .child(text(id.clone(), error.message.clone()))
                 .child(styled_text(
                     SharedString::from(format!("{id}-code")),

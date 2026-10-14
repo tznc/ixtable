@@ -18,15 +18,34 @@ fn host<'a>(
     name: &str,
     runner: ExportRunner,
 ) -> (Harness<'a>, Entity<ExportMenu>) {
-    let mut h = Harness::start(cx);
+    let mut h = Harness::new_document(cx);
     let name = name.to_string();
+    let shell = h.shell();
+    let app_window = h.window;
     let (window, menu) = h.cx.update(|cx| {
-        gpui_kit::open_window(gpui_kit::WindowOptions::default(), cx, |_, cx| cx.new(|_| ExportMenu::new(&name, runner)))
-            .expect("open the menu window")
+        gpui_kit::open_window(gpui_kit::WindowOptions::default(), cx, |_, cx| {
+            cx.new(|_| ExportMenu::new(&name, runner, shell))
+        })
+        .expect("open the menu window")
     });
     h.window = window;
+    APP_WINDOW.with(|w| w.set(Some(app_window)));
     h.settle();
     (h, menu)
+}
+
+thread_local! {
+    static APP_WINDOW: std::cell::Cell<Option<gpui_kit::AnyWindowHandle>> = const { std::cell::Cell::new(None) };
+}
+
+// The toast lives in the application window, not the one hosting the menu.
+fn notice(h: &mut Harness) -> Option<String> {
+    let menu_window = h.window;
+    h.window = APP_WINDOW.with(|w| w.get()).expect("the application window");
+    h.settle();
+    let text = h.notice();
+    h.window = menu_window;
+    text
 }
 
 fn wait(h: &mut Harness) {
@@ -64,7 +83,7 @@ fn does_nothing_when_the_save_dialog_is_cancelled(cx: &mut TestAppContext) {
     wait(&mut h);
     assert_eq!(h.dialogs.count("save"), 1);
     assert!(calls.lock().unwrap().is_empty());
-    assert!(!h.exists("export-status") && !h.exists("export-error"));
+    assert!(notice(&mut h).is_none() && !h.exists("export-error"));
     assert!(!h.cx.read(|cx| menu.read(cx).busy));
 }
 
@@ -78,7 +97,7 @@ fn exports_to_the_chosen_path_with_the_extension_ensured_then_reports_the_rows(c
     wait(&mut h);
     let want = format!("{}.xlsx", path.to_string_lossy());
     assert_eq!(*calls.lock().unwrap(), [(ExportFormat::Xlsx, want)]);
-    assert_eq!(h.label("export-status"), "Exported 1,234 rows");
+    assert_eq!(notice(&mut h).as_deref(), Some("Exported 1,234 rows"));
     // The button is usable again (the test executor cannot hold a runner half way to show it busy).
     assert!(!h.cx.read(|cx| menu.read(cx).busy));
 }
@@ -92,5 +111,5 @@ fn shows_the_error_from_a_failed_export(cx: &mut TestAppContext) {
     choose(&mut h, "Export", "JSON");
     wait(&mut h);
     assert!(h.label("export-error").contains("disk full"));
-    assert!(!h.exists("export-status"));
+    assert!(notice(&mut h).is_none());
 }

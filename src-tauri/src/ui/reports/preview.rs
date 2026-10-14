@@ -10,7 +10,7 @@
 //! native window has no print pipeline of its own.
 //!
 //! Test ids: toolbar `prev-page`, `next-page`, `page-status` ("Page 1 of 2"), `zoom`
-//! (a choice), `print`, `export-pdf`; messages `preview-notice`, `preview-error`;
+//! (a choice), `print`, `export-pdf`; message `preview-error`;
 //! loading `report-loading`, `loading-seconds`, `cancel-load`, `load-cancelled`,
 //! `retry-load`, `load-error`; `truncated`; `diagnostics-toggle` and `diagnostic-N`;
 //! the page is `page_view`'s `report-page`.
@@ -68,7 +68,6 @@ pub struct ReportPreview {
     elapsed_ms: u64,
     pub page_index: usize,
     pub zoom: f32,
-    pub notice: String,
     pub error: String,
     diagnostics_open: bool,
     images: PageImages,
@@ -97,7 +96,6 @@ impl ReportPreview {
             elapsed_ms: 0,
             page_index: 0,
             zoom: 1.0,
-            notice: String::new(),
             error: String::new(),
             diagnostics_open: false,
             images: HashMap::new(),
@@ -260,7 +258,6 @@ impl ReportPreview {
             .map_or_else(|| "Report".to_string(), |r| r.name.clone());
         let (label, report_id) = (self.shell.read(cx).label().to_string(), self.report_id.clone());
         self.error.clear();
-        self.notice.clear();
         cx.notify();
         let pick = dialogs::save_file(cx, "Export PDF", &format!("{name}.pdf"), &PDF_FILTERS);
         task::after(cx, pick, move |_, path, cx| {
@@ -280,7 +277,11 @@ impl ReportPreview {
                             } else {
                                 format!(". Printed as placeholders: {}", warnings.join("; "))
                             };
-                            this.notice = format!("Exported PDF to {path}{placeholders}");
+                            let file = std::path::Path::new(&path)
+                                .file_name()
+                                .map_or_else(|| path.clone(), |f| f.to_string_lossy().into_owned());
+                            let text = format!("Exported {file}{placeholders}");
+                            this.shell.update(cx, |shell, cx| shell.toast(crate::ui::toast::Toast::success(text), cx));
                         }
                         Err(e) => this.error = e.message,
                     }
@@ -372,7 +373,6 @@ impl ReportPreview {
         v_flex()
             .px_3()
             .gap_1()
-            .when(!self.notice.is_empty(), |el| el.child(widgets::text("preview-notice", self.notice.clone())))
             .when(!self.error.is_empty(), |el| {
                 el.child(widgets::styled_text("preview-error", self.error.clone(), move |d| d.text_color(danger)))
             })

@@ -1,11 +1,11 @@
 //! Code-first view of DocumentConfig: applying YAML replaces the config (PRD §8).
 //! Port of src/shell/YamlTab.tsx. Test ids: `config-yaml` (editor), `apply-yaml`,
-//! `discard-edits`, `yaml-status`, `yaml-error`.
+//! `discard-edits`, `yaml-error`.
 
 use super::Shell;
 use crate::{
     manager::AppError,
-    ui::{store::StoreEvent, task, widgets},
+    ui::{store::StoreEvent, task, toast::Toast, widgets},
 };
 use gpui_kit::component::{
     Disableable as _,
@@ -26,7 +26,6 @@ pub struct YamlTab {
     loading: bool,
     busy: bool,
     error: Option<AppError>,
-    status: Option<String>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -38,7 +37,6 @@ impl YamlTab {
             cx.subscribe(&editor, |this, _, e: &InputEvent, cx| {
                 if matches!(e, InputEvent::Change) && !this.loading {
                     this.edited = true;
-                    this.status = None;
                     cx.notify();
                 }
             }),
@@ -56,7 +54,6 @@ impl YamlTab {
             loading: false,
             busy: false,
             error: None,
-            status: None,
             _subscriptions: subscriptions,
         };
         this.load(window, cx);
@@ -92,7 +89,6 @@ impl YamlTab {
     fn apply(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.busy = true;
         self.error = None;
-        self.status = None;
         let yaml = self.editor.read(cx).value().to_string();
         let label = self.label(cx);
         task::spawn_call_in(
@@ -111,7 +107,7 @@ impl YamlTab {
                         match reloaded {
                             Ok(_) => {
                                 this.edited = false;
-                                this.status = Some("YAML applied.".into());
+                                shell.update(cx, |s, cx| s.toast(Toast::success("YAML applied."), cx));
                                 this.load(window, cx);
                             }
                             Err(e) => this.error = Some(e),
@@ -154,7 +150,6 @@ impl Render for YamlTab {
             .when_some(self.error.clone(), |el, e| {
                 el.child(widgets::error_banner("yaml-error", &e, None, cx))
             })
-            .when_some(self.status.clone(), |el, s| el.child(widgets::text("yaml-status", s)))
             .child(
                 h_flex()
                     .gap_2()

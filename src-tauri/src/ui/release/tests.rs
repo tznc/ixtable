@@ -305,7 +305,7 @@ fn previews_a_protected_updates_notes_and_migrations_then_shows_jobs_and_logs(
     assert_eq!(h.label("diagnostics"), "Diagnostics");
     assert_eq!(h.label("jobs-empty"), "No jobs.");
     h.click("diagnostics-tab-logs");
-    let lines: Vec<String> = (0..60).filter_map(|i| h.try_label(crate::ui::forms::eid(format!("log:{i}")))).collect();
+    let lines: Vec<String> = (0..200).filter_map(|i| h.try_label(crate::ui::forms::eid(format!("log:{i}")))).collect();
     assert!(lines.iter().any(|l| l.contains("Untitled 2.0.0")), "{lines:?}");
     h.click("diagnostics-close");
     assert!(!h.exists("diagnostics"));

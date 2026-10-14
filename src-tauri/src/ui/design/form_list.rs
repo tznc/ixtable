@@ -5,7 +5,7 @@
 //! with `rename:<id>`, `duplicate:<id>` and `delete:<id>`; the rename input is
 //! `rename-input` (labelled "Rename <name>", applied on blur or Enter, Escape cancels);
 //! `new-form`, `generate-table` (the table choice), `generate-form`, `generate-app`, the
-//! notice `generate-notice` and the problem `generate-error`.
+//! problem `generate-error`.
 
 use super::{generate::generate_app, studio::DesignStudio};
 use crate::data::TableSchema;
@@ -16,7 +16,7 @@ use crate::forms::{
 };
 use crate::manager::AppError;
 use crate::recordstore::EntitySettings;
-use crate::ui::{controls::input, prelude::*};
+use crate::ui::{controls::input, prelude::*, toast::Toast};
 use gpui_kit::component::input::{InputEvent, InputState};
 
 /// A rename in progress.
@@ -30,7 +30,6 @@ struct Rename {
 pub struct ListState {
     rename: Option<Rename>,
     pub table: String,
-    pub notice: String,
     pub error: String,
 }
 
@@ -121,11 +120,12 @@ impl DesignStudio {
             match result {
                 Ok(added) => {
                     this.list.error.clear();
-                    this.list.notice = if added > 0 {
-                        format!("Added {added} forms and pages.")
+                    let toast = if added > 0 {
+                        Toast::success(format!("Added {added} forms and pages."))
                     } else {
-                        "Every table already has forms.".to_string()
+                        Toast::info("Every table already has forms.")
                     };
+                    this.shell.update(cx, |shell, cx| shell.toast(toast, cx));
                 }
                 Err(e) => this.list.error = e.message,
             }
@@ -270,9 +270,6 @@ impl DesignStudio {
                             .disabled(no_tables)
                             .on_click(cx.listener(|this, _, _, cx| this.generate_all(cx))),
                     )
-                    .when(!self.list.notice.is_empty(), |el| {
-                        el.child(widgets::styled_text("generate-notice", self.list.notice.clone(), |d| d.text_xs()))
-                    })
                     .when(!self.list.error.is_empty(), |el| {
                         el.child(widgets::styled_text("generate-error", self.list.error.clone(), move |d| {
                             d.text_xs().text_color(danger)

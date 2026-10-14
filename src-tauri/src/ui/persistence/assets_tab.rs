@@ -1,10 +1,11 @@
 //! Application assets (PRD 18): import, export, remove, unused-asset cleanup, archive
 //! size and checkpoints. Port of src/persistence/AssetsTab.tsx.
 //!
-//! Test ids: `import-asset`, `asset-count`, `asset-status`, `asset-error`,
+//! Test ids: `import-asset`, `asset-count`, `asset-error`,
 //! `asset-row:<name>` (label "name type size"), `view-asset:<name>`,
-//! `export-asset:<name>`, `remove-asset:<name>`, card `unused-assets`,
-//! `unused-assets-note`, `remove-unused-assets`. Children: `ArchiveSizePanel`,
+//! `export-asset:<name>`, `remove-asset:<name>`, badge `asset-unused:<name>` on
+//! unreferenced assets, card `unused-assets`,
+//! `unused-assets-note`, `unused-asset:<i>`, `remove-unused-assets`. Children: `ArchiveSizePanel`,
 //! `CheckpointsPanel`, `AssetPreview`.
 
 use super::{
@@ -18,7 +19,15 @@ use super::{
 use crate::{
     archive::Attachment,
     manager::AppError,
-    ui::{dialogs, forms, prelude::*, shell::Shell, store::StoreEvent},
+    ui::{
+        dialogs,
+        display::{Tone, status_badge},
+        forms,
+        prelude::*,
+        shell::Shell,
+        store::StoreEvent,
+        toast::Toast,
+    },
 };
 
 pub struct AssetsTab {
@@ -27,7 +36,6 @@ pub struct AssetsTab {
     orphans: Vec<Attachment>,
     busy: bool,
     error: Option<AppError>,
-    status: String,
     viewing: Option<Entity<AssetPreview>>,
     size: Entity<ArchiveSizePanel>,
     checkpoints: Entity<CheckpointsPanel>,
@@ -51,7 +59,6 @@ impl AssetsTab {
             orphans: vec![],
             busy: false,
             error: None,
-            status: String::new(),
             viewing: None,
             size,
             checkpoints,
@@ -90,7 +97,6 @@ impl AssetsTab {
     fn begin(&mut self, cx: &mut Context<Self>) {
         self.busy = true;
         self.error = None;
-        self.status.clear();
         cx.notify();
     }
 
@@ -98,7 +104,10 @@ impl AssetsTab {
     fn finish(&mut self, result: Result<String, AppError>, cx: &mut Context<Self>) {
         self.busy = false;
         match result {
-            Ok(message) => self.status = message,
+            Ok(message) => {
+                let toast = if message.ends_with("canceled.") { Toast::info(message) } else { Toast::success(message) };
+                self.shell.update(cx, |shell, cx| shell.toast(toast, cx));
+            }
             Err(e) => self.error = Some(e),
         }
         self.refresh(cx);
@@ -258,52 +267,95 @@ impl Render for AssetsTab {
         if let Some(e) = &self.error {
             panel = panel.child(widgets::error_banner("asset-error", e, None, cx));
         }
-        if !self.status.is_empty() {
-            panel = panel.child(widgets::text("asset-status", self.status.clone()));
+        let theme = cx.theme();
+        let (muted, border) = (theme.muted_foreground, theme.border);
+        if !assets.is_empty() {
+            panel = panel.child(
+                h_flex()
+                    .gap_3()
+                    .px_2()
+                    .pb_1()
+                    .border_b_1()
+                    .border_color(border)
+                    .text_xs()
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(muted)
+                    .child(div().flex_1().child("Name"))
+                    .child(div().w(px(140.)).child("Type"))
+                    .child(div().w(px(80.)).text_right().child("Size"))
+                    .child(div().w(px(120.)).child("Checksum"))
+                    .child(div().w(px(220.))),
+            );
         }
+        let mut rows = v_flex().text_sm();
         for asset in &assets {
             let name = asset.display_name.clone();
+            let short_sum = asset.checksum.chars().take(12).collect::<String>();
+            let unused = self.orphans.iter().any(|o| o.id == asset.id);
             let row = h_flex()
                 .id(eid(format!("asset-row:{name}")))
                 .aria_label(format!(
-                    "{name} {} {} {}",
+                    "{name} {} {} {short_sum}",
                     asset.media_type,
                     format_bytes(asset.size),
-                    asset.checksum.chars().take(12).collect::<String>()
                 ))
                 .gap_3()
                 .items_center()
-                .child(div().w(px(220.)).child(name.clone()))
-                .child(div().w(px(140.)).child(asset.media_type.clone()))
-                .child(div().w(px(80.)).child(format_bytes(asset.size)))
-                .child(div().w(px(120.)).child(format!(
-                    "{}…",
-                    asset.checksum.chars().take(12).collect::<String>()
-                )))
-                .when(is_text_asset(&asset.media_type), |el| {
-                    let a = asset.clone();
-                    el.child(
-                        forms::secondary(eid(format!("view-asset:{name}")), "View")
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.toggle_preview(a.clone(), cx)
-                            })),
-                    )
-                })
-                .child({
-                    let a = asset.clone();
-                    forms::secondary(eid(format!("export-asset:{name}")), "Export")
-                        .disabled(busy)
-                        .on_click(cx.listener(move |this, _, _, cx| this.export_one(a.clone(), cx)))
-                })
-                .child({
-                    let a = asset.clone();
-                    forms::danger(eid(format!("remove-asset:{name}")), "Remove")
-                        .disabled(busy)
-                        .on_click(cx.listener(move |this, _, _, cx| this.remove_one(a.clone(), cx)))
-                })
+                .px_2()
+                .py_1()
+                .border_b_1()
+                .border_color(border.opacity(0.5))
+                .child(
+                    h_flex()
+                        .flex_1()
+                        .min_w_0()
+                        .gap_2()
+                        .child(div().min_w_0().overflow_hidden().text_ellipsis().whitespace_nowrap().child(name.clone()))
+                        .when(unused, |el| {
+                            el.child(status_badge(eid(format!("asset-unused:{name}")), "Unused", Tone::Warning, cx))
+                        }),
+                )
+                .child(div().w(px(140.)).text_color(muted).child(asset.media_type.clone()))
+                .child(div().w(px(80.)).text_right().child(format_bytes(asset.size)))
+                .child(
+                    div()
+                        .w(px(120.))
+                        .font_family("monospace")
+                        .text_xs()
+                        .text_color(muted)
+                        .child(format!("{short_sum}…")),
+                )
+                .child(
+                    h_flex()
+                        .w(px(220.))
+                        .gap_1()
+                        .justify_end()
+                        .when(is_text_asset(&asset.media_type), |el| {
+                            let a = asset.clone();
+                            el.child(
+                                forms::secondary(eid(format!("view-asset:{name}")), "View")
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.toggle_preview(a.clone(), cx)
+                                    })),
+                            )
+                        })
+                        .child({
+                            let a = asset.clone();
+                            forms::secondary(eid(format!("export-asset:{name}")), "Export")
+                                .disabled(busy)
+                                .on_click(cx.listener(move |this, _, _, cx| this.export_one(a.clone(), cx)))
+                        })
+                        .child({
+                            let a = asset.clone();
+                            forms::danger(eid(format!("remove-asset:{name}")), "Remove")
+                                .disabled(busy)
+                                .on_click(cx.listener(move |this, _, _, cx| this.remove_one(a.clone(), cx)))
+                        }),
+                )
                 .test_support();
-            panel = panel.child(row);
+            rows = rows.child(row);
         }
+        panel = panel.child(rows);
         if let Some(v) = viewing {
             panel = panel.child(v);
         }
@@ -315,15 +367,19 @@ impl Render for AssetsTab {
             ))
         } else {
             let names: Vec<&str> = self.orphans.iter().map(|a| a.display_name.as_str()).collect();
+            let count = plural(names.len(), "asset");
             unused
                 .child(widgets::text(
                     "unused-assets-note",
-                    format!(
-                        "No form, report, or setting refers to {}: {}.",
-                        plural(names.len(), "asset"),
-                        names.join(", ")
-                    ),
+                    format!("No form, report, or setting refers to {count}. They are marked Unused above."),
                 ))
+                .child(
+                    v_flex()
+                        .text_sm()
+                        .children(names.iter().enumerate().map(|(i, n)| {
+                            widgets::text(eid(format!("unused-asset:{i}")), n.to_string())
+                        })),
+                )
                 .child(
                     forms::danger("remove-unused-assets", "Remove unused assets")
                         .disabled(busy)

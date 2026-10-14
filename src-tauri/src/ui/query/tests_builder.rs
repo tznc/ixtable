@@ -170,8 +170,8 @@ fn exports_the_full_result_of_the_query_shown(cx: &mut TestAppContext) {
     let destination = h.temp_path("customers.csv");
     h.dialogs.queue_save(Some(destination.clone()));
     pick(&mut h, "export", "csv");
-    wait_until(&mut h, "the export", |h| h.exists("export-status"));
-    assert_eq!(h.label("export-status"), "Exported 3 rows");
+    wait_until(&mut h, "the export", |h| h.notice().is_some());
+    assert_eq!(h.notice().as_deref(), Some("Exported 3 rows"));
     let written = std::fs::read_to_string(&destination).unwrap();
     assert!(written.contains("Bolt"), "{written}");
 

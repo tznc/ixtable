@@ -5,10 +5,10 @@ use crate::{
     access::Inventory,
     ui::{
         access::summary::{
-            AccessFormat, ItemStatus, items_needing_attention, kind_label, status_counts,
+            AccessFormat, items_needing_attention, kind_label, status_counts,
             total_rows,
         },
-        display::{self, Tone, status_badge},
+        display::{self, status_badge},
         forms::{self, eid},
         prelude::*,
         widgets::Severity,
@@ -213,11 +213,7 @@ impl AccessImportWizard {
                             .child(status_badge(
                                 eid(format!("attention-status:{key}")),
                                 item.status.label(),
-                                match item.status {
-                                    ItemStatus::Skipped => Tone::Danger,
-                                    ItemStatus::Converted => Tone::Success,
-                                    ItemStatus::Partial => Tone::Warning,
-                                },
+                                item.status.tone(),
                                 cx,
                             )),
                     );

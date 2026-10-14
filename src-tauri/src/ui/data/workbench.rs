@@ -88,7 +88,7 @@ impl DataMode {
         let diagram = cx.new(|_| RelationshipBrowser::new());
         // The real runner (with the window label) is set once a table is chosen.
         let runner = crate::ui::export::menu::table_runner(String::new(), String::new(), vec![], vec![]);
-        let export = cx.new(|_| ExportMenu::new("", runner));
+        let export = cx.new(|_| ExportMenu::new("", runner, shell.clone()));
         let subscriptions = vec![
             cx.observe_in(&shell, window, |this, _, window, cx| this.sync(window, cx)),
             cx.subscribe_in(&filter, window, |this, _, e: &InputEvent, window, cx| {

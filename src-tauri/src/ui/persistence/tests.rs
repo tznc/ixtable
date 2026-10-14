@@ -67,12 +67,12 @@ fn imports_deduplicates_exports_and_removes_application_assets(cx: &mut TestAppC
     let row = h.label("asset-row:logo.png");
     assert!(row.contains("image/png"), "{row}");
     assert!(row.contains("7 B"), "{row}");
-    assert_eq!(h.label("asset-status"), "Imported logo.png.");
+    assert_eq!(h.notice().unwrap_or_default(), "Imported logo.png.");
 
     let copy = fixture(&h, "copy-of-logo.png", &png);
     import(&mut h, copy);
     assert_eq!(
-        h.label("asset-status"),
+        h.notice().unwrap_or_default(),
         "Same content as logo.png; reused the existing asset."
     );
     assert_eq!(h.label("asset-count"), "1 asset");
@@ -83,12 +83,12 @@ fn imports_deduplicates_exports_and_removes_application_assets(cx: &mut TestAppC
     let destination = h.temp_path("exported-logo.png");
     h.dialogs.queue_save(Some(destination.clone()));
     h.click("export-asset:logo.png");
-    assert_eq!(h.label("asset-status"), "Exported logo.png.");
+    assert_eq!(h.notice().unwrap_or_default(), "Exported logo.png.");
     assert_eq!(std::fs::read(&destination).unwrap(), std::fs::read(&logo).unwrap());
 
     h.dialogs.queue_confirm(true);
     h.click("remove-asset:logo.png");
-    assert_eq!(h.label("asset-status"), "Removed logo.png.");
+    assert_eq!(h.notice().unwrap_or_default(), "Removed logo.png.");
     assert!(!h.exists("asset-row:logo.png"));
     assert_eq!(h.label("asset-count"), "0 assets");
 }
@@ -111,12 +111,12 @@ fn reports_canceled_imports_and_exports(cx: &mut TestAppContext) {
     settings_tab(&mut h, "assets");
     h.dialogs.queue_open(None);
     h.click("import-asset");
-    assert_eq!(h.label("asset-status"), "Import canceled.");
+    assert_eq!(h.notice().unwrap_or_default(), "Import canceled.");
     let file = fixture(&h, "note.txt", b"hello");
     import(&mut h, file);
     h.dialogs.queue_save(None);
     h.click("export-asset:note.txt");
-    assert_eq!(h.label("asset-status"), "Export canceled.");
+    assert_eq!(h.notice().unwrap_or_default(), "Export canceled.");
 }
 
 #[gpui_kit::test]
@@ -140,11 +140,12 @@ fn stores_assets_with_safe_names_and_finds_unused_ones(cx: &mut TestAppContext) 
     })
     .unwrap();
     h.settle();
-    let note = h.label("unused-assets-note");
-    assert!(note.contains("_CON.txt"), "{note}");
-    assert!(!note.contains("used.csv"), "{note}");
+    assert!(h.label("unused-assets-note").starts_with("No form, report, or setting refers to 1 asset."));
+    assert_eq!((h.label("unused-asset:0"), h.exists("unused-asset:1")), ("_CON.txt".into(), false));
+    assert_eq!(h.label("asset-unused:_CON.txt"), "Unused");
+    assert!(!h.exists("asset-unused:used.csv"));
     h.click("remove-unused-assets");
-    assert_eq!(h.label("asset-status"), "Removed 1 unused asset.");
+    assert_eq!(h.notice().unwrap_or_default(), "Removed 1 unused asset.");
     assert_eq!(
         h.label("unused-assets-note"),
         "Every asset is referenced by the application."
@@ -207,13 +208,13 @@ fn creates_a_checkpoint_and_restores_it_as_a_separate_copy(cx: &mut TestAppConte
     settings_tab(&mut h, "assets");
     scroll_to_end(&mut h);
     h.click("create-checkpoint");
-    assert_eq!(h.label("checkpoint-status"), "Checkpoint created.");
+    assert_eq!(h.notice().as_deref(), Some("Checkpoint created."));
     assert!(h.label("checkpoint:0").contains("manual"));
 
     let copy = h.temp_path("restored-copy.ixt");
     h.dialogs.queue_save(Some(copy.clone()));
     h.click("restore-checkpoint:0");
-    assert!(h.label("checkpoint-status").starts_with("Restored a copy to"));
+    assert!(h.notice().unwrap_or_default().starts_with("Restored a copy to"));
     let current = h.state().document_id;
     let label = unique("copy");
     let restored = crate::open_document(label.clone(), copy.to_string_lossy().into()).unwrap();
@@ -229,7 +230,7 @@ fn shows_and_copies_the_diagnostic_log(cx: &mut TestAppContext) {
     let first = h.label("log:0");
     assert!(!first.is_empty());
     h.click("logs-copy");
-    let copied = h.label("logs-status");
+    let copied = h.notice().unwrap_or_default();
     assert!(copied.starts_with("Copied ") && copied.ends_with(" log lines."), "{copied}");
     let clipboard = h.cx.read(|cx| cx.read_from_clipboard()).and_then(|c| c.text());
     assert!(clipboard.unwrap().contains("a visible log line"));
@@ -243,7 +244,7 @@ fn saved_document(h: &mut Harness, name: &str) -> PathBuf {
     let path = archive_path(name);
     h.dialogs.queue_save(Some(path.clone()));
     h.click("save-project");
-    assert_eq!(h.label("document-status"), "Saved archive");
+    assert_eq!(h.label("document-status"), "Saved");
     path
 }
 
@@ -374,7 +375,7 @@ fn recovers_a_crashed_sessions_unsaved_work_into_its_archive(cx: &mut TestAppCon
     let mut h = Harness::start(cx);
     assert!(h.exists("recover-unsaved-work"));
     h.click(id(&format!("recover:{name}")));
-    assert_eq!(h.label("document-status"), "Saved archive");
+    assert_eq!(h.label("document-status"), "Saved");
     let recovered = h.state();
     assert_eq!(recovered.session_id, crashed.session_id);
     assert!(!recovered.dirty);
@@ -395,7 +396,7 @@ fn asks_where_to_save_recovered_work_that_was_never_saved(cx: &mut TestAppContex
     let mut h = Harness::start(cx);
     h.dialogs.queue_save(Some(destination.clone()));
     h.click(id(&format!("recover:{name}")));
-    assert_eq!(h.label("document-status"), "Saved archive");
+    assert_eq!(h.label("document-status"), "Saved");
     assert_eq!(h.dialogs.count("save"), 1);
     assert_eq!(h.state().path.as_deref(), Some(destination.to_str().unwrap()));
     assert_eq!(notes_in_archive(&destination), Some(1));
@@ -414,7 +415,7 @@ fn asks_for_save_as_instead_of_overwriting_a_file_it_cannot_checkpoint(cx: &mut 
     let mut h = Harness::start(cx);
     h.dialogs.queue_save(Some(destination.clone()));
     h.click(id(&format!("recover:{name}")));
-    assert_eq!(h.label("document-status"), "Saved archive");
+    assert_eq!(h.label("document-status"), "Saved");
     assert_eq!(h.dialogs.count("save"), 1);
     assert_eq!(std::fs::read(&path).unwrap(), before);
     assert_eq!(h.state().path.as_deref(), Some(destination.to_str().unwrap()));

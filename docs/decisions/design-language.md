@@ -89,6 +89,7 @@ Each is one function in a shared UI module. **New** marks components that don't 
 - Esc and ✕ both mean Cancel, except while busy.
 - Titles are questions for confirmations ("Apply 2 changes to orders?") and nouns for tools ("Import from Access").
 - Never stack a second close button ("Close Tasks") outside the footer.
+- Risky-change dialogs (the schema impact dialog) lead with warning callouts, then the facts, then one acknowledgement that names what is lost. Generated SQL sits behind a "Show SQL" toggle.
 
 ### Callout (`widgets::callout`, `widgets::error_banner`, `widgets::error_callout`)
 - Tones: info, success, warning and danger, each with an icon, a bold one-line title, optional body text, and an optional action.
@@ -104,7 +105,7 @@ Each is one function in a shared UI module. **New** marks components that don't 
 - A header row in `Label` style. Text is left-aligned, and numbers are right-aligned with tabular figures.
 - Zero values and "—" show in `muted_foreground`.
 - Row actions appear on hover or selection at the row end.
-- Use it for report summaries, the migration list, problems, assets, archive size and the import inventory.
+- Use it for report summaries, the migration list, problems, assets, archive size, the Access migration summary and the import inventory. Log lines keep the same row shape: time, level badge, area, then the message, which alone wraps.
 
 ### KeyValue (`display::key_value`, rows from `display::kv`)
 - A two-column grid with a `Label` column and a `Body` value column.
@@ -113,7 +114,7 @@ Each is one function in a shared UI module. **New** marks components that don't 
 
 ### StatusBadge (`display::status_badge`)
 - A pill with a tone (`Tone::{Neutral, Success, Warning, Danger}`) and `Caption` text.
-- One fixed vocabulary per domain: Converted / Partly converted / Not converted; Pending / Applied / Failed / Changed after apply; Policy set / No policy; Saved / Not saved. Raw codes such as `dry_run_ok` never show.
+- One fixed vocabulary per domain: Converted / Partly converted / Not converted; Pending / Applied / Failed / Changed after apply; Policy set / No policy; Saved / Unsaved changes / Not saved / Saving… / Save failed; log levels info / warn / error. Raw codes such as `dry_run_ok` never show.
 
 ### Section (generalize `controls::section` and `widgets::section_heading`)
 - Collapsible, with a `Section` title, an optional count, and a one-line summary when collapsed ("Primary key: id").

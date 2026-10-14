@@ -152,7 +152,7 @@ fn datasheet() {
     );
 
     assert!(paste_at(&mut h, 6, 0, "7\tGolf LLC\tWest\t5\t50\r\n8\tHotel Inc\tWest\t2\t20.5\r\n"));
-    assert_eq!(h.label("sheet-notice"), "Added 2 records.");
+    assert_eq!(h.notice().as_deref(), Some("Added 2 records."));
     assert!(h.exists("cell:7:1"));
     assert_eq!(h.label("total:qty"), "34");
     h.capture(

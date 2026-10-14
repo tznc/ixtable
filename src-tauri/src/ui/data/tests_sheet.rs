@@ -130,7 +130,7 @@ fn pastes_a_spreadsheet_block_over_existing_records_and_as_new_records(cx: &mut 
     let mut h = Harness::new_document(cx);
     seed_orders(&mut h);
     assert!(paste_at(&mut h, 0, 3, "20\r\n30\r\n"));
-    assert_eq!(h.label("sheet-notice"), "Pasted into 2 records.");
+    assert_eq!(h.notice().as_deref(), Some("Pasted into 2 records."));
     assert_eq!(column_of(&h.read_page("orders"), 3), ["20", "30", "10"]);
 
     // Into the new-record row: each pasted line becomes a record.
