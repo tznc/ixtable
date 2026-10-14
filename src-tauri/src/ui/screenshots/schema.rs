@@ -30,6 +30,8 @@ fn schema_designer() {
     h.go("Add column");
     h.append("Column 4:name", "weight");
     h.pick("Column 4:type", "Decimal (precision, scale)");
+    h.go("create-relationships-toggle");
+    h.go("create-constraints-toggle");
     h.go("Relationship columns: order_id");
     h.pick("Target table", "orders");
     h.pick("Target column for order_id", "id");

@@ -73,6 +73,11 @@ fn creates_a_table_with_a_composite_key_relationship_unique_check_and_index(cx: 
     h.append("Column 4:name", "price");
     h.pick("Column 4:type", "Decimal (precision, scale)");
 
+    // Both sections start collapsed with a hint.
+    assert_eq!(h.label("create-relationships-summary"), "None yet. Expand to link this table to another.");
+    assert!(!h.exists("Relationship columns: region"));
+    h.go("create-relationships-toggle");
+    h.go("create-constraints-toggle");
     h.go("Relationship columns: region");
     h.pick("Target table", "regions");
     h.pick("Target column for region", "code");
@@ -216,6 +221,8 @@ fn keeps_designer_drafts_through_a_metadata_reload_and_previews_renames_and_inde
     h.go("impact-cancel");
     click_designer_in(&mut h, "Pending changes", "discard-changes");
 
+    assert_eq!(h.label("designer-indexes-summary"), "parts_label");
+    h.go("designer-indexes-toggle");
     h.go("drop-index:parts_label");
     assert_eq!(h.label("impact-dialog"), "Drop index parts_label?");
     h.click("impact-show-sql");
@@ -235,7 +242,9 @@ fn offers_the_referential_actions_of_the_store(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     table(&mut h, "parts", json!([id_column(), { "name": "label", "declaredType": "TEXT" }]));
     open_designer(&mut h, "parts");
-    assert!(exists_in(&mut h, "Relationships", "On delete"));
+    assert_eq!(h.label("designer-relationships-summary"), "None");
+    h.go("designer-relationships-toggle");
+    assert!(exists_in(&mut h, "designer-relationships-section", "On delete"));
     h.go("On delete");
     let labels = super::testkit::menu_labels(&mut h);
     assert_eq!(labels, ["NO ACTION", "RESTRICT", "CASCADE", "SET NULL", "SET DEFAULT"]);

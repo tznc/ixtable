@@ -5,8 +5,8 @@
 use super::{
     Tab,
     tests_support::{
-        click, editor_text, exists, expect_grid, field_id, fill, open_query_mode, pick, type_sql,
-        wait_until, with_mode,
+        click, editor_text, exists, expect_grid, field_id, fill, open_query_mode, open_section, pick,
+        type_sql, wait_until, with_mode,
     },
 };
 use crate::{
@@ -48,17 +48,20 @@ fn builds_a_joined_grouped_query_with_a_filter_parameter_previews_saves_reopens_
     click(&mut h, "add-row-count");
     fill(&mut h, "alias:Row count", "orders");
 
+    open_section(&mut h, "query-parameters");
     fill(&mut h, "new-param-name", "min_amount");
     click(&mut h, "add-param");
     pick(&mut h, "param-type:min_amount", "number");
     fill(&mut h, "param-default:min_amount", "6");
 
+    open_section(&mut h, "query-filters");
     click(&mut h, "add-filter");
     pick(&mut h, "filter-1-column", "o.amount");
     pick(&mut h, "filter-1-operator", ">=");
     pick(&mut h, "filter-1-compares-with", "param");
     pick(&mut h, "filter-1-parameter", "min_amount");
 
+    open_section(&mut h, "query-sort");
     click(&mut h, "add-sort");
     let amount = field_id(&mut h, "o.amount");
     pick(&mut h, "sort-1-field", &amount);
@@ -139,6 +142,8 @@ fn saves_sql_with_a_required_parameter_and_rejects_mutating_sql_on_save(cx: &mut
     click(&mut h, "tab-sql");
     type_sql(&mut h, "SELECT name FROM customers WHERE id >= $min ORDER BY id");
     assert_eq!(h.label("query-mode-badge"), "SQL");
+    // A referenced parameter opens the section so it can be declared.
+    assert!(!exists(&mut h, "query-parameters-summary"));
     click(&mut h, "declare:min");
     pick(&mut h, "param-type:min", "integer");
     click(&mut h, "param-required:min");
@@ -243,9 +248,11 @@ fn joins_on_several_conditions_with_an_outer_join_groups_by_and_sorts_on_fields_
     pick(&mut h, "aggregate:o.amount", "sum");
     click(&mut h, "col:c.id");
     click(&mut h, "output:c.id");
+    open_section(&mut h, "query-group");
     pick(&mut h, "group-by-column", "c.id");
     click(&mut h, "add-group-by");
     assert_eq!(h.label("group-by:c.id"), "c.id");
+    open_section(&mut h, "query-sort");
     click(&mut h, "add-sort");
     let id = field_id(&mut h, "c.id");
     pick(&mut h, "sort-1-field", &id);
@@ -392,8 +399,7 @@ fn refuses_sql_that_writes_another_table_and_action_queries_as_read_sources(cx: 
 
 #[gpui_kit::test]
 fn runs_action_queries_with_parameters_and_reports_changed_rows(cx: &mut TestAppContext) {
-    // The trigger half of this flow (a sync trigger per changed row) needs the record-hook
-    // runtime of the Automation port; here the run counts and the dry run are checked.
+    // Triggers need the Automation record-hook runtime; here only run counts and the dry run are checked.
     let mut h = Harness::new_document(cx);
     orders(&mut h);
     let shell = h.shell();
@@ -454,3 +460,5 @@ fn runs_action_queries_with_parameters_and_reports_changed_rows(cx: &mut TestApp
     assert_eq!(dry.changed, 5);
     assert_eq!(h.read_page("orders").total, 5);
 }
+
+// ---- Sections, grouping, join warnings and run values ----------------------------------------

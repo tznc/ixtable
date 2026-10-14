@@ -38,6 +38,7 @@ pub mod start;
 pub mod start_sections;
 pub mod store;
 pub mod task;
+pub mod section;
 pub mod toast;
 pub mod widgets;
 #[cfg(test)]

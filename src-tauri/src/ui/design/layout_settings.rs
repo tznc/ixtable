@@ -131,20 +131,31 @@ impl DesignStudio {
 
         let danger = cx.theme().danger;
         let warning = cx.theme().warning;
-        self.group(&format!("{prefix}-settings"), title, cx)
-            .child(h_flex().gap_2().child(columns).child(padding))
-            .child(h_flex().gap_2().child(column_gap).child(row_gap))
-            .child(h_flex().gap_2().child(justify).child(align))
-            .child(heading("Column tracks"))
-            .child(column_tracks)
-            .child(heading("Row tracks"))
-            .child(hint("Rows without a track size to their content."))
-            .child(row_tracks)
-            .child(heading("Named regions"))
-            .child(regions)
-            .child(heading("Breakpoints"))
-            .child(hint("Breakpoints change the column count at a minimum width; items wrap to fit."))
-            .child(breakpoints)
+        let summary = format!(
+            "{}, {}",
+            crate::ui::persistence::format::plural(layout.columns.len(), "column"),
+            crate::ui::persistence::format::plural(layout.rows.len(), "row")
+        );
+        let section = crate::ui::section::section(format!("{prefix}-settings"), title, prefix == "container", window, cx).summary(summary);
+        section
+            .child(
+                v_flex()
+                    .gap_2()
+                    .child(h_flex().gap_2().child(columns).child(padding))
+                    .child(h_flex().gap_2().child(column_gap).child(row_gap))
+                    .child(h_flex().gap_2().child(justify).child(align))
+                    .child(heading("Column widths"))
+                    .child(column_tracks)
+                    .child(heading("Row heights"))
+                    .child(hint("Rows without a size fit their content."))
+                    .child(row_tracks)
+                    .child(heading("Areas"))
+                    .child(regions)
+                    .child(heading("Responsive columns"))
+                    .child(hint("Use a different number of columns from a minimum window width; items wrap to fit."))
+                    .child(breakpoints),
+            )
+            .render(cx)
             .when(!issues.is_empty(), |el| {
                 el.child(
                     v_flex().id(SharedString::from(format!("{prefix}-issues"))).aria_label(format!("{title} problems")).children(
@@ -240,7 +251,7 @@ impl DesignStudio {
         };
         let mut list = v_flex()
             .id(SharedString::from(format!("{}-{key}-tracks", c.p)))
-            .aria_label(format!("{name} tracks"))
+            .aria_label(if key == "column" { "Column widths" } else { "Row heights" })
             .gap_1();
         for (index, track) in tracks.iter().enumerate() {
             let n = index + 1;
@@ -263,7 +274,7 @@ impl DesignStudio {
                         TrackKind::Fixed => "fixed",
                         TrackKind::Content => "content",
                     },
-                    super::studio::options(&[("fr", "Share (fr)"), ("fixed", "Fixed (px)"), ("content", "Fit content")]),
+                    super::studio::options(&[("fr", "Flexible (share)"), ("fixed", "Fixed size (px)"), ("content", "Fit content")]),
                     move |this, value, cx| {
                         let kind = match value {
                             "fixed" => TrackKind::Fixed,
@@ -293,7 +304,7 @@ impl DesignStudio {
                 let kind = track.kind.clone();
                 self.draft(
                     &format!("{id}-size"),
-                    if track.kind == TrackKind::Fr { "Share" } else { "Size px" },
+                    if track.kind == TrackKind::Fr { "Flexible share" } else { "Size (px)" },
                     &number_text(track.value),
                     "",
                     false,
@@ -331,8 +342,8 @@ impl DesignStudio {
                     cx,
                 )
             };
-            let min = limit(Limit::Min, "min", "Min px", track.min, self, window, cx);
-            let max = limit(Limit::Max, "max", "Max px", track.max, self, window, cx);
+            let min = limit(Limit::Min, "min", "Minimum (px)", track.min, self, window, cx);
+            let max = limit(Limit::Max, "max", "Maximum (px)", track.max, self, window, cx);
             list = list.child(
                 v_flex()
                     .gap_1()
@@ -368,7 +379,7 @@ impl DesignStudio {
     fn region_editor(&mut self, c: &Ctx, window: &mut Window, cx: &mut Context<Self>) -> Stateful<Div> {
         let regions = c.layout.named_regions.clone();
         let columns = c.layout.columns.len();
-        let mut group = v_flex().id(SharedString::from(format!("{}-regions", c.p))).aria_label("Named regions").gap_1();
+        let mut group = v_flex().id(SharedString::from(format!("{}-regions", c.p))).aria_label("Areas").gap_1();
         for (index, region) in regions.iter().enumerate() {
             let n = index + 1;
             let id = format!("{}-region-{n}", c.p);
@@ -403,7 +414,7 @@ impl DesignStudio {
             };
             let remove = {
                 let (c, regions) = (c.clone(), regions.clone());
-                icon_button(format!("{}-remove-region-{n}", c.p), IconName::Trash, &format!("Remove region {n}")).on_click(
+                icon_button(format!("{}-remove-region-{n}", c.p), IconName::Trash, &format!("Remove area {n}")).on_click(
                     cx.listener(move |this, _, _, cx| {
                         let mut next = regions.clone();
                         next.remove(index);
@@ -464,7 +475,7 @@ impl DesignStudio {
                 .outline()
                 .small()
                 .icon(IconName::Plus)
-                .label("Add region")
+                .label("Add area")
                 .on_click(cx.listener(move |this, _, _, cx| {
                     let mut next = layout.named_regions.clone();
                     let name = fresh_region_name(&next);
@@ -525,7 +536,7 @@ impl DesignStudio {
             };
             let remove = {
                 let (c, list) = (c.clone(), breakpoints.clone());
-                icon_button(format!("{}-remove-breakpoint-{n}", c.p), IconName::Trash, &format!("Remove breakpoint {n}")).on_click(
+                icon_button(format!("{}-remove-breakpoint-{n}", c.p), IconName::Trash, &format!("Remove width rule {n}")).on_click(
                     cx.listener(move |this, _, _, cx| {
                         let mut next = list.clone();
                         next.remove(index);
@@ -541,7 +552,7 @@ impl DesignStudio {
                 .outline()
                 .small()
                 .icon(IconName::Plus)
-                .label("Add breakpoint")
+                .label("Add width rule")
                 .on_click(cx.listener(move |this, _, _, cx| {
                     let mut next = layout.breakpoints.clone();
                     next.push(Breakpoint { min_width: 960, columns: layout.columns.clone() });

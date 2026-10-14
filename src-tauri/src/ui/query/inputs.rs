@@ -28,6 +28,7 @@ pub enum Field {
 
 pub struct InputSlot {
     pub state: Entity<InputState>,
+    placeholder: String,
     _subscription: Subscription,
 }
 
@@ -64,6 +65,7 @@ impl QueryMode {
             key,
             InputSlot {
                 state: state.clone(),
+                placeholder: placeholder.to_string(),
                 _subscription: subscription,
             },
         );
@@ -91,6 +93,15 @@ impl QueryMode {
         if let Some(slot) = self.inputs.get(key) {
             slot.state
                 .update(cx, |s, cx| s.set_value(text.to_string(), window, cx));
+        }
+    }
+
+    /// Replaces the placeholder of an existing input.
+    pub(super) fn set_input_placeholder(&mut self, key: &Field, text: &str, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(slot) = self.inputs.get_mut(key).filter(|s| s.placeholder != text) {
+            slot.placeholder = text.to_string();
+            slot.state
+                .update(cx, |s, cx| s.set_placeholder(text.to_string(), window, cx));
         }
     }
 
