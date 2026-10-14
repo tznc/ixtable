@@ -135,9 +135,10 @@ A manual bundle runs with full access, because the document config has no
 default runtime role. A cloud installation runs as the role in its signed
 manifest and shows it as `Role: <name>`. The role lives in the Rust session
 (`authz.rs`) and is checked at each record command, so a direct `invoke`
-gets `FORBIDDEN` just like the UI. Studio's "Preview as role" sets the same
-Rust role while Run mode shows, so a preview behaves like the installed
-runtime; leaving Run mode ends it. Runtime sessions keep the ids the
+gets `FORBIDDEN` just like the UI. Studio's Run App window (see
+`gpui-ui.md`) sets the same Rust role for the role it runs as, so a preview
+behaves like the installed runtime. The role is enforced only while that
+window is in front, and closing the window ends it. Runtime sessions keep the ids the
 bundle was published with; only Studio rewrites the legacy `main` form id
 (`design/upgrade.rs`, `rekey_legacy_ids`).
 

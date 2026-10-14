@@ -254,8 +254,7 @@ fn golden_crm_runtime_crud_with_master_detail_validation_trigger_action_roles_co
         });
 
         journey.step("Sales rep role: no delete on companies", |j| {
-            let role = h.config().roles.iter().find(|r| r.name == "Sales rep").expect("Sales rep role").id.clone();
-            h.click(format!("role:{role}"));
+            crate::ui::runtime::tests::run_as(&mut h, "Sales rep");
             wait(&mut h);
             show_list(&mut h, "Companies");
             open_row(&mut h, "Acme Corp");
@@ -271,7 +270,7 @@ fn golden_crm_runtime_crud_with_master_detail_validation_trigger_action_roles_co
             assert!(has_nav("Deal stages"));
             let stages = nav(&mut h, "Deal stages");
             assert!(!h.exists(stages), "Deal stages is hidden for the Sales rep");
-            h.click("role:developer");
+            crate::ui::runtime::tests::run_as(&mut h, crate::ui::runtime::window::OWNER);
             wait(&mut h);
         });
 

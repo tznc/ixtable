@@ -115,7 +115,6 @@ fn switches_modes_and_persists_the_active_mode(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     for (mode, heading) in [
         (ModeId::Automation, "Automation"),
-        (ModeId::Run, "Runtime"),
         (ModeId::App, "Application settings"),
         (ModeId::Design, "Main form"),
     ] {

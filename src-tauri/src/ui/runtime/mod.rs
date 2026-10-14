@@ -1,10 +1,11 @@
-//! Run mode: the application as its users see it (port of `src/runtime/`). The form
+//! Run App: the application as its users see it (port of `src/runtime/`), in the Run App
+//! window (`window.rs`) or as the whole window of a runtime bundle. The form
 //! renderer (`FormRenderer`) is also what the Design studio previews forms with and what
 //! dashboards embed, so it works detached from Run mode (`RuntimeEnv::runtime` is `None`).
 //!
 //! Test ids: `rt-nav` ("Application navigation"), `rt-page` ("Application page"),
-//! `nav:<item id>` (navigation buttons, selected = current page), `role:developer` /
-//! `role:<id>` (the "Preview as role" picker), `rt-notice`, `back-crumb` ("Back to X"),
+//! `nav:<item id>` (navigation buttons, selected = current page), `run-as` (the "Run as"
+//! role select), `rt-notice`, `back-crumb` ("Back to X"),
 //! `list:<form name>` (a list region), `row:<n>` (list rows, "Open X"), `form:<title>`
 //! (a record view region), and `field:<label>` inputs (see `field.rs`).
 
@@ -25,6 +26,7 @@ pub mod roles_tab;
 pub mod run_mode;
 pub mod split;
 pub mod stack;
+pub mod window;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -48,6 +50,8 @@ mod tests_writes;
 mod tests_keyboard;
 #[cfg(test)]
 mod tests_preview;
+#[cfg(test)]
+mod tests_window;
 
 use crate::archive::DocumentConfig;
 use crate::forms::actions::{NavigationTarget, NoticeTone};
@@ -90,6 +94,9 @@ pub struct Runtime {
     history: Vec<RuntimePage>,
     visit: u64,
     preview_role: Option<String>,
+    /// Whether Rust enforces the previewed role now. The Run App window lifts it while
+    /// Studio is in front, since both windows share the document's session.
+    enforced: bool,
     pub notice: Option<Notice>,
     state: Arc<Mutex<Map<String, Value>>>,
     pub popups: Vec<Popup>,
@@ -104,6 +111,7 @@ impl Runtime {
             history: vec![],
             visit: 0,
             preview_role: None,
+            enforced: true,
             notice: None,
             state: Arc::default(),
             popups: vec![],
@@ -168,15 +176,21 @@ impl Runtime {
         self.changed(cx);
     }
 
+    /// Rebuilds the page shown, so it picks up the latest definitions.
+    pub fn reload(&mut self, cx: &mut Context<Self>) {
+        self.visit += 1;
+        self.changed(cx);
+    }
+
     pub fn back(&mut self, cx: &mut Context<Self>) {
         self.visit += 1;
         self.history.pop();
         self.changed(cx);
     }
 
-    /// Previews a role (None is the developer). Rust enforces the previewed role too, so a
+    /// Previews a role (None is the owner). Rust enforces the previewed role too, so a
     /// preview behaves like the installed runtime; if Rust refuses, the preview falls back to
-    /// developer access and says why.
+    /// owner access and says why.
     pub fn set_role_id(&mut self, role_id: Option<String>, cx: &mut Context<Self>) {
         if rbac::assigned_runtime_role().is_some() {
             return;
@@ -184,11 +198,9 @@ impl Runtime {
         self.notice = None;
         self.visit += 1;
         self.history.clear();
-        rbac::set_previewed_role(&self.label, role_id.as_deref());
         self.preview_role = role_id.clone();
-        if let Err(e) =
-            crate::authz::set_runtime_role_preview(self.label.to_string(), role_id.clone())
-        {
+        self.enforced = true;
+        if let Err(e) = self.apply_preview(role_id.as_deref()) {
             self.notice = Some(Notice {
                 message: format!("Could not preview this role: {}", e.message),
                 tone: NoticeTone::Error,
@@ -199,6 +211,26 @@ impl Runtime {
             }
         }
         self.changed(cx);
+    }
+
+    /// Turns enforcement of the previewed role on or off without changing the role shown
+    /// (the Run App window does this as it gains and loses focus).
+    pub fn set_enforced(&mut self, enforced: bool) {
+        if self.enforced == enforced || rbac::assigned_runtime_role().is_some() {
+            return;
+        }
+        self.enforced = enforced;
+        let role = if enforced { self.preview_role.clone() } else { None };
+        let _ = self.apply_preview(role.as_deref());
+    }
+
+    pub fn enforced(&self) -> bool {
+        self.enforced
+    }
+
+    fn apply_preview(&self, role_id: Option<&str>) -> Result<(), crate::manager::AppError> {
+        rbac::set_previewed_role(&self.label, role_id);
+        crate::authz::set_runtime_role_preview(self.label.to_string(), role_id.map(str::to_string))
     }
 
     /// The app state, shared with the automation handlers that set it from other threads.
@@ -291,8 +323,8 @@ impl Runtime {
 }
 
 impl Drop for Runtime {
-    // Outside Run mode Rust must not keep enforcing a role preview: Studio modes run with
-    // full access. A cloud session keeps its assigned role.
+    // Once the Run App window closes Rust must not keep enforcing a role preview: Studio
+    // runs with full access. A cloud session keeps its assigned role.
     fn drop(&mut self) {
         for popup in self.popups.drain(..) {
             if let Some(reply) = popup.reply {

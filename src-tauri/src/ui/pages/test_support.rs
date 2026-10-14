@@ -285,9 +285,7 @@ pub fn edit_store_query<C: UiContext>(h: &mut Harness<'_, C>, query: SavedQuery)
 
 /// The dashboard page the Runtime shows.
 pub fn runtime_page<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<PageView> {
-    let view = h.read_shell(|s, _| s.mode_view()).expect("a mode view");
-    let mode: Entity<crate::ui::runtime::RunMode> = view.downcast().ok().expect("RunMode");
-    let body = h.cx.read(|cx| mode.read(cx).body().cloned()).expect("the Run body is rendered");
+    let body = crate::ui::runtime::tests::run_body(h);
     let page = h.cx.read(|cx| body.read(cx).page_view_entity()).expect("a page");
     page.downcast().ok().expect("a dashboard page")
 }

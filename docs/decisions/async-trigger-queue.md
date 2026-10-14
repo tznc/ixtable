@@ -199,7 +199,8 @@ authorized against both the active role and the role it was enqueued under
   mode, polling for queued jobs.
 - `tests/integration/automation-runtime.test.tsx`: a sync trigger's navigate
   and setState steps followed in the Runtime (`ui/automation/tests_runtime.rs`).
-  Run mode installs `ui::runtime::handlers::RunHandlers` as the window's
+  The running app (the Run App window, or a runtime bundle's window) installs
+  `ui::runtime::handlers::RunHandlers` as the document's
   `UiHandlers`: navigate steps queue a page that a poller applies to the
   `Runtime`, setState (app scope) writes the Runtime's shared app state at
   once, and `app.user` / `app.role` come from the role in force (`Developer`

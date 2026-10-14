@@ -10,7 +10,7 @@ You build forms in [Design view](../concepts/design-view). The Runtime renders t
 
 ## Open the Runtime
 
-In Studio, choose **Runtime** in the mode switch. Studio shows the application with its navigation, and a **Preview as role** menu lets you check what each [role](./roles) can see. Your users open the application from a [runtime bundle](./runtime-bundles), which shows only the Runtime, with no design modes.
+In Studio, click **Run App**. The application opens in its own window with its navigation, so you can keep designing in Studio beside it. Its **Run as** menu, also on the **Run App** button's menu, lets you check what each [role](./roles) can see. Your users open the application from a [runtime bundle](./runtime-bundles), which shows only the Runtime, with no design modes.
 
 An application with no navigation items shows "This application has no pages yet." In Studio, **Generate app from tables** builds a list form and a detail form for every table. The detail forms get lookups for foreign keys and related lists for child tables.
 
