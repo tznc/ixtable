@@ -300,7 +300,7 @@ pub fn install_verified(
         );
         reopen = true;
     }
-    match installation::apply_bundle(&root, &signed, &bytes, false) {
+    match installation::apply_bundle(&root, &signed, &bytes) {
         Ok((dir, action)) => {
             drop(bytes);
             let record = CloudRecord {

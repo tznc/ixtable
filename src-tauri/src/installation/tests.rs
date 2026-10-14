@@ -58,9 +58,9 @@ impl Fixture {
     fn bundle(&self, version: &str) -> (SignedBundle, Vec<u8>) {
         self.bundle_with(version, &self.key)
     }
-    fn apply(&self, version: &str, downgrade: bool) -> Result<(PathBuf, Action), AppError> {
+    fn apply(&self, version: &str) -> Result<(PathBuf, Action), AppError> {
         let (signed, archive) = self.bundle(version);
-        apply_bundle(&self.root, &signed, &archive, downgrade)
+        apply_bundle(&self.root, &signed, &archive)
     }
     fn dir(&self) -> PathBuf {
         self.root.join(&self.doc.metadata.document_id)
@@ -103,7 +103,7 @@ impl Drop for Fixture {
 #[test]
 fn first_open_initializes_data_and_pins_signer() {
     let f = Fixture::new();
-    let (dir, action) = f.apply("1.0.0", false).unwrap();
+    let (dir, action) = f.apply("1.0.0").unwrap();
     assert_eq!(action, Action::Install);
     assert!(dir.join("active").join(ARCHIVE).is_file());
     assert_eq!(f.names(), ["Ada", "Grace"]);
@@ -115,16 +115,16 @@ fn first_open_initializes_data_and_pins_signer() {
     );
     // Re-opening the same version keeps installation records untouched.
     f.insert("Linus");
-    assert_eq!(f.apply("1.0.0", false).unwrap().1, Action::Open);
+    assert_eq!(f.apply("1.0.0").unwrap().1, Action::Open);
     assert_eq!(f.names(), ["Ada", "Grace", "Linus"]);
 }
 
 #[test]
 fn update_preserves_installation_records_and_keeps_checkpoint() {
     let f = Fixture::new();
-    f.apply("1.0.0", false).unwrap();
+    f.apply("1.0.0").unwrap();
     f.insert("Runtime record");
-    let (_, action) = f.apply("1.1.0", false).unwrap();
+    let (_, action) = f.apply("1.1.0").unwrap();
     assert_eq!(action, Action::Update);
     assert_eq!(f.names(), ["Ada", "Grace", "Runtime record"]);
     assert_eq!(f.installed_version(), "1.1.0");
@@ -140,25 +140,22 @@ fn update_preserves_installation_records_and_keeps_checkpoint() {
 }
 
 #[test]
-fn downgrade_refused_unless_explicit() {
+fn older_version_is_refused() {
     let f = Fixture::new();
-    f.apply("2.0.0", false).unwrap();
-    assert_eq!(
-        f.apply("1.9.0", false).unwrap_err().code,
-        "BUNDLE_DOWNGRADE"
-    );
+    f.apply("2.0.0").unwrap();
+    let err = f.apply("1.9.0").unwrap_err();
+    assert_eq!(err.code, "BUNDLE_DOWNGRADE");
+    assert!(err.message == "Installed: 2.0.0. This file: 1.9.0.", "{}", err.message);
     assert_eq!(f.installed_version(), "2.0.0");
-    assert_eq!(f.apply("1.9.0", true).unwrap().1, Action::Downgrade);
-    assert_eq!(f.installed_version(), "1.9.0");
 }
 
 #[test]
 fn different_signer_is_rejected() {
     let f = Fixture::new();
-    f.apply("1.0.0", false).unwrap();
+    f.apply("1.0.0").unwrap();
     let other = SigningKey::generate(&mut OsRng);
     let (signed, archive) = f.bundle_with("1.1.0", &other);
-    let err = apply_bundle(&f.root, &signed, &archive, false).unwrap_err();
+    let err = apply_bundle(&f.root, &signed, &archive).unwrap_err();
     assert_eq!(err.code, "BUNDLE_SIGNER_MISMATCH");
     assert_eq!(f.installed_version(), "1.0.0");
 }
@@ -166,10 +163,10 @@ fn different_signer_is_rejected() {
 #[test]
 fn migrations_apply_to_installation_data_on_update() {
     let mut f = Fixture::new();
-    f.apply("1.0.0", false).unwrap();
+    f.apply("1.0.0").unwrap();
     f.insert("Kept");
     f.add_migration("m-email", "ALTER TABLE Customers ADD COLUMN email TEXT");
-    f.apply("1.1.0", false).unwrap();
+    f.apply("1.1.0").unwrap();
     assert_eq!(f.names(), ["Ada", "Grace", "Kept"]);
     let conn = Connection::open(f.dir().join("data.db")).unwrap();
     let applied: i64 = conn
@@ -191,32 +188,27 @@ fn migrations_apply_to_installation_data_on_update() {
 fn applied_migrations_record_only_the_latest_apply() {
     let mut f = Fixture::new();
     f.add_migration("m-email", "ALTER TABLE Customers ADD COLUMN email TEXT");
-    f.apply("1.0.0", false).unwrap();
+    f.apply("1.0.0").unwrap();
     let fresh = read_installed(&f.dir()).unwrap();
     assert_eq!(fresh.last_action.as_deref(), Some("install"));
     assert!(fresh.applied_migrations.is_empty());
     f.add_migration("m-phone", "ALTER TABLE Customers ADD COLUMN phone TEXT");
-    f.apply("1.1.0", false).unwrap();
+    f.apply("1.1.0").unwrap();
     let updated = read_installed(&f.dir()).unwrap();
     assert_eq!(updated.last_action.as_deref(), Some("update"));
     assert_eq!(updated.applied_migrations, ["m-phone"]);
-    assert_eq!(f.apply("1.1.0", false).unwrap().1, Action::Open);
+    assert_eq!(f.apply("1.1.0").unwrap().1, Action::Open);
     let reopened = read_installed(&f.dir()).unwrap();
     assert_eq!(reopened.last_action.as_deref(), Some("open"));
     assert!(reopened.applied_migrations.is_empty());
     assert_eq!(reopened.version, "1.1.0");
-    f.apply("1.0.0", true).unwrap();
-    assert_eq!(
-        read_installed(&f.dir()).unwrap().last_action.as_deref(),
-        Some("downgrade")
-    );
 }
 
 #[test]
 fn pending_migrations_preview_what_an_update_will_run_without_writing() {
     use crate::installation_checks::pending_migrations;
     let mut f = Fixture::new();
-    f.apply("1.0.0", false).unwrap();
+    f.apply("1.0.0").unwrap();
     f.add_migration("m-email", "ALTER TABLE Customers ADD COLUMN email TEXT");
     let db = f.dir().join("data.db");
     let before = fs::read(&db).unwrap();
@@ -226,7 +218,7 @@ fn pending_migrations_preview_what_an_update_will_run_without_writing() {
     assert!(pending[0].sql.contains("ADD COLUMN email"));
     // Read-only: the installation data is byte-identical after the preview.
     assert_eq!(fs::read(&db).unwrap(), before);
-    f.apply("1.1.0", false).unwrap();
+    f.apply("1.1.0").unwrap();
     assert!(pending_migrations(&db, &f.doc.config).unwrap().is_empty());
     // A missing database means every supported migration is pending.
     assert_eq!(
@@ -240,10 +232,10 @@ fn pending_migrations_preview_what_an_update_will_run_without_writing() {
 #[test]
 fn failing_migration_reverts_and_old_version_still_opens() {
     let mut f = Fixture::new();
-    f.apply("1.0.0", false).unwrap();
+    f.apply("1.0.0").unwrap();
     f.insert("Kept");
     f.add_migration("m-bad", "ALTER TABLE Missing ADD COLUMN x TEXT");
-    let err = f.apply("1.1.0", false).unwrap_err();
+    let err = f.apply("1.1.0").unwrap_err();
     assert_eq!(err.code, "UPDATE_FAILED");
     assert!(
         err.message.contains("1.0.0 is still active"),
@@ -264,12 +256,12 @@ fn failing_migration_reverts_and_old_version_still_opens() {
 #[test]
 fn health_check_failure_blocks_update() {
     let mut f = Fixture::new();
-    f.apply("1.0.0", false).unwrap();
+    f.apply("1.0.0").unwrap();
     f.doc.config.design.forms[0].source = Some(crate::design::FormSource {
         table: Some("Invoices".into()),
         ..Default::default()
     });
-    let err = f.apply("1.1.0", false).unwrap_err();
+    let err = f.apply("1.1.0").unwrap_err();
     assert_eq!(err.code, "UPDATE_FAILED");
     assert!(err.message.contains("Invoices"));
     assert_eq!(f.installed_version(), "1.0.0");
@@ -278,7 +270,7 @@ fn health_check_failure_blocks_update() {
 #[test]
 fn restore_previous_recovers_checkpoint() {
     let f = Fixture::new();
-    f.apply("1.0.0", false).unwrap();
+    f.apply("1.0.0").unwrap();
     checkpoint(&f.dir()).unwrap();
     f.insert("After checkpoint");
     restore_previous(&f.dir()).unwrap();
@@ -288,7 +280,7 @@ fn restore_previous_recovers_checkpoint() {
 #[test]
 fn reset_replaces_records_after_checkpoint() {
     let f = Fixture::new();
-    f.apply("1.0.0", false).unwrap();
+    f.apply("1.0.0").unwrap();
     f.insert("Local");
     let preview = reset_preview(&f.dir(), &f.root.join(".tmp")).unwrap();
     assert_eq!(preview.current[0].rows, 3);
@@ -334,13 +326,13 @@ fn windows_reserved_bundle_ids_are_rejected() {
 #[test]
 fn corrupt_installation_record_fails_closed_and_keeps_files() {
     let f = Fixture::new();
-    f.apply("1.0.0", false).unwrap();
+    f.apply("1.0.0").unwrap();
     f.insert("Precious");
     fs::write(f.dir().join(BUNDLE_JSON), b"{ not json").unwrap();
     // Even a bundle from a different signer must not be treated as a fresh install.
     let other = SigningKey::generate(&mut OsRng);
     let (signed, archive) = f.bundle_with("1.1.0", &other);
-    let err = apply_bundle(&f.root, &signed, &archive, false).unwrap_err();
+    let err = apply_bundle(&f.root, &signed, &archive).unwrap_err();
     assert_eq!(err.code, "INSTALLATION_CORRUPT");
     assert_eq!(
         check_signer(&f.root, &signed).unwrap_err().code,
@@ -351,7 +343,7 @@ fn corrupt_installation_record_fails_closed_and_keeps_files() {
     fs::remove_file(f.dir().join(BUNDLE_JSON)).unwrap();
     fs::create_dir(f.dir().join(BUNDLE_JSON)).unwrap();
     assert_eq!(
-        f.apply("1.0.0", false).unwrap_err().code,
+        f.apply("1.0.0").unwrap_err().code,
         "INSTALLATION_CORRUPT"
     );
     assert_eq!(f.names(), ["Ada", "Grace", "Precious"]);
@@ -360,10 +352,10 @@ fn corrupt_installation_record_fails_closed_and_keeps_files() {
 #[test]
 fn installation_without_record_is_moved_aside_not_deleted() {
     let f = Fixture::new();
-    f.apply("1.0.0", false).unwrap();
+    f.apply("1.0.0").unwrap();
     f.insert("Precious");
     fs::remove_file(f.dir().join(BUNDLE_JSON)).unwrap();
-    assert_eq!(f.apply("1.0.0", false).unwrap().1, Action::Install);
+    assert_eq!(f.apply("1.0.0").unwrap().1, Action::Install);
     assert_eq!(f.names(), ["Ada", "Grace"]);
     let id = &f.doc.metadata.document_id;
     let aside: Vec<PathBuf> = fs::read_dir(&f.root)
@@ -387,10 +379,10 @@ fn installation_without_record_is_moved_aside_not_deleted() {
 #[test]
 fn failed_activation_restores_the_retired_version() {
     let f = Fixture::new();
-    f.apply("1.0.0", false).unwrap();
+    f.apply("1.0.0").unwrap();
     f.insert("Kept");
     FAIL_ACTIVATION.with(|x| x.set(true));
-    let err = f.apply("1.1.0", false).unwrap_err();
+    let err = f.apply("1.1.0").unwrap_err();
     FAIL_ACTIVATION.with(|x| x.set(false));
     assert_eq!(err.code, "UPDATE_FAILED");
     assert!(err.message.contains("Activation failed"), "{}", err.message);
@@ -402,5 +394,5 @@ fn failed_activation_restores_the_retired_version() {
         !name.starts_with(".retired") && !name.starts_with(".staging")
     }));
     // The restored installation still updates normally.
-    assert_eq!(f.apply("1.1.0", false).unwrap().1, Action::Update);
+    assert_eq!(f.apply("1.1.0").unwrap().1, Action::Update);
 }

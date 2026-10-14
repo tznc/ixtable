@@ -599,7 +599,7 @@ fn cloud_installs_reuse_the_runtime_installation_flow_and_keep_records() {
     let header = install::header_for(&m, id, &key_b64);
     assert_eq!(header.payload_sha256, m.archive_sha256);
     let (dir, action) =
-        crate::installation::apply_bundle(&root, &SignedBundle::trusted(header), &bytes, false)
+        crate::installation::apply_bundle(&root, &SignedBundle::trusted(header), &bytes)
             .unwrap();
     assert_eq!(action, crate::installation::Action::Install);
     let conn = rusqlite::Connection::open(dir.join("data.db")).unwrap();
@@ -610,7 +610,6 @@ fn cloud_installs_reuse_the_runtime_installation_flow_and_keep_records() {
         &root,
         &SignedBundle::trusted(install::header_for(&m, id, &key_b64)),
         &bytes,
-        false,
     )
     .unwrap();
     assert_eq!(action, crate::installation::Action::Update);
@@ -626,17 +625,15 @@ fn cloud_installs_reuse_the_runtime_installation_flow_and_keep_records() {
         &root,
         &SignedBundle::trusted(install::header_for(&m, id, &other)),
         &bytes,
-        false,
     )
     .unwrap_err();
     assert_eq!(err.code, "BUNDLE_SIGNER_MISMATCH");
-    // Older published versions never downgrade silently.
+    // Older published versions never install.
     m.version = "0.9.0".into();
     let err = crate::installation::apply_bundle(
         &root,
         &SignedBundle::trusted(install::header_for(&m, id, &key_b64)),
         &bytes,
-        false,
     )
     .unwrap_err();
     assert_eq!(err.code, "BUNDLE_DOWNGRADE");

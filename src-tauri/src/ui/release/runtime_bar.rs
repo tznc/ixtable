@@ -36,12 +36,11 @@ impl RuntimeBar {
         let label = shell.read(cx).label().to_string();
         let act: Act = {
             let label = label.clone();
-            Arc::new(move |path, password, allow_downgrade, sha| {
+            Arc::new(move |path, password, sha| {
                 crate::installation_commands::update_runtime_installation(
                     label.clone(),
                     path.to_string(),
                     (!password.is_empty()).then(|| password.to_string()),
-                    Some(allow_downgrade),
                     sha.to_string(),
                 )
             })

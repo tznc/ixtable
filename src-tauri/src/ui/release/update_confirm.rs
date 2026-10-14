@@ -1,9 +1,8 @@
 //! Release notes and the migrations an update will run, and the confirm step before a
-//! manual update or downgrade is applied (PRD 22.3 step 7).
+//! manual update is applied (PRD 22.3 step 7).
 //! Port of src/release/UpdateConfirm.tsx.
 //!
-//! Test ids: dialog title `update-confirm` ("Update NAME to V?" or "Install older
-//! version V of NAME?"), `update-installed`, `release-notes-text`, `migrations-note`,
+//! Test ids: dialog title `update-confirm` ("Update NAME to V?"), `update-installed`, `release-notes-text`, `migrations-note`,
 //! `no-migrations`, `migration:<i>` (name), `migration-sql:<i>`, `apply-update`,
 //! `cancel-update`.
 
@@ -14,7 +13,6 @@ use crate::{
         forms,
         forms::eid,
         prelude::*,
-        widgets::Severity,
     },
 };
 
@@ -75,7 +73,6 @@ pub struct UpdateConfirmProps<'a> {
     pub release_notes: &'a str,
     pub migrations: Option<&'a [PendingMigration]>,
     pub migrations_unavailable: Option<&'a str>,
-    pub downgrade: bool,
     pub busy: bool,
 }
 
@@ -86,16 +83,7 @@ pub fn update_confirm(
     cancel: impl Fn(&mut Window, &mut App) + 'static,
     cx: &App,
 ) -> Dialog {
-    let title = if props.downgrade {
-        format!("Install older version {} of {}?", props.version, props.name)
-    } else {
-        format!("Update {} to {}?", props.name, props.version)
-    };
-    let apply_label = if props.downgrade {
-        format!("Install older version {} anyway", props.version)
-    } else {
-        "Apply update".to_string()
-    };
+    let title = format!("Update {} to {}?", props.name, props.version);
     let mut panel = dialog("update-confirm", &title);
     if let Some(installed) = props.installed_version {
         panel = panel.child(widgets::text(
@@ -103,20 +91,6 @@ pub fn update_confirm(
             format!("Installed version: {installed}. Your records are kept."),
         ));
     }
-    if props.downgrade {
-        panel = panel.child(widgets::callout(
-            "downgrade-warning",
-            Severity::Warning,
-            &format!("Version {} may not read data saved by a newer version.", props.version),
-            Some("Export or back up your records first if you are not sure."),
-            cx,
-        ));
-    }
-    let apply_button = if props.downgrade {
-        forms::danger("apply-update", &apply_label)
-    } else {
-        forms::primary("apply-update", &apply_label)
-    };
     panel
         .child(update_details(
             props.release_notes,
@@ -129,7 +103,7 @@ pub fn update_confirm(
                 .on_click(move |_, window, cx| cancel(window, cx)),
         )
         .footer(
-            apply_button
+            forms::primary("apply-update", "Apply update")
                 .disabled(props.busy)
                 .on_click(move |_, window, cx| apply(window, cx)),
         )

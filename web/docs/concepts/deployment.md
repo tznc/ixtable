@@ -20,7 +20,7 @@ You can also protect the bundle with a password. A password protects the bundle 
 
 Recipients choose **Open runtime bundle…** on the start screen. ixtable checks the signature before it reads anything else, so a changed or damaged file does not open. The first bundle for an application also pins your signing key. A later bundle for that application signed by any other key is refused.
 
-Each recipient keeps their own records. The bundle's records seed the installation on first open only. To install a new version, the recipient chooses **Check for update…** and picks the new file. ixtable applies the new design and its migrations to a copy of the recipient's records. It switches to that copy only after every migration and health check passes. A failed update leaves the previous version running. Installing an older version requires an explicit confirmation. [Runtime bundles](../guides/runtime-bundles) covers each step.
+Each recipient keeps their own records. The bundle's records seed the installation on first open only. To install a new version, the recipient chooses **Check for update…** and picks the new file. ixtable applies the new design and its migrations to a copy of the recipient's records. It switches to that copy only after every migration and health check passes. A failed update leaves the previous version running. An older version than the installed one is refused. [Runtime bundles](../guides/runtime-bundles) covers each step.
 
 ## Databases
 
