@@ -1,10 +1,12 @@
-//! Tables, views and saved queries of the document, with search. Selecting a query
-//! opens Query mode. Port of src/shell/ObjectBrowser.tsx.
+//! The Data page's sidebar: tables, views and saved queries of the document, with search.
+//! Whatever is chosen here opens in the Data page workspace. Port of
+//! src/shell/ObjectBrowser.tsx.
 //!
 //! Test ids: `new-table`, `new-query`, `object-search` (input), `objects-loading`,
-//! and one button per object: `("table", name)`, `("view", name)`, `("query", id)`.
+//! one button per object: `("table", name)`, `("view", name)`, `("query", id)`, and
+//! `query-draft` for the new query that is not saved yet.
 
-use super::{ModeId, Selection, SelectionKind, Shell};
+use super::{Selection, SelectionKind, Shell};
 use crate::ui::widgets;
 use gpui_kit::assets::IconName;
 use crate::ui::widgets::StartAligned as _;
@@ -42,14 +44,8 @@ impl ObjectBrowser {
         }
     }
 
-    fn choose(&self, selection: Selection, window: &mut Window, cx: &mut App) {
-        let opens_query = matches!(selection.kind, SelectionKind::Query | SelectionKind::NewQuery);
-        self.shell.update(cx, |shell, cx| {
-            shell.select(Some(selection), cx);
-            if opens_query {
-                shell.change_mode(ModeId::Query, window, cx);
-            }
-        });
+    fn choose(&self, selection: Selection, cx: &mut App) {
+        self.shell.update(cx, |shell, cx| shell.select(Some(selection), cx));
     }
 }
 
@@ -57,6 +53,8 @@ struct Item {
     kind: SelectionKind,
     id: String,
     name: String,
+    /// Element id of the row (`table:<name>`, `query:<id>`, `query-draft`).
+    key: String,
 }
 
 impl Render for ObjectBrowser {
@@ -79,10 +77,15 @@ impl Render for ObjectBrowser {
                     SelectionKind::Table
                 },
                 id: o.name.clone(),
-                name: o.name.clone(),
+                name: if o.object_type == "view" {
+                    format!("{} (read-only)", o.name)
+                } else {
+                    o.name.clone()
+                },
+                key: format!("{}:{}", o.object_type, o.name),
             })
             .collect();
-        let queries: Vec<Item> = shell
+        let mut queries: Vec<Item> = shell
             .config(cx)
             .saved_queries
             .iter()
@@ -90,9 +93,23 @@ impl Render for ObjectBrowser {
             .map(|q| Item {
                 kind: SelectionKind::Query,
                 id: q.id.clone(),
-                name: q.name.clone(),
+                name: match (q.name.is_empty(), q.action.is_some()) {
+                    (true, _) => "Untitled query".to_string(),
+                    (false, true) => format!("{} (action)", q.name),
+                    (false, false) => q.name.clone(),
+                },
+                key: format!("query:{}", q.id),
             })
             .collect();
+        // The new query being edited is listed (and reopened from here) until it is saved.
+        if let Some((id, name)) = &shell.unsaved_query {
+            queries.push(Item {
+                kind: SelectionKind::NewQuery,
+                id: id.clone(),
+                name: format!("{name} (unsaved)"),
+                key: "query-draft".into(),
+            });
+        }
         let loading = shell.metadata_loading;
         let error = shell.metadata_error.clone();
         let theme = cx.theme();
@@ -100,8 +117,8 @@ impl Render for ObjectBrowser {
         let danger = theme.danger;
         let entity = cx.entity();
 
-        let group = |title: &'static str, items: Vec<Item>, add: Option<(&'static str, &'static str, SelectionKind)>| {
-            let count = items.len();
+        let group = |title: &'static str, icon: IconName, items: Vec<Item>, add: Option<(&'static str, &'static str, SelectionKind)>| {
+            let count = items.iter().filter(|i| i.kind != SelectionKind::NewQuery).count();
             let empty = items.is_empty() && !needle.is_empty();
             v_flex()
                 .gap_0p5()
@@ -110,7 +127,7 @@ impl Render for ObjectBrowser {
                         .px_2()
                         .gap_2()
                         .items_center()
-                        .child(Icon::new(IconName::Database).xsmall().text_color(muted))
+                        .child(Icon::new(icon).xsmall().text_color(muted))
                         .child(
                             widgets::styled_text(
                                 SharedString::from(format!("group-{}", title.to_lowercase())),
@@ -127,56 +144,42 @@ impl Render for ObjectBrowser {
                                     .xsmall()
                                     .icon(Icon::new(IconName::Plus))
                                     .tooltip(tip)
-                                    .selected(active.as_ref().is_some_and(|s| s.kind == kind))
-                                    .on_click(move |_, window, cx| {
+                                    .selected(active.as_ref().is_some_and(|s| s.kind == kind && s.id.is_empty()))
+                                    .on_click(move |_, _, cx| {
                                         let selection = Selection {
                                             kind,
                                             id: String::new(),
                                         };
-                                        entity.update(cx, |this, cx| {
-                                            if kind == SelectionKind::NewTable {
-                                                this.shell.update(cx, |s, cx| s.select(Some(selection), cx));
-                                            } else {
-                                                this.choose(selection, window, cx);
-                                            }
-                                        });
+                                        entity.update(cx, |this, cx| this.choose(selection, cx));
                                     }),
                             )
                         }),
                 )
                 .children(items.into_iter().map(|item| {
-                    let kind_key = match item.kind {
-                        SelectionKind::View => "view",
-                        SelectionKind::Query => "query",
-                        _ => "table",
-                    };
                     let selected = active
                         .as_ref()
                         .is_some_and(|s| s.kind == item.kind && s.id == item.id);
-                    let label = if item.kind == SelectionKind::View {
-                        format!("{} (read-only)", item.name)
-                    } else {
-                        item.name.clone()
-                    };
                     let selection = Selection {
                         kind: item.kind,
                         id: item.id.clone(),
                     };
                     let entity = entity.clone();
-                    Button::new(SharedString::from(format!("{kind_key}:{}", item.id)))
+                    let icon = match item.kind {
+                        SelectionKind::View => IconName::Eye,
+                        SelectionKind::Query | SelectionKind::NewQuery => IconName::CodeXml,
+                        _ => IconName::Table2,
+                    };
+                    Button::new(SharedString::from(item.key))
                         .ghost()
                         .small()
                         .w_full()
-                        .icon(Icon::new(if item.kind == SelectionKind::View {
-                            IconName::Eye
-                        } else {
-                            IconName::Table2
-                        }))
-                        .start_label(None, label)
+                        .icon(Icon::new(icon))
+                        .start_label(None, item.name.clone())
+                        .tooltip(item.name)
                         .selected(selected)
-                        .on_click(move |_, window, cx| {
+                        .on_click(move |_, _, cx| {
                             let selection = selection.clone();
-                            entity.update(cx, |this, cx| this.choose(selection, window, cx));
+                            entity.update(cx, |this, cx| this.choose(selection, cx));
                         })
                 }))
                 .when(empty, |el| {
@@ -197,7 +200,7 @@ impl Render for ObjectBrowser {
             )
             .child(Input::new(&self.search).id("object-search").aria_label("Search database objects"))
             .when_some(error, |el, e| el.child(widgets::styled_text("objects-error", e, |d| d.text_xs().text_color(danger))))
-            .child(group("Tables", tables, Some(("new-table", "New table", SelectionKind::NewTable))))
-            .child(group("Queries", queries, Some(("new-query", "New query", SelectionKind::NewQuery))))
+            .child(group("Tables", IconName::Database, tables, Some(("new-table", "New table", SelectionKind::NewTable))))
+            .child(group("Queries", IconName::CodeXml, queries, Some(("new-query", "New query", SelectionKind::NewQuery))))
     }
 }

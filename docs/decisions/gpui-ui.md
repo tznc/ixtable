@@ -77,6 +77,22 @@ Two rules apply to test modules:
 
 Run the tests with `cd src-tauri && cargo test --lib`.
 
+## Data page and queries
+
+Saved queries have no Studio mode of their own. The Data page's object browser lists
+tables, views and queries, and whatever is chosen there opens in the Data workspace:
+the diagram with a table's datasheet below it, or the query editor
+(`ui::query::QueryMode`) filling the workspace. One list and one place to open objects
+keeps users from having to decide which page holds a query.
+
+- `DataMode` builds the query editor the first time a query is chosen and keeps it,
+  so an unsaved draft survives a visit to a table.
+- A new query is selected as `SelectionKind::NewQuery` with the draft's id; the editor
+  publishes the unsaved draft to `Shell::unsaved_query` so the object browser lists it.
+- Renaming is editing the name and saving. Duplicate and Delete are in the editor
+  header. A table's datasheet offers **Query this table**.
+- Documents stored with `active_mode = "query"` open on the Data page.
+
 ## Dashboards
 
 `dashboard_engine/` holds the non-UI logic of the former `src/dashboards/` (model,

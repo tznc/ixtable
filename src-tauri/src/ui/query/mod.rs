@@ -1,14 +1,17 @@
-//! Query mode (PRD §12): saved queries, the visual builder, SQL, parameters, action
-//! queries and results. Port of src/query/. `QueryPicker` is the reusable query selector
-//! other modes use.
+//! The query editor of the Data page (PRD §12): the visual builder, SQL, parameters,
+//! action queries and results. Port of src/query/. `QueryPicker` is the reusable query
+//! selector other modes use.
 //!
-//! The mode is one view: the draft being edited, the run state and the open drop-down
-//! live in `QueryMode`, and the panels are `impl QueryMode` blocks in the sibling files.
+//! Saved queries are listed in the Data page's object browser; choosing one (or New
+//! query) selects it in the shell and `DataMode` shows this view in its workspace. The
+//! view is one entity: the draft being edited, the run state and the open drop-down live
+//! in `QueryMode`, and the panels are `impl QueryMode` blocks in the sibling files. The
+//! draft survives a visit to a table, and a new query that is not saved yet is published
+//! to the shell (`Shell::unsaved_query`) so the object browser can list it.
 //!
-//! Test ids: `query-new`, `query-open:<id>`, `query-rename:<id>`, `query-duplicate:<id>`,
-//! `query-delete:<id>`, `create-query`, `query-error`, `query-name`, `query-save`,
-//! `query-run`, `query-mode-badge`, `query-unsaved`, `tab-builder`, `tab-sql`; the
-//! panels list theirs in their own files.
+//! Test ids: `create-query`, `query-error`, `query-name`, `query-save`, `query-run`,
+//! `query-duplicate`, `query-delete`, `query-mode-badge`, `query-unsaved`, `tab-builder`,
+//! `tab-sql`; the panels list theirs in their own files.
 
 mod action;
 mod action_text;
@@ -20,7 +23,6 @@ mod fields;
 mod filters;
 mod inputs;
 mod joins;
-mod list;
 mod model;
 mod params;
 mod picker;
@@ -51,7 +53,7 @@ use crate::{
     },
 };
 use choice::Opt;
-use gpui_kit::component::input::{EditorState, InputEvent, InputState};
+use gpui_kit::component::input::{EditorState, InputEvent};
 use inputs::{Field, InputSlot};
 use joins::Schemas;
 use model::{BuilderModel, empty_model, new_id, normalize_model};
@@ -84,12 +86,6 @@ impl Draft {
     }
 }
 
-struct Renaming {
-    id: String,
-    input: Entity<InputState>,
-    _subscription: Subscription,
-}
-
 #[derive(Default)]
 struct Preview {
     generation: u64,
@@ -108,7 +104,6 @@ pub struct QueryMode {
     label: String,
     pub(crate) draft: Option<Draft>,
     error: String,
-    renaming: Option<Renaming>,
     last_selection: Option<Selection>,
     pub(crate) tab: Tab,
     /// "Run with" values by parameter name.
@@ -151,7 +146,6 @@ impl QueryMode {
             label: String::new(),
             draft: None,
             error: String::new(),
-            renaming: None,
             last_selection: None,
             tab: Tab::Sql,
             values: BTreeMap::new(),
@@ -319,7 +313,25 @@ impl QueryMode {
     /// After any change: refresh the view and the debounced builder preview.
     pub(crate) fn touched(&mut self, cx: &mut Context<Self>) {
         self.refresh_preview(cx);
+        self.publish_unsaved(cx);
         cx.notify();
+    }
+
+    /// Tells the shell about the new query that is not saved yet (the object browser
+    /// lists it).
+    fn publish_unsaved(&mut self, cx: &mut Context<Self>) {
+        let unsaved = self.draft.as_ref().filter(|d| d.is_new).map(|d| {
+            let name = if d.query.name.trim().is_empty() { "Untitled query" } else { d.query.name.trim() };
+            (d.query.id.clone(), name.to_string())
+        });
+        self.shell.update(cx, |s, cx| s.set_unsaved_query(unsaved, cx));
+    }
+
+    /// Drops the draft (its query was deleted).
+    fn close_draft(&mut self, cx: &mut Context<Self>) {
+        self.draft = None;
+        self.reset_run(cx);
+        self.publish_unsaved(cx);
     }
 
     /// Live preview of the builder (debounced, first `PREVIEW_ROWS` rows).
@@ -389,8 +401,22 @@ impl QueryMode {
         task::after_in(window, cx, answer, move |this, ok, window, cx| {
             if ok {
                 then(this, window, cx);
+            } else {
+                // Keep the sidebar on the query that stays open.
+                this.select_draft(cx);
             }
         });
+    }
+
+    /// Selects the open draft in the shell.
+    fn select_draft(&mut self, cx: &mut Context<Self>) {
+        let Some(d) = &self.draft else {
+            return;
+        };
+        let kind = if d.is_new { SelectionKind::NewQuery } else { SelectionKind::Query };
+        let selection = Selection { kind, id: d.query.id.clone() };
+        self.last_selection = Some(selection.clone());
+        self.shell.update(cx, |s, cx| s.select(Some(selection), cx));
     }
 
     /// Makes `query` the draft. The tab, run values and results are kept when it is the
@@ -422,17 +448,39 @@ impl QueryMode {
     }
 
     pub fn new_query(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.guard(window, cx, |this, _, cx| {
-            let name = unique_name("Untitled query", this.queries(cx));
+        self.new_query_on(None, window, cx);
+    }
+
+    /// Starts a builder query that reads `table` ("Query this table" on a datasheet).
+    pub fn new_query_from(&mut self, table: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.new_query_on(Some(table.to_string()), window, cx);
+    }
+
+    fn new_query_on(&mut self, table: Option<String>, window: &mut Window, cx: &mut Context<Self>) {
+        self.guard(window, cx, move |this, _, cx| {
+            let mut model = empty_model();
+            let name = match &table {
+                Some(table) => {
+                    model.sources.push(model::BuilderSource {
+                        id: new_id(),
+                        alias: model::alias_for(table, &[]),
+                        table: table.clone(),
+                    });
+                    unique_name(&format!("{table} query"), this.queries(cx))
+                }
+                None => unique_name("Untitled query", this.queries(cx)),
+            };
+            let (sql, _) = compile::try_compile(&model);
             let query = SavedQuery {
                 id: new_id(),
                 name,
-                sql: String::new(),
+                sql,
                 parameters: vec![],
-                builder: Some(empty_model().to_value()),
+                builder: Some(model.to_value()),
                 ..Default::default()
             };
             this.open(query, true, cx);
+            this.select_draft(cx);
         });
     }
 
@@ -468,12 +516,12 @@ impl QueryMode {
         }
         self.last_selection = selection.clone();
         match selection {
+            // "New query" starts a draft; the unsaved draft's own row just shows it again.
             Some(Selection {
                 kind: SelectionKind::NewQuery,
-                ..
-            }) => {
+                id,
+            }) if self.draft.as_ref().is_none_or(|d| !d.is_new || d.query.id != id) => {
                 self.new_query(window, cx);
-                self.select_in_shell(None, cx);
             }
             Some(Selection {
                 kind: SelectionKind::Query,
@@ -499,10 +547,7 @@ impl QueryMode {
         };
         let saved = self.queries(cx).iter().find(|q| q.id == id).cloned();
         match saved {
-            None => {
-                self.draft = None;
-                self.reset_run(cx);
-            }
+            None => self.close_draft(cx),
             Some(saved) if saved != baseline => self.open(saved, false, cx),
             Some(_) => {}
         }
@@ -602,41 +647,6 @@ impl QueryMode {
         cx.notify();
     }
 
-    pub fn rename(&mut self, id: &str, name: String, window: &mut Window, cx: &mut Context<Self>) {
-        let taken = self
-            .queries(cx)
-            .iter()
-            .any(|q| q.id != id && q.name.to_lowercase() == name.to_lowercase());
-        if taken {
-            self.error = format!("Another query is already named {name}");
-            return cx.notify();
-        }
-        let was_clean = !self.is_dirty();
-        if let Some(d) = self.draft.as_mut().filter(|d| d.query.id == id) {
-            d.query.name = name.clone();
-            if was_clean {
-                d.baseline.name = name.clone();
-            }
-            self.set_input(&Field::Name, &name, window, cx);
-        }
-        let (target, label) = (id.to_string(), name.clone());
-        let result = self.store(cx).update(cx, |s, cx| {
-            s.update(
-                &format!("Rename query {label}"),
-                |c| {
-                    if let Some(q) = c.saved_queries.iter_mut().find(|q| q.id == target) {
-                        q.name = label.clone();
-                    }
-                },
-                cx,
-            )
-        });
-        if let Err(e) = result {
-            self.error = e.message;
-        }
-        self.touched(cx);
-    }
-
     pub fn duplicate(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
         let Some(source) = self.queries(cx).iter().find(|q| q.id == id).cloned() else {
             return;
@@ -689,8 +699,7 @@ impl QueryMode {
             match result {
                 Ok(_) => {
                     if this.draft.as_ref().is_some_and(|d| d.query.id == query.id) {
-                        this.draft = None;
-                        this.reset_run(cx);
+                        this.close_draft(cx);
                     }
                     if this.last_selection.as_ref().is_some_and(|s| s.id == query.id) {
                         this.select_in_shell(None, cx);
@@ -754,28 +763,16 @@ impl Render for QueryMode {
                 .into_any_element(),
         };
         let error = (!self.error.is_empty()).then(|| self.error_line("query-error", &self.error, cx));
-        v_flex()
-            .size_full()
-            .child(widgets::titlebar("Project / Queries", "Query", cx))
-            .child(
-                h_flex()
-                    .flex_1()
-                    .min_h_0()
-                    .items_start()
-                    .child(self.render_list(window, cx))
-                    .child(widgets::observed(
-                        v_flex()
-                            .id("query-pane")
-                            .aria_label("Query pane")
-                            .flex_1()
-                            .min_w_0()
-                            .h_full()
-                            .overflow_y_scroll()
-                            .p_3()
-                            .gap_3()
-                            .children(error)
-                            .child(pane),
-                    )),
-            )
+        widgets::observed(
+            v_flex()
+                .id("query-pane")
+                .aria_label("Query pane")
+                .size_full()
+                .overflow_y_scroll()
+                .p_3()
+                .gap_3()
+                .children(error)
+                .child(pane),
+        )
     }
 }

@@ -74,10 +74,10 @@ fn access_import_template() {
         ],
     );
 
-    h.switch_mode(ModeId::Query);
+    h.switch_mode(ModeId::Data);
     let config = crate::read_document_config(h.label.clone()).unwrap();
     let raise = config.saved_queries.iter().find(|q| q.name == "RaiseBigOrders").expect("RaiseBigOrders");
-    h.click(SharedString::from(format!("query-open:{}", raise.id)));
+    h.click(SharedString::from(format!("query:{}", raise.id)));
     assert_eq!(h.label("query-mode-badge"), "Action query");
     h.fill("param-value:minimum", "0");
     h.click("preview-changes");

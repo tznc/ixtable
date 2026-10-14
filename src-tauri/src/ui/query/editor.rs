@@ -1,8 +1,9 @@
-//! The editor pane of Query mode: name, type, builder / SQL tabs, parameters and results.
-//! Port of src/query/QueryEditor.tsx.
+//! The query editor on the Data page: name, type, builder / SQL tabs, parameters and
+//! results. Port of src/query/QueryEditor.tsx.
 //!
 //! Test ids: `query-name` (input), `query-mode-badge`, `query-unsaved`, `query-run`,
-//! `query-save`, `tab-builder`, `tab-sql`, `generated-sql`, `switch-to-sql`,
+//! `query-save`, `query-duplicate`, `query-delete` (saved queries only), `tab-builder`,
+//! `tab-sql`, `generated-sql`, `switch-to-sql` ("Edit as SQL"),
 //! `start-builder`, `query-note`, `query-results` (labelled Preview or Results).
 
 use super::{QueryMode, Tab, inputs::Field, model::empty_model, sql};
@@ -156,7 +157,25 @@ impl QueryMode {
                     .label("Save query")
                     .disabled(saving)
                     .on_click(cx.listener(|this, _, window, cx| this.save(window, cx))),
-            );
+            )
+            .when(!is_new, |el| {
+                let (dup_id, del_id) = (query.id.clone(), query.id.clone());
+                el.child(
+                    Button::new("query-duplicate")
+                        .ghost()
+                        .icon(IconName::Copy)
+                        .label("Duplicate")
+                        .on_click(cx.listener(move |this, _, window, cx| this.duplicate(&dup_id, window, cx))),
+                )
+                .child(
+                    Button::new("query-delete")
+                        .danger()
+                        .outline()
+                        .icon(IconName::Trash)
+                        .label("Delete")
+                        .on_click(cx.listener(move |this, _, window, cx| this.delete(&del_id, window, cx))),
+                )
+            });
 
         let this = cx.entity();
         let tabs = action.is_none().then(|| {
@@ -199,7 +218,8 @@ impl QueryMode {
                 .child(
                     Button::new("switch-to-sql")
                         .outline()
-                        .label("Switch to SQL")
+                        .label("Edit as SQL")
+                        .tooltip("Turns this query into hand-written SQL. It cannot go back to the builder.")
                         .on_click(cx.listener(|this, _, window, cx| this.switch_to_sql(window, cx))),
                 )
                 .into_any_element()

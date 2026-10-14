@@ -8,13 +8,13 @@ _A saved query is a named, read-only SQL statement with typed parameters. Forms,
 
 You build a query visually or write it in SQL, then save it in the project. ixtable runs every query through DuckDB against the application's records, whether they live in the embedded SQLite database or in PostgreSQL. Queries only read. Records change through forms and [actions](./automation), and the schema changes through the table designer and [migrations](./migrations).
 
-Open Query mode, or choose **New query** under **Queries** in the object browser.
+Queries live on the Data page. Choose a query under **Queries** in the object browser to open it, or choose **New query** (the + beside **Queries**). To start from a table, open the table and choose **Query this table**.
 
 ## Create and save a query
 
-Choose **New query**. The new query opens in the visual builder with the name "Untitled query". Give it a name and choose **Save query**. Names must be unique, ignoring case.
+Choose **New query**. The new query opens in the visual builder with the name "Untitled query", and the object browser lists it as unsaved. Give it a name and choose **Save query**. Names must be unique, ignoring case.
 
-The list of saved queries has buttons to rename, duplicate, and delete each query. Leaving a query with unsaved changes asks whether to discard them.
+To rename a saved query, change its name and choose **Save query**. **Duplicate** and **Delete** sit beside **Save query**. You can look at a table and come back to a query without losing unsaved changes. Opening another query or starting a new one asks whether to discard them.
 
 When you save a query written in SQL, ixtable checks it against the database. A query that names an unknown table or column does not save.
 
@@ -91,7 +91,7 @@ A run returns at most 10,000 rows and says so when it stops there. When a query 
 
 ## Permissions
 
-Each saved query is an object in the Roles tab. A role can run a query when it has read on the query, or read on a form, report, or dashboard that shows the query. An action step still needs read on its query. Filters do not limit which rows a role can read, so grant a narrower query when a role must see less. Ad hoc SQL in Query mode is available only to the developer, never to a role. See [Roles and permissions](./roles).
+Each saved query is an object in the Roles tab. A role can run a query when it has read on the query, or read on a form, report, or dashboard that shows the query. An action step still needs read on its query. Filters do not limit which rows a role can read, so grant a narrower query when a role must see less. Ad hoc SQL in the query editor is available only to the developer, never to a role. See [Roles and permissions](./roles).
 
 ## Next steps
 

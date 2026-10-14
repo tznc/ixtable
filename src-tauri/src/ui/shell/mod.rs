@@ -85,6 +85,7 @@ pub enum SelectionKind {
     Table,
     View,
     Query,
+    /// A new query; `id` is the unsaved draft's id, or empty to start one.
     NewQuery,
     NewTable,
 }
@@ -155,6 +156,9 @@ pub struct Shell {
     pub metadata_loading: bool,
     pub metadata_error: Option<String>,
     pub selection: Option<Selection>,
+    /// `(id, name)` of the new query being edited on the Data page and not saved yet, so
+    /// the object browser can list it.
+    pub unsaved_query: Option<(String, String)>,
     pub reveal: Option<RevealTarget>,
     view: Option<(ModeId, AnyView, Option<AnyView>)>,
     focus: FocusHandle,
@@ -218,6 +222,7 @@ impl Shell {
             metadata_loading: true,
             metadata_error: None,
             selection: None,
+            unsaved_query: None,
             reveal: None,
             view: None,
             focus: cx.focus_handle(),
@@ -305,6 +310,13 @@ impl Shell {
         cx.notify();
     }
 
+    pub fn set_unsaved_query(&mut self, draft: Option<(String, String)>, cx: &mut Context<Self>) {
+        if self.unsaved_query != draft {
+            self.unsaved_query = draft;
+            cx.notify();
+        }
+    }
+
     /// Announces a DDL/data change: metadata reloads and every subscriber refreshes.
     pub fn database_changed(&mut self, cx: &mut Context<Self>) {
         let bus = self.bus.clone();
@@ -349,6 +361,8 @@ impl Shell {
         match result {
             Ok(_) => {
                 self.doc.mode = mode;
+                // The Data page's query draft goes with its view.
+                self.unsaved_query = None;
                 self.view = None;
                 self.ensure_view(window, cx);
                 self.reload_metadata(cx);
