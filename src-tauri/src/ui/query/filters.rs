@@ -14,7 +14,7 @@ use super::{
     joins::columns_of,
     model::{
         AGGREGATES, Aggregate, BuilderCondition, BuilderGroup, BuilderModel, Combinator,
-        FILTER_OPERATORS, FilterOperator, FilterValue, Item, empty_group, new_id,
+        FILTER_OPERATORS, FilterOperator, FilterValue, Item, conditions_of, empty_group, new_id,
     },
 };
 use crate::ui::{prelude::*, widgets};
@@ -79,7 +79,22 @@ impl QueryMode {
         };
         let group = if having { &model.having } else { &model.filters };
         let body = self.render_group(model, having, group, vec![], String::new(), window, cx);
-        super::panel(id, title, cx).child(body)
+        let count = conditions_of(group).len();
+        let (none, noun) = if having {
+            ("No conditions on aggregates", "condition")
+        } else {
+            ("No filters, all rows", "filter")
+        };
+        let summary = match count {
+            0 => none.to_string(),
+            1 => format!("1 {noun}"),
+            n => format!("{n} {noun}s"),
+        };
+        crate::ui::section::section(id, title, count > 0, window, cx)
+            .count(count)
+            .summary(summary)
+            .child(body)
+            .render(cx)
     }
 
     #[allow(clippy::too_many_arguments)]

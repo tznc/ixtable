@@ -185,7 +185,8 @@ fn design_grid_tracks_and_regions() {
     seed(&mut h, |config| config.design.forms[0].layout.columns.truncate(4));
     open_designer(&mut h);
 
-    choose(&mut h, "grid-column-1-kind", "Fixed (px)");
+    h.click("grid-settings-toggle");
+    choose(&mut h, "grid-column-1-kind", "Fixed size (px)");
     h.click("grid-add-region");
     h.fill("grid-region-1-name", "header");
     h.press("enter");
@@ -195,8 +196,8 @@ fn design_grid_tracks_and_regions() {
     h.capture(
         "grid-01-tracks-and-regions",
         &[
-            "Form properties list the column tracks with Column 1 set to 'Fixed (px)', its name, kind, and labelled Size, Min, and Max inputs readable.",
-            "A named region 'header' appears in the region editor with its column, row, and span inputs.",
+            "Form properties list the column widths with Column 1 set to 'Fixed size (px)', its name, kind, and labelled Size, Minimum, and Maximum inputs readable.",
+            "A named area 'header' appears in the area editor with its column, row, and span inputs.",
         ],
     );
 
@@ -216,10 +217,10 @@ fn design_grid_tracks_and_regions() {
     h.click("back-to-form");
     h.fill("grid-region-1-name", "");
     h.press("enter");
-    assert_eq!(h.label("grid-region-1-name-error"), "Region name is required.");
+    assert_eq!(h.label("grid-region-1-name-error"), "Area name is required.");
     h.capture(
         "grid-03-region-name-required",
-        &["The Region 1 name input is empty and shows 'Region name is required.' inline beneath it."],
+        &["The Area 1 name input is empty and shows 'Area name is required.' inline beneath it."],
     );
 }
 

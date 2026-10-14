@@ -602,7 +602,7 @@ fn same(a: &[String], b: &[String]) -> bool {
 }
 
 impl Render for TableSchemaDesigner {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let schema = self.schema.clone();
         let busy = self.busy || self.locked;
         let store = store_label(self.capabilities.as_ref());
@@ -790,9 +790,17 @@ impl Render for TableSchemaDesigner {
                     .into_any_element()
             })
             .collect();
-        let relationships_section = section("Relationships", cx)
-            .children(relationship_rows)
-            .child(self.fk_editor.clone());
+        let fk_summary: Vec<String> = schema
+            .foreign_keys
+            .iter()
+            .map(|f| format!("({}) → {}", f.from_columns.join(", "), f.target_table))
+            .collect();
+        let relationships_section = crate::ui::section::section("designer-relationships", "Relationships", false, window, cx)
+            .count(schema.foreign_keys.len())
+            .summary(if fk_summary.is_empty() { "None".to_string() } else { fk_summary.join("; ") })
+            .child(v_flex().gap_2().children(relationship_rows))
+            .child(self.fk_editor.clone())
+            .render(cx);
 
         let unique_rows: Vec<AnyElement> = schema
             .uniques
@@ -838,11 +846,20 @@ impl Render for TableSchemaDesigner {
                     .into_any_element()
             })
             .collect();
-        let constraints_section = section("Constraints", cx)
-            .children(unique_rows)
-            .children(check_rows)
+        let constraint_count = schema.uniques.len() + schema.checks.len();
+        let constraint_summary: Vec<String> = schema
+            .uniques
+            .iter()
+            .map(|u| format!("Unique ({})", u.columns.join(", ")))
+            .chain(schema.checks.iter().map(|c| format!("Check ({})", c.expression)))
+            .collect();
+        let constraints_section = crate::ui::section::section("designer-constraints", "Constraints", false, window, cx)
+            .count(constraint_count)
+            .summary(if constraint_summary.is_empty() { "None".to_string() } else { constraint_summary.join("; ") })
+            .child(v_flex().gap_2().children(unique_rows).children(check_rows))
             .child(self.unique_editor.clone())
-            .child(self.check_editor.clone());
+            .child(self.check_editor.clone())
+            .render(cx);
 
         let index_rows: Vec<AnyElement> = schema
             .indexes
@@ -869,13 +886,17 @@ impl Render for TableSchemaDesigner {
                     .into_any_element()
             })
             .collect();
-        let indexes_section = section("Indexes", cx)
+        let index_summary: Vec<String> = schema.indexes.iter().map(|x| x.name.clone()).collect();
+        let indexes_section = crate::ui::section::section("designer-indexes", "Indexes", false, window, cx)
+            .count(schema.indexes.len())
+            .summary(if index_summary.is_empty() { "None".to_string() } else { index_summary.join(", ") })
             .child(note(
                 "Index changes are not staged: they apply on their own and always run in place.",
                 cx,
             ))
-            .children(index_rows)
-            .child(self.index_editor.clone());
+            .child(v_flex().gap_2().children(index_rows))
+            .child(self.index_editor.clone())
+            .render(cx);
 
         let pending_items: Vec<AnyElement> = self
             .pending

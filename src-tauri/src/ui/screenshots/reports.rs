@@ -173,8 +173,8 @@ fn reports_paging() {
     h.capture(
         "reports-04-paging-settings",
         &[
-            "Group 1 has 'repeats header on each page' and 'restarts group page numbers' checked.",
-            "'Group 1 starts a new page' is checked and disabled with the hint 'Always on while group page numbers restart.'",
+            "Group 1 has 'Repeat header on each page' and 'Restart page numbers' checked.",
+            "'Start on a new page' is checked and disabled with the hint 'Always on while group page numbers restart.'",
         ],
     );
 
@@ -297,6 +297,7 @@ fn reports_running_sum_and_charts() {
     choose(&mut h, "prop-bound-field", "amount");
     choose(&mut h, "prop-running-sum", "Over all");
     h.fill("prop-format", "#,##0.00");
+    h.click("conditions-toggle");
     h.click("add-rule");
     h.fill("rule-1-when", "value > 500");
     choose(&mut h, "rule-1-fill", "Light gray");
@@ -314,6 +315,7 @@ fn reports_running_sum_and_charts() {
     h.fill("chart-title", "Amount by status");
     h.fill("chart-x", "status");
     h.fill("chart-y", "amount");
+    h.click("prop-geometry-toggle");
     h.fill("prop-w", "255");
     add_component(&mut h, "reportFooter", "chart");
     choose(&mut h, "chart-type", "Donut");

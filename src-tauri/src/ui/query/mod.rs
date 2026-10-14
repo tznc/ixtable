@@ -38,6 +38,10 @@ mod tests_builder;
 pub(crate) mod tests_support;
 #[cfg(test)]
 mod tests_unit;
+#[cfg(test)]
+mod tests_grouping;
+#[cfg(test)]
+mod tests_sections;
 
 pub use picker::{QueryPicker, QueryPickerEvent};
 
@@ -119,6 +123,8 @@ pub struct QueryMode {
     pub(crate) export: export::ExportState,
     pub(crate) sql_editor: Entity<EditorState>,
     inputs: HashMap<Field, InputSlot>,
+    /// The default each "Run with" input last followed, by parameter name.
+    param_defaults: HashMap<String, String>,
     open_choice: Option<SharedString>,
     join_table: String,
     group_choice: String,
@@ -161,6 +167,7 @@ impl QueryMode {
             export: export::ExportState::default(),
             sql_editor,
             inputs: HashMap::new(),
+            param_defaults: HashMap::new(),
             open_choice: None,
             join_table: String::new(),
             group_choice: String::new(),
@@ -405,6 +412,7 @@ impl QueryMode {
         });
         self.error.clear();
         self.inputs.clear();
+        self.param_defaults.clear();
         self.open_choice = None;
         if !same {
             self.reset_session(cx);

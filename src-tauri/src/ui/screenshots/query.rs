@@ -3,7 +3,8 @@
 //! scripts/screenshot/specs/query.spec.tsx and the query capture of app-shell.spec.tsx.
 
 use crate::ui::query::tests_support::{
-    click, editor_text, exists, expect_grid, field_id, fill, open_query, pick, type_sql, with_mode,
+    click, editor_text, exists, expect_grid, field_id, fill, open_query, open_section, pick, type_sql,
+    with_mode,
 };
 use crate::ui::screenshot::context;
 use crate::ui::testing::Harness;
@@ -35,15 +36,18 @@ fn query_builder() {
     click(&mut h, "add-row-count");
     fill(&mut h, "alias:Row count", "orders");
 
+    open_section(&mut h, "query-parameters");
     fill(&mut h, "new-param-name", "min_amount");
     click(&mut h, "add-param");
     pick(&mut h, "param-type:min_amount", "number");
     fill(&mut h, "param-default:min_amount", "6");
+    open_section(&mut h, "query-filters");
     click(&mut h, "add-filter");
     pick(&mut h, "filter-1-column", "o.amount");
     pick(&mut h, "filter-1-operator", ">=");
     pick(&mut h, "filter-1-compares-with", "param");
     pick(&mut h, "filter-1-parameter", "min_amount");
+    open_section(&mut h, "query-sort");
     click(&mut h, "add-sort");
     let sum = field_id(&mut h, "o.amount");
     pick(&mut h, "sort-1-field", &sum);
@@ -92,9 +96,11 @@ fn query_group_by_multi_join() {
     fill(&mut h, "alias:o.amount", "total");
     click(&mut h, "col:c.id");
     click(&mut h, "output:c.id");
+    open_section(&mut h, "query-group");
     pick(&mut h, "group-by-column", "c.id");
     click(&mut h, "add-group-by");
     assert_eq!(h.label("group-by:c.id"), "c.id");
+    open_section(&mut h, "query-sort");
     click(&mut h, "add-sort");
     let id = field_id(&mut h, "c.id");
     pick(&mut h, "sort-1-field", &id);
@@ -106,7 +112,7 @@ fn query_group_by_multi_join() {
         "query-03-group-by-multi-join",
         &[
             "The customers join is a Left join with two ON conditions listed under it.",
-            "The Group by panel lists c.id (selected but not output) and o.amount is summed as total.",
+            "The Group by section lists c.id as \"Added here\" (selected but not output) and o.amount is summed as total.",
             "The preview lists Core, Bolt, then ACME with their totals.",
         ],
     );

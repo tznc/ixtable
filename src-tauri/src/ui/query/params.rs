@@ -3,7 +3,7 @@
 //!
 //! Test ids: `param-type:<name>`, `param-default:<name>`, `param-required:<name>`,
 //! `param-remove:<name>`, `declare:<name>`, `new-param-name`, `add-param`,
-//! `param-value:<name>`.
+//! `param-value:<name>` (starts as the default), `param-hint:<name>` (the type).
 
 use super::{QueryMode, choice::Opt, inputs::Field};
 use crate::{
@@ -155,6 +155,7 @@ impl QueryMode {
                     ),
             );
         }
+        let declares_names = missing.clone();
         let declares: Vec<_> = missing.into_iter().map(|n| {
             Button::new(SharedString::from(format!("declare:{n}")))
                 .outline()
@@ -173,7 +174,16 @@ impl QueryMode {
             cx,
         );
         let valid = self.can_add_parameter(cx);
-        super::panel("query-parameters", "Parameters", cx)
+        let names: Vec<String> = query.parameters.iter().map(|p| format!("${}", p.name)).collect();
+        let undeclared: Vec<String> = declares_names.iter().map(|n| format!("${n}")).collect();
+        let summary = match (names.is_empty(), undeclared.is_empty()) {
+            (true, true) => "No parameters".to_string(),
+            (_, true) => names.join(", "),
+            _ => format!("Not declared yet: {}", undeclared.join(", ")),
+        };
+        let open = !query.parameters.is_empty() || !declares.is_empty();
+        let body = v_flex()
+            .gap_2()
             .when(query.parameters.is_empty(), |el| {
                 el.child(widgets::text(
                     "no-parameters",
@@ -196,7 +206,12 @@ impl QueryMode {
                             .disabled(!valid)
                             .on_click(cx.listener(|this, _, window, cx| this.add_typed_parameter(window, cx))),
                     ),
-            )
+            );
+        crate::ui::section::section("query-parameters", "Parameters", open, window, cx)
+            .count(query.parameters.len())
+            .summary(summary)
+            .child(body)
+            .render(cx)
     }
 
     /// Run-time values for parameters; empty fields fall back to defaults.
@@ -236,9 +251,20 @@ impl QueryMode {
                 )
                 .render(cx)
             } else {
-                let hint = show_default(&p.default_value);
-                let hint = if hint.is_empty() { p.logical_type.clone() } else { hint };
-                let initial = self.values.get(&name).cloned().unwrap_or_default();
+                // The input starts as the default and follows it until the user types; the placeholder names the type.
+                let default = show_default(&p.default_value);
+                let initial = self.values.get(&name).cloned().unwrap_or_else(|| default.clone());
+                let key = Field::ParamValue(name.clone());
+                // An input the user has not edited follows a changed default.
+                let seen = self.param_defaults.insert(name.clone(), default.clone());
+                if let Some(seen) = seen.filter(|seen| *seen != default) {
+                    if self.input_text(&key, cx) == seen {
+                        self.set_input(&key, &default, window, cx);
+                        self.values.remove(&name);
+                    }
+                }
+                self.set_input_placeholder(&key, &p.logical_type, window, cx);
+                let hint = p.logical_type.clone();
                 div()
                     .w(px(220.))
                     .child(self.input_el(
@@ -256,7 +282,16 @@ impl QueryMode {
                 h_flex()
                     .gap_2()
                     .items_center()
-                    .child(div().w(px(110.)).text_sm().child(label))
+                    .child(
+                        v_flex()
+                            .w(px(110.))
+                            .child(div().text_sm().child(label))
+                            .child(widgets::styled_text(
+                                SharedString::from(format!("param-hint:{name}")),
+                                p.logical_type.clone(),
+                                |d| d.text_xs().opacity(0.7),
+                            )),
+                    )
                     .child(control),
             );
         }

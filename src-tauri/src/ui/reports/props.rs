@@ -262,7 +262,8 @@ impl ReportDesigner {
             .child(self.labeled("prop-y", "Y", &y, "", window, cx).w(px(150.)))
             .child(self.labeled("prop-w", "Width", &w, "", window, cx).w(px(150.)))
             .child(self.labeled("prop-h", "Height", &h, "", window, cx).w(px(150.)));
-        super::fields::section("prop-geometry", "Position and size (pt)", cx).child(grid)
+        let summary = format!("X {}, Y {}, {} x {}", x, y, w, h);
+        crate::ui::section::section("prop-geometry", "Position and size (pt)", false, window, cx).summary(summary).child(grid).render(cx)
     }
 
     fn style_section(
@@ -274,7 +275,7 @@ impl ReportDesigner {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let id = c.id.clone();
-        let mut section = super::fields::section("prop-style", "Style", cx);
+        let mut section = crate::ui::section::section("prop-style", "Style", true, window, cx);
         let table = c.kind == "table";
         if is_text || table {
             let size = extra::style_num(c, "fontSize").unwrap_or(if table { 9.0 } else { 10.0 });
@@ -338,7 +339,7 @@ impl ReportDesigner {
                 cx,
             ));
         }
-        section
+        section.render(cx)
     }
 
     /// Sets a `style` entry of a component; `Null` removes it.

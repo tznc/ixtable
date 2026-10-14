@@ -8,7 +8,8 @@
 //! `group-N-resetPageNumber`, `group-N-newpage-hint`, `remove-group-N` (N counts from 1).
 
 use super::designer::{parse_number, ReportDesigner};
-use super::fields::{pairs, section};
+use super::fields::pairs;
+use crate::ui::section::section;
 use super::props::number_text;
 use crate::report_engine::model::{
     band_entries, band_min_height, field_expression, group_label, is_page_band, new_group, with_band, REPORT_SCOPE_NAMES,
@@ -19,9 +20,9 @@ use crate::ui::prelude::*;
 use serde_json::{json, Value};
 
 const GROUP_FLAGS: [(&str, &str); 3] = [
-    ("newPage", "starts a new page"),
-    ("repeatHeader", "repeats header on each page"),
-    ("resetPageNumber", "restarts group page numbers"),
+    ("newPage", "Start on a new page"),
+    ("repeatHeader", "Repeat header on each page"),
+    ("resetPageNumber", "Restart page numbers"),
 ];
 
 /// `prefix<n>-<rest>` as (n, rest), with n counted from 1.
@@ -178,7 +179,7 @@ impl ReportDesigner {
         let height = number_text(entry.band.height);
         let min = band_min_height(entry.band);
         let page_band = is_page_band(&key);
-        let mut s = section("band-properties", &format!("{} band", entry.label), cx);
+        let mut s = section("band-properties", &format!("{} band", entry.label), true, window, cx);
         s = s.child(self.labeled("band-height", &format!("Band height (at least {})", number_text(min)), &height, "", window, cx));
         let k = key.clone();
         s = s.child(self.flag(
@@ -206,7 +207,7 @@ impl ReportDesigner {
                 cx,
             ));
         }
-        s.into_any_element()
+        s.render(cx).into_any_element()
     }
 
     fn report_settings(&mut self, report: &Report, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -216,12 +217,12 @@ impl ReportDesigner {
             .as_ref()
             .and_then(|id| self.shell.read(cx).config(cx).saved_queries.iter().find(|q| &q.id == id).cloned());
         if let Some(q) = query.filter(|q| !q.parameters.is_empty()) {
-            let mut s = section("report-parameters", "Parameters", cx);
+            let mut s = section("report-parameters", "Parameters", true, window, cx).count(q.parameters.len());
             for p in &q.parameters {
                 let shown = display(report.params.get(&p.name).or(p.default_value.as_ref()));
-                s = s.child(self.labeled(&format!("param-{}", p.name), &format!("Parameter {}", p.name), &shown, "", window, cx));
+                s = s.child(self.labeled(&format!("param-{}", p.name), &p.name, &shown, "", window, cx));
             }
-            out = out.child(s);
+            out = out.child(s.render(cx));
         }
         let page = report.page.clone();
         let m = &page.margins;
@@ -229,8 +230,10 @@ impl ReportDesigner {
             let label = format!("{}{} margin", side[..1].to_uppercase(), &side[1..]);
             this.labeled(&format!("margin-{side}"), &label, &number_text(v), "", window, cx).w(px(150.))
         };
+        let orientation = if page.orientation == "landscape" { "landscape" } else { "portrait" };
         out = out.child(
-            section("page-setup", "Page setup", cx)
+            section("page-setup", "Page setup", false, window, cx)
+                .summary(format!("{}, {orientation}", page.size))
                 .child(
                     h_flex()
                         .flex_wrap()
@@ -262,22 +265,25 @@ impl ReportDesigner {
                         .child(margin(self, "right", m.right, window, cx))
                         .child(margin(self, "bottom", m.bottom, window, cx))
                         .child(margin(self, "left", m.left, window, cx)),
-                ),
+                )
+                .render(cx),
         );
         out.child(self.groups_section(report, window, cx))
     }
 
     fn groups_section(&mut self, report: &Report, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let mut s = section("report-groups", "Groups", cx);
+        let mut s = section("report-groups", "Groups", true, window, cx)
+            .count(report.bands.groups.len())
+            .summary("No groups yet.");
         let muted = cx.theme().muted_foreground;
         for (i, g) in report.bands.groups.iter().enumerate() {
             let n = i + 1;
-            let mut item = section(SharedString::from(format!("group-{n}")), &group_label(g, i), cx);
+            let mut item = section(SharedString::from(format!("group-{n}")), &group_label(g, i), true, window, cx);
             if !self.columns.is_empty() {
                 let columns = self.columns.clone();
                 item = item.child(self.pick(
                     &format!("group-{n}-field"),
-                    &format!("Group {n} field"),
+                    "Field",
                     "",
                     Self::same(&columns),
                     "Choose a field…",
@@ -293,7 +299,7 @@ impl ReportDesigner {
             item = item
                 .child(self.expression(
                     &format!("group-{n}-expression"),
-                    &format!("Group {n} expression"),
+                    "Expression",
                     &g.group_by,
                     "",
                     &REPORT_SCOPE_NAMES,
@@ -302,7 +308,7 @@ impl ReportDesigner {
                 ))
                 .child(self.flag(
                     &format!("group-{n}-descending"),
-                    &format!("Group {n} descending"),
+                    "Sort descending",
                     g.descending,
                     move |this, v, cx| this.edit_group(i, move |g| g.descending = v, cx),
                     cx,
@@ -318,7 +324,7 @@ impl ReportDesigner {
                 // A forced flag is shown on and can't be turned off from here.
                 item = item.child(self.flag(
                     &format!("group-{n}-{flag}"),
-                    &format!("Group {n} {text}"),
+                    text,
                     checked,
                     move |this, v, cx| {
                         if forced {
@@ -349,12 +355,12 @@ impl ReportDesigner {
                     .outline()
                     .small()
                     .icon(IconName::Trash)
-                    .label(format!("Remove group {n}"))
+                    .label("Remove group")
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.change("Remove group", move |r| drop(r.bands.groups.remove(i)), cx);
                     })),
             );
-            s = s.child(item);
+            s = s.child(item.render(cx));
         }
         let first = self.columns.first().map(|c| field_expression(c)).unwrap_or_default();
         s.child(
@@ -368,6 +374,7 @@ impl ReportDesigner {
                     this.change("Add group", move |r| r.bands.groups.push(group), cx);
                 })),
         )
+        .render(cx)
     }
 }
 
