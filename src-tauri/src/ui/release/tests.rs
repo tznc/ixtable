@@ -292,6 +292,8 @@ fn previews_a_protected_updates_notes_and_migrations_then_shows_jobs_and_logs(
     assert_eq!(h.label("runtime-version"), "Version 1.0.0");
     h.click("apply-update");
     assert!(h.notice().unwrap().contains("Updated to version 2.0.0"));
+    // Timers never fire here, so dismiss the toast before it can cover a dialog footer.
+    h.click("dismiss-notice");
     let objects = crate::list_database_objects(h.label.clone()).unwrap();
     assert!(objects.iter().any(|o| o.name == "tags"));
 
