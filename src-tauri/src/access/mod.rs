@@ -118,11 +118,13 @@ pub struct AccessImport {
     pub report: convert::report::ImportReport,
 }
 
-/// Creates a new untitled document from an Access file.
+/// Creates a new untitled document from an Access file. `progress` hears each table as
+/// its rows are copied: (Access table name, rows copied so far).
 pub async fn import_access_file(
     window_label: String,
     path: String,
     options: Option<crate::access::convert::Options>,
+    mut progress: Option<Box<dyn FnMut(&str, u64) + Send>>,
 ) -> Result<crate::access::AccessImport, crate::manager::AppError> {
     blocking(move || {
         let path = std::path::PathBuf::from(path);
@@ -135,7 +137,11 @@ pub async fn import_access_file(
             file.as_mut(),
             &name,
             &options.unwrap_or_default(),
-            &mut |_, _| {},
+            &mut |table, rows| {
+                if let Some(report) = progress.as_mut() {
+                    report(table, rows);
+                }
+            },
         )
         .map_err(failed)?;
         let (state, report) =

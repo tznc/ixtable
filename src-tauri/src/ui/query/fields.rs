@@ -183,7 +183,7 @@ impl QueryMode {
                         Button::new(SharedString::from(format!("remove-field:{name}")))
                             .ghost()
                             .xsmall()
-                            .icon(IconName::Delete)
+                            .icon(IconName::Trash)
                             .tooltip(format!("Remove field {name}"))
                             .on_click(cx.listener(move |this, _, _, cx| this.remove_field(&rm_id, cx))),
                     ),

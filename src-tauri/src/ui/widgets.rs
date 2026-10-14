@@ -111,26 +111,135 @@ pub fn titlebar(kicker: &str, title: &str, cx: &App) -> Div {
         )
 }
 
-/// Error banner (label "CODE: message") with an optional dismiss button. The shell's
-/// banner uses id `error`; panels use their own (`yaml-error`, ...).
+/// How loud a callout is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Severity {
+    Info,
+    Success,
+    Warning,
+    Danger,
+}
+
+impl Severity {
+    fn color(self, cx: &App) -> Hsla {
+        let theme = cx.theme();
+        match self {
+            Self::Info => theme.primary,
+            Self::Success => theme.success,
+            Self::Warning => theme.warning,
+            Self::Danger => theme.danger,
+        }
+    }
+
+    fn icon(self) -> IconName {
+        match self {
+            Self::Info => IconName::Info,
+            Self::Success => IconName::CircleCheck,
+            Self::Warning => IconName::TriangleAlert,
+            Self::Danger => IconName::CircleX,
+        }
+    }
+}
+
+/// A tinted box with an icon, a bold title (observed under `id`) and optional body text
+/// (`<id>-body`) and children. Status is never shown by text colour alone.
+pub fn callout(
+    id: impl Into<ElementId>,
+    severity: Severity,
+    title: &str,
+    body: Option<&str>,
+    cx: &App,
+) -> Div {
+    let id: ElementId = id.into();
+    let color = severity.color(cx);
+    let theme = cx.theme();
+    h_flex()
+        .w_full()
+        .gap_2()
+        .items_start()
+        .px_3()
+        .py_2()
+        .rounded_md()
+        .border_1()
+        .border_color(color.opacity(0.35))
+        .bg(color.opacity(0.08))
+        .child(div().pt_0p5().text_color(color).child(gpui_kit::component::Icon::new(severity.icon()).small()))
+        .child(
+            v_flex()
+                .flex_1()
+                .min_w_0()
+                .gap_0p5()
+                .text_sm()
+                .child(styled_text(id.clone(), title.to_string(), |d| {
+                    d.font_weight(FontWeight::SEMIBOLD).text_color(theme.foreground)
+                }))
+                .when_some(body, |col, body| {
+                    col.child(styled_text(
+                        SharedString::from(format!("{id}-body")),
+                        body.to_string(),
+                        |d| d.text_color(theme.foreground),
+                    ))
+                }),
+        )
+}
+
+/// A plain-language headline for an error code, shown above the message.
+pub fn error_headline(code: &str) -> &'static str {
+    match code {
+        "IO_ERROR" | "MISSING_FILE" => "The file could not be read or written.",
+        "IMPORT_FAILED" => "This file can't be imported.",
+        "VALIDATION_ERROR" | "VALIDATION" | "INVALID_CONFIG" | "INVALID_FILTER" => {
+            "This can't be saved as it is."
+        }
+        "NO_DOCUMENT" => "No document is open.",
+        "NOT_FOUND" => "It no longer exists.",
+        "FORBIDDEN" | "READ_ONLY" | "REVOKED" => "You don't have permission to do this.",
+        "DATABASE_ERROR" | "CONNECTION" => "The database could not be reached.",
+        "BUSY" => "Another task is still running.",
+        "BUNDLE_SIGNATURE" | "MANIFEST_SIGNATURE" => "This bundle's signature could not be verified.",
+        "BUNDLE_PASSWORD" => "The password is not correct.",
+        "MIGRATION_FAILED" => "A migration failed. Nothing was changed.",
+        _ => "Something went wrong.",
+    }
+}
+
+/// An error callout: a plain-language headline, the message (observed under `id`), and
+/// the error code as a muted detail (`<id>-code`) for support. With `on_dismiss`, a
+/// dismiss button (`dismiss-error`).
 pub fn error_banner(
     id: impl Into<ElementId>,
     error: &AppError,
     on_dismiss: Option<Box<dyn Fn(&mut Window, &mut App) + 'static>>,
     cx: &App,
 ) -> Div {
+    let id: ElementId = id.into();
     let theme = cx.theme();
-    let label = format!("{}: {}", error.code, error.message);
+    let color = theme.danger;
     h_flex()
         .w_full()
         .gap_2()
-        .items_center()
+        .items_start()
         .px_3()
         .py_2()
         .rounded_md()
-        .bg(theme.danger.opacity(0.12))
-        .text_color(theme.danger)
-        .child(div().flex_1().text_sm().child(text(id, label)))
+        .border_1()
+        .border_color(color.opacity(0.35))
+        .bg(color.opacity(0.08))
+        .child(div().pt_0p5().text_color(color).child(gpui_kit::component::Icon::new(IconName::CircleX).small()))
+        .child(
+            v_flex()
+                .flex_1()
+                .min_w_0()
+                .gap_0p5()
+                .text_sm()
+                .child(div().font_weight(FontWeight::SEMIBOLD).child(error_headline(&error.code)))
+                .child(text(id.clone(), error.message.clone()))
+                .child(styled_text(
+                    SharedString::from(format!("{id}-code")),
+                    format!("Error code {}", error.code),
+                    |d| d.text_xs().text_color(theme.muted_foreground),
+                )),
+        )
         .when_some(on_dismiss, |el, f| {
             el.child(
                 Button::new("dismiss-error")
@@ -266,5 +375,52 @@ pub fn tab_strip(
                 .label(label)
                 .selected(key == selected)
                 .on_click(move |_, window, cx| on_select(key, window, cx))
+        }))
+}
+
+/// A compact read-only table: a header row, then one observed row per entry. The first
+/// column is left-aligned text; the others are right-aligned numbers, with zeros and
+/// dashes muted. Each row is observed under its id with `label` as its text for tests.
+pub fn data_table(
+    id: impl Into<ElementId>,
+    headers: &[&str],
+    rows: Vec<(ElementId, String, Vec<String>)>,
+    cx: &App,
+) -> Stateful<Div> {
+    let theme = cx.theme();
+    let (muted, border) = (theme.muted_foreground, theme.border);
+    let cell = |value: String, first: bool| {
+        let quiet = !first && (value == "0" || value == "—");
+        div()
+            .when(first, |d| d.flex_1().min_w_0().overflow_hidden().text_ellipsis())
+            .when(!first, |d| d.w(px(104.)).flex_none().text_right())
+            .when(quiet, |d| d.text_color(muted))
+            .child(value)
+    };
+    let header = h_flex()
+        .gap_3()
+        .px_2()
+        .pb_1()
+        .border_b_1()
+        .border_color(border)
+        .text_xs()
+        .font_weight(FontWeight::MEDIUM)
+        .text_color(muted)
+        .children(headers.iter().enumerate().map(|(i, h)| cell(h.to_string(), i == 0)));
+    v_flex()
+        .id(id)
+        .text_sm()
+        .child(header)
+        .children(rows.into_iter().map(|(row_id, label, cells)| {
+            h_flex()
+                .id(row_id)
+                .aria_label(label)
+                .gap_3()
+                .px_2()
+                .py_1()
+                .border_b_1()
+                .border_color(border.opacity(0.5))
+                .children(cells.into_iter().enumerate().map(|(i, c)| cell(c, i == 0)))
+                .test_support()
         }))
 }

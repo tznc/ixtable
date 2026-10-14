@@ -14,7 +14,7 @@ use super::{
 use crate::{
     installation::{InstalledBundle, ResetPreview},
     manager::AppError,
-    ui::{forms, forms::eid, prelude::*, shell::Shell},
+    ui::{dialog::dialog, forms, forms::eid, prelude::*, shell::Shell},
 };
 use std::sync::Arc;
 
@@ -180,7 +180,7 @@ impl Render for RuntimeBar {
             .child(self.update.clone())
             .child(self.login.clone())
             .child(
-                forms::secondary("reset-installation", "Reset installation data…")
+                forms::danger("reset-installation", "Reset installation data…")
                     .disabled(busy)
                     .on_click(cx.listener(|this, _, _, cx| this.show_reset(cx))),
             );
@@ -189,7 +189,7 @@ impl Render for RuntimeBar {
                 window.focus(&self.focus, cx);
             }
             let entity = cx.entity();
-            let mut dialog = forms::dialog("reset-dialog", "Reset installation data?", cx)
+            let mut panel = dialog("reset-dialog", "Reset installation data?")
                 .child(widgets::text("reset-message", preview.message.clone()));
             for table in &preview.current {
                 let after = preview
@@ -197,38 +197,31 @@ impl Render for RuntimeBar {
                     .iter()
                     .find(|b| b.name == table.name)
                     .map_or(0, |b| b.rows);
-                dialog = dialog.child(widgets::text(
+                panel = panel.child(widgets::text(
                     eid(format!("reset-table:{}", table.name)),
                     format!("{}: {} now, {} after reset", table.name, table.rows, after),
                 ));
             }
-            dialog = dialog.child(
-                forms::actions()
-                    .child(
-                        forms::primary("reset-confirm", "Replace all records")
-                            .disabled(busy)
-                            .on_click(cx.listener(|this, _, _, cx| this.reset(cx))),
-                    )
-                    .child(
-                        forms::secondary("reset-keep", "Keep my records").on_click(cx.listener(
-                            |this, _, _, cx| {
-                                this.preview = None;
-                                cx.notify();
-                            },
-                        )),
-                    ),
-            );
-            bar = bar.child(forms::overlay(forms::escapable(
-                dialog,
-                &self.focus,
-                busy,
-                move |_, cx| {
+            let panel = panel
+                .footer(forms::secondary("reset-keep", "Keep my records").on_click(cx.listener(
+                    |this, _, _, cx| {
+                        this.preview = None;
+                        cx.notify();
+                    },
+                )))
+                .footer(
+                    forms::danger("reset-confirm", "Replace all records")
+                        .disabled(busy)
+                        .on_click(cx.listener(|this, _, _, cx| this.reset(cx))),
+                )
+                .on_escape(&self.focus, busy, move |_, cx| {
                     entity.update(cx, |this, cx| {
                         this.preview = None;
                         cx.notify();
                     })
-                },
-            )));
+                })
+                .modal();
+            bar = bar.child(panel);
         }
         if let Some(e) = &self.error {
             bar = bar.child(bundle_error_banner("runtime-error", e, cx));

@@ -144,7 +144,7 @@ impl QueryMode {
                         Button::new(SharedString::from(format!("param-remove:{name}")))
                             .ghost()
                             .small()
-                            .icon(IconName::Delete)
+                            .icon(IconName::Trash)
                             .tooltip(format!("Remove parameter {name}"))
                             .on_click(cx.listener({
                                 let name = name.clone();

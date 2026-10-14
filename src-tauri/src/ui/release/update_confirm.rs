@@ -9,7 +9,13 @@
 
 use crate::{
     installation_checks::PendingMigration,
-    ui::{forms, forms::eid, prelude::*},
+    ui::{
+        dialog::{Dialog, dialog},
+        forms,
+        forms::eid,
+        prelude::*,
+        widgets::Severity,
+    },
 };
 
 /// Release notes and migrations, as a block of children.
@@ -22,12 +28,12 @@ pub fn update_details(
     let notes = release_notes.trim();
     let mut block = v_flex()
         .gap_2()
-        .child(div().font_weight(FontWeight::MEDIUM).child("Release notes"))
+        .child(div().font_weight(FontWeight::SEMIBOLD).child("Release notes"))
         .child(widgets::text(
             "release-notes-text",
             if notes.is_empty() { "No release notes." } else { notes },
         ))
-        .child(div().font_weight(FontWeight::MEDIUM).child("Migrations"));
+        .child(div().font_weight(FontWeight::SEMIBOLD).child("Migrations"));
     match migrations {
         None => {
             let why = unavailable.map(|u| format!(" ({u})")).unwrap_or_default();
@@ -79,7 +85,7 @@ pub fn update_confirm(
     apply: impl Fn(&mut Window, &mut App) + 'static,
     cancel: impl Fn(&mut Window, &mut App) + 'static,
     cx: &App,
-) -> Stateful<Div> {
+) -> Dialog {
     let title = if props.downgrade {
         format!("Install older version {} of {}?", props.version, props.name)
     } else {
@@ -90,13 +96,27 @@ pub fn update_confirm(
     } else {
         "Apply update".to_string()
     };
-    let mut panel = forms::dialog("update-confirm", &title, cx);
+    let mut panel = dialog("update-confirm", &title);
     if let Some(installed) = props.installed_version {
         panel = panel.child(widgets::text(
             "update-installed",
             format!("Installed version: {installed}. Your records are kept."),
         ));
     }
+    if props.downgrade {
+        panel = panel.child(widgets::callout(
+            "downgrade-warning",
+            Severity::Warning,
+            &format!("Version {} may not read data saved by a newer version.", props.version),
+            Some("Export or back up your records first if you are not sure."),
+            cx,
+        ));
+    }
+    let apply_button = if props.downgrade {
+        forms::danger("apply-update", &apply_label)
+    } else {
+        forms::primary("apply-update", &apply_label)
+    };
     panel
         .child(update_details(
             props.release_notes,
@@ -104,16 +124,13 @@ pub fn update_confirm(
             props.migrations_unavailable,
             cx,
         ))
-        .child(
-            forms::actions()
-                .child(
-                    forms::primary("apply-update", &apply_label)
-                        .disabled(props.busy)
-                        .on_click(move |_, window, cx| apply(window, cx)),
-                )
-                .child(
-                    forms::secondary("cancel-update", "Cancel")
-                        .on_click(move |_, window, cx| cancel(window, cx)),
-                ),
+        .footer(
+            forms::secondary("cancel-update", "Cancel")
+                .on_click(move |_, window, cx| cancel(window, cx)),
+        )
+        .footer(
+            apply_button
+                .disabled(props.busy)
+                .on_click(move |_, window, cx| apply(window, cx)),
         )
 }

@@ -50,7 +50,7 @@ impl DesignStudio {
             );
             let remove = {
                 let (cid, tab_id) = (cid.clone(), tab_id.clone());
-                super::ctl::icon_button(format!("remove-tab-{n}"), IconName::Delete, &format!("Remove tab {}", tab.label))
+                super::ctl::icon_button(format!("remove-tab-{n}"), IconName::Trash, &format!("Remove tab {}", tab.label))
                     .on_click(cx.listener(move |this, _, _, cx| {
                         let (cid, tab_id) = (cid.clone(), tab_id.clone());
                         this.edit_form("Remove tab", move |f| *f = remove_tab(f, &cid, &tab_id), cx);

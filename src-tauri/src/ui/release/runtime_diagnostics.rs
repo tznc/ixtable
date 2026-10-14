@@ -9,6 +9,7 @@
 use crate::{
     manager::AppError,
     ui::{
+        dialog::dialog,
         forms,
         forms::eid,
         persistence::logs_tab::LogsTab,
@@ -164,9 +165,15 @@ impl Render for RuntimeDiagnostics {
             }
         };
         let entity = cx.entity();
-        let dialog = forms::dialog("diagnostics", "Diagnostics", cx)
+        let close = cx.listener(|this, _, _, cx| {
+            this.open = false;
+            cx.notify();
+        });
+        let panel = dialog("diagnostics", "Diagnostics")
+            .width(crate::ui::dialog::LARGE)
             .child(
-                forms::actions()
+                h_flex()
+                    .gap_1()
                     .child(
                         Button::new("diagnostics-tab-jobs")
                             .ghost()
@@ -186,28 +193,18 @@ impl Render for RuntimeDiagnostics {
                                 this.tab = DiagnosticsTab::Logs;
                                 cx.notify();
                             })),
-                    )
-                    .child(
-                        forms::secondary("diagnostics-close", "Close").on_click(cx.listener(
-                            |this, _, _, cx| {
-                                this.open = false;
-                                cx.notify();
-                            },
-                        )),
                     ),
             )
-            .child(body);
-        block = block.child(forms::overlay(forms::escapable(
-            dialog,
-            &self.focus,
-            false,
-            move |_, cx| {
+            .child(body)
+            .footer(forms::secondary("diagnostics-close", "Close").on_click(close))
+            .on_escape(&self.focus, false, move |_, cx| {
                 entity.update(cx, |this, cx| {
                     this.open = false;
                     cx.notify();
                 })
-            },
-        )));
+            })
+            .modal();
+        block = block.child(panel);
         block
     }
 }

@@ -23,6 +23,7 @@ gpui_kit::assets::icon_assets!(
         Scan,
         Shapes,
         Table2,
+        Trash,
         WandSparkles,
         X,
         Zap,

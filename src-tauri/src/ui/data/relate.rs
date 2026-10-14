@@ -7,7 +7,8 @@
 //! button is `Preview relationship`), `relate-error`, `relate-cancel`; the preview is an
 //! `ImpactDialog` confirming with `Create relationship`.
 
-use crate::ui::controls::{error_line, modal, select};
+use crate::ui::controls::{error_line, select};
+use crate::ui::dialog::dialog;
 use super::relationships::DrawnRelationship;
 use crate::data::{AlterTable, CreateForeignKey, TableSchema};
 use crate::manager::AppError;
@@ -258,20 +259,20 @@ impl Render for RelateDialog {
             .child(self.editor.clone())
             .when(!self.error.is_empty() && self.preview.is_none(), |el| {
                 el.child(error_line("relate-error", &self.error, cx))
-            })
-            .child(
-                h_flex().justify_end().child(
-                    Button::new("relate-cancel")
-                        .outline()
-                        .label("Cancel")
-                        .disabled(self.busy)
-                        .on_click(cx.listener(|_, _, _, cx| cx.emit(RelateEvent::Cancel))),
-                ),
-            );
+            });
         div()
-            .absolute()
-            .inset_0()
-            .child(modal("relate-dialog", "New relationship", body, cx))
+            .child(
+                dialog("relate-dialog", "New relationship")
+                    .child(body)
+                    .footer(
+                        Button::new("relate-cancel")
+                            .outline()
+                            .label("Cancel")
+                            .disabled(self.busy)
+                            .on_click(cx.listener(|_, _, _, cx| cx.emit(RelateEvent::Cancel))),
+                    )
+                    .modal(),
+            )
             .when_some(self.preview.as_ref().map(|p| p.dialog.clone()), |el, dialog| el.child(dialog))
     }
 }

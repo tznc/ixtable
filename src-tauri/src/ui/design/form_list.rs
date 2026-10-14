@@ -215,7 +215,7 @@ impl DesignStudio {
                         .on_click(cx.listener(move |this, _, _, cx| this.copy_form(&copy_id, cx))),
                 )
                 .child(
-                    super::ctl::icon_button(SharedString::from(format!("delete:{id}")), IconName::Delete, "Delete")
+                    super::ctl::icon_button(SharedString::from(format!("delete:{id}")), IconName::Trash, "Delete")
                         .on_click(cx.listener(move |this, _, _, cx| this.remove_form(&delete_id, cx))),
                 )
         }).collect();

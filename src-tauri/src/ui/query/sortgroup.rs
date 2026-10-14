@@ -54,7 +54,7 @@ impl QueryMode {
                     Button::new(SharedString::from(format!("remove-group-by:{k}")))
                         .ghost()
                         .xsmall()
-                        .icon(IconName::Delete)
+                        .icon(IconName::Trash)
                         .tooltip(format!("Remove group by {k}"))
                         .on_click(cx.listener(move |this, _, _, cx| {
                             let k = k.clone();
@@ -162,7 +162,7 @@ impl QueryMode {
                         Button::new(SharedString::from(format!("remove-sort-{n}")))
                             .ghost()
                             .xsmall()
-                            .icon(IconName::Delete)
+                            .icon(IconName::Trash)
                             .tooltip(format!("Remove sort {n}"))
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 let id = id.clone();

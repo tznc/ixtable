@@ -10,7 +10,8 @@
 //! `import-error`, `import-summary`, `import-aborted`, `report-row:<i>:row|field|problem`,
 //! `report-more`, `import-run` and `import-close`.
 
-use crate::ui::controls::{check, error_line, input_text, modal_sized, new_input, select, set_input, text_input};
+use crate::ui::controls::{check, error_line, input_text, new_input, select, set_input, text_input};
+use crate::ui::dialog::dialog;
 use super::{
     mapping::{
         default_columns, default_mapping, default_primary_key, existing_table_target, name_from_path,
@@ -500,24 +501,25 @@ impl Render for ImportWizard {
             );
         }
         let done = self.report.is_some();
-        body = body.child(
-            h_flex()
-                .gap_2()
-                .justify_end()
-                .child(
+        dialog("import-dialog", "Import records")
+            .width(crate::ui::dialog::LARGE)
+            .child(body)
+            .footer(
+                Button::new("import-close")
+                    .outline()
+                    .label(if done { "Done" } else { "Cancel" })
+                    .disabled(busy)
+                    .on_click(cx.listener(|_, _, _, cx| cx.emit(ImportEvent::Close))),
+            )
+            .when(!done, |d| {
+                d.footer(
                     Button::new("import-run")
+                        .primary()
                         .label(if busy && self.preview.is_some() { "Importing…" } else { "Import" })
-                        .disabled(busy || self.preview.is_none() || done)
+                        .disabled(busy || self.preview.is_none())
                         .on_click(cx.listener(|this, _, _, cx| this.run(cx))),
                 )
-                .child(
-                    Button::new("import-close")
-                        .outline()
-                        .label(if done { "Done" } else { "Cancel" })
-                        .disabled(busy)
-                        .on_click(cx.listener(|_, _, _, cx| cx.emit(ImportEvent::Close))),
-                ),
-        );
-        modal_sized("import-dialog", "Import records", body, 900.0, cx)
+            })
+            .modal()
     }
 }

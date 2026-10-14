@@ -172,7 +172,7 @@ impl Render for RecoveryList {
                             .on_click(cx.listener(move |this, _, _, cx| this.recover(i, cx))),
                     )
                     .child(
-                        forms::secondary(eid(format!("discard:{name}")), "Discard")
+                        forms::danger(eid(format!("discard:{name}")), "Discard")
                             .disabled(busy)
                             .on_click(cx.listener(move |this, _, _, cx| this.discard(i, cx))),
                     ),

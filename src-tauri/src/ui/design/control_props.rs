@@ -325,9 +325,10 @@ impl DesignStudio {
         let delete_id = cid.clone();
         panel.child(
             Button::new("delete-control")
+                .danger()
                 .outline()
                 .small()
-                .icon(IconName::Delete)
+                .icon(IconName::Trash)
                 .label("Delete control")
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.select(None, cx);

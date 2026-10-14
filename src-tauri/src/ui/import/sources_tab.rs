@@ -335,7 +335,7 @@ impl Render for FileSourcesTab {
                         Button::new(SharedString::from(format!("Remove {name}")))
                             .ghost()
                             .xsmall()
-                            .icon(IconName::Delete)
+                            .icon(IconName::Trash)
                             .tooltip(format!("Remove {name}"))
                             .disabled(busy)
                             .on_click(cx.listener(move |this, _, _, cx| this.remove(&removed, cx))),

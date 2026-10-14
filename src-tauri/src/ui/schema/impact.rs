@@ -7,7 +7,8 @@
 //! indexes|dependents`, `impact-warning:<i>`, `impact-sql`, `impact-error`,
 //! `impact-ack` (checkbox), `impact-cancel`, `impact-confirm`.
 
-use crate::ui::controls::{check, error_line, modal, note};
+use crate::ui::controls::{check, error_line, note};
+use crate::ui::dialog::dialog;
 use super::{
     logical::mode_label,
 };
@@ -208,10 +209,13 @@ impl Render for ImpactDialog {
         }
         if let Some(plan) = &self.plan {
             body = body.children(plan.warnings.iter().enumerate().map(|(i, w)| {
-                div().text_sm().text_color(cx.theme().warning).child(widgets::text(
+                widgets::callout(
                     SharedString::from(format!("impact-warning:{i}")),
-                    w.clone(),
-                ))
+                    widgets::Severity::Warning,
+                    w,
+                    None,
+                    cx,
+                )
             }));
         }
         body = body
@@ -237,23 +241,26 @@ impl Render for ImpactDialog {
                     })
                 }))
             })
-            .child(
-                h_flex()
-                    .gap_2()
-                    .justify_end()
-                    .child(
-                        Button::new("impact-cancel")
-                            .outline()
-                            .label("Cancel")
-                            .on_click(cx.listener(|_, _, _, cx| cx.emit(ImpactEvent::Cancel))),
-                    )
-                    .child(
-                        Button::new("impact-confirm")
-                            .label(self.confirm_label.clone())
-                            .disabled(self.busy || (required && !self.acknowledged))
-                            .on_click(cx.listener(|_, _, _, cx| cx.emit(ImpactEvent::Confirm))),
-                    ),
-            );
-        modal("impact-dialog", &self.title, body, cx)
+;
+        let confirm = if required {
+            Button::new("impact-confirm").danger()
+        } else {
+            Button::new("impact-confirm").primary()
+        };
+        dialog("impact-dialog", &self.title)
+            .child(body)
+            .footer(
+                Button::new("impact-cancel")
+                    .outline()
+                    .label("Cancel")
+                    .on_click(cx.listener(|_, _, _, cx| cx.emit(ImpactEvent::Cancel))),
+            )
+            .footer(
+                confirm
+                    .label(self.confirm_label.clone())
+                    .disabled(self.busy || (required && !self.acknowledged))
+                    .on_click(cx.listener(|_, _, _, cx| cx.emit(ImpactEvent::Confirm))),
+            )
+            .modal()
     }
 }

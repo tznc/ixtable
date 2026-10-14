@@ -197,6 +197,7 @@ impl DesignStudio {
                         )))
                         .child(
                             Button::new(SharedString::from(format!("remove-binding:{name}")))
+                                .danger()
                                 .outline()
                                 .small()
                                 .label("Remove")
@@ -430,7 +431,7 @@ impl DesignStudio {
                 window,
                 cx,
             );
-            let remove = super::ctl::icon_button(format!("remove-rule-{n}"), IconName::Delete, &format!("Remove rule {n}")).on_click(
+            let remove = super::ctl::icon_button(format!("remove-rule-{n}"), IconName::Trash, &format!("Remove rule {n}")).on_click(
                 cx.listener(move |this, _, _, cx| {
                     let rule_id = rule_id.clone();
                     this.edit_form("Edit form", move |f| f.rules.retain(|r| r.id != rule_id), cx)

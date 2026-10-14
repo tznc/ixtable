@@ -136,7 +136,7 @@ impl QueryMode {
             Button::new(SharedString::from(widgets::slug(&format!("Remove {where_}"))))
                 .ghost()
                 .xsmall()
-                .icon(IconName::Delete)
+                .icon(IconName::Trash)
                 .tooltip(format!("Remove {where_}"))
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.edit_group(having, parent.clone(), |g| {
@@ -384,7 +384,7 @@ impl QueryMode {
                 Button::new(SharedString::from(slug(&format!("Remove {label}"))))
                     .ghost()
                     .xsmall()
-                    .icon(IconName::Delete)
+                    .icon(IconName::Trash)
                     .tooltip(format!("Remove {label}"))
                     .on_click(cx.listener(move |this, _, _, cx| {
                         let having_ = having;

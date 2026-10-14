@@ -305,7 +305,7 @@ impl Render for MigrationEditor {
             }
             if !applied {
                 actions = actions.child(
-                    forms::secondary("migration-delete", "Delete migration")
+                    forms::danger("migration-delete", "Delete migration")
                         .on_click(cx.listener(|this, _, _, cx| this.delete(cx))),
                 );
             }

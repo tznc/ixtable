@@ -340,6 +340,7 @@ impl TriggersPanel {
                     .child(enabled)
                     .child(
                         Button::new("delete-trigger")
+                            .danger()
                             .outline()
                             .small()
                             .label("Delete trigger")

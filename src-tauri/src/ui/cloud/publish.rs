@@ -26,7 +26,7 @@ use crate::{
     archive::ReleaseInfo,
     cloud::{CloudLink, publish::Preflight},
     manager::SessionState,
-    ui::{forms, forms::eid, prelude::*, release::gate, shell::Shell},
+    ui::{dialog::dialog, forms, forms::eid, prelude::*, release::gate, shell::Shell},
 };
 use gpui_kit::component::input::{InputState, TextareaState};
 use serde_json::{Value, json};
@@ -496,43 +496,37 @@ impl PublishPanel {
     fn conflict_dialog(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let busy = self.action.busy;
         let entity = cx.entity();
-        forms::escapable(
-            forms::dialog("publish-conflict", "The published history moved on", cx)
-                .child(
-                    "A checkpoint was published after the version this document is based on. \
-                     Overwrite publishes this document as the newest version anyway. Fork creates \
-                     a separate cloud application from this document. Nothing is merged automatically.",
-                )
-                .child(
-                    forms::actions()
-                        .child(
-                            forms::primary("conflict-overwrite", "Overwrite")
-                                .disabled(busy)
-                                .on_click(cx.listener(|this, _, window, cx| this.resolve("overwrite", window, cx))),
-                        )
-                        .child(
-                            forms::secondary("conflict-fork", "Fork")
-                                .disabled(busy)
-                                .on_click(cx.listener(|this, _, window, cx| this.resolve("fork", window, cx))),
-                        )
-                        .child(
-                            forms::secondary("conflict-cancel", "Cancel").disabled(busy).on_click(
-                                cx.listener(|this, _, _, cx| {
-                                    this.conflict = None;
-                                    cx.notify();
-                                }),
-                            ),
-                        ),
-                ),
-            &self.focus,
-            busy,
-            move |_, cx| {
+        dialog("publish-conflict", "The published history moved on")
+            .child(
+                "A checkpoint was published after the version this document is based on. \
+                 Overwrite publishes this document as the newest version anyway. Fork creates \
+                 a separate cloud application from this document. Nothing is merged automatically.",
+            )
+            .footer(
+                forms::secondary("conflict-cancel", "Cancel").disabled(busy).on_click(cx.listener(
+                    |this, _, _, cx| {
+                        this.conflict = None;
+                        cx.notify();
+                    },
+                )),
+            )
+            .footer(
+                forms::secondary("conflict-fork", "Fork")
+                    .disabled(busy)
+                    .on_click(cx.listener(|this, _, window, cx| this.resolve("fork", window, cx))),
+            )
+            .footer(
+                forms::danger("conflict-overwrite", "Overwrite")
+                    .disabled(busy)
+                    .on_click(cx.listener(|this, _, window, cx| this.resolve("overwrite", window, cx))),
+            )
+            .on_escape(&self.focus, busy, move |_, cx| {
                 entity.update(cx, |this, cx| {
                     this.conflict = None;
                     cx.notify();
                 })
-            },
-        )
+            })
+            .modal()
     }
 }
 

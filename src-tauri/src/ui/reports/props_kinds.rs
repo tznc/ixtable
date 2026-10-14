@@ -174,7 +174,7 @@ impl ReportDesigner {
                     Button::new(SharedString::from(format!("remove-table-col-{n}")))
                         .outline()
                         .small()
-                        .icon(IconName::Delete)
+                        .icon(IconName::Trash)
                         .label(format!("Remove column {n}"))
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.edit_list("columns", move |list| drop(list.remove(i)), cx);
@@ -260,7 +260,7 @@ impl ReportDesigner {
                     Button::new(SharedString::from(format!("remove-link-{n}")))
                         .outline()
                         .small()
-                        .icon(IconName::Delete)
+                        .icon(IconName::Trash)
                         .label(format!("Remove link {n}"))
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.edit_list("links", move |list| drop(list.remove(i)), cx);
@@ -378,7 +378,7 @@ impl ReportDesigner {
                     Button::new(SharedString::from(format!("remove-rule-{n}")))
                         .outline()
                         .small()
-                        .icon(IconName::Delete)
+                        .icon(IconName::Trash)
                         .label(format!("Remove rule {n}"))
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.edit_list("conditions", move |list| drop(list.remove(i)), cx);

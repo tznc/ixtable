@@ -284,41 +284,37 @@ impl Render for VersionsPanel {
         };
         if let Some(pending) = &self.pending {
             let entity = cx.entity();
-            card = card.child(forms::escapable(
-                forms::dialog("restore-warning", "PostgreSQL records are not restored", cx)
+            card = card.child(
+                crate::ui::dialog::dialog("restore-warning", "PostgreSQL records are not restored")
                     .child(widgets::text(
                         "restore-warning-text",
                         pending.target.warning.clone().unwrap_or_else(|| POSTGRES_WARNING.to_string()),
                     ))
-                    .child(
-                        forms::actions()
-                            .child(
-                                forms::primary("restore-warning-confirm", "Restore definition only")
-                                    .disabled(busy)
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        if let Some(pending) = this.pending.take() {
-                                            this.restore(pending, window, cx);
-                                        }
-                                    })),
-                            )
-                            .child(
-                                forms::secondary("restore-warning-cancel", "Cancel")
-                                    .disabled(busy)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.pending = None;
-                                        cx.notify();
-                                    })),
-                            ),
-                    ),
-                &self.focus,
-                busy,
-                move |_, cx| {
-                    entity.update(cx, |this, cx| {
-                        this.pending = None;
-                        cx.notify();
+                    .footer(
+                        forms::secondary("restore-warning-cancel", "Cancel")
+                            .disabled(busy)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.pending = None;
+                                cx.notify();
+                            })),
+                    )
+                    .footer(
+                        forms::primary("restore-warning-confirm", "Restore definition only")
+                            .disabled(busy)
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                if let Some(pending) = this.pending.take() {
+                                    this.restore(pending, window, cx);
+                                }
+                            })),
+                    )
+                    .on_escape(&self.focus, busy, move |_, cx| {
+                        entity.update(cx, |this, cx| {
+                            this.pending = None;
+                            cx.notify();
+                        })
                     })
-                },
-            ));
+                    .modal(),
+            );
         }
         if app.backups_enabled {
             card = card.child(

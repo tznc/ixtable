@@ -321,7 +321,7 @@ impl Render for MigrationsTab {
                         .on_click(cx.listener(|this, _, _, cx| this.run_and_check(false, cx))),
                 )
                 .child(
-                    forms::secondary("rollback-migration", "Roll back last")
+                    forms::danger("rollback-migration", "Roll back last")
                         .disabled(busy || postgres || !any_applied)
                         .on_click(cx.listener(|this, _, _, cx| this.run_and_check(true, cx))),
                 ),

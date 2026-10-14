@@ -193,7 +193,7 @@ impl DashboardEditor {
                         Button::new(SharedString::from(format!("filter-remove:{fid}")))
                             .outline()
                             .small()
-                            .icon(IconName::Delete)
+                            .icon(IconName::Trash)
                             .tooltip(format!("Remove filter {name}"))
                             .on_click(cx.listener(move |this, _, _, cx| this.remove_filter(&remove_id, cx))),
                     ),

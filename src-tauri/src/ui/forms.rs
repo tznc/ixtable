@@ -136,70 +136,6 @@ pub fn card(id: &'static str, title: &str, cx: &App) -> Stateful<Div> {
         .child(heading(id, title))
 }
 
-/// An inline dialog panel: a titled card above the surrounding content. Its title is
-/// observed under `id`; the panel is `<id>-dialog`.
-pub fn dialog(id: &'static str, title: &str, cx: &App) -> Stateful<Div> {
-    let theme = cx.theme();
-    v_flex()
-        .id(SharedString::from(format!("{id}-dialog")))
-        .gap_2()
-        .p_4()
-        .rounded_lg()
-        .border_1()
-        .border_color(theme.border)
-        .bg(theme.popover)
-        .shadow_md()
-        .child(heading(id, title))
-}
-
-/// Shows a dialog above the whole window, beside the 250 px sidebar, instead of inside
-/// its parent. For dialogs owned by narrow, clipped containers (the runtime sidebar).
-pub fn overlay(dialog: impl IntoElement) -> impl IntoElement {
-    deferred(
-        anchored()
-            .position(point(px(272.), px(72.)))
-            .snap_to_window_with_margin(px(8.))
-            .child(
-                div()
-                    .id("overlay")
-                    .w(px(720.))
-                    .max_h(px(680.))
-                    .overflow_y_scroll()
-                    .occlude()
-                    .test_support()
-                    .child(dialog),
-            ),
-    )
-}
-
-/// `overlay` when asked, otherwise the dialog stays where it is.
-pub fn placed(dialog: impl IntoElement + 'static, overlaid: bool) -> AnyElement {
-    if overlaid {
-        overlay(dialog).into_any_element()
-    } else {
-        dialog.into_any_element()
-    }
-}
-
-/// Makes a dialog panel close on Escape, unless `busy`. Port of src/components/
-/// DialogFrame.tsx: the panel takes keyboard focus (call `window.focus(&focus, cx)`
-/// when it opens) so Escape reaches it, and the owner restores focus when it closes.
-pub fn escapable(
-    panel: Stateful<Div>,
-    focus: &FocusHandle,
-    busy: bool,
-    on_close: impl Fn(&mut Window, &mut App) + 'static,
-) -> Stateful<Div> {
-    panel
-        .track_focus(focus)
-        .on_key_down(move |event, window, cx| {
-            if event.keystroke.key == "escape" && !busy {
-                on_close(window, cx);
-                cx.stop_propagation();
-            }
-        })
-}
-
 /// A row of buttons.
 pub fn actions() -> Div {
     h_flex().gap_2().items_center().flex_wrap()
@@ -208,6 +144,11 @@ pub fn actions() -> Div {
 /// A primary action button.
 pub fn primary(id: impl Into<ElementId>, label: &str) -> Button {
     Button::new(id).primary().label(label.to_string())
+}
+
+/// A destructive action (delete, remove, drop, reset, roll back): red text and outline.
+pub fn danger(id: impl Into<ElementId>, label: &str) -> Button {
+    Button::new(id).danger().outline().label(label.to_string())
 }
 
 /// A secondary action button.

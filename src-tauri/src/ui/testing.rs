@@ -312,8 +312,13 @@ impl<'a, C: UiContext> Harness<'a, C> {
     }
 
     /// The shell's error banner text ("CODE: message"), if shown.
+    /// The shell's error banner as "CODE: message".
     pub fn error(&mut self) -> Option<String> {
-        self.try_label("error")
+        let message = self.try_label("error")?;
+        Some(match self.try_label("error-code") {
+            Some(code) => format!("{}: {message}", code.trim_start_matches("Error code ")),
+            None => message,
+        })
     }
 
     pub fn notice(&mut self) -> Option<String> {

@@ -156,7 +156,7 @@ fn edits_yaml_reports_errors_and_undoes_an_applied_change(cx: &mut TestAppContex
 
     set_yaml(&mut h, &tab, "name: [unclosed");
     h.click("apply-yaml");
-    assert!(h.label("yaml-error").contains("INVALID_CONFIG"));
+    assert!(h.label("yaml-error-code").contains("INVALID_CONFIG"));
 
     set_yaml(&mut h, &tab, "name: Inventory\nactiveMode: app\nversion: 2\n");
     h.click("apply-yaml");

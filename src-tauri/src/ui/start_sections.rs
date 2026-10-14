@@ -55,7 +55,7 @@ pub fn actions(screen: &Entity<StartScreen>, busy: bool, _: &mut App) -> Vec<Any
     let id = screen.entity_id();
     vec![
         Button::new("import-access")
-            .start_label(Some(Icon::new(IconName::DatabaseZap)), "Import Access database…")
+            .start_label(Some(Icon::new(IconName::DatabaseZap)), "Import from Access…")
             .tooltip("Convert a Microsoft Access file into a new document")
             .outline()
             .disabled(busy)

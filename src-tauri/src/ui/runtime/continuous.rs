@@ -445,6 +445,8 @@ impl Render for ContinuousRow {
                     .when(!creating && self.can_delete, |d| {
                         d.child(
                             Button::new(SharedString::from(format!("{id}:delete")))
+                                .danger()
+                                .outline()
                                 .small()
                                 .label("Delete")
                                 .disabled(busy)

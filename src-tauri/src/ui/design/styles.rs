@@ -91,7 +91,7 @@ impl DesignStudio {
             let down = mover("move-style-down", IconName::ArrowDown, &format!("Move style {n} down"), 1, index == last, cx);
             let remove = {
                 let (list, on_change) = (list.clone(), on_change.clone());
-                super::ctl::icon_button(format!("remove-style-{n}"), IconName::Delete, &format!("Remove style {n}")).on_click(
+                super::ctl::icon_button(format!("remove-style-{n}"), IconName::Trash, &format!("Remove style {n}")).on_click(
                     cx.listener(move |this, _, _, cx| {
                         let mut next = list.clone();
                         next.remove(index);

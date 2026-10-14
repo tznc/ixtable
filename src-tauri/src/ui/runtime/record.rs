@@ -859,6 +859,8 @@ impl Render for RecordView {
                             .when(mode == FormMode::Detail && self.allowed(Operation::Delete, cx), |d| {
                                 d.child(
                                     Button::new("delete")
+                                        .danger()
+                                        .outline()
                                         .small()
                                         .label("Delete")
                                         .disabled(!can_delete)

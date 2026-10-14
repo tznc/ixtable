@@ -297,7 +297,7 @@ impl Render for AssetsTab {
                 })
                 .child({
                     let a = asset.clone();
-                    forms::secondary(eid(format!("remove-asset:{name}")), "Remove")
+                    forms::danger(eid(format!("remove-asset:{name}")), "Remove")
                         .disabled(busy)
                         .on_click(cx.listener(move |this, _, _, cx| this.remove_one(a.clone(), cx)))
                 })
@@ -325,7 +325,7 @@ impl Render for AssetsTab {
                     ),
                 ))
                 .child(
-                    forms::secondary("remove-unused-assets", "Remove unused assets")
+                    forms::danger("remove-unused-assets", "Remove unused assets")
                         .disabled(busy)
                         .on_click(cx.listener(|this, _, _, cx| this.cleanup(cx))),
                 )

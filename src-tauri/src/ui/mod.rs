@@ -10,6 +10,7 @@ pub mod autosave;
 pub mod cloud;
 pub mod controls;
 pub mod dashboards;
+pub mod dialog;
 pub mod dialogs;
 pub mod events;
 pub mod export;

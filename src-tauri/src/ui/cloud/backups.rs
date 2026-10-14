@@ -20,7 +20,7 @@ use super::{
 use crate::{
     assets::ArchiveSizeReport,
     manager::SessionState,
-    ui::{forms, forms::eid, persistence::format::format_bytes, prelude::*},
+    ui::{dialog::Dialog, forms, forms::eid, persistence::format::format_bytes, prelude::*},
 };
 use serde_json::json;
 use std::sync::Arc;
@@ -44,8 +44,8 @@ pub fn backup_size_dialog<V: 'static>(
     confirm: fn(&mut V, &mut Window, &mut Context<V>),
     cancel: fn(&mut V, &mut Context<V>),
     cx: &mut Context<V>,
-) -> Stateful<Div> {
-    let mut dialog = forms::dialog("backup-size", "Back up to ixtable Cloud?", cx).child(widgets::text(
+) -> Dialog {
+    let mut dialog = crate::ui::dialog::dialog("backup-size", "Back up to ixtable Cloud?").child(widgets::text(
         "backup-size-summary",
         format!(
             "{} in total; assets take {:.0}%. {}",
@@ -59,13 +59,16 @@ pub fn backup_size_dialog<V: 'static>(
         ),
     ));
     dialog = dialog.child(if report.over_cloud_limit {
-        widgets::text(
+        widgets::callout(
             "backup-size-over-limit",
-            format!(
+            widgets::Severity::Warning,
+            &format!(
                 "Over the cloud limit: this archive is larger than {}. It keeps working locally \
                  but cannot sync to ixtable Cloud until it is smaller.",
                 format_bytes(report.cloud_limit_bytes)
             ),
+            None,
+            cx,
         )
         .into_any_element()
     } else {
@@ -81,19 +84,18 @@ pub fn backup_size_dialog<V: 'static>(
             format!("{} ({}) {}", entry.name, entry.section, format_bytes(entry.bytes)),
         ));
     }
-    dialog.child(
-        forms::actions()
-            .child(
-                forms::primary("backup-confirm", "Back up now")
-                    .disabled(busy || report.over_cloud_limit)
-                    .on_click(cx.listener(move |this, _, window, cx| confirm(this, window, cx))),
-            )
-            .child(
-                forms::secondary("backup-size-cancel", "Cancel")
-                    .disabled(busy)
-                    .on_click(cx.listener(move |this, _, _, cx| cancel(this, cx))),
-            ),
-    )
+    dialog
+        .footer(
+            forms::secondary("backup-size-cancel", "Cancel")
+                .disabled(busy)
+                .on_click(cx.listener(move |this, _, _, cx| cancel(this, cx))),
+        )
+        .footer(
+            forms::primary("backup-confirm", "Back up now")
+                .disabled(busy || report.over_cloud_limit)
+                .on_click(cx.listener(move |this, _, window, cx| confirm(this, window, cx))),
+        )
+        .modal()
 }
 
 pub enum BackupsEvent {
@@ -266,7 +268,7 @@ impl Render for InstallationBackups {
         );
         if let Some(report) = self.size_check.clone() {
             // The sidebar is narrow: the dialog floats above the window instead.
-            block = block.child(forms::overlay(backup_size_dialog(
+            block = block.child(backup_size_dialog(
                 &report,
                 busy,
                 |this: &mut Self, window, cx| this.backup(window, cx),
@@ -275,7 +277,7 @@ impl Render for InstallationBackups {
                     cx.notify();
                 },
                 cx,
-            )));
+            ));
         }
         for (i, item) in self.backups.clone().unwrap_or_default().into_iter().enumerate() {
             let at = when(&item.created_at);
@@ -295,45 +297,46 @@ impl Render for InstallationBackups {
         }
         if let Some(pending) = &self.pending {
             let postgres = pending.target.is_postgres;
-            let mut dialog = forms::dialog(
+            let mut dialog = crate::ui::dialog::dialog(
                 "restore-backup",
                 &format!("Restore the backup from {}?", when(&pending.backup.created_at)),
-                cx,
             )
             .child(
                 "It opens as a new local copy in this window. This installation and its records \
                  are not changed.",
             );
             if postgres {
-                dialog = dialog.child(widgets::text(
+                dialog = dialog.child(widgets::callout(
                     "restore-backup-note",
-                    format!(
+                    widgets::Severity::Warning,
+                    &format!(
                         "PostgreSQL records are not restored. {}",
                         pending.target.warning.as_deref().unwrap_or(POSTGRES_FALLBACK)
                     ),
+                    None,
+                    cx,
                 ));
             }
-            block = block.child(forms::overlay(
-                dialog.child(
-                    forms::actions()
-                        .child(
-                            forms::primary(
-                                "restore-backup-confirm",
-                                if postgres { "Restore definition only" } else { "Restore to new local copy" },
-                            )
+            block = block.child(
+                dialog
+                    .footer(
+                        forms::secondary("restore-backup-cancel", "Cancel")
                             .disabled(busy)
-                            .on_click(cx.listener(|this, _, _, cx| this.restore(cx))),
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.pending = None;
+                                cx.notify();
+                            })),
+                    )
+                    .footer(
+                        forms::primary(
+                            "restore-backup-confirm",
+                            if postgres { "Restore definition only" } else { "Restore to new local copy" },
                         )
-                        .child(
-                            forms::secondary("restore-backup-cancel", "Cancel")
-                                .disabled(busy)
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.pending = None;
-                                    cx.notify();
-                                })),
-                        ),
-                ),
-            ));
+                        .disabled(busy)
+                        .on_click(cx.listener(|this, _, _, cx| this.restore(cx))),
+                    )
+                    .modal(),
+            );
         }
         if let Some(bar) =
             transfer_bar("backup-progress", "Backup transfer progress", self.transfer.progress.as_ref(), cx)

@@ -243,9 +243,10 @@ impl ReportDesigner {
         let target = id;
         col.child(
             Button::new("delete-component")
+                .danger()
                 .outline()
                 .small()
-                .icon(IconName::Delete)
+                .icon(IconName::Trash)
                 .label("Delete component")
                 .on_click(cx.listener(move |this, _, _, cx| this.remove(&target, cx))),
         )

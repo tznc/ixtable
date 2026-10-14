@@ -533,8 +533,9 @@ impl Render for RelatedRecords {
                 if self.allowed(Operation::Delete, cx) {
                     actions = actions.child(
                         Button::new(SharedString::from(format!("related:{slug}:delete:{index}")))
+                            .danger()
                             .small()
-                            .ghost()
+                            .outline()
                             .label("Delete")
                             .on_click(cx.listener(move |this, _, _, cx| this.remove(index, cx))),
                     );

@@ -336,6 +336,7 @@ impl Render for FieldSettingsEditor {
                         .py_2()
                         .child(
                             Button::new("remove-unused-files")
+                                .danger()
                                 .outline()
                                 .small()
                                 .label("Remove unused files")
