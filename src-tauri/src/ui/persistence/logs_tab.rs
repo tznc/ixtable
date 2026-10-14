@@ -122,14 +122,22 @@ impl Render for LogsTab {
 }
 
 fn level_tone(level: &str) -> Tone {
-    match level {
+    match level.to_ascii_lowercase().as_str() {
         "error" => Tone::Danger,
-        "warn" => Tone::Warning,
+        "warn" | "warning" => Tone::Warning,
         _ => Tone::Neutral,
     }
 }
 
 /// One log line: time, level badge, area, then the message, which alone may wrap.
+#[cfg(test)]
+#[test]
+fn tones_log_levels_case_insensitively() {
+    assert_eq!(level_tone("ERROR"), Tone::Danger);
+    assert_eq!(level_tone("WARN"), Tone::Warning);
+    assert_eq!(level_tone("INFO"), Tone::Neutral);
+}
+
 fn log_row(i: usize, e: &LogEntry, cx: &App) -> impl IntoElement {
     let theme = cx.theme();
     let (muted, border) = (theme.muted_foreground, theme.border);
