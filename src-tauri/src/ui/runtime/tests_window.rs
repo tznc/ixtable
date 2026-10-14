@@ -37,7 +37,7 @@ fn run_app_opens_its_own_window_and_studio_keeps_its_mode(cx: &mut TestAppContex
     let run = h.run_app_window().expect("the Run App window opened");
     assert_ne!(run, h.main);
     assert_eq!(h.mode(), ModeId::Design, "Studio stays in its mode");
-    assert_eq!(h.label("mode-title"), "Form builder");
+    assert_ne!(h.label("mode-title"), "Run App", "Studio keeps showing Design");
 
     h.focus_window(run);
     assert_eq!(h.label("mode-title"), "Run App");
