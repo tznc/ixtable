@@ -141,9 +141,12 @@ fn exports_from_studio_opens_runtime_only_and_updates_keeping_runtime_records(
 
     h.dialogs.queue_open(Some(v1));
     h.click("check-update");
-    assert_eq!(h.label("update-confirm"), "Install older version 1.0.0 of Untitled?");
-    h.click("apply-update");
-    assert_eq!(h.label("runtime-version"), "Version 1.0.0");
+    // An older version is refused before any confirm step; the installation is untouched.
+    assert!(!h.exists("update-confirm"));
+    let error = h.label("bundle-error");
+    assert!(error.starts_with("BUNDLE_DOWNGRADE: A newer version"), "{error}");
+    assert!(error.ends_with("Installed: 1.1.0. This file: 1.0.0."), "{error}");
+    assert_eq!(h.label("runtime-version"), "Version 1.1.0");
     assert_eq!(customer_names(&h), ["Ada", "Runtime Rita"]);
 }
 
@@ -294,10 +297,8 @@ fn previews_a_protected_updates_notes_and_migrations_then_shows_jobs_and_logs(
 
     h.dialogs.queue_open(Some(v1));
     h.click("check-update");
-    assert_eq!(h.label("update-confirm"), "Install older version 1.0.0 of Untitled?");
-    assert_eq!(h.label("release-notes-text"), "No release notes.");
-    assert_eq!(h.label("no-migrations"), "No migrations will run on your records.");
-    h.click("cancel-update");
+    assert!(!h.exists("update-confirm"));
+    assert!(h.label("bundle-error").starts_with("BUNDLE_DOWNGRADE"));
     assert_eq!(h.label("runtime-version"), "Version 2.0.0");
 
     h.click("diagnostics-open");

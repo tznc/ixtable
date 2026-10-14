@@ -92,12 +92,11 @@ pub fn panels(
     let label = label.to_string();
     let act: Act = {
         let label = label.clone();
-        Arc::new(move |path, password, allow_downgrade, sha| {
+        Arc::new(move |path, password, sha| {
             crate::installation_commands::open_runtime_bundle(
                 label.clone(),
                 path.to_string(),
                 (!password.is_empty()).then(|| password.to_string()),
-                Some(allow_downgrade),
                 Some(sha.to_string()),
             )
         })

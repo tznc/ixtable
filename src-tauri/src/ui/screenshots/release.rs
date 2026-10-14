@@ -124,7 +124,7 @@ fn release_export_runtime_and_update() {
 
 #[test]
 #[ignore = "screenshot spec: run with `cargo screenshot`"]
-fn release_confirm_downgrade_and_diagnostics() {
+fn release_confirm_update_refuse_older_and_diagnostics() {
     let mut cx = context();
     let mut h = Harness::start_sized(&mut cx, TALL);
     h.click("new-document");
@@ -173,16 +173,16 @@ fn release_confirm_downgrade_and_diagnostics() {
 
     h.dialogs.queue_open(Some(v1));
     h.click("check-update");
-    assert_eq!(h.label("update-confirm"), "Install older version 1.0.0 of Untitled?");
-    assert_eq!(h.label("no-migrations"), "No migrations will run on your records.");
+    assert!(h.try_label("update-confirm").is_none());
+    let error = h.label("bundle-error");
+    assert!(error.contains("A newer version of this application is already installed"), "{error}");
     h.capture(
-        "release-06-downgrade-confirm",
+        "release-06-older-refused",
         &[
-            "The dialog asks 'Install older version 1.0.0 of Untitled?' and says no migrations will run.",
-            "Cancel and a confirm button are offered; the bar behind reads Version 2.0.0.",
+            "An error under the bar says a newer version is already installed and shows 'Installed: 2.0.0. This file: 1.0.0.'",
+            "No confirm dialog opens; the bar still reads Version 2.0.0.",
         ],
     );
-    h.click("cancel-update");
     assert_eq!(h.label("runtime-version"), "Version 2.0.0");
 
     h.click("diagnostics-open");

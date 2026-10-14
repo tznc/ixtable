@@ -81,7 +81,7 @@ A confirm dialog shows the installed version, the release notes, and each migrat
 
 Any failure leaves the previous version running with its records unchanged. A successful update reports that the records were kept.
 
-An older version installs only from its **Install older version … anyway** button. The recipient's current records stay, and no down migrations run.
+An older version never installs. ixtable says which newer version is already installed, because the recipient's records may already use the newer version's tables.
 
 ## Reset installation data
 

@@ -45,7 +45,7 @@ pub struct InstalledBundle {
     /// Names of the migrations the last install or update ran on the records.
     #[serde(default)]
     pub applied_migrations: Vec<String>,
-    /// What the last apply did: `install`, `open`, `update`, or `downgrade`.
+    /// What the last apply did: `install`, `open`, or `update` (older files: `downgrade`).
     #[serde(default)]
     pub last_action: Option<String>,
 }
@@ -62,7 +62,7 @@ pub struct BundleSummary {
     pub encrypted: bool,
     pub signer_fingerprint: String,
     pub installed_version: Option<String>,
-    /// `install`, `open`, `update`, or `downgrade`.
+    /// `install`, `open`, or `update`.
     pub action: String,
     /// Migrations an update would run; `None` if encrypted (`preview_runtime_update`) or not an update.
     pub pending_migrations: Option<Vec<crate::installation_checks::PendingMigration>>,
@@ -95,7 +95,6 @@ pub enum Action {
     Install,
     Open,
     Update,
-    Downgrade,
 }
 impl Action {
     fn label(self) -> &'static str {
@@ -103,7 +102,6 @@ impl Action {
             Action::Install => "install",
             Action::Open => "open",
             Action::Update => "update",
-            Action::Downgrade => "downgrade",
         }
     }
 }
@@ -275,11 +273,18 @@ pub fn plan(
     };
     let incoming = bundle::parse_version("Bundle version", &signed.header.version)?;
     let current = bundle::parse_version("Installed version", &installed.version)?;
-    Ok(match incoming.cmp(&current) {
-        std::cmp::Ordering::Equal => Action::Open,
-        std::cmp::Ordering::Greater => Action::Update,
-        std::cmp::Ordering::Less => Action::Downgrade,
-    })
+    match incoming.cmp(&current) {
+        std::cmp::Ordering::Equal => Ok(Action::Open),
+        std::cmp::Ordering::Greater => Ok(Action::Update),
+        // Older versions never install: records may already use a newer schema.
+        std::cmp::Ordering::Less => Err(AppError::new(
+            "BUNDLE_DOWNGRADE",
+            format!(
+                "Installed: {}. This file: {}.",
+                installed.version, signed.header.version
+            ),
+        )),
+    }
 }
 
 fn info_for(signed: &SignedBundle, previous: Option<&InstalledBundle>) -> InstalledBundle {
@@ -382,13 +387,12 @@ enum RecordSource<'a> {
     File(PathBuf),
 }
 
-/// Installs, updates, or (with `allow_downgrade`) downgrades the installation for a
-/// verified bundle. `Action::Open` leaves an up-to-date installation untouched.
+/// Installs or updates the installation for a verified bundle; an older version is
+/// refused (`BUNDLE_DOWNGRADE`). `Action::Open` leaves an up-to-date installation untouched.
 pub fn apply_bundle(
     root: &Path,
     signed: &SignedBundle,
     archive_bytes: &[u8],
-    allow_downgrade: bool,
 ) -> Result<(PathBuf, Action), AppError> {
     let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let installed = check_signer(root, signed)?;
@@ -407,16 +411,6 @@ pub fn apply_bundle(
             )?;
         }
         return Ok((dir, action));
-    }
-    if action == Action::Downgrade && !allow_downgrade {
-        return Err(AppError::new(
-            "BUNDLE_DOWNGRADE",
-            format!(
-                "Version {} is older than the installed version {}.",
-                signed.header.version,
-                installed.as_ref().map_or("", |i| i.version.as_str())
-            ),
-        ));
     }
     let doc = bundle::read_archive_bytes(archive_bytes, &root.join(".tmp"))?;
     if doc.metadata.document_id != signed.header.bundle_id {

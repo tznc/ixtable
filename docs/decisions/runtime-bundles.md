@@ -73,13 +73,17 @@ A Runtime installation lives in `<state>/installations/<bundleId>/`.
 records, which the bundle seeds only on first open. An update stages the new
 definition with a copy of the records. It applies pending migrations and
 health checks to the copy, then swaps it in. The previous version is kept in
-`previous/`, and any failure restores it. An older version installs only when
-the user confirms a downgrade.
+`previous/`, and any failure restores it. An older version never installs:
+`installation::plan` refuses it with `BUNDLE_DOWNGRADE` ("Installed: 2.0.0.
+This file: 1.0.0."), already
+at inspect, so no confirm step opens. The installation's records may use a
+schema that only the newer version understands, and there are no down
+migrations. Manual and cloud installations follow the same rule. (Until
+2026-10-14 a confirmed downgrade was allowed; Zn removed it.)
 
-A manual update or downgrade stops at a confirm step first (PRD §22.3 step 7).
+A manual update stops at a confirm step first (PRD §22.3 step 7).
 It shows the release notes (line breaks kept) and the migrations that would
-run on this installation's records, with their SQL. A downgrade is applied
-only from its explicit "Install older version … anyway" button.
+run on this installation's records, with their SQL.
 `inspect_runtime_bundle` checks Runtime compatibility before reading the
 archive, then fills `pendingMigrations` for an unencrypted bundle. The preview
 is best effort: if it fails, inspect still succeeds with
@@ -95,10 +99,10 @@ Inspect returns the file's `sha256`. The file flow passes it back as
 inspection (`BUNDLE_CHANGED`), so the applied bundle is the one confirmed.
 
 `bundle.json` records what the last apply did: `lastAction` (`install`,
-`open`, `update`, `downgrade`) and `appliedMigrations`, the names of the
-migrations that ran (empty for a fresh install and for opening the installed
-version). Cloud auto-sync shows the post-update notice only when `lastAction`
-is `update` or `downgrade`.
+`open`, `update`; installations from before the change can still read
+`downgrade`) and `appliedMigrations`, the names of the migrations that ran
+(empty for a fresh install and for opening the installed version). Cloud
+auto-sync shows the post-update notice only when `lastAction` is `update`.
 
 Studio and installation updates share one migration preflight
 (`migrations::preflight`). Before any SQL runs it rejects an applied migration
@@ -246,7 +250,7 @@ check in TypeScript before calling `export_runtime_bundle`; see
   wrong password, tampering fails the signature, runtime version rules, and a
   persistent private signing key.
 - `src-tauri/src/installation/tests.rs`: first open seeds data and pins the
-  signer, updates keep installation records, downgrade needs confirmation, a
+  signer, updates keep installation records, an older version is refused, a
   different signer is rejected, migrations on update, a failing migration or
   health check reverts, restore of the previous version, reset, unsafe
   bundle ids, a corrupt `bundle.json` failing closed, and a folder without one
