@@ -19,8 +19,11 @@ fn tall_document(cx: &mut TestAppContext) -> Harness<'_> {
     h
 }
 
+/// Opens the page added last (after the new document's main form page) on its View tab.
 fn open_view(h: &mut Harness) {
     open_dashboards(h);
+    let last = h.config().pages.len();
+    h.click(id(&format!("page-item-{last}")));
     h.click("tab-view");
 }
 

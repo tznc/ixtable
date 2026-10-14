@@ -3,7 +3,7 @@
 use super::{ExpressionIssue, expression_issues, referenced_tables};
 use crate::archive::DocumentConfig;
 use crate::automation::{ActionDef, Step, Trigger, TriggerMode};
-use crate::dashboards::{ComponentKind, Dashboard, DashboardComponent, KpiComparison};
+use crate::pages::{ComponentKind, Page, PageComponent, KpiComparison};
 use crate::design::{
     ConditionalStyle, ControlKind, DesignSchema, Form, FormRule, FormSource, RelatedList, Relationship, SourceKind,
     Tone,
@@ -177,7 +177,7 @@ fn walks_report_bands_groups_and_table_columns() {
 
 #[test]
 fn walks_dashboard_components_with_their_scopes() {
-    let kpi = DashboardComponent {
+    let kpi = PageComponent {
         id: "k".into(),
         kind: ComponentKind::Kpi,
         title: "Revenue".into(),
@@ -187,7 +187,7 @@ fn walks_dashboard_components_with_their_scopes() {
         enabled_when: Some("rows".into()),
         ..Default::default()
     };
-    let table = DashboardComponent {
+    let table = PageComponent {
         id: "t".into(),
         kind: ComponentKind::Table,
         title: "Orders".into(),
@@ -201,7 +201,7 @@ fn walks_dashboard_components_with_their_scopes() {
         ..Default::default()
     };
     let mut config = base();
-    config.dashboards = vec![Dashboard { id: "d".into(), name: "Ops".into(), components: vec![kpi, table], ..Default::default() }];
+    config.pages = vec![Page { id: "d".into(), name: "Ops".into(), components: vec![kpi, table], ..Default::default() }];
     let issues = expression_issues(&config, &nothing);
     let pairs: Vec<(&str, &str)> = issues.iter().map(|i| (i.field.as_str(), i.message.as_str())).collect();
     assert_eq!(pairs[0], ("Component \"Revenue\" › Comparison", "Unknown name 'record'"));
@@ -210,7 +210,7 @@ fn walks_dashboard_components_with_their_scopes() {
     assert_eq!(pairs.len(), 3);
     assert_eq!(
         issues[2].target,
-        RevealTarget::Dashboards { object_id: "d".into(), element_id: Some("t".into()) }
+        RevealTarget::Page { object_id: "d".into(), element_id: Some("t".into()) }
     );
 }
 

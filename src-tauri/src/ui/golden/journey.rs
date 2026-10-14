@@ -505,19 +505,19 @@ pub fn report_page_lines<C: UiContext>(h: &mut Harness<C>, run: &gpui_kit::Entit
 /// What a dashboard component shows, computed through the backend: the Dashboards UI is not
 /// part of this port, so KPI values are the saved query's rows evaluated with the
 /// component's expression and format (`rows` and `params` in scope).
-pub struct DashboardView {
+pub struct PageView {
     label: String,
-    dashboard: crate::dashboards::Dashboard,
+    dashboard: crate::pages::Page,
     pub filters: Map<String, Value>,
 }
 
-pub fn dashboard(h: &Harness, name: &str) -> DashboardView {
+pub fn dashboard(h: &Harness, name: &str) -> PageView {
     let config = h.config();
-    let dashboard = config.dashboards.iter().find(|d| d.name == name).unwrap_or_else(|| panic!("no dashboard {name}")).clone();
-    DashboardView { label: h.label.clone(), dashboard, filters: Map::new() }
+    let dashboard = config.pages.iter().find(|d| d.name == name).unwrap_or_else(|| panic!("no dashboard {name}")).clone();
+    PageView { label: h.label.clone(), dashboard, filters: Map::new() }
 }
 
-impl DashboardView {
+impl PageView {
     /// Chooses a filter by its name ("Stage") the way the filter control would.
     pub fn filter(&mut self, name: &str, value: &str) {
         let f = self.dashboard.filters.iter().find(|f| f.name == name).unwrap_or_else(|| panic!("no filter {name}"));
@@ -543,7 +543,7 @@ impl DashboardView {
             .collect()
     }
 
-    fn component(&self, title: &str) -> &crate::dashboards::DashboardComponent {
+    fn component(&self, title: &str) -> &crate::pages::PageComponent {
         self.dashboard.components.iter().find(|c| c.title == title).unwrap_or_else(|| panic!("no component {title}"))
     }
 

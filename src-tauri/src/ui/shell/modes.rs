@@ -11,19 +11,15 @@ use gpui_kit::*;
 pub enum ModeId {
     Data,
     Design,
-    Reports,
-    Dashboards,
     Automation,
     App,
     Run,
 }
 
 impl ModeId {
-    pub const ALL: [ModeId; 7] = [
+    pub const ALL: [ModeId; 5] = [
         ModeId::Data,
         ModeId::Design,
-        ModeId::Reports,
-        ModeId::Dashboards,
         ModeId::Automation,
         ModeId::App,
         ModeId::Run,
@@ -33,8 +29,6 @@ impl ModeId {
         match self {
             ModeId::Data => "data",
             ModeId::Design => "design",
-            ModeId::Reports => "reports",
-            ModeId::Dashboards => "dashboards",
             ModeId::Automation => "automation",
             ModeId::App => "app",
             ModeId::Run => "run",
@@ -45,8 +39,6 @@ impl ModeId {
         match self {
             ModeId::Data => "Data",
             ModeId::Design => "Design",
-            ModeId::Reports => "Reports",
-            ModeId::Dashboards => "Dashboards",
             ModeId::Automation => "Automation",
             ModeId::App => "Settings",
             ModeId::Run => "Runtime",
@@ -57,16 +49,18 @@ impl ModeId {
         match self {
             ModeId::Data => IconName::Database,
             ModeId::Design => IconName::Shapes,
-            ModeId::Reports => IconName::FileText,
-            ModeId::Dashboards => IconName::LayoutDashboard,
             ModeId::Automation => IconName::Zap,
             ModeId::App => IconName::Settings,
             ModeId::Run => IconName::Play,
         }
     }
 
-    /// The mode for a stored key; unknown keys fall back to Data.
+    /// The mode for a stored key; unknown keys fall back to Data. Reports and dashboards
+    /// were modes of their own before config version 8 and now open Design.
     pub fn from_key(key: &str) -> ModeId {
+        if matches!(key, "reports" | "dashboards") {
+            return ModeId::Design;
+        }
         Self::ALL
             .into_iter()
             .find(|m| m.key() == key)
@@ -94,13 +88,7 @@ pub fn build_view(
             .new(|cx| crate::ui::data::workbench::DataMode::new(shell.clone(), window, cx))
             .into(),
         ModeId::Design => cx
-            .new(|cx| crate::ui::design::DesignStudio::new(shell.clone(), window, cx))
-            .into(),
-        ModeId::Reports => cx
-            .new(|cx| crate::ui::reports::ReportsMode::new(shell.clone(), window, cx))
-            .into(),
-        ModeId::Dashboards => cx
-            .new(|cx| crate::ui::dashboards::DashboardsMode::new(shell.clone(), window, cx))
+            .new(|cx| crate::ui::pages::DesignMode::new(shell.clone(), window, cx))
             .into(),
         ModeId::Automation => cx
             .new(|cx| crate::ui::automation::AutomationMode::new(shell.clone(), window, cx))

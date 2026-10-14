@@ -4,13 +4,14 @@ use super::generate::humanize;
 use super::rbac::{Operation, can};
 use crate::archive::DocumentConfig;
 use crate::design::{NavKind, NavigationItem};
+use crate::pages::ComponentKind;
 use serde_json::{Map, Value};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PageKind {
     Form,
     Report,
-    Dashboard,
+    Page,
     Table,
 }
 
@@ -19,7 +20,7 @@ impl PageKind {
         match self {
             PageKind::Form => "form",
             PageKind::Report => "report",
-            PageKind::Dashboard => "dashboard",
+            PageKind::Page => "page",
             PageKind::Table => "table",
         }
     }
@@ -27,7 +28,7 @@ impl PageKind {
         Some(match key {
             "form" => PageKind::Form,
             "report" => PageKind::Report,
-            "dashboard" => PageKind::Dashboard,
+            "page" | "dashboard" => PageKind::Page,
             "table" => PageKind::Table,
             _ => return None,
         })
@@ -66,19 +67,26 @@ pub fn page_for(item: &NavigationItem) -> Option<RuntimePage> {
         NavKind::Group => return None,
         NavKind::Form => PageKind::Form,
         NavKind::Report => PageKind::Report,
-        NavKind::Dashboard => PageKind::Dashboard,
+        NavKind::Page => PageKind::Page,
         NavKind::Table => PageKind::Table,
     };
     Some(RuntimePage {
         mode: item.mode.map(|m| super::schema::form_mode_key(m).to_string()),
         nav_id: Some(item.id.clone()),
+        params: crate::page_engine::links::evaluate_params(&item.params, &Map::new()),
         ..RuntimePage::new(kind, target.clone())
     })
 }
 
 /// True when the role may open what the page points at.
+/// A page that shows only one form or report also opens for a role that reads that form or
+/// report: the page adds nothing the role could not already see.
 pub fn can_open(config: &DocumentConfig, role_id: Option<&str>, page: &RuntimePage) -> bool {
-    can(config, role_id, page.kind.key(), &page.id, Operation::Read)
+    if can(config, role_id, page.kind.key(), &page.id, Operation::Read) {
+        return true;
+    }
+    let solo = solo_page(config, page);
+    solo.kind != page.kind && can(config, role_id, solo.kind.key(), &solo.id, Operation::Read)
 }
 
 /// Navigation filtered by RBAC: items need `view` on the item and `read` on the target; empty
@@ -128,6 +136,44 @@ pub fn start_page(config: &DocumentConfig, role_id: Option<&str>) -> Option<Runt
     page_for(item)
 }
 
+/// What the Runtime shows for `page`: a page holding only one form or report shows that form
+/// or report full page (the navigation item's form mode wins over the component's); anything
+/// else is shown as is.
+pub fn solo_page(config: &DocumentConfig, page: &RuntimePage) -> RuntimePage {
+    let shown = (page.kind == PageKind::Page).then(|| config.pages.iter().find(|p| p.id == page.id)).flatten();
+    let solo = shown.and_then(|p| match p.components.as_slice() {
+            [only] => Some(only),
+            _ => None,
+        });
+    let Some(component) = solo else {
+        return page.clone();
+    };
+    let (kind, target) = match component.kind {
+        ComponentKind::Form => (PageKind::Form, component.form_id.as_ref()),
+        ComponentKind::Report => (PageKind::Report, component.report_id.as_ref()),
+        _ => return page.clone(),
+    };
+    let Some(target) = target.filter(|t| !t.is_empty()) else {
+        return page.clone();
+    };
+    // The component's mode only while the form still offers it (the form's edits can drop it).
+    let offered = |m: &crate::design::FormMode| {
+        config.design.forms.iter().find(|f| Some(&f.id) == component.form_id.as_ref()).is_some_and(|f| f.modes.contains(m))
+    };
+    let mode = page
+        .mode
+        .clone()
+        .or_else(|| component.mode.filter(offered).map(|m| super::schema::form_mode_key(m).to_string()));
+    let params = shown.map_or_else(|| page.params.clone(), |p| crate::page_engine::links::with_defaults(p, page.params.clone()));
+    RuntimePage {
+        kind,
+        id: target.clone(),
+        mode: if kind == PageKind::Form { mode } else { None },
+        params,
+        ..page.clone()
+    }
+}
+
 /// A page's title for back links: its navigation label, else the target's name.
 pub fn page_title(config: &DocumentConfig, page: &RuntimePage) -> String {
     let labelled = page.nav_id.as_ref().and_then(|nav| {
@@ -152,8 +198,8 @@ pub fn page_title(config: &DocumentConfig, page: &RuntimePage) -> String {
             .iter()
             .find(|r| r.id == page.id)
             .map(|r| r.name.clone()),
-        PageKind::Dashboard => config
-            .dashboards
+        PageKind::Page => config
+            .pages
             .iter()
             .find(|d| d.id == page.id)
             .map(|d| d.name.clone()),

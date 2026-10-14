@@ -97,8 +97,9 @@ pub(crate) fn task_form<C: UiContext>(h: &mut Harness<C>, patch: serde_json::Val
             form[key] = value.clone();
         }
         config.design.forms[0] = serde_json::from_value(form).expect("task form");
+        // The first navigation item opens the first form's page.
+        let _ = id;
         config.design.navigation[0].label = "Tasks".into();
-        config.design.navigation[0].target_id = Some(id);
         config.design.navigation[0].mode = None;
     });
 }

@@ -100,9 +100,11 @@ fn renames_duplicates_and_deletes_reports_through_the_config_store(cx: &mut Test
     assert_eq!(h.config().reports[0].name, "Invoices");
     h.click("duplicate-report");
     assert_eq!(h.label("mode-title"), "Invoices copy");
-    assert_eq!(h.label("report-item-2"), "Invoices copy");
+    // The copy gets a page of its own, which goes with it.
+    let page_names = |h: &Harness| h.config().pages.into_iter().map(|p| p.name).collect::<Vec<_>>();
+    assert!(page_names(&h).contains(&"Invoices copy".to_string()));
     h.click("delete-report");
-    assert!(!h.exists("report-item-2"));
+    assert!(!page_names(&h).contains(&"Invoices copy".to_string()));
     let names: Vec<String> = h.config().reports.into_iter().map(|r| r.name).collect();
     assert_eq!(names, ["Invoices"]);
 }

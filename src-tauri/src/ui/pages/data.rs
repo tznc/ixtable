@@ -32,9 +32,9 @@ pub struct QueryRunner {
 impl Default for QueryRunner {
     fn default() -> Self {
         Self {
-            run: Arc::new(|label, id, params, run_id| crate::dashboard_engine::load::run_saved(label, id, params, None, run_id)),
+            run: Arc::new(|label, id, params, run_id| crate::page_engine::load::run_saved(label, id, params, None, run_id)),
             cancel: Arc::new(|label, run_id| {
-                crate::dashboard_engine::load::cancel(label, run_id);
+                crate::page_engine::load::cancel(label, run_id);
             }),
         }
     }

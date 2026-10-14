@@ -325,7 +325,8 @@ fn template_package_becomes_a_working_document() {
         .iter()
         .find(|i| i.id == start)
         .unwrap();
-    assert_eq!(item.target_id.as_deref(), Some(list.id.as_str()));
+    let page = config.pages.iter().find(|p| Some(&p.id) == item.target_id.as_ref()).unwrap();
+    assert_eq!(page.components[0].form_id.as_deref(), Some(list.id.as_str()));
     // The VBA is kept as an asset; the report says so.
     let vba = m
         .asset_list("tpl")

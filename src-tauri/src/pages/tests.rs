@@ -3,7 +3,7 @@ use super::*;
 use crate::archive::{QueryParameter, SavedQuery, Severity};
 use serde_json::json;
 
-fn config_with(dashboard: Dashboard) -> DocumentConfig {
+fn config_with(dashboard: Page) -> DocumentConfig {
     let mut config = DocumentConfig::default();
     config.saved_queries.push(SavedQuery {
         id: "q1".into(),
@@ -24,7 +24,7 @@ fn config_with(dashboard: Dashboard) -> DocumentConfig {
         ],
         ..Default::default()
     });
-    config.dashboards.push(dashboard);
+    config.pages.push(dashboard);
     config
 }
 
@@ -46,7 +46,7 @@ fn at(column: u16, row: u16, column_span: u16, row_span: u16) -> Placement {
     }
 }
 
-fn sample() -> Dashboard {
+fn sample() -> Page {
     serde_json::from_value(json!({
         "id": "d1",
         "name": "Sales",
@@ -80,18 +80,18 @@ fn defaults_and_round_trip_use_the_forms_grid_types() {
     );
     assert!(value["components"][0].get("formId").is_none());
     assert!(value["components"][0].get("stacked").is_none());
-    let back: Dashboard = serde_json::from_value(value).unwrap();
+    let back: Page = serde_json::from_value(value).unwrap();
     assert_eq!(back, dashboard);
     let yaml = serde_yaml::to_string(&dashboard).unwrap();
-    assert_eq!(serde_yaml::from_str::<Dashboard>(&yaml).unwrap(), dashboard);
+    assert_eq!(serde_yaml::from_str::<Page>(&yaml).unwrap(), dashboard);
     // A v2-era stub (id + name only) still loads.
-    let stub: Dashboard = serde_json::from_value(json!({"id": "d", "name": "Old"})).unwrap();
+    let stub: Page = serde_json::from_value(json!({"id": "d", "name": "Old"})).unwrap();
     assert!(stub.components.is_empty() && stub.filters.is_empty());
 }
 
 #[test]
 fn filter_default_serializes_as_default() {
-    let filter: DashboardFilter = serde_json::from_value(
+    let filter: PageFilter = serde_json::from_value(
         json!({"id": "f", "name": "Period", "param": "period", "control": "dateRange", "default": "2026-01-01"}),
     )
     .unwrap();
@@ -121,7 +121,7 @@ fn valid_dashboard_reports_only_the_unsupplied_required_parameter() {
 fn missing_dependencies_are_errors() {
     let mut dashboard = sample();
     dashboard.components.extend(
-        serde_json::from_value::<Vec<DashboardComponent>>(json!([
+        serde_json::from_value::<Vec<PageComponent>>(json!([
             {"id": "t1", "kind": "table", "queryId": "nope", "pageSize": 0, "placement": {"row": 3}},
             {"id": "fm", "kind": "form", "formId": "missing", "placement": {"row": 4}},
             {"id": "rp", "kind": "report", "reportId": "missing", "placement": {"row": 5}},
@@ -130,7 +130,7 @@ fn missing_dependencies_are_errors() {
         ]))
         .unwrap(),
     );
-    dashboard.filters.push(DashboardFilter {
+    dashboard.filters.push(PageFilter {
         id: "f9".into(),
         name: "Other".into(),
         param: "region".into(),
@@ -175,21 +175,21 @@ fn placements_follow_the_shared_grid_rules() {
     let errors = messages(&validate(&config_with(dashboard)), Severity::Error);
     assert_eq!(
         errors,
-        vec!["dashboard:d1: Sales: grid layout requires at least one column track"]
+        vec!["page:d1: Sales: grid layout requires at least one column track"]
     );
 }
 
 #[test]
 fn filters_must_map_to_declared_query_parameters() {
     let mut dashboard = sample();
-    dashboard.filters.push(DashboardFilter {
+    dashboard.filters.push(PageFilter {
         id: "f2".into(),
         name: "Since".into(),
         param: "since".into(),
         control: FilterControl::DateRange,
         ..Default::default()
     });
-    dashboard.filters.push(DashboardFilter {
+    dashboard.filters.push(PageFilter {
         id: "f3".into(),
         name: "Blank".into(),
         param: " ".into(),
@@ -212,7 +212,7 @@ fn filters_must_map_to_declared_query_parameters() {
 
 #[test]
 fn incomplete_components_are_warnings() {
-    let dashboard: Dashboard = serde_json::from_value(json!({
+    let dashboard: Page = serde_json::from_value(json!({
         "id": "d1", "name": "Draft",
         "components": [
             {"id": "k", "kind": "kpi", "title": "K"},
@@ -292,13 +292,13 @@ fn component_conditions_filters_and_styles_round_trip() {
         "styles": [{"id": "s1", "when": "value < 0", "tone": "warning", "column": "amount"}],
         "placement": {"column": 1, "row": 3, "columnSpan": 6, "rowSpan": 1}
     });
-    let component: DashboardComponent = serde_json::from_value(raw.clone()).unwrap();
+    let component: PageComponent = serde_json::from_value(raw.clone()).unwrap();
     let back = serde_json::to_value(&component).unwrap();
     for key in ["filter", "visibleWhen", "enabledWhen", "styles"] {
         assert_eq!(back[key], raw[key], "{key}");
     }
     let mut dashboard = sample();
-    dashboard.components.push(DashboardComponent {
+    dashboard.components.push(PageComponent {
         filter: Some(" ".into()),
         visible_when: Some(String::new()),
         styles: vec![ConditionalStyle {

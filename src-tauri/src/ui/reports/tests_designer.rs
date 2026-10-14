@@ -160,7 +160,8 @@ fn prints_each_orders_lines_through_a_subreport(cx: &mut TestAppContext) {
     assert_eq!(validation_issues_for_reports(&h), Vec::<String>::new());
 
     open_reports(&mut h);
-    h.click("report-item-2");
+    // Reports added straight to the config are on no page yet.
+    h.click(id("loose-report:r-invoices"));
     assert_eq!(h.label("mode-title"), "Invoices");
     h.click("component-sub");
     // The chosen report is named on the choice; the link fields are listed.

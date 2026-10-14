@@ -26,11 +26,11 @@ pub fn apply_generated_app(
     only: Option<&[String]>,
     cx: &mut App,
 ) -> Result<usize, AppError> {
-    let (design, entities) = {
+    let (design, pages, entities) = {
         let config = store.read(cx).config();
-        (config.design.clone(), config.entities.clone())
+        (config.design.clone(), config.pages.clone(), config.entities.clone())
     };
-    let Some(next) = add_generated_app(&design, schemas, only, &entities) else {
+    let Some(next) = add_generated_app(&design, &pages, schemas, only, &entities) else {
         return Ok(0);
     };
     let added = (next.forms.len() + next.navigation.len()).saturating_sub(design.forms.len() + design.navigation.len());
@@ -38,7 +38,10 @@ pub fn apply_generated_app(
         Some([table]) => format!("Create forms for {table}"),
         _ => "Generate app from tables".to_string(),
     };
-    store.update(cx, |s, cx| s.update(&label, move |c| c.design = next, cx))?;
+    store.update(cx, |s, cx| s.update(&label, move |c| {
+        c.design = next;
+        crate::pages::upgrade::sync(c);
+    }, cx))?;
     Ok(added)
 }
 

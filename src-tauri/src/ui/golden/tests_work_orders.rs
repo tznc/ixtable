@@ -131,6 +131,8 @@ fn press(h: &mut Harness, button: &str) {
 
 #[gpui_kit::test]
 fn golden_work_orders_lifecycle_with_status_actions_sync_and_async_triggers_and_roles(cx: &mut TestAppContext) {
+    // The action runner is process-wide: hold the real one so a parallel test's double cannot replace it.
+    let _runner = crate::ui::runtime::tests::with_real_runner();
     with_journey(APP, "lifecycle", |journey| {
         let mut h = journey.step("Create Work orders from the start screen", move |_| start_from_template(cx, "work-orders"));
         let label = h.label.clone();

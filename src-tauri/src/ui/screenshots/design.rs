@@ -19,7 +19,12 @@ const WINDOW: (f32, f32) = (1500.0, 1500.0);
 fn generate_form<C: UiContext>(h: &mut Harness<'_, C>, table: &str) {
     choose(h, "generate-table", table);
     h.click("generate-form");
-    wait_until(h, "the generated form", |h| h.config().design.forms.iter().any(|f| f.name.to_lowercase().starts_with(table)));
+    // The detail form is named after the table ("Orders"); a related list may come first.
+    let detail = |h: &Harness<'_, C>| h.config().design.forms.into_iter().find(|f| f.name.to_lowercase() == table);
+    wait_until(h, "the generated form", |h| detail(h).is_some());
+    // Open it, as its page's "Edit form" does.
+    let detail = detail(h).expect("the detail form");
+    crate::ui::design::test_support::open_form(h, &detail.id);
 }
 
 #[test]
@@ -155,11 +160,12 @@ fn design_nesting_child_form_picker() {
     seed(&mut h, move |config| {
         config.design.forms.extend(forms.into_iter().map(|f| serde_json::from_value(f).expect("form")));
         config.design.navigation[0].label = "Customers".into();
+        config.design.navigation[0].kind = crate::design::NavKind::Form;
         config.design.navigation[0].target_id = Some(customers);
     });
 
     open_designer(&mut h);
-    h.click(format!("form:{items_form}"));
+    crate::ui::design::test_support::open_form(&mut h, &items_form);
     assert_eq!(h.label("form-title"), "Order items");
     let items = h.config().design.forms.into_iter().find(|f| f.id == items_form).expect("Order items form");
     let related = items.controls.iter().find(|c| c.kind == ControlKind::RelatedList).expect("the Allocations list");

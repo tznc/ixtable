@@ -1,4 +1,4 @@
-//! Dashboard definitions (PRD §16).
+//! Page definitions (PRD §16).
 //!
 //! A dashboard is a grid layout (the same `design::GridLayout` / `design::Placement`
 //! types forms use, validated by the same grid rules) holding components that point
@@ -12,17 +12,24 @@ use crate::design::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+pub mod upgrade;
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Dashboard {
+pub struct Page {
     pub id: String,
     pub name: String,
     #[serde(default)]
     pub layout: GridLayout,
     #[serde(default)]
-    pub filters: Vec<DashboardFilter>,
+    pub filters: Vec<PageFilter>,
     #[serde(default)]
-    pub components: Vec<DashboardComponent>,
+    pub components: Vec<PageComponent>,
+    /// Values the page takes when it is opened (navigation items, page links and "Open
+    /// page" steps pass them). Components read them as `params`; filters override the same
+    /// names. Config version 8.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parameters: Vec<crate::archive::QueryParameter>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -40,7 +47,7 @@ pub enum FilterControl {
 /// A dashboard-wide input whose value is passed to every component query as `param`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct DashboardFilter {
+pub struct PageFilter {
     pub id: String,
     pub name: String,
     pub param: String,
@@ -103,7 +110,7 @@ pub struct KpiComparison {
 /// One component on the dashboard grid. Fields not used by `kind` stay empty.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct DashboardComponent {
+pub struct PageComponent {
     pub id: String,
     pub kind: ComponentKind,
     #[serde(default)]
@@ -158,6 +165,12 @@ pub struct DashboardComponent {
     /// button: caption.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+    /// button: the page it opens (after its action, when it has one).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_page_id: Option<String>,
+    /// button: values for the target page's parameters, expressions over `params` and `app`.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub page_params: std::collections::BTreeMap<String, String>,
     /// text: plain text; blank lines separate paragraphs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
@@ -176,7 +189,7 @@ pub struct DashboardComponent {
 }
 
 /// The query parameter names a filter supplies.
-pub fn filter_params(filter: &DashboardFilter) -> Vec<String> {
+pub fn filter_params(filter: &PageFilter) -> Vec<String> {
     match filter.control {
         FilterControl::DateRange => vec![
             format!("{}From", filter.param),
@@ -192,7 +205,7 @@ fn missing(value: &Option<String>) -> bool {
 
 struct Checker<'a> {
     config: &'a DocumentConfig,
-    dashboard: &'a Dashboard,
+    dashboard: &'a Page,
     out: Vec<Issue>,
 }
 
@@ -213,7 +226,7 @@ impl Checker<'_> {
             Ok(regions) => regions,
             Err(message) => {
                 self.error(
-                    "dashboard",
+                    "page",
                     &dashboard.id,
                     format!("{}: {message}", dashboard.name),
                 );
@@ -502,7 +515,7 @@ fn form_supports(form: &crate::design::Form, mode: FormMode) -> bool {
 
 fn component_queries<'a>(
     config: &'a DocumentConfig,
-    dashboard: &'a Dashboard,
+    dashboard: &'a Page,
 ) -> impl Iterator<Item = &'a crate::archive::SavedQuery> {
     let ids: HashSet<&str> = dashboard
         .components
@@ -518,13 +531,13 @@ fn component_queries<'a>(
 /// Dependency and grid validation for every dashboard (non-blocking issues).
 pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
     let mut out = check_named_ids(
-        "dashboard",
+        "page",
         config
-            .dashboards
+            .pages
             .iter()
             .map(|d| (d.id.as_str(), d.name.as_str())),
     );
-    for dashboard in &config.dashboards {
+    for dashboard in &config.pages {
         let mut checker = Checker {
             config,
             dashboard,

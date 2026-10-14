@@ -1,10 +1,10 @@
-//! Dashboard chart figures (port of `src/dashboards/charts/Chart.tsx`). The marks are the
+//! Page chart figures (port of `src/dashboards/charts/Chart.tsx`). The marks are the
 //! report engine's chart (`report_engine::chart::chart_item`), so dashboards and reports
 //! draw the same bars, lines, slices and points. What the web charts exposed as an SVG
 //! title and description, a legend list and a hidden data table is returned as text so the
 //! view can label the chart for assistive technology.
 
-use crate::dashboards::{ChartType, DashboardComponent};
+use crate::pages::{ChartType, PageComponent};
 use crate::report_engine::{
     ChartItem, PathOp, Row,
     chart::chart_item,
@@ -28,8 +28,8 @@ pub struct ChartSpec {
     pub format: Option<String>,
 }
 
-impl From<&DashboardComponent> for ChartSpec {
-    fn from(c: &DashboardComponent) -> Self {
+impl From<&PageComponent> for ChartSpec {
+    fn from(c: &PageComponent) -> Self {
         Self {
             chart_type: c.chart_type.unwrap_or(ChartType::Bar),
             x: c.x.clone(),

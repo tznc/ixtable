@@ -5,7 +5,7 @@
 //! explicit.
 
 use super::chart::{Body, ChartSpec, figure, sparkline};
-use crate::dashboards::ChartType;
+use crate::pages::ChartType;
 use crate::report_engine::{
     Mark, PathOp, Row,
     chart_geometry::{

@@ -1,5 +1,5 @@
 //! What the editors offer to pick from, read from the open document: tables, forms,
-//! reports, dashboards, saved queries and actions as (id, label) pairs.
+//! reports, pages, saved queries and actions as (id, label) pairs.
 
 use crate::ui::shell::Shell;
 use gpui_kit::App;
@@ -9,7 +9,7 @@ pub struct Env {
     pub tables: Vec<(String, String)>,
     pub forms: Vec<(String, String)>,
     pub reports: Vec<(String, String)>,
-    pub dashboards: Vec<(String, String)>,
+    pub pages: Vec<(String, String)>,
     pub queries: Vec<(String, String)>,
     pub actions: Vec<(String, String)>,
 }
@@ -43,8 +43,8 @@ impl Env {
                 .collect(),
             forms: pairs(config.design.forms.iter().map(|f| (f.id.as_str(), f.name.as_str())), ""),
             reports: pairs(config.reports.iter().map(|r| (r.id.as_str(), r.name.as_str())), ""),
-            dashboards: pairs(
-                config.dashboards.iter().map(|d| (d.id.as_str(), d.name.as_str())),
+            pages: pairs(
+                config.pages.iter().map(|d| (d.id.as_str(), d.name.as_str())),
                 "",
             ),
             queries: pairs(

@@ -252,7 +252,6 @@ fn ticket_form(h: &mut Harness) {
         });
         config.design.forms[0] = serde_json::from_value(form).expect("ticket form");
         config.design.navigation[0].label = "Tickets".into();
-        config.design.navigation[0].target_id = Some(id);
         config.design.navigation[0].mode = Some(crate::design::FormMode::Create);
     });
     h.switch_mode(ModeId::Run);

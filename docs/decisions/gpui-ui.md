@@ -30,7 +30,7 @@ frontend remains, and Tauri hosts no webview.
 ## Conventions
 
 - **Registries:**
-  - Modes: `ui/shell/modes.rs` (`build_view`, `build_sidebar`).
+  - Modes: `ui/shell/modes.rs` (`build_view`, `build_sidebar`). Design is `ui::pages::DesignMode`.
   - Settings tabs: `ui/shell/settings.rs` (`build_tab`).
   - Start screen actions and panels: `ui/start_sections.rs`.
   - Extra Lucide icons: `ui/assets.rs`. gpui-kit embeds only about 100 icons by default.
@@ -93,11 +93,11 @@ keeps users from having to decide which page holds a query.
   header. A table's datasheet offers **Query this table**.
 - Documents stored with `active_mode = "query"` open on the Data page.
 
-## Dashboards
+## Pages (formerly dashboards)
 
-`dashboard_engine/` holds the non-UI logic of the former `src/dashboards/` (model,
+Dashboards became pages in config version 8 (see `pages.md`). `page_engine/` holds the non-UI logic of the former `src/dashboards/` (model,
 filter-to-parameter mapping, KPI and table slices, chart figures, run state). Views live in
-`ui/dashboards/`. Charts reuse `report_engine`'s chart geometry and drawing through
+`ui/pages/`. Charts reuse `report_engine`'s chart geometry and drawing through
 `chart_item`, so a dashboard chart and a report chart cannot drift apart. Embedded forms are a
 detached `ui::runtime::FormRenderer`; query pickers are `ui::query::QueryPicker`. The Runtime
 shows a dashboard through the `PageBuilders` hook that `ui::dashboards::register` installs.

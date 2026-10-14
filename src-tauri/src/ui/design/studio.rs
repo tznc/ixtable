@@ -1,6 +1,8 @@
-//! `DesignStudio`: the form designer (port of `DesignStudio.tsx`). It owns what is selected
-//! (form, control, active tab pages, view) and renders the three panes: the form list and
-//! component palette, the canvas (or navigation editor, or preview) and the properties panel.
+//! `DesignStudio`: the form designer (port of `DesignStudio.tsx`). The Design mode
+//! (`ui::pages::DesignMode`) opens a form here from its page. It owns what is selected
+//! (form, control, active tab pages, view) and renders the three panes: the component
+//! palette, the canvas (or preview) and the properties panel. With `View::Navigation` it
+//! shows only the navigation editor.
 //! Every definition edit goes through `ConfigStore::update`, so undo and redo cover it.
 //!
 //! The pieces live in sibling files as `impl DesignStudio` blocks: `form_list.rs`,
@@ -10,11 +12,10 @@
 //! Test ids: `design-studio` (the studio, labelled "Form builder"), `properties` (labelled
 //! "Properties"), `properties-title` ("Control" or "Form"), `back-to-form`, the palette
 //! buttons `add-<kind>` (`add-text`, `add-related-list`, `add-boolean`, ...), the view tabs
-//! `tab-form`, `tab-navigation`, `tab-preview`, `preview-mode`, `form-hint`, `no-form`
+//! `tab-form`, `tab-preview`, `preview-mode`, `form-hint`, `no-form`
 //! and `no-controls`.
 
 use super::{
-    form_list::ListState,
     inputs::{Drafts, Fields},
     preview::DesignPreview,
 };
@@ -30,7 +31,7 @@ use crate::ui::{
     prelude::*,
     controls::choice,
     reports::fields::pairs,
-    shell::{ModeId, RevealTarget, Shell},
+    shell::Shell,
     store::StoreEvent,
 };
 use std::collections::{HashMap, HashSet};
@@ -42,7 +43,7 @@ pub enum View {
     Preview,
 }
 
-const VIEWS: [(&str, &str); 3] = [("form", "Layout"), ("navigation", "Navigation"), ("preview", "Preview")];
+const VIEWS: [(&str, &str); 2] = [("form", "Layout"), ("preview", "Preview")];
 
 /// `relatedList` as `related-list`: the element id suffix of a control kind.
 pub fn kind_id(kind: ControlKind) -> String {
@@ -70,7 +71,6 @@ pub struct DesignStudio {
     pub(super) drafts: Drafts<DesignStudio>,
     columns: HashMap<String, Vec<String>>,
     loading: HashSet<String>,
-    pub(super) list: ListState,
     preview: Option<Entity<DesignPreview>>,
     pub(super) assets: Option<Vec<Attachment>>,
     assets_loading: bool,
@@ -102,7 +102,6 @@ impl DesignStudio {
             drafts: Drafts::default(),
             columns: HashMap::new(),
             loading: HashSet::new(),
-            list: ListState::default(),
             preview: None,
             assets: None,
             assets_loading: false,
@@ -316,12 +315,8 @@ impl DesignStudio {
         cx.notify();
     }
 
-    /// Opens the form and control another mode asked to reveal.
-    fn take_reveal(&mut self, cx: &mut Context<Self>) {
-        let request = self.shell.update(cx, |s, _| s.take_reveal(ModeId::Design));
-        let Some(RevealTarget::Design { object_id, element_id }) = request else {
-            return;
-        };
+    /// Shows form `object_id` in the designer, with control `element_id` selected.
+    pub fn open(&mut self, object_id: String, element_id: Option<String>, cx: &mut Context<Self>) {
         let parent = self
             .design(cx)
             .forms
@@ -531,9 +526,15 @@ impl DesignStudio {
 
 impl Render for DesignStudio {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // The shell is being updated while it builds this view, so reveals are taken here.
         self.wire(cx);
-        self.take_reveal(cx);
+        if self.view == View::Navigation {
+            return div()
+                .id("design-navigation")
+                .size_full()
+                .overflow_y_scroll()
+                .child(self.render_navigation(window, cx))
+                .into_any_element();
+        }
         let form = self.form(cx);
         let has_form = form.is_some();
         let border = cx.theme().border;
@@ -547,7 +548,6 @@ impl Render for DesignStudio {
             .border_r_1()
             .border_color(border)
             .overflow_y_scroll()
-            .child(self.render_form_list(form.as_ref().map(|f| f.id.as_str()), window, cx))
             .child(self.render_palette(has_form, cx));
         let toolbar = self.render_toolbar(form.as_ref(), cx);
         let center = div()
@@ -559,26 +559,16 @@ impl Render for DesignStudio {
             .child(toolbar)
             .child(self.render_center(form.clone(), window, cx));
         let properties = self.render_properties_panel(form, window, cx);
-        v_flex()
+        h_flex()
+            .id("design-studio")
+            .aria_label("Form builder")
             .size_full()
-            .child(widgets::titlebar("Project / Design", "Form builder", cx))
-            .child(
-                h_flex()
-                    .id("design-studio")
-                    .aria_label("Form builder")
-                    .flex_1()
-                    .min_h_0()
-                    .child(left)
-                    .child(center)
-                    .child(properties)
-                    .test_support(),
-            )
+            .child(left)
+            .child(center)
+            .child(properties)
+            .test_support()
+            .into_any_element()
     }
-}
-
-/// Plain choice options from names.
-pub(super) fn same(values: &[String]) -> Vec<(String, String)> {
-    values.iter().map(|v| (v.clone(), v.clone())).collect()
 }
 
 /// Shorthand for fixed (value, label) pairs.

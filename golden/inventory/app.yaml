@@ -3,7 +3,7 @@
 # {{asset:<file>}} placeholders are replaced with the ids of the template's assets
 # when a document is created from the template.
 # Object ids are fixed UUIDv7 literals. A trailing comment names each top-level object.
-version: 7
+version: 8
 name: Inventory
 activeMode: run
 settings:
@@ -156,22 +156,22 @@ design:
   version: 3
   startPage: 01a10134-cd57-7ac0-b9d2-27340552fb5a
   navigation:
-    - { id: 01a10134-cd57-7ac0-b9d2-27340552fb5a, label: Stock overview, kind: dashboard, targetId: 01a10134-cd6b-7bb0-9b65-5a09846f2e98 }  # inv-nav-dashboard
-    - { id: 01a10134-cd66-7eb0-b3ca-78934a7f4190, label: Products, kind: form, targetId: 01a10134-cd59-7af4-ac2e-249930a93769 }  # inv-nav-products
-    - { id: 01a10134-cd58-7538-b5e9-11125e560577, label: Stock movements, kind: form, targetId: 01a10134-cd53-705e-83c3-f4ae19ca9749 }  # inv-nav-movements
-    - { id: 01a10134-cd62-7c2a-b153-728ca23aa9a2, label: Transfers, kind: form, targetId: 01a10134-cd54-7816-b5b2-ac5a9b300c24 }  # inv-nav-transfers
-    - { id: 01a10134-cd51-788f-816b-863b04356b95, label: Reorder thresholds, kind: form, targetId: 01a10134-cd50-7ebb-8ee5-3a6839224611 }  # inv-nav-thresholds
+    - { id: 01a10134-cd57-7ac0-b9d2-27340552fb5a, label: Stock overview, kind: page, targetId: 01a10134-cd6b-7bb0-9b65-5a09846f2e98 }  # inv-nav-dashboard
+    - { id: 01a10134-cd66-7eb0-b3ca-78934a7f4190, label: Products, kind: page, targetId: d6045847-0882-724a-b175-15a16152a598 }  # inv-nav-products
+    - { id: 01a10134-cd58-7538-b5e9-11125e560577, label: Stock movements, kind: page, targetId: 47673d3c-4dcc-7359-8f49-296e37223ade }  # inv-nav-movements
+    - { id: 01a10134-cd62-7c2a-b153-728ca23aa9a2, label: Transfers, kind: page, targetId: b405a167-ebb0-7c76-974a-0301aa12c579 }  # inv-nav-transfers
+    - { id: 01a10134-cd51-788f-816b-863b04356b95, label: Reorder thresholds, kind: page, targetId: 4849c3f2-767e-7085-bc37-bc604c256d64 }  # inv-nav-thresholds
     - id: 01a10134-cd6c-77d1-b857-adca9626b141  # inv-nav-setup
       label: Setup
       kind: group
       children:
-        - { id: 01a10134-cd5e-7789-88b2-b536c34b373a, label: Locations, kind: form, targetId: 01a10134-cd56-752d-a0c5-eea633fe29ea }  # inv-nav-locations
-        - { id: 01a10134-cd61-7754-96bb-23e3e97a80dd, label: Suppliers, kind: form, targetId: 01a10134-cd55-7f92-be12-75b98b32c03b }  # inv-nav-suppliers
+        - { id: 01a10134-cd5e-7789-88b2-b536c34b373a, label: Locations, kind: page, targetId: d9ea1c64-ff20-7818-abb9-2c1bffd84643 }  # inv-nav-locations
+        - { id: 01a10134-cd61-7754-96bb-23e3e97a80dd, label: Suppliers, kind: page, targetId: eaec46de-960c-7b9d-bc6a-a704c0fc21a8 }  # inv-nav-suppliers
     - id: 01a10134-cd69-7bb2-8edb-582cc9408967  # inv-nav-reports
       label: Reports
       kind: group
       children:
-        - { id: 01a10134-cd5c-7244-b3a6-a502acc80abc, label: Inventory valuation, kind: report, targetId: 01a10134-cd4d-70fe-b4a0-8707ca1475df }  # inv-nav-valuation
+        - { id: 01a10134-cd5c-7244-b3a6-a502acc80abc, label: Inventory valuation, kind: page, targetId: 7c40f641-0b22-70b1-a921-bbadc7c8171b }  # inv-nav-valuation
   forms:
     - id: 01a10134-cd59-7af4-ac2e-249930a93769  # inv-form-products
       name: Products
@@ -445,7 +445,7 @@ reports:
         height: 24
         components:
           - { id: 01a10134-cd38-71ce-b808-ed4ae34c9a86, kind: calculated, x: 0, y: 4, w: 523, h: 16, expression: "'Total inventory value: ' & format(sum(rows.value), '#,##0.00')", style: { bold: true, align: right } }
-dashboards:
+pages:
   - id: 01a10134-cd6b-7bb0-9b65-5a09846f2e98  # inv-dash-stock
     name: Stock overview
     filters:
@@ -463,6 +463,58 @@ dashboards:
         pageSize: 10
         placement: { column: 1, row: 3, columnSpan: 7, rowSpan: 2 }
       - { id: 01a10134-cd3e-759e-96f5-601122b938a9, kind: chart, title: Units by location, queryId: 01a10134-cd60-77c7-bbdf-1f10ecd8ba9f, chartType: bar, x: location, y: [units], placement: { column: 8, row: 3, columnSpan: 5, rowSpan: 2 } }
+  - id: d6045847-0882-724a-b175-15a16152a598  # wrapper page: Products
+    name: Products
+    components:
+      - { id: fdcd93aa-421c-7f34-85da-9d5307f53db1, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a10134-cd59-7af4-ac2e-249930a93769, mode: list }
+  - id: 9dd60d43-e9eb-76b9-a7eb-50d1aace3d13  # wrapper page: Product
+    name: Product
+    components:
+      - { id: 0d8c82cb-d679-702a-9f8c-01512d1e2f74, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a10134-cd65-7bd6-8b83-2862cc7ac79c, mode: detail }
+  - id: 47673d3c-4dcc-7359-8f49-296e37223ade  # wrapper page: Stock movements
+    name: Stock movements
+    components:
+      - { id: abcd132c-61d5-79f4-8b45-a887acfa285b, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a10134-cd53-705e-83c3-f4ae19ca9749, mode: list }
+  - id: 336ee765-55bd-7f42-87eb-02daa3581d47  # wrapper page: Movement
+    name: Movement
+    components:
+      - { id: 759ae007-83b6-7f01-a2a3-ff81d2a86bf1, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a10134-cd5f-7b1e-a53f-df537ddc7e97, mode: detail }
+  - id: b405a167-ebb0-7c76-974a-0301aa12c579  # wrapper page: Transfers
+    name: Transfers
+    components:
+      - { id: da29882e-62ff-7abf-bab1-965640db3df1, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a10134-cd54-7816-b5b2-ac5a9b300c24, mode: list }
+  - id: f194e521-b231-7683-84ac-445627255873  # wrapper page: Transfer
+    name: Transfer
+    components:
+      - { id: a7fe67db-a5ef-77bb-93cf-63bce186243c, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a10134-cd5a-7210-a35b-3e6a0f759a3f, mode: detail }
+  - id: 4849c3f2-767e-7085-bc37-bc604c256d64  # wrapper page: Reorder thresholds
+    name: Reorder thresholds
+    components:
+      - { id: 07b32830-4bf2-70f0-8bdc-0421a21e1082, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a10134-cd50-7ebb-8ee5-3a6839224611, mode: list }
+  - id: 656fbb5f-084d-71e6-bf98-dbe9ace5929b  # wrapper page: Reorder threshold
+    name: Reorder threshold
+    components:
+      - { id: a07e65cb-b6b4-7bc1-896e-fa794a27eec3, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a10134-cd52-7da9-b6ab-6e37495703d1, mode: detail }
+  - id: d9ea1c64-ff20-7818-abb9-2c1bffd84643  # wrapper page: Locations
+    name: Locations
+    components:
+      - { id: 098b1926-402a-7626-a4bd-4e634c1b5bf2, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a10134-cd56-752d-a0c5-eea633fe29ea, mode: list }
+  - id: cf07d831-5c40-768c-bdcf-3f986d38851e  # wrapper page: Location
+    name: Location
+    components:
+      - { id: dd03085c-8d73-755a-a4bf-d8ca7b5dc4cc, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a10134-cd5b-7460-9c78-4d065babb77e, mode: detail }
+  - id: eaec46de-960c-7b9d-bc6a-a704c0fc21a8  # wrapper page: Suppliers
+    name: Suppliers
+    components:
+      - { id: ee94db5a-80bb-7ae7-8575-03c2d38ce8bf, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a10134-cd55-7f92-be12-75b98b32c03b, mode: list }
+  - id: 10d63249-4104-7f59-a677-6f0694534c38  # wrapper page: Supplier
+    name: Supplier
+    components:
+      - { id: 4f7641c5-0515-7460-a55a-f5e4aaa0af1f, kind: form, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, formId: 01a10134-cd5d-7a4f-a4ac-c563baef8657, mode: detail }
+  - id: 7c40f641-0b22-70b1-a921-bbadc7c8171b  # wrapper page: Inventory valuation
+    name: Inventory valuation
+    components:
+      - { id: 1de8fea3-1812-70f2-a1ee-e73030811afa, kind: report, placement: { column: 1, row: 1, columnSpan: 12, rowSpan: 4 }, reportId: 01a10134-cd4d-70fe-b4a0-8707ca1475df }
 actions:
   - id: 01a10134-cd46-7b77-a46c-600c139722f8  # inv-action-post-transfer
     name: Post transfer

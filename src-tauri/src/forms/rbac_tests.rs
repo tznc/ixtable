@@ -7,7 +7,7 @@ use super::{
     set_previewed_role, toggle_listed,
 };
 use crate::archive::DocumentConfig;
-use crate::dashboards::Dashboard;
+use crate::pages::Page;
 use crate::roles::{ObjectPermission, Permissions, Role};
 use serde_json::json;
 
@@ -88,7 +88,7 @@ fn checks_object_flags_navigation_and_actions_for_a_role() {
     assert!(!can(&c, r, "action", "purge", Operation::Execute));
 }
 
-fn dashboard(id: &str) -> Dashboard {
+fn dashboard(id: &str) -> Page {
     serde_json::from_value(json!({
         "id": id, "name": id,
         "filters": [{"id": "f", "name": "Region", "param": "region", "optionsQueryId": "q-regions"}],
@@ -111,7 +111,7 @@ fn lets_a_dashboard_grant_read_the_dashboards_queries_and_nothing_else() {
         id: "viewer".into(),
         name: "Viewer".into(),
         permissions: Permissions {
-            objects: vec![object("dashboard", "d1", [true, false, false, false])],
+            objects: vec![object("page", "d1", [true, false, false, false])],
             ..Default::default()
         },
     };

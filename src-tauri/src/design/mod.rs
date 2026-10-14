@@ -427,7 +427,9 @@ pub enum NavKind {
     #[default]
     Form,
     Report,
-    Dashboard,
+    /// A page (config version 8; earlier versions called it a dashboard).
+    #[serde(alias = "dashboard")]
+    Page,
     Table,
     Group,
 }
@@ -444,6 +446,9 @@ pub struct NavigationItem {
     pub target_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mode: Option<FormMode>,
+    /// Values for the target page's parameters: expressions over `app`. Config version 8.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub params: std::collections::BTreeMap<String, String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub children: Vec<NavigationItem>,
 }

@@ -183,13 +183,13 @@ fn walk_report(c: &mut Collector, report: &Report) {
     walk_band(c, report, &bands.report_footer, "Report footer");
 }
 
-fn walk_dashboard(c: &mut Collector, dashboard: &crate::dashboards::Dashboard) {
+fn walk_dashboard(c: &mut Collector, dashboard: &crate::pages::Page) {
     for component in &dashboard.components {
         let owner = Owner {
-            kind: "dashboard",
+            kind: "page",
             id: dashboard.id.clone(),
             name: dashboard.name.clone(),
-            target: RevealTarget::Dashboards {
+            target: RevealTarget::Page {
                 object_id: dashboard.id.clone(),
                 element_id: Some(component.id.clone()),
             },
@@ -274,7 +274,7 @@ pub fn expression_issues(config: &DocumentConfig, columns: ColumnLookup) -> Vec<
     for report in &config.reports {
         walk_report(&mut c, report);
     }
-    for dashboard in &config.dashboards {
+    for dashboard in &config.pages {
         walk_dashboard(&mut c, dashboard);
     }
     for action in &config.actions {

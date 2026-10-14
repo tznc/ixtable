@@ -1,4 +1,4 @@
-//! Dashboard filters: name, query parameter, control, choices and default value (port of
+//! Page filters: name, query parameter, control, choices and default value (port of
 //! `FiltersEditor.tsx`).
 //!
 //! Test ids: `add-filter`; per filter (`<fid>` is the filter's id) the group
@@ -7,10 +7,10 @@
 //! `filter-choices:<fid>`, `filter-options:<fid>` (a `QueryPicker`), `filter-default:<fid>`,
 //! `filter-place:<fid>` and `filter-remove:<fid>`; `filters-hint` while there are none.
 
-use super::editor::DashboardEditor;
+use super::editor::PageEditor;
 use crate::{
-    dashboard_engine::model::{FILTER_CONTROLS, control_key, control_label, dashboard_query_parameters, new_filter},
-    dashboards::{ComponentKind, Dashboard, DashboardFilter, FilterControl},
+    page_engine::model::{FILTER_CONTROLS, control_key, control_label, dashboard_query_parameters, new_filter},
+    pages::{ComponentKind, Page, PageFilter, FilterControl},
     ui::{
         prelude::*,
         controls::{choice_field, input},
@@ -28,9 +28,9 @@ fn title(param: &str) -> String {
     }
 }
 
-impl DashboardEditor {
+impl PageEditor {
     /// Applies `mutate` to the filter `id` as one undo step.
-    fn change_filter(&mut self, id: &str, label: &str, mutate: impl FnOnce(&mut DashboardFilter) + 'static, cx: &mut Context<Self>) {
+    fn change_filter(&mut self, id: &str, label: &str, mutate: impl FnOnce(&mut PageFilter) + 'static, cx: &mut Context<Self>) {
         let id = id.to_string();
         self.edit(
             label,
@@ -47,7 +47,7 @@ impl DashboardEditor {
         let Some((field, id)) = key.split_once(':').filter(|(f, _)| f.starts_with("filter-")) else { return false };
         let (field, id, text) = (field.to_string(), id.to_string(), text.to_string());
         let Some(current) = self.dashboard(cx).and_then(|d| d.filters.into_iter().find(|f| f.id == id)) else { return true };
-        let apply = move |f: &mut DashboardFilter| match field.as_str() {
+        let apply = move |f: &mut PageFilter| match field.as_str() {
             "filter-name" => f.name = text.clone(),
             "filter-param" => f.param = text.trim().to_string(),
             "filter-choices" => f.options = text.split(',').map(|o| o.trim().to_string()).filter(|o| !o.is_empty()).collect(),
@@ -90,7 +90,7 @@ impl DashboardEditor {
         );
     }
 
-    fn place_filter(&mut self, filter: DashboardFilter, cx: &mut Context<Self>) {
+    fn place_filter(&mut self, filter: PageFilter, cx: &mut Context<Self>) {
         let name = filter.name.clone();
         self.add(ComponentKind::Filter, move |c| {
             c.filter_id = Some(filter.id);
@@ -98,7 +98,7 @@ impl DashboardEditor {
         }, cx);
     }
 
-    pub(super) fn render_filters(&mut self, dashboard: &Dashboard, window: &mut Window, cx: &mut Context<Self>) -> Div {
+    pub(super) fn render_filters(&mut self, dashboard: &Page, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let theme = cx.theme();
         let (border, muted) = (theme.border, theme.muted_foreground);
         let mut panel = v_flex().gap_2().child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child("Filters"));
