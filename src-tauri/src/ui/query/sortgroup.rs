@@ -1,9 +1,14 @@
 //! The builder's Group by and Sort-and-limit panels. Port of
 //! src/query/builder/GroupByPanel.tsx and SortPanel.tsx.
 //!
-//! Test ids: `group-by:<alias.column>` (one per chosen column), `group-by-column` (drop-down),
-//! `add-group-by`, `remove-group-by:<alias.column>`; `sort-<n>-field`,
-//! `sort-<n>-direction`, `add-sort`, `remove-sort-<n>`, `row-limit` (input).
+//! Grouping is decided by the Fields rows (a query with an aggregate groups by every
+//! output field without one), so the Group by section only summarizes it. Columns added
+//! here are extras that group without being output.
+//!
+//! Test ids: `group-by:<alias.column>` (one per grouping column), `group-by-source:<alias.column>`
+//! ("From Fields" or "Added here"), `group-by-column` (drop-down), `add-group-by`,
+//! `remove-group-by:<alias.column>` (extras only); `sort-<n>-field`, `sort-<n>-direction`,
+//! `add-sort`, `remove-sort-<n>`, `row-limit` (input).
 
 use super::{
     QueryMode,
@@ -18,10 +23,37 @@ fn key(g: &GroupColumn) -> String {
     format!("{}.{}", g.source, g.column)
 }
 
+/// The columns the compiled query groups by, in GROUP BY order, and whether each is an
+/// extra added in the Group by section (true) or follows from the Fields rows (false).
+/// Mirrors `compile::compile_builder`.
+pub(super) fn grouping(model: &BuilderModel) -> Vec<(String, bool)> {
+    let mut out: Vec<(String, bool)> = model.group_by.iter().map(|g| (key(g), true)).collect();
+    let sorted_aggregate = model
+        .order_by
+        .iter()
+        .filter_map(|o| model.fields.iter().find(|f| f.id == o.field_id))
+        .any(|f| f.aggregate.is_some());
+    let aggregated = sorted_aggregate || model.fields.iter().any(|f| f.selected && f.aggregate.is_some());
+    if aggregated || !out.is_empty() {
+        for f in model.fields.iter().filter(|f| f.selected && f.aggregate.is_none()) {
+            let k = format!("{}.{}", f.source, f.column);
+            if !out.iter().any(|(existing, _)| *existing == k) {
+                out.push((k, false));
+            }
+        }
+    }
+    out
+}
+
 impl QueryMode {
     /// Explicit GROUP BY columns. Output fields without an aggregate are grouped
     /// automatically, so this lists only the extra columns, which need not be output.
-    pub(super) fn render_group_by(&mut self, model: &BuilderModel, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_group_by(
+        &mut self,
+        model: &BuilderModel,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let used: Vec<String> = model.group_by.iter().map(key).collect();
         let mut options = vec![Opt::new("", "Choose a column…")];
         for s in &model.sources {
@@ -44,27 +76,48 @@ impl QueryMode {
                 cx,
             )
             .render(cx);
-        let rows = model.group_by.iter().map(|g| {
-            let k = key(g);
+        let grouped = grouping(model);
+        let rows = grouped.iter().map(|(k, extra)| {
+            let k = k.clone();
             h_flex()
                 .gap_2()
                 .items_center()
                 .child(widgets::text(format!("group-by:{k}"), k.clone()))
-                .child(
-                    Button::new(SharedString::from(format!("remove-group-by:{k}")))
-                        .ghost()
-                        .xsmall()
-                        .icon(IconName::Trash)
-                        .tooltip(format!("Remove group by {k}"))
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            let k = k.clone();
-                            this.edit_model(|m| m.group_by.retain(|g| key(g) != k), cx)
-                        })),
-                )
+                .child(widgets::styled_text(
+                    SharedString::from(format!("group-by-source:{k}")),
+                    if *extra { "Added here" } else { "From Fields" },
+                    |d| d.text_xs().opacity(0.7),
+                ))
+                .when(*extra, |row| {
+                    let k = k.clone();
+                    row.child(
+                        Button::new(SharedString::from(format!("remove-group-by:{k}")))
+                            .ghost()
+                            .xsmall()
+                            .icon(IconName::Trash)
+                            .tooltip(format!("Remove group by {k}"))
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                let k = k.clone();
+                                this.edit_model(|m| m.group_by.retain(|g| key(g) != k), cx)
+                            })),
+                    )
+                })
         });
         let chosen = self.group_choice.clone();
-        super::panel("query-group", "Group by", cx)
-            
+        let names: Vec<&str> = grouped.iter().map(|(k, _)| k.as_str()).collect();
+        let summary = if names.is_empty() {
+            "No grouping".to_string()
+        } else {
+            format!("Grouped by {}", names.join(", "))
+        };
+        let body = v_flex()
+            .gap_2()
+            .when(grouped.is_empty(), |el| {
+                el.child(widgets::text(
+                    "group-by-none",
+                    "No grouping. Choose an aggregate on a field to group the others.",
+                ))
+            })
             .children(rows)
             .child(
                 h_flex().gap_2().items_center().child(choose).child(
@@ -72,7 +125,7 @@ impl QueryMode {
                         .outline()
                         .small()
                         .icon(IconName::Plus)
-                        .label("Add group by")
+                        .label("Also group by")
                         .disabled(chosen.is_empty())
                         .on_click(cx.listener(|this, _, _, cx| {
                             let choice = std::mem::take(&mut this.group_choice);
@@ -85,7 +138,12 @@ impl QueryMode {
                             }
                         })),
                 ),
-            )
+            );
+        crate::ui::section::section("query-group", "Group by", !grouped.is_empty(), window, cx)
+            .count(grouped.len())
+            .summary(summary)
+            .child(body)
+            .render(cx)
     }
 
     fn patch_sort(&mut self, id: &str, f: impl FnOnce(&mut BuilderSort), cx: &mut Context<Self>) {
@@ -174,7 +232,27 @@ impl QueryMode {
         let limit = model.limit.map(|l| l.to_string()).unwrap_or_default();
         let limit_input = self.input_el(Field::RowLimit, "row-limit", "Row limit", &limit, "All rows", window, cx);
         let first = model.fields.first().map(|f| f.id.clone());
-        super::panel("query-sort", "Sort and limit", cx)
+        let sort_names: Vec<String> = model
+            .order_by
+            .iter()
+            .filter_map(|o| {
+                let f = model.fields.iter().find(|f| f.id == o.field_id)?;
+                let arrow = if o.direction == Direction::Desc { "↓" } else { "↑" };
+                Some(format!("{} {arrow}", field_name(f)))
+            })
+            .collect();
+        let mut parts = vec![];
+        if !sort_names.is_empty() {
+            parts.push(format!("Sorted by {}", sort_names.join(", ")));
+        }
+        if let Some(l) = model.limit {
+            parts.push(format!("limit {l}"));
+        }
+        let summary = if parts.is_empty() { "Unsorted, all rows".to_string() } else { parts.join(", ") };
+        let open = !parts.is_empty();
+        let count = model.order_by.len();
+        let body = v_flex()
+            .gap_2()
             .children(rows)
             .child(
                 h_flex()
@@ -204,6 +282,11 @@ impl QueryMode {
                     )
                     .child(div().text_sm().child("Limit"))
                     .child(div().w(px(120.)).child(limit_input)),
-            )
+            );
+        crate::ui::section::section("query-sort", "Sort and limit", open, window, cx)
+            .count(count)
+            .summary(summary)
+            .child(body)
+            .render(cx)
     }
 }

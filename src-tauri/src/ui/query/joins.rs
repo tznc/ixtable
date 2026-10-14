@@ -81,6 +81,20 @@ pub fn join_suggestions(model: &BuilderModel, schemas: &Schemas) -> Vec<JoinSugg
     out
 }
 
+/// Pairs `(later, earlier)` of 1-based condition numbers that repeat an earlier condition.
+pub fn duplicate_conditions(conditions: &[JoinCondition]) -> Vec<(usize, usize)> {
+    let mut out = vec![];
+    for (i, c) in conditions.iter().enumerate() {
+        if c.left_column.is_empty() && c.right_column.is_empty() {
+            continue;
+        }
+        if let Some(first) = conditions[..i].iter().position(|e| e == c) {
+            out.push((i + 1, first + 1));
+        }
+    }
+    out
+}
+
 /// Adds `table` as a joined source with the given conditions.
 pub fn add_join(
     model: &BuilderModel,

@@ -3,13 +3,13 @@
 //!
 //! Test ids: `source-table`, `join-kind:<alias>`, `join-left:<alias>:<n>`,
 //! `join-right:<alias>:<n>`, `join-remove:<alias>`, `join-condition-remove:<alias>:<n>`,
-//! `join-add-condition:<alias>`, `suggest-join:<label>`, `join-table`, `add-join`.
+//! `join-add-condition:<alias>`, `join-duplicate:<alias>:<n>` (condition `<n>` repeats an earlier one), `suggest-join:<label>`, `join-table`, `add-join`.
 //! `<n>` counts from 1.
 
 use super::{
     QueryMode,
     choice::Opt,
-    joins::{add_join, columns_of, join_suggestions, remove_source},
+    joins::{add_join, columns_of, duplicate_conditions, join_suggestions, remove_source},
     model::{BuilderModel, BuilderSource, JOIN_KINDS, JoinCondition, JoinKind, alias_for, empty_model, new_id},
 };
 use crate::ui::{dialogs, prelude::*, task, widgets};
@@ -61,7 +61,7 @@ impl QueryMode {
                 .gap_3()
                 .child(self.render_fields(model, window, cx))
                 .child(self.render_filters(model, false, cx, window))
-                .child(self.render_group_by(model, cx))
+                .child(self.render_group_by(model, window, cx))
                 .child(self.render_filters(model, true, cx, window))
                 .child(self.render_sort(model, window, cx))
         });
@@ -207,6 +207,17 @@ impl QueryMode {
                             )
                         })
                         .into_any_element(),
+                );
+            }
+            let warning = cx.theme().warning;
+            for (later, first) in duplicate_conditions(&conditions) {
+                rows.push(
+                    widgets::styled_text(
+                        SharedString::from(format!("join-duplicate:{alias}:{later}")),
+                        format!("Condition {later} repeats condition {first}. Remove one."),
+                        move |d| d.text_sm().text_color(warning).pl_6(),
+                    )
+                    .into_any_element(),
                 );
             }
             rows.push(

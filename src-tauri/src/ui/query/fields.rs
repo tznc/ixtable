@@ -105,6 +105,8 @@ impl QueryMode {
             );
         }
         let base = model.sources.first().map(|s| s.alias.clone());
+        // "Group by" is only true while the query groups (see the Group by section).
+        let value_label = if super::sortgroup::grouping(model).is_empty() { "Value" } else { "Value (group by)" };
         let mut rows = vec![];
         for (i, f) in model.fields.iter().enumerate() {
             let name = field_name(f);
@@ -122,7 +124,7 @@ impl QueryMode {
             );
             let mut options = vec![];
             if f.column != "*" {
-                options.push(Opt::new("", "Value (group by)"));
+                options.push(Opt::new("", value_label));
             }
             options.extend(
                 AGGREGATES

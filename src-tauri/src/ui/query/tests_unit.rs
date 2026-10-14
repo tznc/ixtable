@@ -19,7 +19,7 @@ use crate::{archive::ActionKind, data::DataValue};
 use serde_json::json;
 use std::collections::BTreeMap;
 
-fn model(patch: impl FnOnce(&mut BuilderModel)) -> BuilderModel {
+pub(super) fn model(patch: impl FnOnce(&mut BuilderModel)) -> BuilderModel {
     let mut m = empty_model();
     patch(&mut m);
     m
@@ -33,7 +33,7 @@ fn source(id: &str, table: &str, alias: &str) -> BuilderSource {
     }
 }
 
-fn orders() -> BuilderSource {
+pub(super) fn orders() -> BuilderSource {
     source("s1", "orders", "o")
 }
 
@@ -41,7 +41,7 @@ fn customers() -> BuilderSource {
     source("s2", "customers", "c")
 }
 
-fn field(id: &str, source: &str, column: &str, selected: bool) -> BuilderField {
+pub(super) fn field(id: &str, source: &str, column: &str, selected: bool) -> BuilderField {
     BuilderField {
         id: id.into(),
         source: source.into(),
@@ -52,7 +52,7 @@ fn field(id: &str, source: &str, column: &str, selected: bool) -> BuilderField {
     }
 }
 
-fn agg(mut f: BuilderField, aggregate: Aggregate) -> BuilderField {
+pub(super) fn agg(mut f: BuilderField, aggregate: Aggregate) -> BuilderField {
     f.aggregate = Some(aggregate);
     f
 }
@@ -108,7 +108,7 @@ fn on(left_source: &str, left_column: &str, right_column: &str) -> JoinCondition
     }
 }
 
-fn sql(m: &BuilderModel) -> String {
+pub(super) fn sql(m: &BuilderModel) -> String {
     compile_builder(m).expect("model compiles")
 }
 

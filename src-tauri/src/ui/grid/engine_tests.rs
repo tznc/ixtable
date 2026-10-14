@@ -674,7 +674,7 @@ fn region_names_reject_empty_padded_and_duplicate() {
     let regions = vec![region("a", 1, 1), region("b", 1, 1)];
     assert_eq!(
         region_name_problem(&regions, 1, ""),
-        "Region name is required."
+        "Area name is required."
     );
     assert!(region_name_problem(&regions, 1, " c").contains("spaces"));
     assert!(region_name_problem(&regions, 1, "a").contains("already named a"));

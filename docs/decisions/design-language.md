@@ -116,9 +116,10 @@ Each is one function in a shared UI module. **New** marks components that don't 
 - A pill with a tone (`Tone::{Neutral, Success, Warning, Danger}`) and `Caption` text.
 - One fixed vocabulary per domain: Converted / Partly converted / Not converted; Pending / Applied / Failed / Changed after apply; Policy set / No policy; Saved / Unsaved changes / Not saved / Saving… / Save failed; log levels info / warn / error. Raw codes such as `dry_run_ok` never show.
 
-### Section (generalize `controls::section` and `widgets::section_heading`)
+### Section (`ui::section::section`; `controls::section` remains for fixed groups)
 - Collapsible, with a `Section` title, an optional count, and a one-line summary when collapsed ("Primary key: id").
-- Panels open with Basics expanded and Advanced collapsed.
+- Panels open with Basics expanded and Advanced collapsed. Optional builder sections (query Having, Group by, Sort; table Relationships, Constraints, Indexes) start collapsed, open once they have content, and then stay open.
+- Open state is app-wide per section id, so a section the user opened stays open when its panel comes back.
 - Field labels inside a section never repeat the section name ("Field", not "Group 1 field").
 
 ### Field
@@ -149,6 +150,7 @@ Each is one function in a shared UI module. **New** marks components that don't 
   - *app* is what end users run
   - *table, field, record, query, form, report, dashboard, macro*
   - *runtime bundle* is the `.ixtr` file
+- Use Access words over builder jargon: "Column widths" and "Row heights" (not tracks), "Flexible (share)" and "Fixed size (px)" (not fr and px), "Areas" (not named regions), "Field in the related table" and "Matches field in this form" (not foreign key and parent column).
 - Write singular entity names in actions ("New order", "Add item"), with correct plurals everywhere (a shared `plural(n, "table")`).
 - Use sentence case for all labels and column headers. Humanize raw field names in runtime headers (`product_name` becomes "Product name").
 - Dates are relative within 7 days ("5 min ago") and local date-times after that. Never show ISO nanoseconds.

@@ -91,7 +91,7 @@ impl ReportDesigner {
         let id = c.id.clone();
         let kind = extra::text(c, "chartType");
         let pie = kind == "pie" || kind == "donut";
-        let mut section = super::fields::section("chart-properties", "Chart", cx);
+        let mut section = crate::ui::section::section("chart-properties", "Chart", true, window, cx);
         let target = id.clone();
         section = section.child(self.pick(
             "chart-type",
@@ -133,11 +133,11 @@ impl ReportDesigner {
                 cx,
             ));
         }
-        section.child(self.labeled("chart-format", "Value format", &extra::text(c, "format"), "#,##0", window, cx))
+        section.child(self.labeled("chart-format", "Value format", &extra::text(c, "format"), "#,##0", window, cx)).render(cx)
     }
 
     pub(super) fn table_properties(&mut self, c: &Component, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let mut section = super::fields::section("table-properties", "Table rows and columns", cx);
+        let mut section = crate::ui::section::section("table-properties", "Table rows and columns", true, window, cx);
         let target = c.id.clone();
         let options = self.query_options(cx);
         section = section.child(self.pick(
@@ -152,12 +152,12 @@ impl ReportDesigner {
         for (i, col) in extra::objects(c, "columns").into_iter().enumerate() {
             let n = i + 1;
             let width = col.get("width").and_then(Value::as_f64).unwrap_or(100.0);
-            let mut item = super::fields::section(SharedString::from(format!("table-col-{n}")), &format!("Column {n}"), cx);
+            let mut item = crate::ui::section::section(SharedString::from(format!("table-col-{n}")), &format!("Column {n}"), true, window, cx);
             item = item
-                .child(self.labeled(&format!("table-col-{n}-header"), &format!("Column {n} header"), &extra::str_of(&col, "header"), "", window, cx))
+                .child(self.labeled(&format!("table-col-{n}-header"), "Header", &extra::str_of(&col, "header"), "", window, cx))
                 .child(self.expression(
                     &format!("table-col-{n}-expression"),
-                    &format!("Column {n} expression"),
+                    "Expression",
                     &extra::str_of(&col, "expression"),
                     "",
                     &REPORT_SCOPE_NAMES,
@@ -167,20 +167,20 @@ impl ReportDesigner {
                 .child(
                     h_flex()
                         .gap_2()
-                        .child(self.labeled(&format!("table-col-{n}-width"), &format!("Column {n} width"), &number_text(width), "", window, cx).w(px(140.)))
-                        .child(self.labeled(&format!("table-col-{n}-format"), &format!("Column {n} format"), &extra::str_of(&col, "format"), "", window, cx).w(px(140.))),
+                        .child(self.labeled(&format!("table-col-{n}-width"), "Width", &number_text(width), "", window, cx).w(px(140.)))
+                        .child(self.labeled(&format!("table-col-{n}-format"), "Format", &extra::str_of(&col, "format"), "", window, cx).w(px(140.))),
                 )
                 .child(
                     Button::new(SharedString::from(format!("remove-table-col-{n}")))
                         .outline()
                         .small()
                         .icon(IconName::Trash)
-                        .label(format!("Remove column {n}"))
+                        .label("Remove column")
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.edit_list("columns", move |list| drop(list.remove(i)), cx);
                         })),
                 );
-            section = section.child(item);
+            section = section.child(item.render(cx));
         }
         let columns = self.columns.clone();
         section = section.child(self.pick(
@@ -204,6 +204,7 @@ impl ReportDesigner {
                 .label("Add column")
                 .on_click(cx.listener(|this, _, _, cx| this.add_table_column("", cx))),
         )
+        .render(cx)
     }
 
     fn add_table_column(&mut self, field: &str, cx: &mut Context<Self>) {
@@ -234,7 +235,7 @@ impl ReportDesigner {
         }
         options.extend(choices.iter().map(|r| (r.id.clone(), r.name.clone())));
         let target = c.id.clone();
-        let mut section = super::fields::section("subreport-properties", "Subreport", cx);
+        let mut section = crate::ui::section::section("subreport-properties", "Subreport", true, window, cx);
         section = section
             .child(self.pick(
                 "subreport-report",
@@ -252,21 +253,21 @@ impl ReportDesigner {
             ));
         for (i, link) in extra::objects(c, "links").into_iter().enumerate() {
             let n = i + 1;
-            let mut item = super::fields::section(SharedString::from(format!("link-{n}")), &format!("Link {n}"), cx);
+            let mut item = crate::ui::section::section(SharedString::from(format!("link-{n}")), &format!("Link {n}"), true, window, cx);
             item = item
-                .child(self.labeled(&format!("link-{n}-child"), &format!("Link {n} child field"), &extra::str_of(&link, "child"), "", window, cx))
-                .child(self.labeled(&format!("link-{n}-parent"), &format!("Link {n} parent field"), &extra::str_of(&link, "master"), "", window, cx))
+                .child(self.labeled(&format!("link-{n}-child"), "Child field", &extra::str_of(&link, "child"), "", window, cx))
+                .child(self.labeled(&format!("link-{n}-parent"), "Parent field", &extra::str_of(&link, "master"), "", window, cx))
                 .child(
                     Button::new(SharedString::from(format!("remove-link-{n}")))
                         .outline()
                         .small()
                         .icon(IconName::Trash)
-                        .label(format!("Remove link {n}"))
+                        .label("Remove link")
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.edit_list("links", move |list| drop(list.remove(i)), cx);
                         })),
                 );
-            section = section.child(item);
+            section = section.child(item.render(cx));
         }
         section.child(
             Button::new("add-link")
@@ -287,6 +288,7 @@ impl ReportDesigner {
                     );
                 })),
         )
+        .render(cx)
     }
 
     /// Sets a style entry of rule `index`: `None` leaves it as is, `Some(Null)` clears it.
@@ -312,16 +314,19 @@ impl ReportDesigner {
     }
 
     pub(super) fn conditions_editor(&mut self, c: &Component, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let mut section = super::fields::section("conditions", "Conditional formatting", cx);
-        for (i, rule) in extra::objects(c, "conditions").into_iter().enumerate() {
+        let rules = extra::objects(c, "conditions");
+        let mut section = crate::ui::section::section("conditions", "Conditional formatting", false, window, cx)
+            .count(rules.len())
+            .summary(if rules.is_empty() { "No rules. Expand to add one." } else { "Rules change how this text looks." });
+        for (i, rule) in rules.into_iter().enumerate() {
             let n = i + 1;
             let style = rule.get("style").and_then(Value::as_object).cloned().unwrap_or_default();
             let bold = style.get("bold").and_then(Value::as_bool).unwrap_or(false);
-            let mut item = super::fields::section(SharedString::from(format!("rule-{n}")), &format!("Rule {n}"), cx);
+            let mut item = crate::ui::section::section(SharedString::from(format!("rule-{n}")), &format!("Rule {n}"), true, window, cx);
             item = item
                 .child(self.expression(
                     &format!("rule-{n}-when"),
-                    &format!("Rule {n} condition"),
+                    "Condition",
                     &extra::str_of(&rule, "when"),
                     "value < 0",
                     &condition_names(),
@@ -330,7 +335,7 @@ impl ReportDesigner {
                 ))
                 .child(self.flag(
                     &format!("rule-{n}-bold"),
-                    &format!("Rule {n} bold"),
+                    "Bold",
                     bold,
                     move |this, v, cx| this.set_rule_style(i, "bold", v.then(|| json!(true)), cx),
                     cx,
@@ -345,7 +350,7 @@ impl ReportDesigner {
             item = item
                 .child(self.pick(
                     &format!("rule-{n}-text"),
-                    &format!("Rule {n} text"),
+                    "Text",
                     gray.as_deref().unwrap_or("keep"),
                     grays,
                     "As is",
@@ -360,7 +365,7 @@ impl ReportDesigner {
                 ))
                 .child(self.pick(
                     &format!("rule-{n}-fill"),
-                    &format!("Rule {n} fill"),
+                    "Fill",
                     fill.as_deref().unwrap_or("keep"),
                     fills,
                     "As is",
@@ -379,12 +384,12 @@ impl ReportDesigner {
                         .outline()
                         .small()
                         .icon(IconName::Trash)
-                        .label(format!("Remove rule {n}"))
+                        .label("Remove rule")
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.edit_list("conditions", move |list| drop(list.remove(i)), cx);
                         })),
                 );
-            section = section.child(item);
+            section = section.child(item.render(cx));
         }
         section.child(
             Button::new("add-rule")
@@ -406,5 +411,6 @@ impl ReportDesigner {
                     );
                 })),
         )
+        .render(cx)
     }
 }
