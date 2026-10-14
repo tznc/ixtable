@@ -4,10 +4,12 @@
 //!
 //! Test ids: `impact-dialog` (label = title), `impact-op:<i>`, `impact-op-mode:<i>`,
 //! `impact-op-destructive:<i>`, `impact-rebuild-note`, `impact-fact:rows|referencing|
-//! indexes|dependents`, `impact-warning:<i>`, `impact-sql`, `impact-error`,
+//! indexes|dependents`, `impact-warning:<i>` (shown first), `impact-show-sql` (toggle),
+//! `impact-sql` (only while shown), `impact-error`,
 //! `impact-ack` (checkbox), `impact-cancel`, `impact-confirm`.
 
 use crate::ui::controls::{check, error_line, note};
+use crate::ui::display::{Tone, status_badge};
 use crate::ui::dialog::dialog;
 use super::{
     logical::mode_label,
@@ -29,6 +31,7 @@ pub struct ImpactDialog {
     pub busy: bool,
     pub error: String,
     pub acknowledged: bool,
+    show_sql: bool,
 }
 impl EventEmitter<ImpactEvent> for ImpactDialog {}
 
@@ -57,6 +60,7 @@ impl ImpactDialog {
             busy: false,
             error: String::new(),
             acknowledged: false,
+            show_sql: false,
         }
     }
 
@@ -99,7 +103,7 @@ fn fact(id: &'static str, label: &str, value: String, cx: &App) -> Div {
                 .text_color(cx.theme().muted_foreground)
                 .child(label.to_string()),
         )
-        .child(div().flex_1().text_sm().child(widgets::text(id, value)))
+        .child(div().flex_1().min_w_0().text_sm().child(widgets::text(id, value)))
 }
 
 impl Render for ImpactDialog {
@@ -113,13 +117,27 @@ impl Render for ImpactDialog {
             format!("{};", statements.join(";\n"))
         };
         let entity = cx.entity();
-        let ack_text = if destructive {
-            "I reviewed the impact; data removed by this change cannot be recovered except from a checkpoint."
+        let removes_data = self.plan.as_ref().is_none_or(|p| p.destructive);
+        let ack_text = if destructive && removes_data {
+            "I reviewed the impact. Data this change removes can only be recovered from a checkpoint."
                 .to_string()
+        } else if destructive {
+            "I reviewed the impact. The table is rebuilt; its rows are kept.".to_string()
         } else {
             self.acknowledgement.clone().unwrap_or_default()
         };
         let mut body = v_flex().gap_3();
+        if let Some(plan) = &self.plan {
+            body = body.children(plan.warnings.iter().enumerate().map(|(i, w)| {
+                widgets::callout(
+                    SharedString::from(format!("impact-warning:{i}")),
+                    widgets::Severity::Warning,
+                    w,
+                    None,
+                    cx,
+                )
+            }));
+        }
         if let Some(plan) = &self.plan {
             body = body.child(v_flex().gap_1().children(plan.operations.iter().enumerate().map(|(i, op)| {
                 h_flex()
@@ -129,9 +147,9 @@ impl Render for ImpactDialog {
                         SharedString::from(format!("impact-op:{i}")),
                         op.summary.clone(),
                     )))
-                    .child(crate::ui::display::status_badge(SharedString::from(format!("impact-op-mode:{i}")), mode_label(change_mode_key(&op.mode)), crate::ui::display::Tone::Neutral, cx))
+                    .child(status_badge(SharedString::from(format!("impact-op-mode:{i}")), mode_label(change_mode_key(&op.mode)), Tone::Neutral, cx))
                     .when(op.destructive, |el| {
-                        el.child(crate::ui::display::status_badge(SharedString::from(format!("impact-op-destructive:{i}")), "Destructive", crate::ui::display::Tone::Danger, cx))
+                        el.child(status_badge(SharedString::from(format!("impact-op-destructive:{i}")), "Destructive", Tone::Danger, cx))
                     })
             })));
             if plan.rebuild {
@@ -162,7 +180,7 @@ impl Render for ImpactDialog {
                         )
                     })
                     .collect::<Vec<_>>()
-                    .join("; ")
+                    .join("\n")
             };
             let dependents = if shown.dependents.is_empty() {
                 "None".to_string()
@@ -197,28 +215,34 @@ impl Render for ImpactDialog {
                     .child(fact("impact-fact:dependents", "Dependent definitions", dependents, cx)),
             );
         }
-        if let Some(plan) = &self.plan {
-            body = body.children(plan.warnings.iter().enumerate().map(|(i, w)| {
-                widgets::callout(
-                    SharedString::from(format!("impact-warning:{i}")),
-                    widgets::Severity::Warning,
-                    w,
-                    None,
-                    cx,
-                )
-            }));
-        }
+        let show_sql = self.show_sql;
         body = body
-            .child(note("Generated SQL", cx))
-            .child(
-                div()
-                    .p_2()
-                    .rounded_md()
-                    .bg(cx.theme().muted)
-                    .font_family("monospace")
-                    .text_xs()
-                    .child(widgets::text("impact-sql", sql)),
-            )
+            .when(!sql.is_empty(), |el| {
+                el.child(
+                    h_flex().child(
+                        Button::new("impact-show-sql")
+                            .ghost()
+                            .small()
+                            .icon(if show_sql { IconName::ChevronDown } else { IconName::ChevronRight })
+                            .label(if show_sql { "Hide SQL" } else { "Show SQL" })
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.show_sql = !this.show_sql;
+                                cx.notify();
+                            })),
+                    ),
+                )
+            })
+            .when(show_sql, |el| {
+                el.child(
+                    div()
+                        .p_2()
+                        .rounded_md()
+                        .bg(cx.theme().muted)
+                        .font_family("monospace")
+                        .text_xs()
+                        .child(widgets::text("impact-sql", sql)),
+                )
+            })
             .when(!self.error.is_empty(), |el| {
                 el.child(error_line("impact-error", &self.error, cx))
             })

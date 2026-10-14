@@ -279,7 +279,7 @@ fn cloud_live_publishes_installs_with_the_assigned_role_updates_in_place_and_rev
     // Publishing needs the file on disk, so save the untitled document first.
     h.dialogs.queue_save(Some(archive));
     h.click("save-project");
-    wait_for(&mut h, "the saved document", |h| h.try_label("document-status").as_deref() == Some("Saved archive"));
+    wait_for(&mut h, "the saved document", |h| h.try_label("document-status").as_deref() == Some("Saved"));
     publish(&mut h, "1.0.0");
     wait_for(&mut h, "the version history", |h| h.try_label("version:0").is_some_and(|t| t.contains("1.0.0")));
 

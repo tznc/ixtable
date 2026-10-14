@@ -86,7 +86,7 @@ fn golden_crm_archive_save_close_and_reopen_keeps_definitions_and_records_identi
         journey.step("Save as .ixt", |_| {
             h.dialogs.queue_save(Some(archive.clone()));
             h.click("save-project");
-            assert_eq!(h.label("document-status"), "Saved archive");
+            assert_eq!(h.label("document-status"), "Saved");
         });
         journey.step("Close and reopen", |_| {
             h.click("close-project");

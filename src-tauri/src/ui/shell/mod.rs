@@ -20,6 +20,7 @@ use crate::{
         dialogs,
         events::{DocBus, DocEvent},
         store::{ConfigStore, StoreEvent},
+        display::{Tone, status_badge},
         task,
         toast::{self, Toast},
         widgets,
@@ -528,7 +529,6 @@ impl Shell {
 
     fn render_sidebar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
-        let muted = theme.muted_foreground;
         let busy = self.pending.is_some();
         let doc = &self.doc;
         let brand = h_flex()
@@ -554,7 +554,7 @@ impl Shell {
                                 .ghost()
                                 .small()
                                 .icon(Icon::new(IconName::Save))
-                                .tooltip("Save project")
+                                .tooltip("Save document")
                                 .disabled(busy)
                                 .on_click(cx.listener(|this, _, _, cx| this.save(false, cx))),
                         )
@@ -563,7 +563,7 @@ impl Shell {
                                 .ghost()
                                 .small()
                                 .icon(Icon::new(IconName::SaveAll))
-                                .tooltip("Save project as")
+                                .tooltip("Save document as…")
                                 .disabled(busy)
                                 .on_click(cx.listener(|this, _, _, cx| this.save(true, cx))),
                         )
@@ -585,7 +585,7 @@ impl Shell {
                             .ghost()
                             .small()
                             .icon(Icon::new(IconName::X))
-                            .tooltip("Close project")
+                            .tooltip("Close document")
                             .disabled(busy)
                             .on_click(cx.listener(|this, _, _, cx| this.close(cx))),
                     ),
@@ -598,20 +598,12 @@ impl Shell {
                 div()
                     .text_xs()
                     .text_color(theme.muted_foreground)
-                    .child("PROJECT"),
+                    .child("DOCUMENT"),
             )
             .child(widgets::styled_text("document-name", doc.name.clone(), |d| {
                 d.font_weight(FontWeight::SEMIBOLD)
             }))
-            .child(widgets::styled_text(
-                "document-status",
-                if doc.path.is_some() {
-                    "Saved archive"
-                } else {
-                    "Not saved yet"
-                },
-                |d| d.text_xs().text_color(muted),
-            ));
+            .child(h_flex().child(self.render_document_status(cx)));
         // Settings is an icon button beside Save, so the list skips it.
         let modes = ModeId::ALL.into_iter().filter(|m| *m != ModeId::App);
         let mode_switch = v_flex().px_2().gap_0p5().children(modes.map(|mode| {
@@ -644,6 +636,20 @@ impl Shell {
                     .when_some(sidebar, |el, s| el.child(s)),
             )
             .child(self.render_save_status(cx))
+    }
+
+    /// One chip for the document's save state (`document-status`): "Not saved" until
+    /// the first save, then "Saved", "Unsaved changes", "Saving…" or "Save failed".
+    fn render_document_status(&self, cx: &App) -> Div {
+        let status = self.autosave.read(cx).status;
+        let (label, tone) = match (self.doc.path.is_some(), status) {
+            (_, SaveStatus::Saving) => ("Saving…", Tone::Neutral),
+            (_, SaveStatus::Error) => ("Save failed", Tone::Danger),
+            (false, _) => ("Not saved", Tone::Warning),
+            (true, SaveStatus::Dirty) => ("Unsaved changes", Tone::Warning),
+            (true, _) => ("Saved", Tone::Success),
+        };
+        status_badge("document-status", label, tone, cx)
     }
 
     fn render_save_status(&self, cx: &mut Context<Self>) -> impl IntoElement {

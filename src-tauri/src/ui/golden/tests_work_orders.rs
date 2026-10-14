@@ -274,7 +274,7 @@ fn golden_work_orders_v1_bundle_runtime_record_then_update_to_v2_keeps_the_recor
             let ixt = h.temp_path("work-orders.ixt");
             h.dialogs.queue_save(Some(ixt));
             h.click("save-project");
-            assert_eq!(h.label("document-status"), "Saved archive");
+            assert_eq!(h.label("document-status"), "Saved");
             h
         });
         let label = h.label.clone();
