@@ -130,6 +130,18 @@ fn switches_modes_and_persists_the_active_mode(cx: &mut TestAppContext) {
 }
 
 #[gpui_kit::test]
+fn settings_is_an_icon_button_beside_save(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    let save = h.find("save-project").bounds();
+    let settings = h.find(ModeId::App.button_id()).bounds();
+    assert_eq!(settings.origin.y, save.origin.y);
+    assert!(settings.origin.x > save.origin.x);
+    assert_eq!(settings.size, save.size);
+    h.switch_mode(ModeId::App);
+    assert_eq!(h.label("mode-title"), "Application settings");
+}
+
+#[gpui_kit::test]
 fn keeps_the_mode_out_of_undo_history(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     h.switch_mode(ModeId::Reports);
