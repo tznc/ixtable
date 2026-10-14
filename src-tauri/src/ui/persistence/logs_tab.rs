@@ -130,14 +130,6 @@ fn level_tone(level: &str) -> Tone {
 }
 
 /// One log line: time, level badge, area, then the message, which alone may wrap.
-#[cfg(test)]
-#[test]
-fn tones_log_levels_case_insensitively() {
-    assert_eq!(level_tone("ERROR"), Tone::Danger);
-    assert_eq!(level_tone("WARN"), Tone::Warning);
-    assert_eq!(level_tone("INFO"), Tone::Neutral);
-}
-
 fn log_row(i: usize, e: &LogEntry, cx: &App) -> impl IntoElement {
     let theme = cx.theme();
     let (muted, border) = (theme.muted_foreground, theme.border);
@@ -168,4 +160,16 @@ fn log_row(i: usize, e: &LogEntry, cx: &App) -> impl IntoElement {
         .child(div().w(px(96.)).flex_none().whitespace_nowrap().text_color(muted).child(e.area.clone()))
         .child(div().flex_1().min_w_0().child(e.message.clone()))
         .test_support()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Tone, level_tone};
+
+    #[test]
+    fn tones_log_levels_case_insensitively() {
+        assert_eq!(level_tone("ERROR"), Tone::Danger);
+        assert_eq!(level_tone("WARN"), Tone::Warning);
+        assert_eq!(level_tone("INFO"), Tone::Neutral);
+    }
 }
