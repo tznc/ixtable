@@ -114,7 +114,6 @@ fn lists_recent_documents_and_opens_one(cx: &mut TestAppContext) {
 fn switches_modes_and_persists_the_active_mode(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     for (mode, heading) in [
-        (ModeId::Query, "Query"),
         (ModeId::Reports, "Reports"),
         (ModeId::Dashboards, "Dashboards"),
         (ModeId::Automation, "Automation"),

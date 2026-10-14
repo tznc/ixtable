@@ -1,6 +1,7 @@
 //! Studio modes in display order. `DocumentConfig.active_mode` stores `ModeId::key`.
 //! Each feature registers its workspace view (and optional sidebar) in `build_view`
-//! and `build_sidebar`.
+//! and `build_sidebar`. Saved queries open on the Data page; documents stored with the
+//! former `"query"` mode open there too.
 
 use super::Shell;
 use gpui_kit::assets::IconName;
@@ -9,7 +10,6 @@ use gpui_kit::*;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ModeId {
     Data,
-    Query,
     Design,
     Reports,
     Dashboards,
@@ -19,9 +19,8 @@ pub enum ModeId {
 }
 
 impl ModeId {
-    pub const ALL: [ModeId; 8] = [
+    pub const ALL: [ModeId; 7] = [
         ModeId::Data,
-        ModeId::Query,
         ModeId::Design,
         ModeId::Reports,
         ModeId::Dashboards,
@@ -33,7 +32,6 @@ impl ModeId {
     pub fn key(self) -> &'static str {
         match self {
             ModeId::Data => "data",
-            ModeId::Query => "query",
             ModeId::Design => "design",
             ModeId::Reports => "reports",
             ModeId::Dashboards => "dashboards",
@@ -46,7 +44,6 @@ impl ModeId {
     pub fn label(self) -> &'static str {
         match self {
             ModeId::Data => "Data",
-            ModeId::Query => "Query",
             ModeId::Design => "Design",
             ModeId::Reports => "Reports",
             ModeId::Dashboards => "Dashboards",
@@ -59,7 +56,6 @@ impl ModeId {
     pub fn icon(self) -> IconName {
         match self {
             ModeId::Data => IconName::Database,
-            ModeId::Query => IconName::CodeXml,
             ModeId::Design => IconName::Shapes,
             ModeId::Reports => IconName::FileText,
             ModeId::Dashboards => IconName::LayoutDashboard,
@@ -96,9 +92,6 @@ pub fn build_view(
             .into(),
         ModeId::Data => cx
             .new(|cx| crate::ui::data::workbench::DataMode::new(shell.clone(), window, cx))
-            .into(),
-        ModeId::Query => cx
-            .new(|cx| crate::ui::query::QueryMode::new(shell.clone(), window, cx))
             .into(),
         ModeId::Design => cx
             .new(|cx| crate::ui::design::DesignStudio::new(shell.clone(), window, cx))

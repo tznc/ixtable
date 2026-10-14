@@ -1,4 +1,4 @@
-//! Query mode flows. Port of tests/integration/query-mode.test.tsx and
+//! Query editor flows on the Data page. Port of tests/integration/query-mode.test.tsx and
 //! tests/integration/action-queries.test.tsx. Imports are explicit: `gpui_kit::*`
 //! would shadow `#[test]`.
 
@@ -12,7 +12,7 @@ use super::{
 use crate::{
     archive::{ActionKind, ActionSpec, QueryParameter, SavedQuery},
     data::{DataValue, NamedValue},
-    ui::{shell::ModeId, testing::Harness},
+    ui::testing::Harness,
 };
 use gpui_kit::TestAppContext;
 use serde_json::json;
@@ -35,7 +35,7 @@ fn builds_a_joined_grouped_query_with_a_filter_parameter_previews_saves_reopens_
     cx: &mut TestAppContext,
 ) {
     let mut h = open_query_mode(cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     assert_eq!(with_mode(&mut h, |q, _| q.tab), Tab::Builder);
 
     pick(&mut h, "source-table", "orders");
@@ -96,9 +96,9 @@ fn builds_a_joined_grouped_query_with_a_filter_parameter_previews_saves_reopens_
     assert_eq!(aliases, ["o", "c"]);
     assert!(saved_query.sql.contains("GROUP BY \"c\".\"name\""));
 
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     assert!(!exists(&mut h, "col:o.amount"));
-    click(&mut h, &format!("query-open:{}", saved_query.id));
+    click(&mut h, &format!("query:{}", saved_query.id));
     assert!(exists(&mut h, "col:o.amount"));
     let model = with_mode(&mut h, |q, _| q.model()).unwrap();
     let amount_field = model.fields.iter().find(|f| f.column == "amount").unwrap();
@@ -135,7 +135,7 @@ fn builds_a_joined_grouped_query_with_a_filter_parameter_previews_saves_reopens_
 #[gpui_kit::test]
 fn saves_sql_with_a_required_parameter_and_rejects_mutating_sql_on_save(cx: &mut TestAppContext) {
     let mut h = open_query_mode(cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     click(&mut h, "tab-sql");
     type_sql(&mut h, "SELECT name FROM customers WHERE id >= $min ORDER BY id");
     assert_eq!(h.label("query-mode-badge"), "SQL");
@@ -166,16 +166,20 @@ fn saves_sql_with_a_required_parameter_and_rejects_mutating_sql_on_save(cx: &mut
     assert!(error.contains("migration"), "{error}");
     assert!(saved(&h)[0].sql.contains("SELECT"));
 
-    click(&mut h, &format!("query-duplicate:{}", first.id));
+    h.dialogs.queue_confirm(true);
+    click(&mut h, "query-duplicate");
     assert_eq!(draft_name(&mut h), "Customers from copy");
     let copy = saved(&h).into_iter().find(|q| q.name == "Customers from copy").expect("the copy is saved");
-    click(&mut h, &format!("query-rename:{}", copy.id));
-    fill(&mut h, "rename-input", "Second");
-    h.press("enter");
+    assert_eq!(h.read_shell(|s, _| s.selection.clone()).map(|s| s.id), Some(copy.id.clone()));
+    // Renaming is editing the name and saving.
+    fill(&mut h, "query-name", "Second");
+    click(&mut h, "query-save");
     assert!(saved(&h).iter().any(|q| q.name == "Second"));
-    click(&mut h, &format!("query-delete:{}", copy.id));
+    h.dialogs.queue_confirm(true);
+    click(&mut h, "query-delete");
     let names: Vec<String> = saved(&h).into_iter().map(|q| q.name).collect();
     assert_eq!(names, ["Customers from"]);
+    assert!(h.read_shell(|s, _| s.selection.is_none()), "the Data page goes back to the diagram");
 }
 
 #[gpui_kit::test]
@@ -195,7 +199,7 @@ fn saves_parameterized_sql_through_save_query_without_parameter_values(cx: &mut 
 #[gpui_kit::test]
 fn shows_progress_and_a_cancel_button_for_a_long_query_and_cancels_it(cx: &mut TestAppContext) {
     let mut h = open_query_mode(cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     click(&mut h, "tab-sql");
     type_sql(
         &mut h,
@@ -219,7 +223,7 @@ fn joins_on_several_conditions_with_an_outer_join_groups_by_and_sorts_on_fields_
     cx: &mut TestAppContext,
 ) {
     let mut h = open_query_mode(cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     pick(&mut h, "source-table", "orders");
     click(&mut h, "suggest-join:Join customers on o.customer_id = customers.id");
     click(&mut h, "join-kind:c");
@@ -288,8 +292,7 @@ fn orders(h: &mut Harness) {
 }
 
 fn author_update(h: &mut Harness) {
-    h.switch_mode(ModeId::Query);
-    click(h, "create-query");
+    click(h, "new-query");
     fill(h, "query-name", "Extend due dates");
     pick(h, "query-type", "update");
     pick(h, "target-table", "orders");
@@ -343,8 +346,7 @@ fn authors_previews_and_runs_an_action_query_in_query_mode(cx: &mut TestAppConte
 fn refuses_sql_that_writes_another_table_and_action_queries_as_read_sources(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     orders(&mut h);
-    h.switch_mode(ModeId::Query);
-    click(&mut h, "create-query");
+    click(&mut h, "new-query");
     pick(&mut h, "query-type", "delete");
     pick(&mut h, "target-table", "orders");
     type_sql(&mut h, "DROP TABLE orders");

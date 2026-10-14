@@ -25,7 +25,7 @@ fn open_new_document(cx: &mut gpui_kit::HeadlessAppContext) -> Harness<'_, gpui_
 fn query_builder() {
     let mut cx = context();
     let mut h = open_new_document(&mut cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     pick(&mut h, "source-table", "orders");
     click(&mut h, "suggest-join:Join customers on o.customer_id = customers.id");
     click(&mut h, "col:c.name");
@@ -79,7 +79,7 @@ fn query_builder() {
 fn query_group_by_multi_join() {
     let mut cx = context();
     let mut h = open_new_document(&mut cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     pick(&mut h, "source-table", "orders");
     click(&mut h, "suggest-join:Join customers on o.customer_id = customers.id");
     pick(&mut h, "join-kind:c", "left");
@@ -130,7 +130,7 @@ fn query_sql_editor() {
     let mut h = Harness::start(&mut cx);
     h.click("new-document");
     open_query(&mut h);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     click(&mut h, "tab-sql");
     type_sql(&mut h, "SELECT name FROM customers");
     assert_eq!(editor_text(&mut h), "SELECT name FROM customers");
@@ -139,7 +139,7 @@ fn query_sql_editor() {
     click(&mut h, "query-save");
     let saved = h.config().saved_queries;
     assert_eq!(saved.len(), 1);
-    assert!(exists(&mut h, &format!("query-open:{}", saved[0].id)));
+    assert!(exists(&mut h, &format!("query:{}", saved[0].id)));
     assert!(with_mode(&mut h, |q, _| q.draft().is_some_and(|d| !d.is_new)));
     h.capture(
         "app-qa-05-query",
@@ -147,6 +147,33 @@ fn query_sql_editor() {
             "The SQL editor has query naming, Run, Save, and Delete actions.",
             "Typed query results appear below the editor.",
             "The saved query appears selected in the sidebar without replacing table metadata.",
+        ],
+    );
+}
+
+#[test]
+#[ignore = "screenshot spec: run with `cargo screenshot`"]
+fn query_from_a_table() {
+    let mut cx = context();
+    let mut h = Harness::start(&mut cx);
+    h.click("new-document");
+    open_query(&mut h);
+    click(&mut h, "table:orders");
+    assert!(exists(&mut h, "query-table"));
+    h.capture(
+        "query-05-table-offers-query",
+        &[
+            "The Data page sidebar lists tables and, under Queries, saved queries; there is no Query mode in the rail.",
+            "The orders datasheet toolbar has a Query this table button.",
+        ],
+    );
+    click(&mut h, "query-table");
+    assert_eq!(h.label("query-draft"), "orders query (unsaved)");
+    h.capture(
+        "query-06-new-query-from-table",
+        &[
+            "The query editor fills the Data workspace with orders as the source table.",
+            "The sidebar lists 'orders query (unsaved)' selected under Queries.",
         ],
     );
 }
