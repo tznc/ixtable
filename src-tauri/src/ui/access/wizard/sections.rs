@@ -8,7 +8,7 @@ use crate::{
             AccessFormat, ItemStatus, items_needing_attention, kind_label, status_counts,
             total_rows,
         },
-        controls::badge,
+        display::{self, Tone, status_badge},
         forms::{self, eid},
         prelude::*,
         widgets::Severity,
@@ -78,7 +78,7 @@ impl AccessImportWizard {
                 (eid(format!("access-table:{}", t.name)), label, vec![t.name.clone(), t.columns.to_string(), count])
             })
             .collect();
-        block = block.child(widgets::data_table("access-tables", &["Table", "Fields", "Rows"], table_rows, cx));
+        block = block.child(display::data_table("access-tables", &["Table", "Fields", "Rows"], table_rows, cx));
         if compiled > 0 {
             block = block.child(widgets::callout(
                 "access-compiled",
@@ -177,7 +177,7 @@ impl AccessImportWizard {
             .gap_3()
             .child(verdict)
             .child(widgets::text("access-created", created))
-            .child(widgets::data_table(
+            .child(display::data_table(
                 "access-kinds",
                 &["Kind", "Converted", "Partly", "Not converted"],
                 kinds,
@@ -210,10 +210,14 @@ impl AccessImportWizard {
                                 format!("{} ({})", item.name, item.kind),
                                 |d| d.font_weight(FontWeight::SEMIBOLD).text_sm(),
                             ))
-                            .child(badge(
-                                format!("attention-status:{key}").into(),
+                            .child(status_badge(
+                                eid(format!("attention-status:{key}")),
                                 item.status.label(),
-                                item.status == ItemStatus::Skipped,
+                                match item.status {
+                                    ItemStatus::Skipped => Tone::Danger,
+                                    ItemStatus::Converted => Tone::Success,
+                                    ItemStatus::Partial => Tone::Warning,
+                                },
                                 cx,
                             )),
                     );

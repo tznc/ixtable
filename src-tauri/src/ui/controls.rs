@@ -276,23 +276,6 @@ pub fn error_line(id: impl Into<ElementId>, message: &str, cx: &App) -> impl Int
         .child(crate::ui::widgets::text(id, message.to_string()))
 }
 
-/// A small pill (id and label), red when `destructive`.
-pub fn badge(id: SharedString, label: &str, destructive: bool, cx: &App) -> impl IntoElement {
-    let theme = cx.theme();
-    let (bg, fg) = if destructive {
-        (theme.danger.opacity(0.15), theme.danger)
-    } else {
-        (theme.muted, theme.muted_foreground)
-    };
-    div()
-        .px_2()
-        .rounded_md()
-        .text_xs()
-        .bg(bg)
-        .text_color(fg)
-        .child(widgets::text(id, label.to_string()))
-}
-
 /// A muted note line.
 pub fn note(text: impl IntoElement, cx: &App) -> Div {
     div().text_sm().text_color(cx.theme().muted_foreground).child(text)

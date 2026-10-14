@@ -129,19 +129,9 @@ impl Render for ImpactDialog {
                         SharedString::from(format!("impact-op:{i}")),
                         op.summary.clone(),
                     )))
-                    .child(crate::ui::controls::badge(
-                        SharedString::from(format!("impact-op-mode:{i}")),
-                        mode_label(change_mode_key(&op.mode)),
-                        false,
-                        cx,
-                    ))
+                    .child(crate::ui::display::status_badge(SharedString::from(format!("impact-op-mode:{i}")), mode_label(change_mode_key(&op.mode)), crate::ui::display::Tone::Neutral, cx))
                     .when(op.destructive, |el| {
-                        el.child(crate::ui::controls::badge(
-                            SharedString::from(format!("impact-op-destructive:{i}")),
-                            "Destructive",
-                            true,
-                            cx,
-                        ))
+                        el.child(crate::ui::display::status_badge(SharedString::from(format!("impact-op-destructive:{i}")), "Destructive", crate::ui::display::Tone::Danger, cx))
                     })
             })));
             if plan.rebuild {

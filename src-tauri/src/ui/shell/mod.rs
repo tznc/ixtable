@@ -20,7 +20,9 @@ use crate::{
         dialogs,
         events::{DocBus, DocEvent},
         store::{ConfigStore, StoreEvent},
-        task, widgets,
+        task,
+        toast::{self, Toast},
+        widgets,
     },
 };
 use gpui_kit::assets::IconName;
@@ -150,7 +152,7 @@ pub struct Shell {
     pub pending: Option<String>,
     pub error: Option<AppError>,
     dismissed_store_error: Option<String>,
-    pub notice: Option<String>,
+    pub notice: Option<Toast>,
     pub objects: Vec<DbObject>,
     pub metadata_loading: bool,
     pub metadata_error: Option<String>,
@@ -290,9 +292,14 @@ impl Shell {
         }
     }
 
+    /// A neutral toast, such as "Save canceled."
     pub fn set_notice(&mut self, notice: impl Into<String>, cx: &mut Context<Self>) {
-        self.notice = Some(notice.into());
-        cx.notify();
+        self.toast(Toast::info(notice), cx);
+    }
+
+    /// Shows a toast in the corner of the window; it dismisses itself.
+    pub fn toast(&mut self, toast: Toast, cx: &mut Context<Self>) {
+        toast::show(self, |s| &mut s.notice, toast, cx);
     }
 
     pub fn set_error(&mut self, error: Option<AppError>, cx: &mut Context<Self>) {
@@ -423,8 +430,7 @@ impl Shell {
             task::after(cx, pick, move |this, path, cx| match path {
                 None => {
                     this.pending = None;
-                    this.notice = Some("Save canceled.".into());
-                    cx.notify();
+                    this.set_notice("Save canceled.", cx);
                 }
                 Some(path) => this.run_save(move || {
                     crate::save_document_as(label, path.to_string_lossy().into_owned())
@@ -807,7 +813,7 @@ impl Render for Shell {
                     })
                     .when_some(self.notice.clone(), |el, n| {
                         let entity = cx.entity();
-                        el.child(div().p_2().child(widgets::notice_banner(
+                        el.child(toast::render(
                             &n,
                             move |_, cx| {
                                 entity.update(cx, |this, cx| {
@@ -815,8 +821,9 @@ impl Render for Shell {
                                     cx.notify();
                                 })
                             },
+                            window,
                             cx,
-                        )))
+                        ))
                     })
                     .child(
                         div()
@@ -894,9 +901,7 @@ impl Shell {
                     if discard {
                         proceed(this, cx);
                     } else {
-                        this.notice =
-                            Some(format!("Kept {name} open; {target_name} was not opened."));
-                        cx.notify();
+                        this.set_notice(format!("Kept {name} open; {target_name} was not opened."), cx);
                     }
                 });
             },
