@@ -80,9 +80,7 @@ impl ProblemsTab {
     }
 }
 
-fn plural(n: usize, word: &str) -> String {
-    format!("{n} {word}{}", if n == 1 { "" } else { "s" })
-}
+use crate::ui::widgets::plural;
 
 impl Problem {
     fn is_error(&self) -> bool {

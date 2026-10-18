@@ -306,16 +306,20 @@ impl Drop for Runtime {
     }
 }
 
-/// A status or error line (`role="status"` / `role="alert"` in the web UI).
+/// A status line, or for an error a danger callout (`role="status"` / `role="alert"` in
+/// the web UI). The text is observed under `id` either way.
 pub fn message(
     id: impl Into<ElementId>,
     text: impl Into<SharedString>,
     error: bool,
     cx: &App,
-) -> impl IntoElement {
-    let theme = cx.theme();
-    let color = if error { theme.danger } else { theme.muted_foreground };
-    widgets::styled_text(id, text, move |d| d.text_sm().text_color(color))
+) -> AnyElement {
+    let text: SharedString = text.into();
+    if error {
+        return widgets::callout(id, widgets::Severity::Danger, &text, None, cx).into_any_element();
+    }
+    let muted = cx.theme().muted_foreground;
+    widgets::styled_text(id, text, move |d| d.text_sm().text_color(muted)).into_any_element()
 }
 
 /// What every runtime view needs: the window label, the config store, the document bus and,

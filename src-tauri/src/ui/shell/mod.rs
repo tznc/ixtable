@@ -648,7 +648,14 @@ impl Shell {
                     .overflow_y_scroll()
                     .when_some(sidebar, |el, s| el.child(s)),
             )
-            .child(self.render_save_status(cx))
+            .when(self.shows_save_status(cx), |el| el.child(self.render_save_status(cx)))
+    }
+
+    /// The footer line only adds to the header's "Not saved" chip once the document has
+    /// a file (autosave) or a save is running or failed.
+    fn shows_save_status(&self, cx: &App) -> bool {
+        let status = self.autosave.read(cx).status;
+        self.doc.path.is_some() || matches!(status, SaveStatus::Saving | SaveStatus::Error)
     }
 
     /// One chip for the document's save state (`document-status`): "Not saved" until
@@ -667,11 +674,9 @@ impl Shell {
 
     fn render_save_status(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let autosave = self.autosave.read(cx);
-        let has_path = self.doc.path.is_some();
         let text = match autosave.status {
             SaveStatus::Saving => "Saving…".to_string(),
-            SaveStatus::Dirty if has_path => "Unsaved changes".to_string(),
-            SaveStatus::Dirty => "Unsaved changes. Save once to turn on autosave".to_string(),
+            SaveStatus::Dirty => "Unsaved changes".to_string(),
             SaveStatus::Clean => "All changes saved".to_string(),
             SaveStatus::Saved => match &autosave.last_saved_at {
                 Some(at) => format!("Saved at {}", saved_time(at)),

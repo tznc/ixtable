@@ -281,7 +281,10 @@ impl ReportPreview {
                                 .file_name()
                                 .map_or_else(|| path.clone(), |f| f.to_string_lossy().into_owned());
                             let text = format!("Exported {file}{placeholders}");
-                            this.shell.update(cx, |shell, cx| shell.toast(crate::ui::toast::Toast::success(text), cx));
+                            let reveal = std::path::PathBuf::from(&path);
+                            let toast = crate::ui::toast::Toast::success(text)
+                                .action("Show in folder", move |_, cx| dialogs::reveal(cx, reveal.clone()));
+                            this.shell.update(cx, |shell, cx| shell.toast(toast, cx));
                         }
                         Err(e) => this.error = e.message,
                     }

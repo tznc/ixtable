@@ -36,6 +36,8 @@ use crate::{
             message, BackLink, RuntimeEnv,
         },
         shell::Shell,
+        toast::Toast,
+        widgets::Severity,
     },
 };
 use serde_json::{Map, Value};
@@ -69,7 +71,8 @@ pub struct PageView {
     debounce: u64,
     pub loader: Loader,
     pub(super) pages: HashMap<String, usize>,
-    pub notice: Option<(String, bool)>,
+    /// The last button error, shown above the grid until the next run.
+    pub notice: Option<String>,
     pub(super) options: HashMap<String, Vec<String>>,
     options_asked: HashSet<String>,
     pub(super) inputs: Inputs<PageView, String>,
@@ -193,12 +196,15 @@ impl PageView {
         self.loader.cancel(&label, &runner);
     }
 
+    /// A note from a dashboard button: a toast for news, an inline error callout above
+    /// the grid for a failure (design-language.md, "Toast").
     pub(super) fn say(&mut self, text: impl Into<String>, error: bool, cx: &mut Context<Self>) {
         let text = text.into();
-        self.notice = Some((text.clone(), error));
-        if self.env.attached() {
-            let tone = if error { NoticeTone::Error } else { NoticeTone::Info };
-            self.env.notify(text, tone, cx);
+        if error {
+            self.notice = Some(text);
+        } else {
+            self.notice = None;
+            self.shell.update(cx, |shell, cx| shell.toast(Toast::info(text), cx));
         }
         cx.notify();
     }
@@ -576,7 +582,9 @@ impl Render for PageView {
                     .on_click(cx.listener(|this, _, _, cx| this.refresh(cx))),
             );
         let progress = self.render_progress(cx);
-        let notice = self.notice.clone().map(|(text, error)| message("dash-notice", text, error, cx));
+        let notice = self.notice.clone().map(|text| {
+            div().px_3().child(widgets::callout("dash-notice", Severity::Danger, &text, None, cx))
+        });
         let grid = if dashboard.components.is_empty() {
             message("dash-empty", "This dashboard has no components yet.", false, cx).into_any_element()
         } else {
