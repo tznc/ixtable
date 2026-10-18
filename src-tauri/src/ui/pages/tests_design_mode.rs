@@ -212,3 +212,19 @@ fn a_page_button_opens_its_target_page_in_the_runtime_with_the_values(cx: &mut T
     crate::ui::reports::test_support::wait_until(&mut h, "the detail page", |h| h.try_label(id("text:Note:0")).is_some());
     assert_eq!(h.label(id("text:Note:0")), "East detail");
 }
+
+#[gpui_kit::test]
+fn a_form_not_on_a_page_does_not_name_another_page_in_the_back_link(cx: &mut TestAppContext) {
+    let mut h = tall_document(cx);
+    crate::ui::reports::test_support::edit_store(&mut h, |c| {
+        let mut loose = c.design.forms[0].clone();
+        loose.id = "loose".into();
+        loose.name = "Loose form".into();
+        c.design.forms.push(loose);
+    });
+    open_dashboards(&mut h);
+    h.click("loose-form:loose");
+    assert_eq!(focus(&mut h), Focus::Form);
+    // The page that is selected does not show this form, so the back link goes to the pages.
+    assert_eq!(h.label("back-to-page"), "Back to pages");
+}

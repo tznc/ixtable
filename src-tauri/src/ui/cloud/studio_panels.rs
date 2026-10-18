@@ -267,7 +267,7 @@ impl RolesPanel {
                 let reply = services
                     .invoke("roles-sync", json!({ "appId": app_id, "roles": role_payload(&config) }))?;
                 contract::roles_sync(&reply)?;
-                Ok(format!("Synced {count} role(s) to ixtable Cloud."))
+                Ok(format!("Synced {} to ixtable Cloud.", widgets::plural(count, "role")))
             },
             |this, result, cx| {
                 this.action.finish(result);
@@ -285,8 +285,9 @@ impl Render for RolesPanel {
             .child(widgets::text(
                 "roles-count",
                 format!(
-                    "{count} role(s) defined in the Roles tab. Invited runtime users get one of \
-                     them; ixtable enforces it in navigation, forms, reports, dashboards, and actions."
+                    "{} defined in the Roles tab. Invited runtime users get one of \
+                     them; ixtable enforces it in navigation, forms, reports, dashboards, and actions.",
+                    widgets::plural(count, "role")
                 ),
             ))
             .child(

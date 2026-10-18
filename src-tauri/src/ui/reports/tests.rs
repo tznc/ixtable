@@ -135,6 +135,7 @@ fn sets_pagination_controls_in_the_designer_and_keeps_tables_out_of_page_bands(c
     assert!(!report(&h).bands.groups[0].new_page);
 
     h.click("band-reportHeader");
+    assert_eq!(h.label("band-properties"), "Report header");
     h.click("band-break-after");
     assert!(report(&h).bands.report_header.page_break_after);
 

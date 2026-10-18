@@ -235,7 +235,7 @@ fn an_organization_name_is_required_when_the_user_has_none(cx: &mut TestAppConte
     let mut h = Harness::new_document(cx);
     open_cloud_tab(&mut h);
     h.click("link-create");
-    assert!(h.label("link-error").contains("Name the new organization."));
+    assert!(h.label("link-error-body").contains("Name the new organization."));
     assert!(calls(&state, "apps-create").is_empty());
     assert!(h.config().cloud.is_none());
 }
@@ -252,10 +252,10 @@ fn links_an_existing_application_only_to_its_owner(cx: &mut TestAppContext) {
     open_cloud_tab(&mut h);
     h.fill("link-existing", "missing");
     h.click("link-existing-submit");
-    assert!(h.label("link-error").starts_with("NOT_FOUND"));
+    assert!(h.label("link-error").contains("not found"));
     h.fill("link-existing", "app-1");
     h.click("link-existing-submit");
-    assert!(h.label("link-error").starts_with("FORBIDDEN"));
+    assert!(h.label("link-error").contains("not allowed"));
     assert!(h.config().cloud.is_none());
 
     state.lock().unwrap().app = Some(app("u1"));
@@ -293,9 +293,9 @@ fn syncs_the_roles_to_the_cloud(cx: &mut TestAppContext) {
     edit(&mut h, |c| {
         c.roles = vec![Role { id: "role-1".into(), name: "Sales".into(), permissions: Default::default() }];
     });
-    assert!(text(&mut h, "roles-count").starts_with("1 role(s) defined"));
+    assert!(text(&mut h, "roles-count").starts_with("1 role defined"));
     tap(&mut h, "roles-sync");
-    assert_eq!(text(&mut h, "roles-notice"), "Synced 1 role(s) to ixtable Cloud.");
+    assert_eq!(text(&mut h, "roles-notice"), "Synced 1 role to ixtable Cloud.");
     let body = &calls(&state, "roles-sync")[0];
     assert_eq!(body["appId"], "app-1");
     assert_eq!(body["roles"][0]["name"], "Sales");
@@ -306,7 +306,7 @@ fn a_failed_role_sync_explains_why(cx: &mut TestAppContext) {
     let (mut h, state) = linked_studio(cx);
     reply(&state, "roles-sync", vec![Err(CloudError::new("FORBIDDEN", "Not your app"))]);
     tap(&mut h, "roles-sync");
-    assert!(text(&mut h, "roles-error").starts_with("FORBIDDEN"));
+    assert!(text(&mut h, "roles-error").contains("not allowed"));
 }
 
 #[gpui_kit::test]
@@ -322,7 +322,7 @@ fn uploads_a_shared_and_a_per_user_postgres_credential(cx: &mut TestAppContext) 
     assert_eq!(text(&mut h, "cred-notice"), "Shared credential encrypted and uploaded.");
     tap(&mut h, "cred-scope-user");
     tap(&mut h, "cred-upload");
-    assert!(text(&mut h, "cred-error").starts_with("VALIDATION"));
+    assert!(text(&mut h, "cred-error").contains("rejected"));
     fill(&mut h, "cred-user-id", "u-2");
     fill(&mut h, "cred-username", "alice_db");
     fill(&mut h, "cred-password", "alice-pw-77");
@@ -395,6 +395,7 @@ fn blockers_from_the_preflight_stop_publishing(cx: &mut TestAppContext) {
     assert_eq!(text(&mut h, "preflight-blocker:0"), "The archive is over the cloud limit");
     assert_eq!(text(&mut h, "preflight-blockers"), "Publishing is blocked");
     assert_eq!(text(&mut h, "preflight-warning:0"), "SEVERE: the credential is shared");
+    assert_eq!(text(&mut h, "preflight-largest-heading"), "Largest files");
     tap(&mut h, "publish-submit");
     assert!(calls(&state, "publish-checkpoint").is_empty());
     // Fixing it and checking again lifts the block.
@@ -464,7 +465,7 @@ fn an_unsaved_document_must_be_saved_before_publishing(cx: &mut TestAppContext) 
     });
     open_cloud_tab(&mut h);
     tap(&mut h, "publish-submit");
-    assert!(text(&mut h, "publish-error").starts_with("SAVE_REQUIRED"));
+    assert!(text(&mut h, "publish-error").starts_with("Save the document first"));
     assert!(!state.lock().unwrap().log.iter().any(|l| l.starts_with("upload:")));
 }
 
@@ -482,6 +483,10 @@ fn a_moved_history_offers_overwrite_or_fork_and_cancel_changes_nothing(cx: &mut 
     tap(&mut h, "conflict-cancel");
     assert!(!h.exists("publish-conflict"));
     assert!(calls(&state, "versions-resolve").is_empty());
+    assert_eq!(text(&mut h, "publish-error"), "Someone published a newer version. Reload to see it.");
+    assert!(!h.exists("publish-error-details"), "the technical detail starts collapsed");
+    tap(&mut h, "publish-error-details-toggle");
+    assert_eq!(text(&mut h, "publish-error-details"), "Error code VERSION_CONFLICT\nHead moved");
 
     // Overwrite publishes this document as the newest version anyway.
     tap(&mut h, "publish-submit");
@@ -603,7 +608,10 @@ fn shows_the_backup_size_first_and_blocks_an_over_limit_archive(cx: &mut TestApp
     tap(&mut h, "backup-start");
     assert_eq!(text(&mut h, "backup-size"), "Back up to ixtable Cloud?");
     assert!(text(&mut h, "backup-size-over-limit").starts_with("Over the cloud limit"));
+    assert_eq!(text(&mut h, "backup-size-largest-heading"), "Largest files");
     assert_eq!(text(&mut h, "backup-size-largest:0"), "photos/site.jpg (assets) 512 B");
+    // The listed files do not make up the total, so the rest is named.
+    assert!(text(&mut h, "backup-size-largest-other").starts_with("Everything else"));
     tap(&mut h, "backup-confirm");
     assert!(!state.lock().unwrap().log.iter().any(|l| l.starts_with("upload:")));
     tap(&mut h, "backup-size-cancel");
@@ -700,7 +708,10 @@ fn a_cloud_session_shows_the_cloud_block_instead_of_the_bundle_block(cx: &mut Te
     assert_eq!(h.label("cloud-runtime-name"), "Orders");
     assert_eq!(h.label("cloud-runtime-version"), "Version 1.0.0");
     assert_eq!(h.label("cloud-runtime-role"), "Role: Sales");
-    assert_eq!(h.label("cloud-license"), "Licensed to ada@example.com · fingerprint f");
+    assert_eq!(h.label("cloud-license"), "Licensed to ada@example.com");
+    assert!(!h.exists("cloud-fingerprint"));
+    h.click("cloud-license-details-toggle");
+    assert_eq!(h.label("cloud-fingerprint"), "Fingerprint f");
     // The bundle block would offer a manual update.
     assert!(!h.exists("check-update"));
     assert!(!h.exists("cloud-grant"), "SQLite installations have no key grant");

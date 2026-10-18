@@ -67,7 +67,7 @@ fn record_action<C: UiContext>(h: &mut Harness<'_, C>, name: &str, kind: &str, t
 }
 
 fn job_with<C: UiContext>(h: &mut Harness<'_, C>, status: &str) -> Option<usize> {
-    (1..=6usize).find(|n| h.try_label(id(&format!("job-{n}-status"))).as_deref() == Some(status))
+    (1..=6usize).find(|n| h.try_label(id(&format!("job-{n}-status"))).is_some_and(|s| s.eq_ignore_ascii_case(status)))
 }
 
 #[test]
@@ -162,14 +162,14 @@ fn automation_triggers_and_jobs() {
     let failed = job_with(&mut h, "failed").unwrap();
     h.click(id(&format!("job-{failed}-history")));
     wait_until(&mut h, "the attempt history", |h| {
-        h.try_label(id(&format!("job-{failed}-attempt-1"))).is_some_and(|l| l.starts_with("Attempt 1: failed"))
+        h.try_label(id(&format!("job-{failed}-attempt-1-result"))).is_some_and(|l| l == "Failed")
     });
     assert!(shown(&DataValue::Text(h.label(id(&format!("job-{failed}-error"))))).contains("add number and text"));
     h.capture(
         "automation-05-jobs-history",
         &[
             "The Jobs tab lists one succeeded job and one failed job with its error 'add number and text'.",
-            "The failed job's attempt history is expanded with Attempt 1: failed, and offers Retry.",
+            "The failed job's attempt history is expanded with attempt 1 marked Failed, and offers Retry.",
         ],
     );
 }

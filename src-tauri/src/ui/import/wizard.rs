@@ -357,7 +357,7 @@ impl Render for ImportWizard {
                 .child(badge_text(
                     widgets::text(
                         "import-status",
-                        format!("{} rows \u{b7} showing the first {shown}", thousands(preview.total_rows)),
+                        format!("{} \u{b7} showing the first {shown}", widgets::plural(preview.total_rows as usize, "row")),
                     ),
                     cx,
                 ))
@@ -451,7 +451,7 @@ impl Render for ImportWizard {
         }
         if let Some(report) = &self.report {
             let skipped = if report.failed > 0 {
-                format!(" {} rows were skipped.", thousands(report.failed))
+                format!(" {} {} skipped.", widgets::plural(report.failed as usize, "row"), if report.failed == 1 { "was" } else { "were" })
             } else {
                 String::new()
             };
@@ -461,9 +461,9 @@ impl Render for ImportWizard {
                     .child(widgets::text(
                         "import-summary",
                         format!(
-                            "Imported {} of {} rows into {}.{skipped}",
+                            "Imported {} of {} into {}.{skipped}",
                             thousands(report.imported),
-                            thousands(report.total_rows),
+                            widgets::plural(report.total_rows as usize, "row"),
                             report.table
                         ),
                     ))
@@ -471,8 +471,8 @@ impl Render for ImportWizard {
                         el.child(div().text_color(cx.theme().danger).child(widgets::text(
                             "import-aborted",
                             format!(
-                                "The import stopped after {} rows: {aborted}",
-                                thousands(report.total_rows)
+                                "The import stopped after {}: {aborted}",
+                                widgets::plural(report.total_rows as usize, "row")
                             ),
                         )))
                     })

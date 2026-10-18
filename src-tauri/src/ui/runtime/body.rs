@@ -305,11 +305,7 @@ fn tab_group(ctx: &BodyContext, control: &Control, window: &mut Window, cx: &mut
                 tab.label.clone()
             };
             let (state, id) = (state.clone(), tab.id.clone());
-            Button::new(SharedString::from(format!("{prefix}tab:{}", widgets::slug(&tab.label))))
-                .ghost()
-                .small()
-                .label(label)
-                .selected(tab.id == active)
+            widgets::tab_button(SharedString::from(format!("{prefix}tab:{}", widgets::slug(&tab.label))), label, tab.id == active, cx)
                 .on_click(move |_, _, cx| {
                     let id = id.clone();
                     state.update(cx, |s, cx| {

@@ -309,10 +309,9 @@ impl Render for CreateTableForm {
                 let entity = entity.clone();
                 let entity2 = entity.clone();
                 h_flex()
-                    .flex_wrap()
                     .gap_2()
                     .items_center()
-                    .child(row.fields.clone())
+                    .child(div().flex_1().min_w_0().child(row.fields.clone()))
                     .child(check(
                         SharedString::from(format!("Column {n} primary key")),
                         "Primary key",

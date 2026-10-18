@@ -10,7 +10,6 @@ use super::{Selection, SelectionKind, Shell};
 use crate::manager::AppError;
 use crate::ui::widgets;
 use gpui_kit::assets::IconName;
-use crate::ui::widgets::StartAligned as _;
 use gpui_kit::component::{
     ActiveTheme as _, Icon, Selectable as _, Sizable as _,
     button::{Button, ButtonVariants as _},
@@ -54,6 +53,8 @@ struct Item {
     kind: SelectionKind,
     id: String,
     name: String,
+    /// A short tag shown as a badge after the name ("action", "read-only", "unsaved").
+    tag: Option<&'static str>,
     /// Element id of the row (`table:<name>`, `query:<id>`, `query-draft`).
     key: String,
 }
@@ -78,11 +79,8 @@ impl Render for ObjectBrowser {
                     SelectionKind::Table
                 },
                 id: o.name.clone(),
-                name: if o.object_type == "view" {
-                    format!("{} (read-only)", o.name)
-                } else {
-                    o.name.clone()
-                },
+                name: o.name.clone(),
+                tag: (o.object_type == "view").then_some("read-only"),
                 key: format!("{}:{}", o.object_type, o.name),
             })
             .collect();
@@ -94,11 +92,8 @@ impl Render for ObjectBrowser {
             .map(|q| Item {
                 kind: SelectionKind::Query,
                 id: q.id.clone(),
-                name: match (q.name.is_empty(), q.action.is_some()) {
-                    (true, _) => "Untitled query".to_string(),
-                    (false, true) => format!("{} (action)", q.name),
-                    (false, false) => q.name.clone(),
-                },
+                name: if q.name.is_empty() { "Untitled query".to_string() } else { q.name.clone() },
+                tag: (!q.name.is_empty() && q.action.is_some()).then_some("action"),
                 key: format!("query:{}", q.id),
             })
             .collect();
@@ -107,7 +102,8 @@ impl Render for ObjectBrowser {
             queries.push(Item {
                 kind: SelectionKind::NewQuery,
                 id: id.clone(),
-                name: format!("{name} (unsaved)"),
+                name: name.clone(),
+                tag: Some("unsaved"),
                 key: "query-draft".into(),
             });
         }
@@ -170,13 +166,38 @@ impl Render for ObjectBrowser {
                         SelectionKind::Query | SelectionKind::NewQuery => IconName::CodeXml,
                         _ => IconName::Table2,
                     };
+                    let full = match item.tag {
+                        Some(tag) => format!("{} ({tag})", item.name),
+                        None => item.name.clone(),
+                    };
+                    // The name truncates; the tag badge stays visible.
                     Button::new(SharedString::from(item.key))
                         .ghost()
                         .small()
                         .w_full()
-                        .icon(Icon::new(icon))
-                        .start_label(None, item.name.clone())
-                        .tooltip(item.name)
+                        .accessibility_label(full.clone())
+                        .child(
+                            h_flex()
+                                .w_full()
+                                .min_w_0()
+                                .gap_1()
+                                .items_center()
+                                .child(Icon::new(icon).small())
+                                .child(div().min_w_0().overflow_hidden().whitespace_nowrap().text_ellipsis().child(item.name.clone()))
+                                .when_some(item.tag, |row, tag| {
+                                    row.child(
+                                        div()
+                                            .flex_none()
+                                            .px_1()
+                                            .rounded_sm()
+                                            .bg(muted.opacity(0.15))
+                                            .text_xs()
+                                            .text_color(muted)
+                                            .child(tag),
+                                    )
+                                }),
+                        )
+                        .tooltip(full)
                         .selected(selected)
                         .on_click(move |_, _, cx| {
                             let selection = selection.clone();

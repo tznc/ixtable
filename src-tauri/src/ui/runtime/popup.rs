@@ -1,6 +1,7 @@
 //! Popup forms (port of `PopupHost.tsx` and `popup.ts`): an `openForm` step with `popup`
 //! shows the form in a modal over the running app, newest on top. A popup closes with the
-//! record it saved, with a `closeForm` step's value, or with nothing when dismissed (Close).
+//! record it saved, with a `closeForm` step's value, or with nothing when dismissed (Close,
+//! or the form's own Cancel in create mode, where no Close button is shown).
 //! The waiting action gets the value through the `Runtime`'s popup list (see `host.rs`).
 //!
 //! Test ids: `popup:<n>` (labelled with the form name; n counts popups opened in the
@@ -74,6 +75,8 @@ impl Render for PopupHost {
             }
             let renderer = self.shown[&id].clone();
             let runtime = self.runtime.clone();
+            // A create form has its own Cancel, which closes the popup; a second Close is redundant.
+            let has_cancel = target.mode.as_deref() == Some("create");
             layers.push(
                 div()
                     .absolute()
@@ -96,7 +99,7 @@ impl Render for PopupHost {
                             .border_color(theme.border)
                             .bg(theme.background)
                             .child(div().id(SharedString::from(format!("popup-body:{id}"))).flex_1().min_h_0().overflow_y_scroll().child(renderer))
-                            .child(
+                            .when(!has_cancel, |d| d.child(
                                 h_flex().justify_end().child(
                                     Button::new(SharedString::from(format!("popup-close:{id}")))
                                         .label("Close")
@@ -104,7 +107,7 @@ impl Render for PopupHost {
                                             runtime.update(cx, |r, cx| r.close_popup_by_id(id, None, cx));
                                         }),
                                 ),
-                            )
+                            ))
                             .test_support(),
                     ),
             );

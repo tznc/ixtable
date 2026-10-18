@@ -589,16 +589,19 @@ impl Render for ListView {
                         h_flex()
                             .gap_2()
                             .items_center()
-                            .child(
-                                Button::new("search-column")
-                                    .outline()
-                                    .small()
-                                    .label(self.label_of(&effective, cx))
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.column_menu = !this.column_menu;
-                                        cx.notify();
-                                    })),
-                            )
+                            // No columns to pick from means no empty column button beside Search.
+                            .when(!effective.is_empty(), |d| {
+                                d.child(
+                                    Button::new("search-column")
+                                        .outline()
+                                        .small()
+                                        .label(self.label_of(&effective, cx))
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.column_menu = !this.column_menu;
+                                            cx.notify();
+                                        })),
+                                )
+                            })
                             .child(div().w(px(220.)).child(
                                 Input::new(&self.search).id("search").aria_label(format!("Search {name}")),
                             ))

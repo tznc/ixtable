@@ -2,9 +2,13 @@
 //! and the plain-language summaries shown with them. Port of src/cloud/errors.ts and
 //! CloudErrorNotice.tsx.
 //!
-//! Test id of the notice: `<id>` (label "CODE: summary detail").
+//! Test ids of the notice: `<id>` (headline), `<id>-body`, `<id>-details`.
 
-use crate::{manager::AppError, ui::prelude::*};
+use super::disclosure::disclosure;
+use crate::{
+    manager::AppError,
+    ui::{forms::eid, prelude::*},
+};
 use serde_json::Value;
 
 /// A failed cloud operation. `status` and `details` come from the server's reply.
@@ -170,23 +174,62 @@ pub fn cloud_error_summary(code: &str) -> &'static str {
     }
 }
 
-/// An alert for a failed cloud operation: plain-language summary plus the server detail.
+/// The plain headline of a cloud error.
+pub fn cloud_error_headline(error: &CloudError) -> &'static str {
+    match error.code.as_str() {
+        "VERSION_CONFLICT" => "Someone published a newer version. Reload to see it.",
+        code => cloud_error_summary(code),
+    }
+}
+
+/// An alert for a failed cloud operation: a plain-language headline (observed under `id`),
+/// the server's message under `<id>-body` (except for a version conflict, whose message is
+/// technical), and the error code and technical detail behind "Show details"
+/// (`<id>-details`, toggle `<id>-details-toggle`).
 pub fn cloud_error_notice(id: impl Into<ElementId>, error: &CloudError, cx: &App) -> Div {
-    let summary = cloud_error_summary(&error.code);
-    let detail = if error.message.is_empty() || error.message == summary {
-        String::new()
-    } else {
-        format!(" {}", error.message)
-    };
+    let id: ElementId = id.into();
+    let headline = cloud_error_headline(error);
+    let technical = error.code == "VERSION_CONFLICT";
+    let show_message = !technical && !error.message.is_empty() && error.message != headline;
     let theme = cx.theme();
-    div()
+    let color = theme.danger;
+    let mut details = format!("Error code {}", error.code);
+    if technical && !error.message.is_empty() {
+        details.push_str(&format!("\n{}", error.message));
+    }
+    let details_id = format!("{id}-details");
+    let body_id = format!("{id}-body");
+    h_flex()
         .w_full()
-        .p_2()
+        .gap_2()
+        .items_start()
+        .px_3()
+        .py_2()
         .rounded_md()
         .border_1()
-        .border_color(theme.danger)
-        .text_color(theme.danger)
-        .child(widgets::text(id, format!("{}: {summary}{detail}", error.code)))
+        .border_color(color.opacity(0.35))
+        .bg(color.opacity(0.08))
+        .text_sm()
+        .child(div().pt_0p5().text_color(color).child(Icon::new(IconName::CircleX).small()))
+        .child(
+            v_flex()
+                .flex_1()
+                .min_w_0()
+                .gap_0p5()
+                .child(widgets::styled_text(id, headline.to_string(), |d| d.font_weight(FontWeight::SEMIBOLD)))
+                .when(show_message, |col| col.child(widgets::text(eid(body_id), error.message.clone())))
+                .child(disclosure(
+                    &details_id,
+                    "details",
+                    || {
+                        widgets::styled_text(eid(details_id.clone()), details, |d| {
+                            d.text_xs().text_color(theme.muted_foreground)
+                        })
+                        .into_any_element()
+                    },
+                    cx,
+                )),
+        )
 }
 
 #[cfg(test)]

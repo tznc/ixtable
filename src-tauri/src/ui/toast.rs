@@ -1,5 +1,6 @@
 //! Transient feedback (docs/decisions/design-language.md): a small card in the
-//! bottom-right corner that never moves the layout and dismisses itself.
+//! top-right corner (below the title bar, clear of dialog footers and the bottom-right
+//! pager) that never moves the layout and dismisses itself.
 //!
 //! Test ids: the text is observed under `notice`, the optional action button is
 //! `notice-action`, and the close button `dismiss-notice`.
@@ -10,6 +11,9 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
     time::Duration,
 };
+
+/// Distance from the window top, so the toast sits below the title bar.
+const TOP_OFFSET: Pixels = px(56.);
 
 type Run = Rc<dyn Fn(&mut Window, &mut App)>;
 
@@ -81,7 +85,7 @@ pub fn show<V: 'static>(
     .detach();
 }
 
-/// The toast, floating over the bottom-right corner of the window.
+/// The toast, floating over the top-right corner of the window.
 pub fn render(
     toast: &Toast,
     on_dismiss: impl Fn(&mut Window, &mut App) + 'static,
@@ -127,8 +131,8 @@ pub fn render(
         .test_support();
     deferred(
         anchored()
-            .position(point(viewport.width - px(16.), viewport.height - px(16.)))
-            .anchor(Anchor::BottomRight)
+            .position(point(viewport.width - px(16.), TOP_OFFSET))
+            .anchor(Anchor::TopRight)
             .child(card),
     )
     .with_priority(2)

@@ -80,6 +80,12 @@ fn code<T>(result: Result<T, crate::manager::AppError>) -> String {
     result.map_or_else(|e| e.code, |_| "OK".into())
 }
 
+/// The bundle error callout's headline and message (the error code is not shown).
+fn bundle_error_text(h: &mut Harness) -> String {
+    let headline = h.label("bundle-error-headline");
+    format!("{headline} {}", h.label("bundle-error"))
+}
+
 #[gpui_kit::test]
 fn exports_from_studio_opens_runtime_only_and_updates_keeping_runtime_records(
     cx: &mut TestAppContext,
@@ -143,9 +149,12 @@ fn exports_from_studio_opens_runtime_only_and_updates_keeping_runtime_records(
     h.click("check-update");
     // An older version is refused before any confirm step; the installation is untouched.
     assert!(!h.exists("update-confirm"));
-    let error = h.error_at("bundle-error");
-    assert!(error.starts_with("BUNDLE_DOWNGRADE: A newer version"), "{error}");
+    let error = bundle_error_text(&mut h);
+    assert!(error.starts_with("A newer version"), "{error}");
     assert!(error.ends_with("Installed: 1.1.0. This file: 1.0.0."), "{error}");
+    assert!(!error.contains("BUNDLE_DOWNGRADE") && !h.exists("bundle-error-code"));
+    // The earlier success toast is cleared when the refusal shows.
+    assert!(h.notice().is_none());
     assert_eq!(h.label("runtime-version"), "Version 1.1.0");
     assert_eq!(customer_names(&h), ["Ada", "Runtime Rita"]);
 }
@@ -164,7 +173,7 @@ fn asks_for_the_password_of_a_protected_bundle_and_explains_a_wrong_one(cx: &mut
     assert_eq!(h.label("bundle-password"), "Password for Untitled 2.0.0");
     h.fill("bundle-password-input", "wrong password");
     h.click("bundle-unlock");
-    assert!(h.error_at("bundle-error").contains("The password is incorrect."));
+    assert!(bundle_error_text(&mut h).contains("The password is incorrect."));
 
     h.fill("bundle-password-input", "correct horse");
     h.click("bundle-unlock");
@@ -201,8 +210,7 @@ fn rejects_a_tampered_bundle_before_opening_it(cx: &mut TestAppContext) {
     close_to_start(&mut h);
 
     open_bundle_from_start(&mut h, &path);
-    let error = h.error_at("bundle-error");
-    assert!(error.contains("BUNDLE_SIGNATURE"), "{error}");
+    let error = bundle_error_text(&mut h);
     assert!(error.contains("changed after it was signed"), "{error}");
     assert!(!h.exists("runtime-bundle"));
 }
@@ -238,8 +246,8 @@ fn blocks_export_while_expressions_have_errors(cx: &mut TestAppContext) {
     h.dialogs.queue_save(Some(path.clone()));
     h.click("export-bundle");
     super::gate::set_expression_gate(None);
-    let error = h.error_at("release-error");
-    assert!(error.contains("EXPRESSION_ERRORS"), "{error}");
+    let error = format!("{} {}", h.label("release-error-headline"), h.label("release-error"));
+    assert!(error.contains("Fix them in Settings"), "{error}");
     assert!(error.contains("2 expression errors must be fixed first"), "{error}");
     assert!(!path.exists());
     assert_eq!(h.dialogs.count("save"), 0);
@@ -288,6 +296,8 @@ fn previews_a_protected_updates_notes_and_migrations_then_shows_jobs_and_logs(
     assert_eq!(h.label("update-confirm"), "Update Untitled to 2.0.0?");
     assert_eq!(h.label("release-notes-text"), "Adds tags.");
     assert_eq!(h.label("migration:0"), "Add tags");
+    assert!(!h.exists("migration-sql:0"), "the SQL starts collapsed");
+    h.click("migration-sql-disclosure:0-toggle");
     assert!(h.label("migration-sql:0").contains("CREATE TABLE tags"));
     assert_eq!(h.label("runtime-version"), "Version 1.0.0");
     h.click("apply-update");
@@ -300,7 +310,7 @@ fn previews_a_protected_updates_notes_and_migrations_then_shows_jobs_and_logs(
     h.dialogs.queue_open(Some(v1));
     h.click("check-update");
     assert!(!h.exists("update-confirm"));
-    assert!(h.error_at("bundle-error").starts_with("BUNDLE_DOWNGRADE"));
+    assert!(bundle_error_text(&mut h).starts_with("A newer version"));
     assert_eq!(h.label("runtime-version"), "Version 2.0.0");
 
     h.click("diagnostics-open");

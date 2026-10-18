@@ -3,10 +3,11 @@
 //! Port of src/release/UpdateConfirm.tsx.
 //!
 //! Test ids: dialog title `update-confirm` ("Update NAME to V?"), `update-installed`, `release-notes-text`, `migrations-note`,
-//! `no-migrations`, `migration:<i>` (name), `migration-sql:<i>`, `apply-update`,
+//! `no-migrations`, `migration:<i>` (name), `migration-sql:<i>` (behind the toggle `migration-sql-disclosure:<i>-toggle`), `apply-update`,
 //! `cancel-update`.
 
 use crate::{
+    ui::cloud::disclosure::disclosure,
     installation_checks::PendingMigration,
     ui::{
         dialog::{Dialog, dialog},
@@ -52,17 +53,29 @@ pub fn update_details(
         Some(list) => {
             for (i, m) in list.iter().enumerate() {
                 let name = if m.name.is_empty() { &m.id } else { &m.name };
+                let (sql, border, muted) = (m.sql.clone(), cx.theme().border, cx.theme().muted);
+                let sql_id = format!("migration-sql:{i}");
                 block = block
                     .child(widgets::text(eid(format!("migration:{i}")), name.clone()))
-                    .child(widgets::styled_text(
-                        eid(format!("migration-sql:{i}")),
-                        m.sql.clone(),
-                        |d| d.font_family("monospace").text_sm(),
+                    .child(disclosure(
+                        &format!("migration-sql-disclosure:{i}"),
+                        "SQL",
+                        move || {
+                            div()
+                                .w_full()
+                                .p_2()
+                                .rounded_md()
+                                .border_1()
+                                .border_color(border)
+                                .bg(muted)
+                                .child(widgets::styled_text(eid(sql_id), sql, |d| d.font_family("monospace").text_sm()))
+                                .into_any_element()
+                        },
+                        cx,
                     ));
             }
         }
     }
-    let _ = cx;
     block
 }
 

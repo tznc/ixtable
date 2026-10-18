@@ -78,12 +78,7 @@ pub fn backup_size_dialog<V: 'static>(
         )
         .into_any_element()
     });
-    for (i, entry) in report.largest.iter().enumerate() {
-        dialog = dialog.child(widgets::text(
-            eid(format!("backup-size-largest:{i}")),
-            format!("{} ({}) {}", entry.name, entry.section, format_bytes(entry.bytes)),
-        ));
-    }
+    dialog = dialog.child(super::largest::largest_files("backup-size-largest", &report.largest, report.total_bytes, cx));
     dialog
         .footer(
             forms::secondary("backup-size-cancel", "Cancel")

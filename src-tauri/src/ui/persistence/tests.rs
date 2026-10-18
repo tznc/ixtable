@@ -174,6 +174,11 @@ fn views_a_text_asset_in_titled_sections(cx: &mut TestAppContext) {
     assert_eq!(h.label("preview-nav:0"), "Module Helpers");
     assert_eq!(h.label("preview-nav:1"), "Form Customers");
     assert!(h.label("preview-section:1").contains("Form_Load"));
+    // A section link focuses that section until "Show all".
+    h.click("preview-nav:1");
+    assert!(!h.exists("preview-section:0"));
+    h.click("preview-show-all");
+    assert!(h.exists("preview-section:0"));
     h.click("view-asset:vba.txt");
     assert!(!h.exists("asset-preview"));
     h.click("view-asset:vba.txt");
@@ -387,6 +392,30 @@ fn recovers_a_crashed_sessions_unsaved_work_into_its_archive(cx: &mut TestAppCon
     assert!(checkpoints.iter().any(|c| c.reason == "before-recovery"));
     let left = crate::list_recovery_sessions().unwrap();
     assert!(left.iter().all(|r| r.session_id != crashed.session_id));
+}
+
+#[gpui_kit::test]
+fn shows_recovery_as_a_banner_with_a_readable_name_and_last_edited_time(cx: &mut TestAppContext) {
+    let _guard = exclusive_recovery();
+    let path = archive_path("banner");
+    let name = unique("Field notes");
+    seed_crashed_session(&unique("bannered"), &name, Some(&path));
+
+    let mut h = Harness::start(cx);
+    assert_eq!(h.label("recover-unsaved-work"), "Recover unsaved work");
+    // The hashed disambiguator and the raw path stay out of sight.
+    assert_eq!(h.label(id(&format!("recover-name:{name}"))), "Field notes");
+    let edited = h.label(id(&format!("recover-edited:{name}")));
+    assert!(edited.starts_with("Last edited ") && edited.contains("ago") || edited.contains("just now"), "{edited}");
+    assert!(!edited.contains(".ixt") && !edited.contains('/'), "{edited}");
+}
+
+#[test]
+fn clean_name_drops_hash_suffixes_and_extensions() {
+    use super::recovery_list::clean_name;
+    assert_eq!(clean_name("Field notes-7ecf26a1b2c3"), "Field notes");
+    assert_eq!(clean_name("budget-2026.ixt"), "budget-2026");
+    assert_eq!(clean_name("my-notes"), "my-notes");
 }
 
 #[gpui_kit::test]

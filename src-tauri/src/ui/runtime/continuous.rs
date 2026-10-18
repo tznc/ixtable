@@ -674,10 +674,11 @@ impl Render for ContinuousView {
                 d.text_xl().font_weight(FontWeight::SEMIBOLD)
             }))
             .when(!self.error.is_empty(), |d| d.child(super::message("continuous-error", self.error.clone(), true, cx)))
-            // The status line keeps its space so a save never shifts the rows.
-            .child(div().min_h(px(20.)).children(self.notice.clone().map(|(text, tone)| {
-                super::message("continuous-notice", text, tone == NoticeTone::Error, cx)
-            })))
+            // The status line slides in; no space is reserved for it.
+            .children(self.notice.clone().map(|(text, tone)| {
+                let anim = format!("slide:continuous:{text}");
+                widgets::slide_in(anim, super::message("continuous-notice", text, tone == NoticeTone::Error, cx))
+            }))
             .when(self.page.as_ref().is_some_and(|p| p.truncated), |d| {
                 d.child(widgets::callout("list-notice", widgets::Severity::Warning, TRUNCATED_NOTICE, None, cx))
             })

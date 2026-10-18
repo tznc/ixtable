@@ -2,7 +2,8 @@
 //! (PRD 7.2). Recover reopens it and saves it back into its .ixt; Discard deletes it.
 //! Port of src/persistence/RecoveryList.tsx.
 //!
-//! Test ids: section `recover-unsaved-work`, `recover:<name>`, `discard:<name>`.
+//! Test ids: banner title `recover-unsaved-work`, `recover:<name>`, `discard:<name>`,
+//! `recover-name:<name>` (the readable name), `recover-edited:<name>` ("Last edited 5 min ago").
 
 use super::eid;
 use crate::{
@@ -12,6 +13,7 @@ use crate::{
     ui::{
         dialogs::{self, DialogProvider},
         forms,
+        persistence::format::relative_time,
         prelude::*,
         start::StartScreen,
     },
@@ -32,6 +34,25 @@ pub fn record_label(record: &RecoveryRecord) -> String {
                 .map(str::to_string)
         })
         .unwrap_or_else(|| "Untitled document".into())
+}
+
+/// Drops a trailing "-<hex>" disambiguator ("Field notes-7ecf26a1" -> "Field notes") and
+/// a file extension, so the list shows the name a person gave the document.
+pub fn clean_name(raw: &str) -> String {
+    let base = raw.strip_suffix(".ixt").unwrap_or(raw);
+    match base.rsplit_once('-') {
+        Some((head, tail))
+            if !head.is_empty() && tail.len() >= 6 && tail.chars().all(|c| c.is_ascii_hexdigit()) =>
+        {
+            head.to_string()
+        }
+        _ => base.to_string(),
+    }
+}
+
+/// The name a record is shown under on screen (never the hashed workspace name).
+pub fn display_name(record: &RecoveryRecord) -> String {
+    clean_name(&record_label(record))
 }
 
 /// Recovers crashed work; untitled work asks for a destination (canceling keeps it
@@ -150,22 +171,51 @@ impl Render for RecoveryList {
         if self.records.is_empty() {
             return div().into_any_element();
         }
-        let mut card = forms::card("recover-unsaved-work", "Recover unsaved work", cx)
-            .child(forms::muted(
+        let theme = cx.theme();
+        let (warning, muted) = (theme.warning, theme.muted_foreground);
+        let now = chrono::Utc::now();
+        let mut card = v_flex()
+            .w_full()
+            .gap_2()
+            .px_3()
+            .py_2()
+            .rounded_md()
+            .border_1()
+            .border_color(warning.opacity(0.35))
+            .bg(warning.opacity(0.08))
+            .child(
+                h_flex()
+                    .gap_2()
+                    .items_center()
+                    .child(div().text_color(warning).child(Icon::new(widgets::Severity::Warning.icon()).small()))
+                    .child(widgets::styled_text("recover-unsaved-work", "Recover unsaved work", |d| {
+                        d.font_weight(FontWeight::SEMIBOLD)
+                    })),
+            )
+            .child(div().text_sm().child(
                 "ixtable closed before these changes were saved. Recover them to save them back \
                  into their document, or discard them.",
-                cx,
             ));
         for (i, r) in self.records.iter().enumerate() {
             let name = record_label(r);
+            let saved = if r.document_path.is_some() { "" } else { " · not saved to a file yet" };
             card = card.child(
                 h_flex()
                     .gap_2()
                     .items_center()
-                    .child(div().flex_1().min_w_0().truncate().child(format!(
-                        "{name} · {}",
-                        r.document_path.as_deref().unwrap_or("Never saved")
-                    )))
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .child(widgets::styled_text(eid(format!("recover-name:{name}")), display_name(r), |d| {
+                                d.font_weight(FontWeight::SEMIBOLD).truncate()
+                            }))
+                            .child(widgets::styled_text(
+                                eid(format!("recover-edited:{name}")),
+                                format!("Last edited {}{saved}", relative_time(&r.updated_at, now)),
+                                move |d| d.text_sm().text_color(muted),
+                            )),
+                    )
                     .child(
                         forms::primary(eid(format!("recover:{name}")), "Recover")
                             .disabled(busy)

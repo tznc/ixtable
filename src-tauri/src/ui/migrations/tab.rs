@@ -23,6 +23,7 @@ use crate::{
         forms,
         forms::eid,
         prelude::*,
+        persistence::format::{format_date_time, scrub_internal},
         shell::Shell,
         store::StoreEvent,
     },
@@ -45,6 +46,8 @@ pub struct MigrationsTab {
     preflight_failed: bool,
     error: Option<AppError>,
     busy: bool,
+    // Log entries (by element key) whose raw check results are shown.
+    details: HashSet<String>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -83,6 +86,7 @@ impl MigrationsTab {
             preflight_failed: false,
             error: None,
             busy: false,
+            details: HashSet::new(),
             _subscriptions: subscriptions,
         };
         this.refresh(cx);
@@ -276,36 +280,68 @@ fn state_tone(state: &str) -> Tone {
     }
 }
 
-fn log_entry(section: &str, i: usize, log: &MigrationLog, cx: &App) -> Div {
-    let key = |suffix: &str| eid(format!("{section}:{i}{suffix}"));
-    let mut times = String::new();
-    if !log.started_at.is_empty() && !log.finished_at.is_empty() {
-        times = format!(" · {} to {}", log.started_at, log.finished_at);
+/// "Integrity checks passed" or "Integrity checks failed" for the raw check results.
+fn health_summary(health: &[String]) -> &'static str {
+    if health.iter().any(|h| h.starts_with("failed")) { "Integrity checks failed" } else { "Integrity checks passed" }
+}
+
+/// A migration's undo ability in words.
+fn undo_label(reversible: bool) -> &'static str {
+    if reversible { "Reversible" } else { "One-way" }
+}
+
+impl MigrationsTab {
+    fn log_entry(&self, section: &str, i: usize, log: &MigrationLog, cx: &mut Context<Self>) -> Div {
+        let key = |suffix: &str| eid(format!("{section}:{i}{suffix}"));
+        let mut times = String::new();
+        if !log.started_at.is_empty() {
+            times = format!(" · {}", format_date_time(&log.started_at));
+        }
+        let direction = if log.direction == "down" { "roll back" } else { "apply" };
+        let mut entry = v_flex().gap_1().child(
+            h_flex()
+                .gap_2()
+                .child(widgets::styled_text(key(""), format!("{} · {direction}{times}", log.name), |d| d))
+                .items_center()
+                .child({
+                    let (label, tone) = log_status(&log.status);
+                    status_badge(key(":status"), label, tone, cx)
+                }),
+        );
+        if !log.health.is_empty() {
+            let detail_key = format!("{section}:{i}");
+            let open = self.details.contains(&detail_key);
+            entry = entry.child(
+                h_flex()
+                    .gap_2()
+                    .items_center()
+                    .child(widgets::text(key(":health"), health_summary(&log.health)))
+                    .child(
+                        forms::link(key(":health-toggle"), if open { "Hide details" } else { "Details" }).on_click(
+                            cx.listener(move |this, _, _, cx| {
+                                if !this.details.remove(&detail_key) {
+                                    this.details.insert(detail_key.clone());
+                                }
+                                cx.notify();
+                            }),
+                        ),
+                    ),
+            );
+            if open {
+                entry = entry.child(widgets::styled_text(key(":health-details"), log.health.join(", "), {
+                    let muted = cx.theme().muted_foreground;
+                    move |d| d.text_sm().text_color(muted)
+                }));
+            }
+        }
+        if let Some(error) = &log.error {
+            entry = entry.child(widgets::text(key(":error"), scrub_internal(error)));
+        }
+        if let Some(recovery) = &log.recovery {
+            entry = entry.child(widgets::text(key(":recovery"), format!("Recovery: {}", scrub_internal(recovery))));
+        }
+        entry
     }
-    let mut entry = v_flex().gap_1().child(
-        h_flex()
-            .gap_2()
-            .child(widgets::styled_text(key(""), format!("{} · {}{times}", log.name, log.direction), |d| d))
-            .items_center()
-            .child({
-                let (label, tone) = log_status(&log.status);
-                status_badge(key(":status"), label, tone, cx)
-            }),
-    );
-    if !log.health.is_empty() {
-        let failed = log.health.iter().any(|h| h.starts_with("failed"));
-        entry = entry.child(widgets::text(
-            key(":health"),
-            format!("Health {}: {}", if failed { "failed" } else { "passed" }, log.health.join(", ")),
-        ));
-    }
-    if let Some(error) = &log.error {
-        entry = entry.child(widgets::text(key(":error"), error.clone()));
-    }
-    if let Some(recovery) = &log.recovery {
-        entry = entry.child(widgets::text(key(":recovery"), format!("Recovery: {recovery}")));
-    }
-    entry
 }
 
 fn issue_line(id: ElementId, issue: &Issue, cx: &App) -> impl IntoElement {
@@ -378,6 +414,7 @@ impl Render for MigrationsTab {
                     .child(div().w(px(40.)).child("Order"))
                     .child(div().flex_1().child("Name"))
                     .child(div().w(px(120.)).child("Store"))
+                    .child(div().w(px(100.)).child("Undo"))
                     .child(div().w(px(160.)).child("Status"))
                     .child(div().w(px(160.))),
             )
@@ -408,6 +445,10 @@ impl Render for MigrationsTab {
                     .child(div().w(px(120.)).child(widgets::text(
                         eid(format!("migration-target:{name}")),
                         target_label(&m.target_store),
+                    )))
+                    .child(div().w(px(100.)).child(widgets::text(
+                        eid(format!("migration-undo:{name}")),
+                        undo_label(m.reversible),
                     )))
                     .child(div().w(px(160.)).child(status_badge(
                         eid(format!("migration-status:{name}")),
@@ -442,7 +483,7 @@ impl Render for MigrationsTab {
                             "Dry run failed; nothing was changed."
                         },
                     ))
-                    .child(log_entry("dry", 0, dry, cx)),
+                    .child(self.log_entry("dry", 0, dry, cx)),
             );
         }
         if let Some(run) = &self.run {
@@ -451,12 +492,12 @@ impl Render for MigrationsTab {
             } else {
                 "A migration failed; later ones did not run.".to_string()
             };
-            if let Some(cp) = &run.checkpoint {
-                status.push_str(&format!(" Checkpoint {} was saved first.", cp.id));
+            if run.checkpoint.is_some() {
+                status.push_str(" A recovery checkpoint was saved first.");
             }
             let mut card = forms::card("last-run", "Last run", cx).child(widgets::text("run-status", status));
             for (i, log) in run.logs.iter().enumerate() {
-                card = card.child(log_entry("run", i, log, cx));
+                card = card.child(self.log_entry("run", i, log, cx));
             }
             tab = tab.child(card);
         }
@@ -475,7 +516,7 @@ impl Render for MigrationsTab {
             log = log.child(widgets::text("log-empty", "No migrations have run on this store."));
         }
         for (i, entry) in self.history.iter().enumerate() {
-            log = log.child(log_entry("history", i, entry, cx));
+            log = log.child(self.log_entry("history", i, entry, cx));
         }
         tab.child(log)
     }

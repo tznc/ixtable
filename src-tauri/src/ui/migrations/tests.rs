@@ -134,7 +134,7 @@ fn dry_runs_applies_with_a_checkpoint_logs_and_rolls_back_a_reversible_migration
     tap(&mut h, "apply-migrations");
     let status = h.label("run-status");
     assert!(
-        status.starts_with("All migrations succeeded. Checkpoint ")
+        status.starts_with("All migrations succeeded. A recovery checkpoint ")
             && status.ends_with(" was saved first."),
         "{status}"
     );
@@ -184,7 +184,7 @@ fn stops_on_a_failing_migration_rolls_it_back_and_shows_recovery_instructions(
 
     assert_eq!(apply_label(&mut h), Some("Apply pending (2)".to_string()));
     tap(&mut h, "apply-migrations");
-    assert_eq!(h.label("run-status").split(" Checkpoint").next().unwrap(),
+    assert_eq!(h.label("run-status").split(" A recovery checkpoint").next().unwrap(),
         "A migration failed; later ones did not run.");
     scroll_to_end(&mut h);
     let failures: Vec<String> = (0..3).filter_map(|i| h.try_label(id(&format!("run:{i}:error")))).collect();
@@ -314,7 +314,15 @@ fn shows_health_results_and_times_in_the_log_and_problems_after_a_migration_drop
     let problem = h.label("after-problem:0");
     assert!(problem.contains("\"Item label\" is bound to items.label"), "{problem}");
     let health = h.label("history:0:health");
-    assert!(health.starts_with("Health passed: ") && health.contains("integrity_check: ok"), "{health}");
+    assert_eq!(health, "Integrity checks passed");
+    // The raw check results sit behind Details; the log shows no raw timestamps.
+    assert!(!h.exists("history:0:health-details"));
+    tap(&mut h, "history:0:health-toggle");
+    assert!(h.label("history:0:health-details").contains("integrity_check: ok"));
+    let line = h.label("history:0");
+    assert!(!line.contains('T') || !line.contains("Z"), "{line}");
+    assert!(line.starts_with("Drop label · apply · "), "{line}");
+    assert_eq!(h.label("migration-undo:Drop label"), "One-way");
 }
 
 #[gpui_kit::test]

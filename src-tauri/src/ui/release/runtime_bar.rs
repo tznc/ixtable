@@ -51,6 +51,15 @@ impl RuntimeBar {
         let login = cx.new(|cx| DatabaseLogin::new(shell.clone(), window, cx));
         let subscriptions = vec![
             cx.observe(&shell, |_, _, cx| cx.notify()),
+            // A refusal replaces any success toast that is still showing.
+            cx.observe(&update, |this, update, cx| {
+                if update.read(cx).has_error() {
+                    this.shell.update(cx, |s, cx| {
+                        s.notice = None;
+                        cx.notify();
+                    });
+                }
+            }),
             cx.subscribe(&update, |this, _, event: &BundleEvent, cx| {
                 if let BundleEvent::Done(state, _) = event {
                     this.updated(state.clone(), cx);

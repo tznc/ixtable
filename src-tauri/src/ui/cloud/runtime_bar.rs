@@ -4,12 +4,13 @@
 //!
 //! Test ids: `cloud-runtime` (kicker, the region), `cloud-runtime-name`,
 //! `cloud-runtime-version` ("Version 1.0.0"), `cloud-runtime-role` ("Role: Sales"),
-//! `cloud-license` ("Licensed to EMAIL · fingerprint FP"), `cloud-grant` (database access
+//! `cloud-license` ("Licensed to EMAIL"), `cloud-fingerprint` (behind `cloud-license-details-toggle`), `cloud-grant` (database access
 //! status), `cloud-revoked`, `cloud-sync` ("Sync now"), `cloud-busy`,
 //! `cloud-update-notice`, `cloud-runtime-error`, transfer bar `cloud-transfer`; the
 //! backups add theirs (`backups`).
 
 use super::{
+    disclosure::disclosure,
     backups::{BackupsEvent, InstallationBackups},
     errors::{CloudError, cloud_error_notice},
     open::{adopt_runtime, open_cloud_app, open_in_window, set_open_notice},
@@ -237,9 +238,14 @@ impl Render for CloudRuntimeBar {
                 "cloud-runtime-role",
                 format!("Role: {}", info.role_name.as_deref().unwrap_or("none")),
             ))
-            .child(widgets::text(
-                "cloud-license",
-                format!("Licensed to {} · fingerprint {}", info.email, short(&info.fingerprint)),
+            .child(widgets::styled_text("cloud-license", format!("Licensed to {}", info.email), |d| {
+                d.w_full().whitespace_nowrap().overflow_hidden().text_ellipsis()
+            }))
+            .child(disclosure(
+                "cloud-license-details",
+                "license details",
+                || widgets::text("cloud-fingerprint", format!("Fingerprint {}", short(&info.fingerprint))).into_any_element(),
+                cx,
             ));
         if info.postgres {
             bar = bar.child(widgets::text(

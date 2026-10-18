@@ -88,7 +88,7 @@ pub fn component_value(c: &Comp, ctx: &RenderContext) -> (Value, String) {
         None => ctx.scope.eval(expression, &[], ctx.now()).map_err(|e| e.message),
     };
     let formatted = result.and_then(|value| {
-        let format = c.format().filter(|f| !f.is_empty());
+        let format = c.format().filter(|f| !f.is_empty()).or_else(|| default_number_format(c, &value, ctx));
         expr::format_value(&value, format)
             .map(|text| (value, text))
             .map_err(|e| e.0)
@@ -97,6 +97,21 @@ pub fn component_value(c: &Comp, ctx: &RenderContext) -> (Value, String) {
         ctx.diagnose(&c.id, &message);
         (Value::Null, ERROR_TEXT.to_string())
     })
+}
+
+/// Two-decimal format for a bound number field without a format whose column holds
+/// fractions, so detail amounts line up with formatted subtotals (20.00, 75.50).
+fn default_number_format(c: &Comp, value: &Value, ctx: &RenderContext) -> Option<&'static str> {
+    if !matches!(c.kind, Kind::Field { .. }) || !value.is_number() {
+        return None;
+    }
+    let expression = c.expression().trim();
+    let column = expression
+        .strip_prefix("record.[")
+        .and_then(|r| r.strip_suffix(']'))
+        .or_else(|| expression.strip_prefix("record.").filter(|r| !r.contains(['.', '[', '(', ' '])))?;
+    let fractional = ctx.env.fractional_columns.contains(column);
+    fractional.then_some("#,##0.00")
 }
 
 /// Style of the first conditional formatting rule whose `when` holds, else `None`.

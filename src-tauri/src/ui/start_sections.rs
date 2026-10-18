@@ -15,11 +15,12 @@ use super::{
     release::bundle_flow::{Act, BundleEvent, BundleFlow},
     start::StartScreen,
 };
-use super::widgets::StartAligned as _;
+use super::widgets::{self, StartAligned as _};
 use gpui_kit::assets::IconName;
 use gpui_kit::component::{
-    Disableable as _, Icon,
-    button::Button,
+    ActiveTheme as _, Disableable as _, Icon, Sizable as _,
+    button::{Button, ButtonVariants as _},
+    h_flex, v_flex,
 };
 use gpui_kit::*;
 use std::{collections::HashMap, sync::Arc};
@@ -50,28 +51,15 @@ fn access_host(screen: EntityId, cx: &mut App) -> Option<Entity<AccessHost>> {
     with_extras(screen, cx, |e| e.access.as_ref().and_then(WeakEntity::upgrade))
 }
 
-/// Buttons next to New and Open.
+/// The secondary link next to New and Open.
 pub fn actions(screen: &Entity<StartScreen>, busy: bool, _: &mut App) -> Vec<AnyElement> {
     let id = screen.entity_id();
     vec![
-        Button::new("import-access")
-            .start_label(Some(Icon::new(IconName::DatabaseZap)), "Import from Access…")
-            .tooltip("Convert a Microsoft Access file into a new document")
-            .outline()
-            .disabled(busy)
-            .w(px(240.))
-            .on_click(move |_, _, cx| {
-                if let Some(host) = access_host(id, cx) {
-                    host.update(cx, |h, cx| h.open(cx));
-                }
-            })
-            .into_any_element(),
         Button::new("open-bundle")
+            .link()
             .start_label(Some(Icon::new(IconName::PackageOpen)), "Open runtime bundle")
             .tooltip("Open a signed .ixtr bundle")
-            .outline()
             .disabled(busy)
-            .w(px(220.))
             .on_click(move |_, _, cx| {
                 if let Some(flow) = bundle_flow(id, cx) {
                     flow.update(cx, |f, cx| f.start(cx));
@@ -81,14 +69,61 @@ pub fn actions(screen: &Entity<StartScreen>, busy: bool, _: &mut App) -> Vec<Any
     ]
 }
 
-/// Panels between the banners and the template list. `label` is the window label of
+/// The featured "Import from Access" card.
+pub fn import_card(screen: &Entity<StartScreen>, busy: bool, cx: &mut App) -> AnyElement {
+    let id = screen.entity_id();
+    let theme = cx.theme();
+    let (border, muted, tint) = (theme.border, theme.muted_foreground, theme.primary.opacity(0.06));
+    h_flex()
+        .w_full()
+        .gap_3()
+        .items_center()
+        .p_4()
+        .rounded_lg()
+        .border_1()
+        .border_color(border)
+        .bg(tint)
+        .child(Icon::new(IconName::DatabaseZap).large())
+        .child(
+            v_flex()
+                .flex_1()
+                .min_w_0()
+                .gap_0p5()
+                .child(widgets::styled_text("import-access-title", "Coming from Microsoft Access?", |d| {
+                    d.font_weight(FontWeight::SEMIBOLD)
+                }))
+                .child(
+                    div().text_sm().text_color(muted).child(
+                        "Convert an Access file into a new document, with its tables, forms, \
+                         reports and queries.",
+                    ),
+                ),
+        )
+        .child(
+            Button::new("import-access")
+                .start_label(Some(Icon::new(IconName::DatabaseZap)), "Import from Access…")
+                .tooltip("Convert a Microsoft Access file into a new document")
+                .outline()
+                .disabled(busy)
+                .w(px(210.))
+                .on_click(move |_, _, cx| {
+                    if let Some(host) = access_host(id, cx) {
+                        host.update(cx, |h, cx| h.open(cx));
+                    }
+                }),
+        )
+        .into_any_element()
+}
+
+/// Panels between the banners and the template list, and the recovery banner that goes
+/// above everything. `label` is the window label of
 /// the screen (the screen itself is still being built and cannot be read).
 pub fn panels(
     screen: &Entity<StartScreen>,
     label: &str,
     window: &mut Window,
     cx: &mut App,
-) -> Vec<AnyView> {
+) -> (Vec<AnyView>, AnyView) {
     let label = label.to_string();
     let act: Act = {
         let label = label.clone();
@@ -131,12 +166,10 @@ pub fn panels(
         let _ = weak_screen.update(cx, |screen, cx| screen.run("Opening cloud app…", move |_| Ok(state), cx));
     })
     .detach();
-    vec![
-        flow.into(),
-        access.into(),
-        apps.into(),
+    (
+        vec![flow.into(), access.into(), apps.into()],
         cx.new(|cx| RecoveryList::new(screen, cx)).into(),
-    ]
+    )
 }
 
 /// Opens a runtime bundle (.ixtr) the OS asked to open.

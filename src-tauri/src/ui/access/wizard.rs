@@ -88,7 +88,7 @@ fn grouped(n: u64) -> String {
 }
 
 fn plural(n: u64, word: &str) -> String {
-    format!("{} {word}{}", grouped(n), if n == 1 { "" } else { "s" })
+    crate::ui::widgets::plural(n as usize, word)
 }
 
 fn file_name(path: &str) -> String {

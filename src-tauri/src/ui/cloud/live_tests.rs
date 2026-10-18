@@ -295,7 +295,7 @@ fn cloud_live_publishes_installs_with_the_assigned_role_updates_in_place_and_rev
     close_to_start(&mut h);
     switch_account(&mut h, &runtime_email);
     let app = format!("cloud-app:{app_id}");
-    wait_for(&mut h, "the shared app", |h| h.try_label(app.clone()).as_deref() == Some("Install cloud app CRM"));
+    wait_for(&mut h, "the shared app", |h| h.try_label(app.clone()).as_deref() == Some("Install"));
     h.click(app.clone());
     wait_for(&mut h, "the installed app", |h| h.has_shell() && h.exists("cloud-license"));
     assert!(h.label("cloud-license").contains(&format!("Licensed to {runtime_email}")));
@@ -323,7 +323,7 @@ fn cloud_live_publishes_installs_with_the_assigned_role_updates_in_place_and_rev
 
     close_to_start(&mut h);
     switch_account(&mut h, &runtime_email);
-    wait_for(&mut h, "the open button", |h| h.try_label(app.clone()).as_deref() == Some("Open cloud app CRM"));
+    wait_for(&mut h, "the open button", |h| h.try_label(app.clone()).as_deref() == Some("Open"));
     h.click(app.clone());
     wait_for(&mut h, "version 1.1.0", |h| h.try_label("cloud-runtime-version").as_deref() == Some("Version 1.1.0"));
     assert!(names(&h).contains(&"Runtime-only Ltd".to_string()));
@@ -338,6 +338,6 @@ fn cloud_live_publishes_installs_with_the_assigned_role_updates_in_place_and_rev
     close_to_start(&mut h);
     h.click(app);
     wait_for(&mut h, "the revoked notice", |h| {
-        h.try_label("cloud-apps-error").is_some_and(|t| t.contains("REVOKED") || t.contains("FORBIDDEN") || t.to_lowercase().contains("revoked"))
+        h.try_label("cloud-apps-error").is_some_and(|t| t.contains("not allowed") || t.to_lowercase().contains("revoked"))
     });
 }

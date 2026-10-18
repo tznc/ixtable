@@ -3,6 +3,7 @@
 
 use super::runtime::seed_sales;
 use crate::ui::runtime::tests::{generate, nav, seed, wait};
+use crate::ui::data::testkit::choose;
 use crate::ui::screenshot::context;
 use crate::ui::shell::ModeId;
 use crate::ui::testing::Harness;
@@ -65,7 +66,6 @@ fn extras_roles_and_problems() {
     h.click(format!("nav-perm:{}", orders_nav.trim_start_matches("nav:")));
     assert_eq!(h.config().roles[0].name, "Clerk");
     assert_eq!(h.config().roles[0].permissions.navigation.len(), 1);
-    let clerk = h.config().roles[0].id.clone();
     h.capture(
         "extras-03-roles",
         &[
@@ -76,7 +76,7 @@ fn extras_roles_and_problems() {
 
     h.switch_mode(ModeId::Run);
     wait(&mut h);
-    h.click(format!("role:{clerk}"));
+    choose(&mut h, "run-as", "Clerk");
     wait(&mut h);
     assert!(h.exists("row:0"));
     assert!(!h.exists("new-record"));
@@ -98,7 +98,7 @@ fn extras_roles_and_problems() {
     h.click("tab-problems");
     h.settle();
     assert!(h.exists(("problem-open", 0usize)));
-    assert!(h.label(("problem", 0usize)).contains("Orders"));
+    assert!(h.label(("problem-open", 0usize)).starts_with("Open form Orders"));
     h.capture(
         "extras-05-expression-problems",
         &[

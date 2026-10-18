@@ -64,6 +64,8 @@ pub struct DataMode {
     diagram: Entity<RelationshipBrowser>,
     sheet: Option<Entity<Datasheet>>,
     page: Option<Page>,
+    // Records in the table with no filter applied; set only while a filter is active.
+    unfiltered_total: Option<u64>,
     page_generation: u64,
     offset: u64,
     sorts: Vec<Sort>,
@@ -140,6 +142,7 @@ impl DataMode {
             diagram,
             sheet: None,
             page: None,
+            unfiltered_total: None,
             page_generation: 0,
             offset: 0,
             sorts: vec![],
@@ -607,13 +610,26 @@ impl DataMode {
         task::spawn_call_in(
             window,
             cx,
-            move || crate::read_table_page(label, selected, offset, PAGE_SIZE, work_sorts, work_filters, None),
-            move |this, result, window, cx| {
+            move || {
+                let filtered = !work_filters.is_empty();
+                let page = crate::read_table_page(label.clone(), selected.clone(), offset, PAGE_SIZE, work_sorts, work_filters, None)?;
+                // The unfiltered total comes from a one-row page of the same table.
+                let total = if filtered {
+                    crate::read_table_page(label, selected, 0, 1, vec![], vec![], None).ok().map(|p| p.total)
+                } else {
+                    None
+                };
+                Ok((page, total))
+            },
+            move |this, result: Result<(Page, Option<u64>), AppError>, window, cx| {
                 if this.page_generation != generation {
                     return;
                 }
                 match result {
-                    Ok(page) => this.show_page(table, page, sorts, filters, read_only, window, cx),
+                    Ok((page, total)) => {
+                        this.unfiltered_total = total;
+                        this.show_page(table, page, sorts, filters, read_only, window, cx)
+                    }
                     Err(e) => this.error = Some(e),
                 }
                 cx.notify();
@@ -701,6 +717,15 @@ impl DataMode {
         self.offset = offset;
         self.load_page(window, cx);
         cx.notify();
+    }
+}
+
+/// The count line: "6 records", or "3 of 6 records (filtered)" while a filter hides some.
+fn record_count_text(shown: Option<u64>, unfiltered: Option<u64>) -> String {
+    match (shown, unfiltered) {
+        (None, _) => "\u{2014} records".to_string(),
+        (Some(t), Some(all)) => format!("{t} of {} (filtered)", widgets::plural(all as usize, "record")),
+        (Some(t), None) => widgets::plural(t as usize, "record"),
     }
 }
 
@@ -815,7 +840,7 @@ impl Render for DataMode {
                             })
                             .child(div().text_sm().text_color(muted).child(widgets::text(
                                 "record-count",
-                                page_total.map_or("\u{2014} records".to_string(), |t| widgets::plural(t as usize, "record")),
+                                record_count_text(page_total, self.unfiltered_total),
                             )))
                             .child(div().w(px(220.)).child(text_input(&self.filter, "Filter first column", "Filter records")))
                             .child(

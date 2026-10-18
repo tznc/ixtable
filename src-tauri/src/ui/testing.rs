@@ -375,7 +375,7 @@ impl<'a, C: UiContext> Harness<'a, C> {
     pub fn error_at(&mut self, id: &str) -> String {
         let message = self.label(gpui_kit::SharedString::from(id.to_string()));
         let headline = self.try_label(gpui_kit::SharedString::from(format!("{id}-headline"))).unwrap_or_default();
-        let code = self.label(gpui_kit::SharedString::from(format!("{id}-code")));
+        let code = self.try_label(gpui_kit::SharedString::from(format!("{id}-code"))).unwrap_or_default();
         let code = code.trim_start_matches("Error code ");
         if message.is_empty() || message == headline {
             format!("{code}: {headline}")

@@ -330,6 +330,7 @@ fn golden_work_orders_v1_bundle_runtime_record_then_update_to_v2_keeps_the_recor
             let note = ["no-migrations", "migrations-note", "migration:0"].map(|id| (id, h.try_label(id)));
             assert_eq!(h.try_label("migration:0").as_deref(), Some("002 Add work-order due dates"), "{note:?}");
             assert!(!h.exists("migration:1"));
+            h.click("migration-sql-disclosure:0-toggle");
             assert!(h.label("migration-sql:0").to_lowercase().contains("alter table work_orders"));
             h.click("apply-update");
             assert!(h.notice().unwrap_or_default().contains("Updated to version 2.0.0. Your records were kept."), "{:?}", h.notice());

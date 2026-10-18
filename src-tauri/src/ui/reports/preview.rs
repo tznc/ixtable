@@ -309,6 +309,8 @@ impl ReportPreview {
         let zoom_entity = entity.clone();
         h_flex()
             .id("report-preview-toolbar")
+            .w_full()
+            .justify_start()
             .gap_2()
             .items_center()
             .px_3()
@@ -359,7 +361,7 @@ impl ReportPreview {
                 )
                 .child(
                     Button::new("export-pdf")
-                        .outline()
+                        .primary()
                         .small()
                         .label("Export PDF…")
                         .disabled(!ready)

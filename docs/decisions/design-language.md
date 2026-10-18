@@ -17,7 +17,7 @@ exist, use the closest existing helper rather than a one-off style.
 2. **Users speak Access, not SQL or CSS.** Use the words *table, field, record, form, report, query, macro*. Keep SQL, enums, error codes, UUIDs and CSS grid terms behind a "Details" disclosure.
 3. **One component per job.** A new screen composes the shared components. A one-off style is a bug.
 4. **Calm by default, loud only when it matters.** The UI is greyscale plus one accent color. Color carries meaning (selection, status, danger) and is never decoration.
-5. **Nothing jumps.** Feedback never pushes content around. Reserve the space, or use a toast.
+5. **Nothing jumps.** Feedback never pushes content around abruptly. Use a toast, or let an inline message slide in (`widgets::slide_in`) so the form moves gradually. Don't reserve empty space for a message that may never come.
 
 ## 2. Type scale
 
@@ -98,7 +98,7 @@ Each is one function in a shared UI module. **New** marks components that don't 
 
 ### Toast (`ui::toast`, shown with `Shell::toast` or `Shell::set_notice`)
 - For transient success: "Exported orders.pdf · Show in folder" or "Added 2 records". `Toast::info` is for neutral notes such as "Save canceled.".
-- Bottom-right, it dismisses after 6 s, unless it has an action, in which case it stays 10 s.
+- Top-right, below the title bar, so it never covers dialog footers or pagers. It dismisses after 6 s, unless it has an action, in which case it stays 10 s.
 - It never changes layout. A success message is never an inline line under a toolbar. Errors stay inline, next to what failed.
 
 ### DataTable (`display::data_table`, `display::text_table`; the datasheet stays its own grid)

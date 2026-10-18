@@ -2,8 +2,8 @@
 //! Port of src/shell/StartScreen.tsx. Feature modules add more entry points (Access
 //! import, runtime bundles, cloud apps, recovery) through `sections`.
 //!
-//! Test ids: `new-document`, `open-document`, `start-heading`, `recent:<file name>`,
-//! `template:<id>`, `progress`, `error`, `notice`.
+//! Test ids: `new-document`, `open-document`, `open-bundle` (link), `import-access`,
+//! `start-heading`, `recent:<file name>`, `template:<id>`, `progress`, `error`, `notice`.
 
 use crate::{
     manager::{AppError, SessionState},
@@ -33,12 +33,92 @@ pub struct StartScreen {
     pending: Option<String>,
     error: Option<AppError>,
     notice: Option<Toast>,
-    recents: Vec<RecentFile>,
+    recents: Vec<RecentRow>,
+    recovery: AnyView,
     templates: Vec<TemplateInfo>,
     show_all: bool,
     panels: Vec<AnyView>,
 }
 impl EventEmitter<StartEvent> for StartScreen {}
+
+/// A recent document as listed: its name, folder and last-modified date.
+#[derive(Clone)]
+struct RecentRow {
+    path: String,
+    name: String,
+    folder: String,
+    modified: Option<String>,
+}
+
+impl RecentRow {
+    fn new(recent: RecentFile) -> Self {
+        let path = PathBuf::from(&recent.path);
+        let folder = path
+            .parent()
+            .map(|p| tilde(&p.to_string_lossy()))
+            .unwrap_or_default();
+        let modified = std::fs::metadata(&path)
+            .and_then(|m| m.modified())
+            .ok()
+            .map(|t| chrono::DateTime::<chrono::Local>::from(t).format("%-d %b %Y").to_string());
+        Self { name: file_name(&recent.path), path: recent.path, folder, modified }
+    }
+}
+
+/// Shortens the home directory to "~".
+fn tilde(folder: &str) -> String {
+    match std::env::var("HOME") {
+        Ok(home) if !home.is_empty() && folder.starts_with(&home) => format!("~{}", &folder[home.len()..]),
+        _ => folder.to_string(),
+    }
+}
+
+/// The icon a template is listed with.
+fn template_icon(id: &str) -> IconName {
+    match id.split('@').next().unwrap_or(id) {
+        "crm" => IconName::Shapes,
+        "inventory" => IconName::PackageOpen,
+        "work-orders" => IconName::Settings,
+        _ => IconName::LayoutDashboard,
+    }
+}
+
+/// A full-width list row: icon, bold title, muted detail (up to `lines` lines) and an
+/// optional muted trailing note. `name` is the accessibility label.
+fn list_row(
+    id: SharedString,
+    icon: IconName,
+    title: String,
+    detail: String,
+    lines: usize,
+    trailing: Option<String>,
+    cx: &App,
+) -> Button {
+    let muted = cx.theme().muted_foreground;
+    let name = title.clone();
+    Button::new(id).w_full().h_auto().py_2().accessibility_label(name).child(
+        h_flex()
+            .w_full()
+            .min_w_0()
+            .gap_3()
+            .items_center()
+            .child(Icon::new(icon))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .overflow_hidden()
+                    .items_start()
+                    .text_left()
+                    .child(div().font_weight(FontWeight::SEMIBOLD).child(title))
+                    // Buttons don't wrap by default; the description wraps up to `lines` lines.
+                    .child(div().w_full().whitespace_normal().text_sm().text_color(muted).line_clamp(lines).child(detail)),
+            )
+            .when_some(trailing, |row, note| {
+                row.child(div().text_sm().text_color(muted).flex_none().child(note))
+            }),
+    )
+}
 
 fn file_name(path: &str) -> String {
     PathBuf::from(path)
@@ -54,13 +134,14 @@ impl StartScreen {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let panels = super::start_sections::panels(&cx.entity(), label, window, cx);
+        let (panels, recovery) = super::start_sections::panels(&cx.entity(), label, window, cx);
         let mut this = Self {
             label: label.to_string().into(),
             pending: None,
             error: None,
             notice: None,
             recents: vec![],
+            recovery,
             templates: vec![],
             show_all: false,
             panels,
@@ -82,7 +163,7 @@ impl StartScreen {
                 )
             },
             |this, (recents, templates), cx| {
-                this.recents = recents;
+                this.recents = recents.into_iter().map(RecentRow::new).collect();
                 this.templates = templates;
                 cx.notify();
             },
@@ -194,7 +275,7 @@ impl Render for StartScreen {
         let actions = super::start_sections::actions(&cx.entity(), busy, cx);
         let theme = cx.theme();
         let muted = theme.muted_foreground;
-        let visible: Vec<RecentFile> = if self.show_all {
+        let visible: Vec<RecentRow> = if self.show_all {
             self.recents.clone()
         } else {
             self.recents.iter().take(RECENT_PREVIEW).cloned().collect()
@@ -227,8 +308,9 @@ impl Render for StartScreen {
                     .w_full()
                     .mx_auto()
                     .px_8()
-                    .py_6()
-                    .gap_4()
+                    .py_4()
+                    .gap_3()
+                    .child(self.recovery.clone())
                     .child(div().text_xs().text_color(muted).child("DOCUMENT DATABASE"))
                     .child(widgets::styled_text(
                         "start-heading",
@@ -243,6 +325,7 @@ impl Render for StartScreen {
                         h_flex()
                             .flex_wrap()
                             .gap_3()
+                            .items_center()
                             .child(
                                 Self::render_action(
                                     "new-document",
@@ -265,8 +348,10 @@ impl Render for StartScreen {
                                 )
                                 .on_click(cx.listener(|this, _, _, cx| this.open(cx))),
                             )
+                            .child(div().flex_1())
                             .children(actions),
                     )
+                    .child(super::start_sections::import_card(&cx.entity(), busy, cx))
                     .when_some(self.pending.clone(), |el, p| el.child(widgets::progress_line(&p, cx)))
                     .when_some(self.error.clone(), |el, e| {
                         el.child(widgets::error_banner(
@@ -304,21 +389,29 @@ impl Render for StartScreen {
                             v_flex()
                                 .gap_2()
                                 .child(widgets::section_heading("templates-heading", "Start from a template"))
-                                .children(self.templates.iter().map(|t| {
+                                .child(h_flex().flex_wrap().gap_2().children(self.templates.iter().map(|t| {
                                     let id = t.id.clone();
                                     let name = t.name.clone();
-                                    Button::new(SharedString::from(format!("template:{}", t.id)))
-                                        .outline()
-                                        .w_full()
-                                        .start_label(Some(Icon::new(IconName::LayoutDashboard)), format!("{} — {} (v{})", t.name, t.description, t.version))
-                                        .disabled(busy)
-                                        .on_click(cx.listener(move |this, _, _, cx| {
-                                            let id = id.clone();
-                                            this.run(&format!("Creating {name}…"), move |label| {
-                                                crate::templates::create_from_template(label, id)
-                                            }, cx);
-                                        }))
-                                })),
+                                    let row = list_row(
+                                        SharedString::from(format!("template:{}", t.id)),
+                                        template_icon(&t.id),
+                                        t.name.clone(),
+                                        t.description.clone(),
+                                        2,
+                                        Some(format!("v{}", t.version)),
+                                        cx,
+                                    )
+                                    .outline()
+                                    .disabled(busy)
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        let id = id.clone();
+                                        this.run(&format!("Creating {name}…"), move |label| {
+                                            crate::templates::create_from_template(label, id)
+                                        }, cx);
+                                    }));
+                                    // Two templates per row.
+                                    div().w(relative(0.49)).child(row)
+                                }))),
                         )
                     })
                     .child(
@@ -349,19 +442,29 @@ impl Render for StartScreen {
                                 ))
                             })
                             .children(visible.into_iter().map(|recent| {
-                                let name = file_name(&recent.path);
                                 let path = recent.path.clone();
-                                Button::new(SharedString::from(format!("recent:{name}")))
-                                    .ghost()
-                                    .w_full()
-                                    .start_label(Some(Icon::new(IconName::FileText)), format!("{name} — {}", recent.path))
-                                    .tooltip(format!("Open recent {name}"))
-                                    .disabled(busy)
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.open_path(path.clone(), cx)
-                                    }))
+                                let detail = if recent.folder.is_empty() { recent.path.clone() } else { recent.folder.clone() };
+                                list_row(
+                                    SharedString::from(format!("recent:{}", recent.name)),
+                                    IconName::FileText,
+                                    recent.name.clone(),
+                                    detail,
+                                    1,
+                                    recent.modified.clone(),
+                                    cx,
+                                )
+                                .ghost()
+                                .tooltip(format!("Open {}", recent.path))
+                                .disabled(busy)
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.open_path(path.clone(), cx)
+                                }))
                             })),
                     ),
             )
     }
 }
+
+#[cfg(test)]
+#[path = "start_tests.rs"]
+mod tests;

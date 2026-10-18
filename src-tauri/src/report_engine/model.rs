@@ -133,12 +133,22 @@ pub struct BandEntry<'a> {
     pub band: &'a Band,
 }
 
+/// Friendly group name: the grouped field ("Status group"), never the raw expression.
 pub fn group_label(group: &ReportGroup, index: usize) -> String {
-    format!(
-        "Group {} ({})",
-        index + 1,
-        if group.group_by.is_empty() { "unset" } else { &group.group_by }
-    )
+    let field = group
+        .group_by
+        .trim()
+        .trim_start_matches("record.")
+        .trim_matches(|c| c == '[' || c == ']');
+    let plain = !field.is_empty() && field.chars().all(|c| c.is_alphanumeric() || c == '_' || c == ' ');
+    if !plain {
+        return format!("Group {}", index + 1);
+    }
+    let mut words = field.replace('_', " ");
+    if let Some(first) = words.get_mut(..1) {
+        first.make_ascii_uppercase();
+    }
+    format!("{words} group")
 }
 
 /// Bands in print order with display labels.

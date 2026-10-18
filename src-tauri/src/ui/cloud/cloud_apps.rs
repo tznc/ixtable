@@ -4,7 +4,7 @@
 //! Test ids: heading `cloud-apps` ("Cloud apps", in the card `cloud-apps-card`),
 //! `cloud-apps-signin` ("Sign in to ixtable Cloud"), `cloud-apps-offline`,
 //! `cloud-apps-loading`, `cloud-apps-empty`, per application `cloud-app:<appId>` (the
-//! button, label "Open cloud app NAME" or "Install cloud app NAME") and
+//! button, label "Open" or "Install"), `cloud-app-name:<appId>` (the application name) and
 //! `cloud-app-detail:<appId>` ("Role: Sales · installed 1.0.0"), `cloud-apps-busy`,
 //! transfer bar `cloud-apps-progress`, `cloud-apps-error`; the sign-in, account and
 //! invitation views add theirs (`auth`).
@@ -203,11 +203,17 @@ impl Render for CloudApps {
         let Some(session) = session else {
             if !self.show_sign_in {
                 section = section.child(
-                    forms::link("cloud-apps-signin", "Sign in to ixtable Cloud")
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.show_sign_in = true;
-                            cx.notify();
-                        })),
+                    h_flex()
+                        .gap_3()
+                        .items_center()
+                        .justify_start()
+                        .child(forms::muted("Run the applications shared with you.", cx))
+                        .child(forms::secondary("cloud-apps-signin", "Sign in to ixtable Cloud").on_click(
+                            cx.listener(|this, _, _, cx| {
+                                this.show_sign_in = true;
+                                cx.notify();
+                            }),
+                        )),
                 );
             } else {
                 let label = self.label.clone();
@@ -268,19 +274,35 @@ impl Render for CloudApps {
                         }
                     );
                     let app_id = row.app_id.clone();
+                    let icon = if row.installed.is_some() { IconName::Play } else { IconName::Download };
+                    let muted = cx.theme().muted_foreground;
                     section = section.child(
                         h_flex()
-                            .gap_2()
+                            .gap_3()
                             .items_center()
+                            .child(
+                                v_flex()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .child(widgets::styled_text(
+                                        eid(format!("cloud-app-name:{app_id}")),
+                                        row.name.clone(),
+                                        |d| d.font_weight(FontWeight::SEMIBOLD),
+                                    ))
+                                    .child(widgets::styled_text(
+                                        eid(format!("cloud-app-detail:{app_id}")),
+                                        detail,
+                                        move |d| d.text_sm().text_color(muted),
+                                    )),
+                            )
                             .child(
                                 Button::new(eid(format!("cloud-app:{app_id}")))
                                     .outline()
-                                    .icon(Icon::new(IconName::Cloud))
-                                    .label(format!("{verb} cloud app {}", row.name))
+                                    .icon(icon)
+                                    .label(verb)
                                     .disabled(self.disabled || !self.busy.is_empty())
                                     .on_click(cx.listener(move |this, _, _, cx| this.open(row.clone(), cx))),
-                            )
-                            .child(widgets::text(eid(format!("cloud-app-detail:{app_id}")), detail)),
+                            ),
                     );
                 }
             }

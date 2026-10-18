@@ -29,11 +29,11 @@ fn creates_a_report_with_a4_defaults_and_lists_bands_in_print_order() {
         [
             "Report header",
             "Page header",
-            "Group 1 (record.region) header",
-            "Group 2 (record.city) header",
+            "Region group header",
+            "City group header",
             "Detail",
-            "Group 2 (record.city) footer",
-            "Group 1 (record.region) footer",
+            "City group footer",
+            "Region group footer",
             "Page footer",
             "Report footer",
         ]
@@ -260,4 +260,16 @@ fn pages_through_the_table_when_a_runtime_role_may_not_run_ad_hoc_sql() {
     let calls = source.calls.borrow();
     let pages: Vec<&String> = calls.iter().filter(|c| c.starts_with("read_table_page")).collect();
     assert_eq!(pages, ["read_table_page 0 1000", "read_table_page 1000 1000", "read_table_page 2000 200"]);
+}
+
+#[test]
+fn group_labels_name_the_field_not_the_expression() {
+    let mut report = new_report("Sales");
+    report.bands.groups = vec![new_group("record.order_status"), new_group("record.[Ship City]"), new_group("upper(record.x)"), new_group("")];
+    let labels: Vec<String> = band_entries(&report).into_iter().map(|b| b.label).collect();
+    assert_eq!(labels[2], "Order status group header");
+    assert_eq!(labels[3], "Ship City group header");
+    assert_eq!(labels[4], "Group 3 header");
+    assert_eq!(labels[5], "Group 4 header");
+    assert!(labels.iter().all(|l| !l.contains("record.") && !l.contains('(')));
 }

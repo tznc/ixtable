@@ -19,6 +19,8 @@ pub struct AssetPreview {
     asset: Attachment,
     content: Option<String>,
     error: String,
+    // A section chosen from the links above; None shows every section.
+    focus: Option<usize>,
 }
 impl EventEmitter<PreviewEvent> for AssetPreview {}
 
@@ -40,6 +42,7 @@ impl AssetPreview {
             asset,
             content: None,
             error: String::new(),
+            focus: None,
         }
     }
 
@@ -68,16 +71,37 @@ impl Render for AssetPreview {
             card = card.child(widgets::text("preview-loading", "Loading…"));
         }
         if sections.len() > 1 {
-            card = card.child(h_flex().gap_2().flex_wrap().children(
-                sections.iter().enumerate().map(|(i, s)| {
-                    widgets::text(
-                        eid(format!("preview-nav:{i}")),
-                        if s.title.is_empty() { "Untitled".to_string() } else { s.title.clone() },
-                    )
-                }),
-            ));
+            let theme = cx.theme();
+            let border = theme.border;
+            card = card.child(
+                h_flex()
+                    .gap_3()
+                    .flex_wrap()
+                    .pb_2()
+                    .border_b_1()
+                    .border_color(border)
+                    .children(sections.iter().enumerate().map(|(i, s)| {
+                        forms::link(
+                            eid(format!("preview-nav:{i}")),
+                            if s.title.is_empty() { "Untitled" } else { &s.title },
+                        )
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.focus = Some(i);
+                            cx.notify();
+                        }))
+                    }))
+                    .when(self.focus.is_some(), |el| {
+                        el.child(forms::link("preview-show-all", "Show all").on_click(cx.listener(
+                            |this, _, _, cx| {
+                                this.focus = None;
+                                cx.notify();
+                            },
+                        )))
+                    }),
+            );
         }
-        for (i, s) in sections.iter().enumerate() {
+        let (code_bg, muted) = (cx.theme().muted, cx.theme().muted_foreground);
+        for (i, s) in sections.iter().enumerate().filter(|(i, _)| self.focus.is_none_or(|f| f == *i)) {
             card = card.child(
                 v_flex()
                     .gap_1()
@@ -85,14 +109,18 @@ impl Render for AssetPreview {
                         el.child(widgets::styled_text(
                             eid(format!("preview-title:{i}")),
                             s.title.clone(),
-                            |d| d.font_weight(FontWeight::MEDIUM),
+                            move |d| d.font_weight(FontWeight::MEDIUM).text_color(muted),
                         ))
                     })
-                    .child(widgets::styled_text(
-                        eid(format!("preview-section:{i}")),
-                        s.text.clone(),
-                        |d| d.font_family("monospace").text_sm(),
-                    )),
+                    .child(
+                        div().p_3().rounded_md().bg(code_bg).overflow_x_hidden().child(
+                            widgets::styled_text(
+                                eid(format!("preview-section:{i}")),
+                                s.text.clone(),
+                                |d| d.font_family("monospace").text_sm(),
+                            ),
+                        ),
+                    ),
             );
         }
         card

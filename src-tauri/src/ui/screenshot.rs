@@ -87,6 +87,8 @@ impl<C: UiContext> Harness<'_, C> {
             (1..=3).contains(&expectations.len()),
             "{name}: give 1-3 visual expectations"
         );
+        // Let entrance animations (checkbox ticks, sliding messages) finish before capturing.
+        self.cx.advance_clock(std::time::Duration::from_millis(600));
         self.settle();
         let image = self
             .cx

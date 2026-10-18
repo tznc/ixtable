@@ -58,6 +58,7 @@ fn filters_by_selection_excludes_a_selection_and_clears_filters(cx: &mut TestApp
     choose(&mut h, "filter", "Filter by selection");
     assert_eq!(column(&mut h, 1), ["Acme Ltd", "Core Inc"]);
     assert_eq!(h.label("filter-chip:0"), "region = north");
+    assert_eq!(h.label("record-count"), "2 of 3 records (filtered)");
 
     h.click("cell:0:1");
     choose(&mut h, "filter", "Filter excluding selection");
@@ -67,6 +68,7 @@ fn filters_by_selection_excludes_a_selection_and_clears_filters(cx: &mut TestApp
     assert_eq!(column(&mut h, 1), ["Bolt Ltd", "Core Inc"]);
     h.click("clear-filters");
     assert_eq!(column(&mut h, 1).len(), 3);
+    assert_eq!(h.label("record-count"), "3 records");
     let s = sheet(&mut h);
     assert!(!h.cx.read(|cx| s.read(cx).can_filter()) || h.cx.read(|cx| s.read(cx).filters.is_empty()));
     assert!(!h.exists("filter-chip:0"));

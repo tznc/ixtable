@@ -26,7 +26,7 @@ use crate::{
         shell::Shell,
     },
 };
-use gpui_kit::component::{input::{InputState, TextareaState}, checkbox::Checkbox};
+use gpui_kit::component::input::{InputState, TextareaState};
 use serde_json::json;
 
 pub fn is_semver(value: &str) -> bool {
@@ -265,16 +265,12 @@ impl Render for ReleaseTab {
         panel = panel
             .child(div().font_weight(FontWeight::MEDIUM).child("Password protection"))
             .child(
-                Checkbox::new("release-protect")
-                    .label("Protect the bundle with a password")
-                    .checked(self.protect)
-                    .on_click(move |checked, _, cx| {
-                        let checked = *checked;
-                        this.update(cx, |t, cx| {
-                            t.protect = checked;
-                            cx.notify();
-                        })
-                    }),
+                crate::ui::controls::check("release-protect", "Protect the bundle with a password", self.protect, move |checked, _, cx| {
+                    this.update(cx, |t, cx| {
+                        t.protect = checked;
+                        cx.notify();
+                    })
+                }),
             )
             .child(forms::muted(
                 "A password protects the bundle at rest and against casual unauthorized opening. \

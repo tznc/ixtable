@@ -180,7 +180,8 @@ fn lists_expression_errors_in_problems_opens_the_owning_control_and_blocks_bundl
     h.dialogs.queue_save(Some(path.clone()));
     h.click("export-bundle");
     let error = h.error_at("release-error");
-    assert!(error.contains("EXPRESSION_ERRORS"), "{error}");
+    assert!(error.contains("Some expressions have errors"), "{error}");
+    assert!(!error.contains("EXPRESSION_ERRORS"), "{error}");
     assert!(error.contains("Settings › Problems"), "{error}");
     assert_eq!(h.dialogs.count("save"), 0);
     assert!(!path.exists());

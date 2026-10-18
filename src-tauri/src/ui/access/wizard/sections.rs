@@ -15,6 +15,24 @@ use crate::{
     },
 };
 
+/// The plural object label for `n` of them: "1 Report" shows "Report", 2 show "Reports".
+fn count_word(label: &str, n: usize) -> String {
+    if n == 1 { widgets::singular(label) } else { label.to_string() }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::count_word;
+
+    #[test]
+    fn object_counts_use_the_singular_for_one() {
+        assert_eq!(count_word("Reports", 1), "Report");
+        assert_eq!(count_word("Modules", 1), "Module");
+        assert_eq!(count_word("Queries", 1), "Query");
+        assert_eq!(count_word("Reports", 2), "Reports");
+    }
+}
+
 /// Attention lists up to this long open expanded.
 const SHOW_ATTENTION_UP_TO: usize = 10;
 
@@ -48,10 +66,12 @@ impl AccessImportWizard {
         let counts: Vec<_> = objects.into_iter().filter(|(_, n)| *n > 0).collect();
         if !counts.is_empty() {
             block = block.child(h_flex().gap_2().flex_wrap().children(counts.into_iter().map(|(label, n)| {
+                // "1 Report", "2 Reports"; the id keeps the plural label.
+                let word = count_word(label, n);
                 widgets::observed(
                     h_flex()
                         .id(eid(format!("access-count:{label}")))
-                        .aria_label(format!("{label}: {n}"))
+                        .aria_label(format!("{n} {word}"))
                         .gap_1()
                         .px_2()
                         .py_1()
@@ -60,7 +80,7 @@ impl AccessImportWizard {
                         .border_color(theme.border)
                         .text_sm()
                         .child(div().font_weight(FontWeight::SEMIBOLD).child(n.to_string()))
-                        .child(div().text_color(theme.muted_foreground).child(label)),
+                        .child(div().text_color(theme.muted_foreground).child(word)),
                 )
             })));
         }

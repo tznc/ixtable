@@ -403,3 +403,26 @@ fn uses_landscape_letter_dimensions_and_margins() {
     assert_eq!(texts(&doc)[0], [t("n", "1", 10.0)]);
     assert_eq!(doc.pages[0].items[0].x(), 40.0);
 }
+
+#[test]
+fn bound_number_fields_share_two_decimals_when_the_column_has_fractions() {
+    let report = base_json(vec![(
+        "detail",
+        band(
+            20.0,
+            vec![
+                field("amount", "record.amount", 0.0, 0.0, 80.0, 14.0),
+                field("qty", "record.qty", 100.0, 0.0, 40.0, 14.0),
+                json!({ "id": "fixed", "kind": "field", "expression": "record.amount", "format": "0",
+                    "x": 150.0, "y": 0.0, "w": 40.0, "h": 14.0 }),
+            ],
+            false,
+        ),
+    )]);
+    let doc = lay(&report, &orders());
+    let page = &texts(&doc)[0];
+    let of = |id: &str| -> Vec<&str> { page.iter().filter(|t| t.0 == id).map(|t| t.1.as_str()).collect() };
+    assert_eq!(of("amount"), ["120.50", "80.00", "42.25", "10.00", "300.00"]);
+    assert_eq!(of("qty"), ["2", "1", "3", "4", "1"]);
+    assert_eq!(of("fixed")[1], "80");
+}

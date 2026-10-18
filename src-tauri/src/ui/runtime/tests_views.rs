@@ -254,8 +254,9 @@ fn a_dismissed_popup_returns_null_and_keeps_the_opener_usable(cx: &mut TestAppCo
     h.click("button:add-a-task");
     wait(&mut h);
     assert!(h.exists("popup:1"));
-    assert_eq!(h.label("popup-close:1"), "Close");
-    h.click("popup-close:1");
+    // A create popup has Cancel and no second Close button.
+    assert!(!h.exists("popup-close:1"));
+    h.click("cancel");
     wait(&mut h);
     assert_eq!(h.label("notice:info"), "Nothing added");
     assert!(!h.exists("popup:1"));

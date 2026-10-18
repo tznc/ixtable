@@ -817,7 +817,8 @@ impl Render for RecordView {
         let line = |kind: &str, notice: &Option<Notice>, cx: &App| {
             notice.as_ref().map(|n| {
                 let error = n.tone == NoticeTone::Error;
-                super::message(format!("{kind}:{}", if error { "error" } else { "info" }), n.message.clone(), error, cx)
+                let anim = format!("slide:{kind}:{}", n.message);
+                widgets::slide_in(anim, super::message(format!("{kind}:{}", if error { "error" } else { "info" }), n.message.clone(), error, cx))
             })
         };
         let mode = self.props.mode;
@@ -874,12 +875,8 @@ impl Render for RecordView {
                     ),
             )
             .children(line("status", &self.status, cx))
-            // Success lines reserve their space so saving never shifts the form; errors are callouts.
-            .child(
-                div()
-                    .min_h(px(20.))
-                    .children(line("notice", &self.notice, cx)),
-            )
+            // Messages slide in; no space is reserved for them.
+            .children(line("notice", &self.notice, cx))
             .when(!self.errors.form.is_empty(), |d| d.child(super::body::problems_callout("form-errors", &self.errors.form, cx)))
             .child(div().id("record-body").flex_1().min_h_0().overflow_y_scroll().child(body))
             .when(!read_only, |d| {
