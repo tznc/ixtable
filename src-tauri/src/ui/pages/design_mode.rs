@@ -9,7 +9,7 @@
 //!
 //! Test ids: `design-mode`, `design-sidebar`, `new-page`, `new-form`, `new-report`, `page-item-N`, `no-pages`,
 //! `design-navigation`, `generate-table`, `generate-form`, `generate-app`,
-//! `generate-notice`, `generate-error`, `loose-form:<id>`, `loose-report:<id>`,
+//! `generate-error`, `loose-form:<id>`, `loose-report:<id>`,
 //! `back-to-page`, `design-crumb`, `duplicate-form`, `delete-form`.
 
 use super::PagePanel;
@@ -24,6 +24,7 @@ use crate::ui::{
     prelude::*,
     reports::ReportPanel,
     shell::{ModeId, RevealTarget, Shell},
+    toast::Toast,
 };
 
 /// Builds list and detail forms for a table, with lookups and related lists from the live
@@ -53,7 +54,6 @@ pub enum Focus {
 #[derive(Default)]
 struct Generate {
     table: String,
-    notice: String,
     error: String,
 }
 
@@ -177,7 +177,6 @@ impl DesignMode {
                         match edit {
                             Ok(_) => {
                                 this.generate.error.clear();
-                                this.generate.notice.clear();
                                 this.open_form(&detail_id, None, cx);
                             }
                             Err(e) => this.generate.error = e.message,
@@ -202,11 +201,12 @@ impl DesignMode {
             match result {
                 Ok(added) => {
                     this.generate.error.clear();
-                    this.generate.notice = if added > 0 {
-                        format!("Added {added} forms and navigation items, each form on a page.")
+                    let toast = if added > 0 {
+                        Toast::success(format!("Added {added} forms and navigation items, each form on a page."))
                     } else {
-                        "Every table already has forms.".to_string()
+                        Toast::info("Every table already has forms.")
                     };
+                    this.shell.update(cx, |s, cx| s.toast(toast, cx));
                 }
                 Err(e) => this.generate.error = e.message,
             }
@@ -352,9 +352,6 @@ impl DesignMode {
                     .disabled(no_tables)
                     .on_click(cx.listener(|this, _, _, cx| this.generate(None, cx))),
             )
-            .when(!self.generate.notice.is_empty(), |el| {
-                el.child(widgets::styled_text("generate-notice", self.generate.notice.clone(), |d| d.text_xs()))
-            })
             .when(!self.generate.error.is_empty(), |el| {
                 el.child(widgets::styled_text("generate-error", self.generate.error.clone(), move |d| d.text_xs().text_color(danger)))
             })

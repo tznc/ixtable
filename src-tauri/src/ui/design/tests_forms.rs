@@ -141,7 +141,7 @@ fn picks_an_image_asset_by_its_stable_id_and_previews_it(cx: &mut TestAppContext
     std::fs::write(&path, [0x89, 0x50, 0x4e, 0x47, 1, 2, 3]).expect("write the image");
     h.dialogs.queue_open(Some(path));
     h.click("import-asset");
-    assert_eq!(h.label("asset-status"), "Imported logo.png.");
+    assert_eq!(h.notice().unwrap_or_default(), "Imported logo.png.");
     let asset = crate::list_attachments(h.label.clone()).expect("assets").remove(0);
 
     open_designer(&mut h);
@@ -172,7 +172,7 @@ fn clears_a_stored_enabled_when_that_a_label_cannot_use(cx: &mut TestAppContext)
     let archive = h.temp_path("clear-enabled-when.ixt");
     h.dialogs.queue_save(Some(archive.clone()));
     h.click("save-project");
-    assert_eq!(h.label("document-status"), "Saved archive");
+    assert_eq!(h.label("document-status"), "Saved");
     let reopened = format!("reopen-{}", uuid::Uuid::new_v4().simple());
     crate::open_document(reopened.clone(), archive.to_string_lossy().into()).expect("open the archive");
     let stored = crate::read_document_config(reopened.clone()).expect("config");

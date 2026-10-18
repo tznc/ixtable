@@ -50,7 +50,7 @@ fn persistence_autosave_and_recent() {
         &["The start screen lists the saved document under Recent documents with its path."],
     );
     h.click(id(&recent));
-    assert_eq!(h.label("document-status"), "Saved archive");
+    assert_eq!(h.label("document-status"), "Saved");
     assert_eq!(h.state().path.as_deref(), Some(path.to_str().unwrap()));
 }
 
@@ -72,7 +72,7 @@ fn persistence_recovery_prompt() {
         ],
     );
     h.click(id(&format!("recover:{name}")));
-    assert_eq!(h.label("document-status"), "Saved archive");
+    assert_eq!(h.label("document-status"), "Saved");
     assert_eq!(h.read_page("notes").total, 1);
 }
 
@@ -103,7 +103,7 @@ fn assets_size_checkpoints_and_logs() {
         .collect();
     assert!(largest.iter().any(|l| l.contains("handbook.pdf")), "{largest:?}");
     h.click("create-checkpoint");
-    assert_eq!(h.label("checkpoint-status"), "Checkpoint created.");
+    assert_eq!(h.notice().as_deref(), Some("Checkpoint created."));
     assert!(h.label("checkpoint:0").contains("manual"));
     h.capture(
         "assets-01-assets-and-size",

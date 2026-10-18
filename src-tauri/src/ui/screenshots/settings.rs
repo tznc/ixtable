@@ -91,7 +91,7 @@ fn settings_migrations_yaml_and_problems() {
         "name: Broken\nactiveMode: app\nversion: 3\nreports:\n  - id: r1\n    name: Sales\n  - id: r1\n    name: ''\n",
     );
     h.click("apply-yaml");
-    assert_eq!(h.label("yaml-status"), "YAML applied.");
+    assert_eq!(h.notice().as_deref(), Some("YAML applied."));
     h.click("tab-problems");
     let problems: Vec<String> = (0..2usize).map(|i| h.label(("problem", i))).collect();
     assert!(problems.iter().any(|p| p.contains("duplicate report id r1")), "{problems:?}");

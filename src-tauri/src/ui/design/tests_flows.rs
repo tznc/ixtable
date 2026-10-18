@@ -179,7 +179,7 @@ fn lists_expression_errors_in_problems_opens_the_owning_control_and_blocks_bundl
     let path = h.temp_path("blocked.ixtr");
     h.dialogs.queue_save(Some(path.clone()));
     h.click("export-bundle");
-    let error = h.label("release-error");
+    let error = h.error_at("release-error");
     assert!(error.contains("EXPRESSION_ERRORS"), "{error}");
     assert!(error.contains("Settings › Problems"), "{error}");
     assert_eq!(h.dialogs.count("save"), 0);
@@ -264,11 +264,11 @@ fn offers_forms_for_a_new_table_and_generates_the_app_from_the_form_list(cx: &mu
 
     h.switch_mode(ModeId::Design);
     h.click("generate-app");
-    wait_until(&mut h, "the notice", |h| h.try_label("generate-notice").is_some());
-    assert_eq!(h.label("generate-notice"), "Added 3 forms and navigation items, each form on a page.");
+    wait_until(&mut h, "the notice", |h| h.notice().is_some());
+    assert_eq!(h.notice().as_deref(), Some("Added 3 forms and navigation items, each form on a page."));
     h.click("generate-app");
     wait_until(&mut h, "the second notice", |h| {
-        h.try_label("generate-notice").as_deref() == Some("Every table already has forms.")
+        h.notice().as_deref() == Some("Every table already has forms.")
     });
     assert_eq!(names(&h), ["Main form", "Orders list", "Orders", "Customers list", "Customers"]);
     let labels: Vec<_> = h.config().design.navigation.into_iter().map(|n| n.label).collect();

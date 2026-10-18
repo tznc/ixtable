@@ -1,5 +1,5 @@
 //! Plain-language explanations of bundle errors. Port of src/release/errors.ts and
-//! BundleError.tsx. The banner is one text, "CODE: summary detail" (id as given).
+//! BundleError.tsx. The banner is the shared error callout with a bundle-specific headline.
 
 use crate::{manager::AppError, ui::prelude::*};
 
@@ -34,23 +34,10 @@ pub fn is_password_error(error: &AppError) -> bool {
     matches!(error.code.as_str(), "BUNDLE_PASSWORD" | "BUNDLE_PASSWORD_REQUIRED")
 }
 
-/// The banner for a bundle error, observed under `id`.
+/// The error callout for a bundle error: the plain-language summary as its headline
+/// (`<id>-headline`), the backend detail under `id`, and the code (`<id>-code`).
 pub fn bundle_error_banner(id: &'static str, error: &AppError, cx: &App) -> Div {
-    let (summary, detail) = bundle_error_text(error);
-    let text = if detail.is_empty() || detail == summary {
-        format!("{}: {summary}", error.code)
-    } else {
-        format!("{}: {summary} {detail}", error.code)
-    };
-    div()
-        .w_full()
-        .px_3()
-        .py_2()
-        .rounded_md()
-        .bg(cx.theme().danger.opacity(0.12))
-        .text_color(cx.theme().danger)
-        .text_sm()
-        .child(widgets::text(id, text))
+    widgets::error_callout(id, summary(&error.code), error, None, cx)
 }
 
 #[cfg(test)]

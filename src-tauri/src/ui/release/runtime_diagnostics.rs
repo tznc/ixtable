@@ -157,9 +157,10 @@ impl Render for RuntimeDiagnostics {
                 self.jobs.clone().expect("jobs view")
             }
             DiagnosticsTab::Logs => {
+                let shell = self.shell.clone();
                 let logs = self
                     .logs
-                    .get_or_insert_with(|| cx.new(|cx| LogsTab::new(label, cx)))
+                    .get_or_insert_with(|| cx.new(|cx| LogsTab::new(label, shell, cx)))
                     .clone();
                 logs.into()
             }

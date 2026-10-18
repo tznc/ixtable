@@ -263,7 +263,7 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
             issues.push(Issue::warning(
                 "entity",
                 &e.id,
-                format!("{} has no resolved concurrency policy", e.table),
+                format!("{} has no concurrency policy", e.table),
             ));
         } else if e.concurrency == "customAction"
             && !e
@@ -340,7 +340,7 @@ pub fn validate_tables(config: &DocumentConfig, tables: &[String]) -> Vec<Issue>
                 "entity",
                 t,
                 format!(
-                    "Table {t} has no resolved concurrency policy; set one in Entities settings"
+                    "Table {t} has no concurrency policy; set one in Entities settings"
                 ),
             )
         })

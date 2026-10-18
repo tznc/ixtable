@@ -154,6 +154,7 @@ fn labels_each_staged_change_by_store_capability_and_previews_rebuilds_and_drops
     apply_staged(&mut h);
     assert_eq!(h.label("impact-fact:rows"), "1");
     assert!(h.label("impact-fact:referencing").contains("bins (part): 1 row"));
+    h.click("impact-show-sql");
     assert!(h.label("impact-sql").contains("ALTER TABLE \"_ixtable_rebuild_parts\" RENAME TO \"parts\""));
     // Without the acknowledgement the confirmation does nothing.
     h.go("impact-confirm");
@@ -173,6 +174,7 @@ fn labels_each_staged_change_by_store_capability_and_previews_rebuilds_and_drops
     h.go("drop-table");
     assert_eq!(h.label("impact-dialog"), "Drop table parts?");
     assert_eq!(h.label("impact-fact:rows"), "1");
+    h.click("impact-show-sql");
     assert_eq!(h.label("impact-sql"), "DROP TABLE \"parts\";");
     h.go("impact-cancel");
     assert!(!h.exists("impact-dialog"));
@@ -216,6 +218,7 @@ fn keeps_designer_drafts_through_a_metadata_reload_and_previews_renames_and_inde
 
     h.go("drop-index:parts_label");
     assert_eq!(h.label("impact-dialog"), "Drop index parts_label?");
+    h.click("impact-show-sql");
     assert_eq!(h.label("impact-sql"), "DROP INDEX \"parts_label\";");
     h.go("impact-confirm");
     h.go("impact-cancel");

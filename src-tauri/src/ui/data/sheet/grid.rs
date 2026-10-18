@@ -13,7 +13,7 @@
 //! and `Column options for <column>` in the header, `head:<column>` (label notes
 //! `frozen`), `filter-selection`, `filter-excluding`, `find`, `totals`,
 //! `hidden-columns`, `unfreeze-columns`, `filter-chip:<n>`, `remove-filter:<n>`,
-//! `clear-filters`, `Total for <column>` and `total:<column>`, `sheet-notice`,
+//! `clear-filters`, `Total for <column>` and `total:<column>`,
 //! `draft-error`.
 
 use crate::ui::controls::select;
@@ -80,7 +80,6 @@ pub struct Datasheet {
     pub layout: DatasheetLayout,
     pub active: Option<CellAt>,
     pub editing: bool,
-    pub notice: Option<String>,
     pub draft_error: Option<String>,
     editor: Entity<InputState>,
     draft: Vec<Entity<InputState>>,
@@ -146,7 +145,6 @@ impl Datasheet {
             layout: DatasheetLayout::default(),
             active: None,
             editing: false,
-            notice: None,
             draft_error: None,
             editor,
             draft: vec![],
@@ -488,17 +486,14 @@ impl Datasheet {
         );
         let last_page = self.page.offset + self.page.rows.len() as u64 >= self.page.total;
         if !plan.inserts.is_empty() && start.row < self.page.rows.len() && !last_page {
-            self.notice = Some(
-                "The pasted rows run past this page. Paste into the new record row to add records, or start higher up."
-                    .into(),
-            );
+            let text = "The pasted rows run past this page. Paste into the new record row to add records, or start higher up.";
+            self.shell.update(cx, |shell, cx| shell.toast(crate::ui::toast::Toast::info(text), cx));
             cx.notify();
             return true;
         }
         let writes = match paste_writes(&self.table, &self.page, &plan, &self.fields) {
             Ok(writes) => writes,
             Err(message) => {
-                self.notice = None;
                 cx.emit(SheetEvent::Error(format!("{message} Nothing was pasted.")));
                 cx.notify();
                 return true;
@@ -513,12 +508,12 @@ impl Datasheet {
             match result {
                 Ok(_) => {
                     this.clear_draft(window, cx);
-                    this.notice = Some(pasted_message(updated, added));
+                    let text = pasted_message(updated, added);
+                    this.shell.update(cx, |shell, cx| shell.toast(crate::ui::toast::Toast::success(text), cx));
                     cx.emit(SheetEvent::Error(String::new()));
                     cx.emit(SheetEvent::Written);
                 }
                 Err(e) => {
-                    this.notice = None;
                     cx.emit(SheetEvent::Error(format!("{} Nothing was pasted.", e.error.message)));
                 }
             }
@@ -1235,15 +1230,11 @@ impl Render for Datasheet {
         let right = self.block(&rest, false, !self.read_only, cx);
         let empty = self.page.rows.is_empty();
         let read_only = self.read_only;
-        let muted = cx.theme().muted_foreground;
         v_flex()
             .size_full()
             .min_h_0()
             .child(self.toolbar(cx))
             .when_some(self.finding.clone(), |el, panel| el.child(panel))
-            .when_some(self.notice.clone(), |el, notice| {
-                el.child(div().px_3().py_1().text_sm().text_color(muted).child(widgets::text("sheet-notice", notice)))
-            })
             .when_some(self.draft_error.clone(), |el, message| {
                 el.child(div().px_3().py_1().text_sm().text_color(cx.theme().danger).child(widgets::text("draft-error", message)))
             })

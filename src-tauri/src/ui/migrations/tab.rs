@@ -18,7 +18,14 @@ use crate::{
         Migration, MigrationLog,
         commands::{MigrationRun, MigrationStatus},
     },
-    ui::{forms, forms::eid, prelude::*, shell::Shell, store::StoreEvent},
+    ui::{
+        display::{Tone, status_badge},
+        forms,
+        forms::eid,
+        prelude::*,
+        shell::Shell,
+        store::StoreEvent,
+    },
     validation::{Issue, Severity},
 };
 use gpui_kit::component::Disableable as _;
@@ -246,7 +253,30 @@ impl MigrationsTab {
     }
 }
 
-fn log_entry(section: &str, i: usize, log: &MigrationLog) -> Div {
+/// A log status in words, with its badge tone.
+fn log_status(status: &str) -> (&'static str, Tone) {
+    match status {
+        "applied" => ("Applied", Tone::Success),
+        "rolled_back" => ("Rolled back", Tone::Neutral),
+        "dry_run_ok" => ("Dry run passed", Tone::Success),
+        "dry_run_failed" => ("Dry run failed", Tone::Danger),
+        "blocked" => ("Blocked", Tone::Warning),
+        "failed" => ("Failed", Tone::Danger),
+        _ => ("Unknown", Tone::Neutral),
+    }
+}
+
+/// A migration's state, with its badge tone.
+fn state_tone(state: &str) -> Tone {
+    match state {
+        "Applied" => Tone::Success,
+        "Changed after apply" => Tone::Danger,
+        "Pending" => Tone::Warning,
+        _ => Tone::Neutral,
+    }
+}
+
+fn log_entry(section: &str, i: usize, log: &MigrationLog, cx: &App) -> Div {
     let key = |suffix: &str| eid(format!("{section}:{i}{suffix}"));
     let mut times = String::new();
     if !log.started_at.is_empty() && !log.finished_at.is_empty() {
@@ -256,9 +286,11 @@ fn log_entry(section: &str, i: usize, log: &MigrationLog) -> Div {
         h_flex()
             .gap_2()
             .child(widgets::styled_text(key(""), format!("{} · {}{times}", log.name, log.direction), |d| d))
-            .child(widgets::styled_text(key(":status"), log.status.clone(), |d| {
-                d.font_weight(FontWeight::SEMIBOLD)
-            })),
+            .items_center()
+            .child({
+                let (label, tone) = log_status(&log.status);
+                status_badge(key(":status"), label, tone, cx)
+            }),
     );
     if !log.health.is_empty() {
         let failed = log.health.iter().any(|h| h.starts_with("failed"));
@@ -332,7 +364,24 @@ impl Render for MigrationsTab {
         for (n, issue) in self.issues.iter().enumerate() {
             tab = tab.child(issue_line(eid(format!("migration-issue:{n}")), issue, cx));
         }
-        let mut table = v_flex().gap_1();
+        let muted = cx.theme().muted_foreground;
+        let mut table = v_flex().gap_1().text_sm().when(!declared.is_empty(), |t| {
+            t.child(
+                h_flex()
+                    .gap_3()
+                    .pb_1()
+                    .border_b_1()
+                    .border_color(cx.theme().border)
+                    .text_xs()
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(muted)
+                    .child(div().w(px(40.)).child("Order"))
+                    .child(div().flex_1().child("Name"))
+                    .child(div().w(px(120.)).child("Store"))
+                    .child(div().w(px(160.)).child("Status"))
+                    .child(div().w(px(160.))),
+            )
+        });
         for m in &declared {
             let s = self.status_of(&m.id);
             let state = if s.is_some_and(|s| s.modified) {
@@ -351,18 +400,29 @@ impl Render for MigrationsTab {
                 h_flex()
                     .gap_3()
                     .items_center()
-                    .child(widgets::text(eid(format!("migration-order:{name}")), m.order.to_string()))
-                    .child(widgets::text(eid(format!("migration-name:{name}")), name.clone()))
-                    .child(widgets::text(
+                    .child(div().w(px(40.)).text_color(muted).child(widgets::text(
+                        eid(format!("migration-order:{name}")),
+                        m.order.to_string(),
+                    )))
+                    .child(div().flex_1().min_w_0().child(widgets::text(eid(format!("migration-name:{name}")), name.clone())))
+                    .child(div().w(px(120.)).child(widgets::text(
                         eid(format!("migration-target:{name}")),
                         target_label(&m.target_store),
-                    ))
-                    .child(widgets::text(eid(format!("migration-status:{name}")), state))
+                    )))
+                    .child(div().w(px(160.)).child(status_badge(
+                        eid(format!("migration-status:{name}")),
+                        state,
+                        state_tone(state),
+                        cx,
+                    )))
                     .child(
-                        forms::secondary(eid(format!("edit-migration:{name}")), &format!("Edit {name}"))
+                        div().w(px(160.)).child(
+                        forms::secondary(eid(format!("edit-migration:{name}")), "Edit")
+                            .tooltip(format!("Edit {name}"))
                             .on_click(cx.listener(move |this, _, window, cx| {
                                 this.open_editor(migration.clone(), false, window, cx)
                             })),
+                        ),
                     ),
             );
         }
@@ -382,7 +442,7 @@ impl Render for MigrationsTab {
                             "Dry run failed; nothing was changed."
                         },
                     ))
-                    .child(log_entry("dry", 0, dry)),
+                    .child(log_entry("dry", 0, dry, cx)),
             );
         }
         if let Some(run) = &self.run {
@@ -396,7 +456,7 @@ impl Render for MigrationsTab {
             }
             let mut card = forms::card("last-run", "Last run", cx).child(widgets::text("run-status", status));
             for (i, log) in run.logs.iter().enumerate() {
-                card = card.child(log_entry("run", i, log));
+                card = card.child(log_entry("run", i, log, cx));
             }
             tab = tab.child(card);
         }
@@ -415,7 +475,7 @@ impl Render for MigrationsTab {
             log = log.child(widgets::text("log-empty", "No migrations have run on this store."));
         }
         for (i, entry) in self.history.iter().enumerate() {
-            log = log.child(log_entry("history", i, entry));
+            log = log.child(log_entry("history", i, entry, cx));
         }
         tab.child(log)
     }

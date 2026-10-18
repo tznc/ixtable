@@ -2,8 +2,8 @@
 //! and `TableExport.tsx`). Choosing a format opens the save dialog (cancel does
 //! nothing), then runs the export and reports the row count or the error.
 //!
-//! Test ids: `Export` (the button; a dropdown whose items are the formats, in order),
-//! `export-status` and `export-error`.
+//! Test ids: `Export` (the button; a dropdown whose items are the formats, in order)
+//! and `export-error`. The row count shows as a shell toast.
 
 use super::names::{
     default_export_name, dialog_filters, exported_message, format_label, with_extension, EXPORT_FORMATS,
@@ -11,7 +11,7 @@ use super::names::{
 use crate::data::{Filter, Sort};
 use crate::export::{ExportFormat, ExportSummary};
 use crate::manager::AppError;
-use crate::ui::{dialogs, prelude::*, shell::Shell};
+use crate::ui::{dialogs, prelude::*, shell::Shell, toast::Toast};
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
 use std::sync::Arc;
 
@@ -24,20 +24,20 @@ pub struct ExportMenu {
     disabled: bool,
     disabled_reason: Option<String>,
     busy: bool,
-    status: String,
+    shell: Entity<Shell>,
     error: String,
 }
 
 impl ExportMenu {
     /// `name` is the object name the default file name comes from.
-    pub fn new(name: &str, runner: ExportRunner) -> Self {
+    pub fn new(name: &str, runner: ExportRunner, shell: Entity<Shell>) -> Self {
         Self {
             name: name.to_string(),
             runner,
             disabled: false,
             disabled_reason: None,
             busy: false,
-            status: String::new(),
+            shell,
             error: String::new(),
         }
     }
@@ -51,7 +51,6 @@ impl ExportMenu {
     /// Points the menu at another object and export.
     pub fn set_target(&mut self, name: &str, runner: ExportRunner, cx: &mut Context<Self>) {
         if self.name != name {
-            self.status.clear();
             self.error.clear();
         }
         self.name = name.to_string();
@@ -60,7 +59,6 @@ impl ExportMenu {
     }
 
     fn choose(&mut self, format: ExportFormat, cx: &mut Context<Self>) {
-        self.status.clear();
         self.error.clear();
         cx.notify();
         let default = default_export_name(&self.name, format);
@@ -79,7 +77,10 @@ impl ExportMenu {
                 |this, result, cx| {
                     this.busy = false;
                     match result {
-                        Ok(summary) => this.status = exported_message(summary.rows),
+                        Ok(summary) => {
+                            let toast = Toast::success(exported_message(summary.rows));
+                            this.shell.update(cx, |shell, cx| shell.toast(toast, cx));
+                        }
                         Err(e) => this.error = e.message,
                     }
                     cx.notify();
@@ -120,7 +121,7 @@ impl Render for ExportMenu {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let entity = cx.entity();
         let theme = cx.theme();
-        let (muted, danger) = (theme.muted_foreground, theme.danger);
+        let danger = theme.danger;
         let mut button = Button::new("Export")
             .outline()
             .small()
@@ -144,9 +145,6 @@ impl Render for ExportMenu {
                 }
                 menu
             }))
-            .when(!self.status.is_empty(), |el| {
-                el.child(div().text_sm().text_color(muted).child(widgets::text("export-status", self.status.clone())))
-            })
             .when(!self.error.is_empty(), |el| {
                 el.child(div().text_sm().text_color(danger).child(widgets::text("export-error", self.error.clone())))
             })

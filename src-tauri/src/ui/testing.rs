@@ -321,6 +321,19 @@ impl<'a, C: UiContext> Harness<'a, C> {
         })
     }
 
+    /// An error callout as "CODE: headline message" (see `widgets::error_callout`).
+    pub fn error_at(&mut self, id: &str) -> String {
+        let message = self.label(gpui_kit::SharedString::from(id.to_string()));
+        let headline = self.try_label(gpui_kit::SharedString::from(format!("{id}-headline"))).unwrap_or_default();
+        let code = self.label(gpui_kit::SharedString::from(format!("{id}-code")));
+        let code = code.trim_start_matches("Error code ");
+        if message.is_empty() || message == headline {
+            format!("{code}: {headline}")
+        } else {
+            format!("{code}: {headline} {message}")
+        }
+    }
+
     pub fn notice(&mut self) -> Option<String> {
         self.try_label("notice")
     }

@@ -142,7 +142,7 @@ fn dry_runs_applies_with_a_checkpoint_logs_and_rolls_back_a_reversible_migration
     assert!(all.contains(&"audit".to_string()));
     assert!(!all.iter().any(|name| name.starts_with("_ixtable_")));
     scroll_to_end(&mut h);
-    assert_eq!(h.label("history:0:status"), "applied");
+    assert_eq!(h.label("history:0:status"), "Applied");
     assert_eq!(status_of(&mut h, "Create audit"), "Applied");
 
     scroll_to_start(&mut h);
@@ -157,7 +157,7 @@ fn dry_runs_applies_with_a_checkpoint_logs_and_rolls_back_a_reversible_migration
     tap(&mut h, "rollback-migration");
     assert!(!objects(&h).contains(&"audit".to_string()));
     scroll_to_end(&mut h);
-    assert_eq!(h.label("history:1:status"), "rolled_back");
+    assert_eq!(h.label("history:1:status"), "Rolled back");
 }
 
 #[gpui_kit::test]

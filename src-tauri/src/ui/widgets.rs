@@ -121,7 +121,7 @@ pub enum Severity {
 }
 
 impl Severity {
-    fn color(self, cx: &App) -> Hsla {
+    pub fn color(self, cx: &App) -> Hsla {
         let theme = cx.theme();
         match self {
             Self::Info => theme.primary,
@@ -131,7 +131,7 @@ impl Severity {
         }
     }
 
-    fn icon(self) -> IconName {
+    pub fn icon(self) -> IconName {
         match self {
             Self::Info => IconName::Info,
             Self::Success => IconName::CircleCheck,
@@ -212,6 +212,17 @@ pub fn error_banner(
     on_dismiss: Option<Box<dyn Fn(&mut Window, &mut App) + 'static>>,
     cx: &App,
 ) -> Div {
+    error_callout(id, error_headline(&error.code), error, on_dismiss, cx)
+}
+
+/// `error_banner` with a headline the caller chose (for a domain's own error codes).
+pub fn error_callout(
+    id: impl Into<ElementId>,
+    headline: &str,
+    error: &AppError,
+    on_dismiss: Option<Box<dyn Fn(&mut Window, &mut App) + 'static>>,
+    cx: &App,
+) -> Div {
     let id: ElementId = id.into();
     let theme = cx.theme();
     let color = theme.danger;
@@ -232,7 +243,11 @@ pub fn error_banner(
                 .min_w_0()
                 .gap_0p5()
                 .text_sm()
-                .child(div().font_weight(FontWeight::SEMIBOLD).child(error_headline(&error.code)))
+                .child(styled_text(
+                    SharedString::from(format!("{id}-headline")),
+                    headline.to_string(),
+                    |d| d.font_weight(FontWeight::SEMIBOLD),
+                ))
                 .child(text(id.clone(), error.message.clone()))
                 .child(styled_text(
                     SharedString::from(format!("{id}-code")),
@@ -250,32 +265,6 @@ pub fn error_banner(
                     .on_click(move |_, window, cx| f(window, cx)),
             )
         })
-}
-
-/// Neutral notice line (id `notice`) with a dismiss button.
-pub fn notice_banner(
-    notice: &str,
-    on_dismiss: impl Fn(&mut Window, &mut App) + 'static,
-    cx: &App,
-) -> Div {
-    let theme = cx.theme();
-    h_flex()
-        .w_full()
-        .gap_2()
-        .items_center()
-        .px_3()
-        .py_2()
-        .rounded_md()
-        .bg(theme.muted)
-        .child(div().flex_1().text_sm().child(text("notice", notice.to_string())))
-        .child(
-            Button::new("dismiss-notice")
-                .ghost()
-                .xsmall()
-                .icon(IconName::Close)
-                .tooltip("Dismiss")
-                .on_click(move |_, window, cx| on_dismiss(window, cx)),
-        )
 }
 
 /// Progress line (id `progress`) shown while a long command runs.
@@ -375,52 +364,5 @@ pub fn tab_strip(
                 .label(label)
                 .selected(key == selected)
                 .on_click(move |_, window, cx| on_select(key, window, cx))
-        }))
-}
-
-/// A compact read-only table: a header row, then one observed row per entry. The first
-/// column is left-aligned text; the others are right-aligned numbers, with zeros and
-/// dashes muted. Each row is observed under its id with `label` as its text for tests.
-pub fn data_table(
-    id: impl Into<ElementId>,
-    headers: &[&str],
-    rows: Vec<(ElementId, String, Vec<String>)>,
-    cx: &App,
-) -> Stateful<Div> {
-    let theme = cx.theme();
-    let (muted, border) = (theme.muted_foreground, theme.border);
-    let cell = |value: String, first: bool| {
-        let quiet = !first && (value == "0" || value == "—");
-        div()
-            .when(first, |d| d.flex_1().min_w_0().overflow_hidden().text_ellipsis())
-            .when(!first, |d| d.w(px(104.)).flex_none().text_right())
-            .when(quiet, |d| d.text_color(muted))
-            .child(value)
-    };
-    let header = h_flex()
-        .gap_3()
-        .px_2()
-        .pb_1()
-        .border_b_1()
-        .border_color(border)
-        .text_xs()
-        .font_weight(FontWeight::MEDIUM)
-        .text_color(muted)
-        .children(headers.iter().enumerate().map(|(i, h)| cell(h.to_string(), i == 0)));
-    v_flex()
-        .id(id)
-        .text_sm()
-        .child(header)
-        .children(rows.into_iter().map(|(row_id, label, cells)| {
-            h_flex()
-                .id(row_id)
-                .aria_label(label)
-                .gap_3()
-                .px_2()
-                .py_1()
-                .border_b_1()
-                .border_color(border.opacity(0.5))
-                .children(cells.into_iter().enumerate().map(|(i, c)| cell(c, i == 0)))
-                .test_support()
         }))
 }

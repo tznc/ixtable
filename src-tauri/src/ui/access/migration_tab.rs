@@ -4,13 +4,14 @@
 //! src/access/MigrationTab.tsx.
 //!
 //! Test ids: heading `access-migration`, `access-not-imported`, `access-intro`,
-//! `summary:<kind>` ("Tables: converted C, partly P, not converted N"), filters
+//! table `access-summary` with rows `summary:<kind>` ("Tables: converted C, partly P,
+//! not converted N"), filters
 //! `access-status:<attention|skipped|partial|converted|all>`, `access-kind:<all|kind>`,
 //! input `access-search`, checkbox `access-hide-reviewed`, `export-md`, `export-csv`,
-//! `access-notice`, `access-error`, `access-no-items`; per item (key `kind:name`)
-//! `item:<key>` ("name kind"), `item-status:<key>`, `item-note:<key>:<i>`,
-//! `reviewed:<key>` (label "Reviewed kind name"), `open-item:<key>` ("Open form name");
-//! `access-warning:<i>`.
+//! `access-error`, `access-no-items`; per item (key `kind:name`)
+//! `item:<key>` (the name), `item-kind:<key>`, badge `item-status:<key>`, `item-note:<key>:<i>`,
+//! `reviewed:<key>` (label "Reviewed"), `open-item:<key>` ("Open form name");
+//! warning callouts `access-warning:<i>`.
 
 use super::{
     migration::{
@@ -23,10 +24,13 @@ use crate::{
     manager::AppError,
     ui::{
         dialogs::{self, FileFilter},
+        display::{data_table, status_badge},
         forms::{self, eid},
         prelude::*,
         shell::{AutomationTab, RevealTarget, Shell},
         store::StoreEvent,
+        toast::Toast,
+        widgets::Severity,
     },
 };
 use gpui_kit::component::input::{Input, InputEvent, InputState};
@@ -39,7 +43,6 @@ pub struct AccessMigrationTab {
     filter: MigrationFilter,
     search: Entity<InputState>,
     error: Option<AppError>,
-    notice: String,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -83,7 +86,6 @@ impl AccessMigrationTab {
             filter: MigrationFilter::new(StatusFilter::Attention),
             search,
             error: None,
-            notice: String::new(),
             _subscriptions: subscriptions,
         }
     }
@@ -106,7 +108,6 @@ impl AccessMigrationTab {
 
     fn export(&mut self, markdown: bool, cx: &mut Context<Self>) {
         self.error = None;
-        self.notice.clear();
         let Some(migration) = self.migration(cx) else { return };
         let name = self.shell.read(cx).config(cx).name.clone();
         let title = if name.is_empty() { "Access".to_string() } else { name };
@@ -128,7 +129,7 @@ impl AccessMigrationTab {
                 move || crate::access::write_access_report(label, path, text),
                 move |this, result, cx| {
                     match result {
-                        Ok(()) => this.notice = format!("Saved {shown}"),
+                        Ok(()) => this.shell.update(cx, |shell, cx| shell.toast(Toast::success(format!("Saved {shown}")), cx)),
                         Err(e) => this.error = Some(e),
                     }
                     cx.notify();
@@ -188,18 +189,24 @@ impl Render for AccessMigrationTab {
             "access-intro",
             format!("Imported from {source}, {format}{on}. {review}"),
         ));
-        for c in status_counts(&migration.report) {
-            tab = tab.child(widgets::text(
-                eid(format!("summary:{}", c.kind)),
-                format!(
-                    "{}: converted {}, partly {}, not converted {}",
-                    kind_label(&c.kind),
-                    c.converted,
-                    c.partial,
-                    c.skipped
-                ),
-            ));
-        }
+        let counts = status_counts(&migration.report);
+        tab = tab.child(data_table(
+            "access-summary",
+            &["Kind", "Converted", "Partly", "Not converted"],
+            counts
+                .iter()
+                .map(|c| {
+                    let kind = kind_label(&c.kind);
+                    let label = format!(
+                        "{kind}: converted {}, partly {}, not converted {}",
+                        c.converted, c.partial, c.skipped
+                    );
+                    let cells = vec![kind, c.converted.to_string(), c.partial.to_string(), c.skipped.to_string()];
+                    (eid(format!("summary:{}", c.kind)), label, cells)
+                })
+                .collect(),
+            cx,
+        ));
         // Filters.
         let mut statuses = forms::actions().child(widgets::text("access-show", "Show"));
         let options: [(&str, &str, StatusFilter); 5] = [
@@ -271,30 +278,32 @@ impl Render for AccessMigrationTab {
                             .on_click(cx.listener(|this, _, _, cx| this.export(false, cx))),
                     ),
             );
-        if !self.notice.is_empty() {
-            tab = tab.child(widgets::text("access-notice", self.notice.clone()));
-        }
         if let Some(e) = &self.error {
             tab = tab.child(widgets::error_banner("access-error", e, None, cx));
         }
         if items.is_empty() {
             tab = tab.child(widgets::text("access-no-items", "No items match."));
         }
+        let (muted, border) = (cx.theme().muted_foreground, cx.theme().border);
         for item in &items {
             let key = item_key(item);
-            let mut row = v_flex()
-                .gap_1()
-                .p_2()
-                .border_b_1()
-                .border_color(cx.theme().border)
-                .child(widgets::text(
-                    eid(format!("item:{key}")),
-                    format!("{} {}", item.name, item.kind),
-                ))
-                .child(widgets::text(eid(format!("item-status:{key}")), item.status.label()));
+            let toggle_key = key.clone();
+            let entity = cx.entity();
+            // One row: name, kind and status on the left; open link and review mark right.
+            let mut head = h_flex()
+                .gap_2()
+                .items_center()
+                .child(widgets::styled_text(eid(format!("item:{key}")), item.name.clone(), |d| {
+                    d.font_weight(FontWeight::MEDIUM)
+                }))
+                .child(widgets::styled_text(eid(format!("item-kind:{key}")), item.kind.clone(), move |d| {
+                    d.text_xs().text_color(muted)
+                }))
+                .child(status_badge(eid(format!("item-status:{key}")), item.status.label(), item.status.tone(), cx))
+                .child(div().flex_1());
             if let Some(target) = item.target.as_ref().and_then(|t| reveal_for(t).map(|r| (t, r))) {
                 let (target, reveal) = target;
-                row = row.child(
+                head = head.child(
                     forms::link(
                         eid(format!("open-item:{key}")),
                         &format!("{} {}", open_label(&target.kind), item.name),
@@ -305,24 +314,25 @@ impl Render for AccessMigrationTab {
                     })),
                 );
             }
-            for (i, note) in item.notes.iter().enumerate() {
-                row = row.child(widgets::text(eid(format!("item-note:{key}:{i}")), note.clone()));
-            }
-            let toggle_key = key.clone();
-            let entity = cx.entity();
-            row = row.child(forms::check(
+            head = head.child(forms::check(
                 eid(format!("reviewed:{key}")),
-                &format!("Reviewed {} {}", item.kind, item.name),
+                "Reviewed",
                 reviewed.contains(&key),
                 move |on, _, cx| {
                     let key = toggle_key.clone();
                     entity.update(cx, |this, cx| this.mark(key, on, cx))
                 },
             ));
+            let mut row = v_flex().gap_1().px_2().py_1p5().border_b_1().border_color(border.opacity(0.5)).child(head);
+            for (i, note) in item.notes.iter().enumerate() {
+                row = row.child(widgets::styled_text(eid(format!("item-note:{key}:{i}")), note.clone(), move |d| {
+                    d.text_sm().text_color(muted)
+                }));
+            }
             tab = tab.child(row);
         }
         for (i, w) in migration.warnings.iter().enumerate() {
-            tab = tab.child(widgets::text(eid(format!("access-warning:{i}")), w.clone()));
+            tab = tab.child(widgets::callout(eid(format!("access-warning:{i}")), Severity::Warning, w, None, cx));
         }
         tab
     }

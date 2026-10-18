@@ -151,12 +151,12 @@ fn sets_a_concurrency_policy_per_table_and_flags_tables_without_one(cx: &mut Tes
 
     let issues = crate::validation::validate_document(h.label.clone()).expect("validate");
     assert!(
-        issues.iter().any(|i| i.object_id == "legacy" && i.message.contains("no resolved concurrency policy")),
+        issues.iter().any(|i| i.object_id == "legacy" && i.message.contains("no concurrency policy")),
         "{issues:?}"
     );
 
     open_tab(&mut h, "entities");
-    assert_eq!(h.label("entity-status:legacy"), "No resolved policy");
+    assert_eq!(h.label("entity-status:legacy"), "No policy");
     assert_eq!(h.label("Concurrency policy for orders"), "Optimistic: reject stale edits");
     choose(&mut h, "Concurrency policy for orders", "Last write wins");
     let entities = h.config().entities;

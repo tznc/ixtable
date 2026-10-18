@@ -9,7 +9,7 @@ use crate::{
     manager::{AppError, SessionState},
     storage::RecentFile,
     templates::TemplateInfo,
-    ui::{dialogs, task, widgets},
+    ui::{dialogs, task, toast::{self, Toast}, widgets},
 };
 use gpui_kit::assets::IconName;
 use crate::ui::widgets::StartAligned as _;
@@ -32,7 +32,7 @@ pub struct StartScreen {
     label: SharedString,
     pending: Option<String>,
     error: Option<AppError>,
-    notice: Option<String>,
+    notice: Option<Toast>,
     recents: Vec<RecentFile>,
     templates: Vec<TemplateInfo>,
     show_all: bool,
@@ -59,12 +59,15 @@ impl StartScreen {
             label: label.to_string().into(),
             pending: None,
             error: None,
-            notice,
+            notice: None,
             recents: vec![],
             templates: vec![],
             show_all: false,
             panels,
         };
+        if let Some(notice) = notice {
+            this.set_notice(notice, cx);
+        }
         this.refresh(cx);
         this
     }
@@ -116,9 +119,9 @@ impl StartScreen {
         );
     }
 
+    /// A neutral toast, such as "Open canceled."
     pub fn set_notice(&mut self, notice: impl Into<String>, cx: &mut Context<Self>) {
-        self.notice = Some(notice.into());
-        cx.notify();
+        toast::show(self, |s| &mut s.notice, Toast::info(notice), cx);
     }
 
     pub fn set_error(&mut self, error: AppError, cx: &mut Context<Self>) {
@@ -143,8 +146,7 @@ impl StartScreen {
         task::after(cx, pick, |this, path, cx| match path {
             None => {
                 this.pending = None;
-                this.notice = Some("Open canceled.".into());
-                cx.notify();
+                this.set_notice("Open canceled.", cx);
             }
             Some(path) => this.open_path(path.to_string_lossy().into_owned(), cx),
         });
@@ -187,7 +189,7 @@ impl StartScreen {
 }
 
 impl Render for StartScreen {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let busy = self.is_busy();
         let actions = super::start_sections::actions(&cx.entity(), busy, cx);
         let theme = cx.theme();
@@ -284,7 +286,7 @@ impl Render for StartScreen {
                     })
                     .when_some(self.notice.clone(), |el, n| {
                         let entity = cx.entity();
-                        el.child(widgets::notice_banner(
+                        el.child(toast::render(
                             &n,
                             move |_, cx| {
                                 entity.update(cx, |this, cx| {
@@ -292,6 +294,7 @@ impl Render for StartScreen {
                                     cx.notify();
                                 })
                             },
+                            window,
                             cx,
                         ))
                     })

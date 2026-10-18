@@ -221,7 +221,7 @@ fn pages_parameters_and_links() {
     seed_sales(&mut h);
     crate::ui::pages::test_support::open_dashboards(&mut h);
     h.click("generate-app");
-    wait_until(&mut h, "the generated pages", |h| h.try_label("generate-notice").is_some());
+    wait_until(&mut h, "the generated pages", |h| h.notice().is_some());
     let pages = h.config().pages.len();
     assert!(pages >= 5, "a page per generated form, got {pages}");
     h.click(id("page-item-1"));

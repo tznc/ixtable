@@ -2,7 +2,7 @@
 //! Port of src/persistence/CheckpointsPanel.tsx.
 //!
 //! Test ids: card `checkpoints`, `create-checkpoint`, `checkpoint-error`,
-//! `checkpoint-status`, `checkpoint:<i>`, `restore-checkpoint:<i>`, `no-checkpoints`.
+//! `checkpoint:<i>`, `restore-checkpoint:<i>`, `no-checkpoints`.
 
 use super::{
     eid,
@@ -11,7 +11,7 @@ use super::{
 use crate::{
     checkpoints::CheckpointInfo,
     manager::AppError,
-    ui::{dialogs, forms, prelude::*, shell::Shell},
+    ui::{dialogs, forms, prelude::*, shell::Shell, toast::Toast},
 };
 
 pub struct CheckpointsPanel {
@@ -19,7 +19,6 @@ pub struct CheckpointsPanel {
     checkpoints: Vec<CheckpointInfo>,
     busy: bool,
     error: Option<AppError>,
-    status: String,
     /// Only the newest listing may land: a slow first load must not overwrite the list
     /// fetched after a create.
     latest: u64,
@@ -32,7 +31,6 @@ impl CheckpointsPanel {
             checkpoints: vec![],
             busy: false,
             error: None,
-            status: String::new(),
             latest: 0,
         };
         this.refresh(None, cx);
@@ -69,7 +67,7 @@ impl CheckpointsPanel {
                 }
                 if let Some(message) = message {
                     this.busy = false;
-                    this.status = message;
+                    this.shell.update(cx, |shell, cx| shell.toast(Toast::success(message), cx));
                 }
                 cx.notify();
             },
@@ -79,7 +77,6 @@ impl CheckpointsPanel {
     fn begin(&mut self, cx: &mut Context<Self>) {
         self.busy = true;
         self.error = None;
-        self.status.clear();
         cx.notify();
     }
 
@@ -117,7 +114,7 @@ impl CheckpointsPanel {
         task::after(cx, pick, move |this, path, cx| {
             let Some(path) = path else {
                 this.busy = false;
-                this.status = "Restore canceled.".into();
+                this.shell.update(cx, |shell, cx| shell.toast(Toast::info("Restore canceled."), cx));
                 cx.notify();
                 return;
             };
@@ -153,9 +150,6 @@ impl Render for CheckpointsPanel {
             );
         if let Some(e) = &self.error {
             card = card.child(widgets::error_banner("checkpoint-error", e, None, cx));
-        }
-        if !self.status.is_empty() {
-            card = card.child(widgets::text("checkpoint-status", self.status.clone()));
         }
         if self.checkpoints.is_empty() {
             return card.child(widgets::text("no-checkpoints", "No checkpoints yet."));
