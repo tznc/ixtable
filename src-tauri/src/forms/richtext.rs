@@ -30,7 +30,7 @@ const BLOCKS: &[&str] = &["p", "div", "li", "h1", "h2", "h3", "blockquote", "br"
 const VOID: &[&str] = &["br", "img", "hr", "input", "meta", "link", "wbr"];
 
 #[derive(Debug)]
-enum Token {
+pub(super) enum Token {
     Text(String),
     Open {
         name: String,
@@ -131,7 +131,7 @@ fn href_of(attributes: &str) -> Option<String> {
     None
 }
 
-fn tokens(html: &str) -> Vec<Token> {
+pub(super) fn tokens(html: &str) -> Vec<Token> {
     let mut out = Vec::new();
     let mut rest = html;
     while !rest.is_empty() {

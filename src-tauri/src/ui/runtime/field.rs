@@ -6,10 +6,11 @@
 //! input (text inputs report their text as the snapshot value; a checkbox reports `checked`;
 //! selects and relationships are buttons labelled with the shown choice). Choices are
 //! `<id>:option:<slug of the choice label>` (`none` for the empty choice), a relationship's
-//! search box is `<id>:search`, and the error text is `<id>:error`.
+//! search box is `<id>:search`, and the error text is `<id>:error`. Rich-text and attachment
+//! ids are listed in `field_formats.rs`.
 //!
 //! Deviations from the web UI: dates and times are typed as ISO text (no picker); choices
-//! open in an inline list; rich text edits plain paragraphs; attachments list their files.
+//! open in an inline list; rich text is edited as light markup with a toolbar and a preview.
 
 use super::BodyKey;
 use crate::design::{Control, ControlKind, Relationship, Tone};
@@ -17,10 +18,8 @@ use crate::forms::conditions::filter_inputs_key;
 use crate::forms::data::{
     Choice, cached_relationship_label, query_choices, relationship_choices, relationship_label,
 };
-use crate::forms::field_values::file_size;
-use crate::forms::fields::{
-    parse_attachments, parse_choices, choices_value, rich_text_plain, value_text,
-};
+use crate::forms::fields::{parse_choices, choices_value, value_text};
+use crate::forms::richtext_markup::{markup_rich_text, rich_text_markup};
 use crate::forms::mask::{apply_mask, mask_template, parse_mask};
 use crate::forms::values::{RecordValues, number_value, same_value};
 use crate::ui::prelude::*;
@@ -77,6 +76,9 @@ pub struct FieldView {
     pending: Option<Task<()>>,
     // The disabled state last given to the inputs (setting it again would notify and re-render).
     disabled: Option<bool>,
+    // An attachment upload is running.
+    uploading: bool,
+    files_error: Option<String>,
 }
 
 fn date_input(value: &Value, kind: ControlKind) -> String {
@@ -101,7 +103,8 @@ fn date_input(value: &Value, kind: ControlKind) -> String {
 pub fn input_text(value: &Value, kind: ControlKind) -> String {
     match kind {
         ControlKind::Date | ControlKind::Time | ControlKind::Datetime => date_input(value, kind),
-        ControlKind::RichText => rich_text_plain(value),
+        ControlKind::RichText if value.is_null() => String::new(),
+        ControlKind::RichText => rich_text_markup(&value_text(value)),
         _ => {
             if value.is_null() {
                 String::new()
@@ -128,12 +131,8 @@ pub fn parse_input(kind: ControlKind, text: &str) -> Option<Value> {
     }
 }
 
-fn rich_html(text: &str) -> Value {
-    if text.trim().is_empty() {
-        return Value::Null;
-    }
-    let escaped = |line: &str| line.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
-    Value::String(text.lines().map(|l| format!("<p>{}</p>", escaped(l))).collect::<String>())
+fn rich_html(markup: &str) -> Value {
+    markup_rich_text(markup).map_or(Value::Null, Value::String)
 }
 
 /// Element id of a field's input.
@@ -158,6 +157,8 @@ impl FieldView {
             seq: 0,
             pending: None,
             disabled: None,
+            uploading: false,
+            files_error: None,
         }
     }
 
@@ -645,24 +646,6 @@ impl FieldView {
         .test_support()
         .into_any_element()
     }
-
-    fn render_attachments(&self, id: &SharedString, cx: &Context<Self>) -> impl IntoElement {
-        let files = parse_attachments(&self.props().value);
-        let muted = cx.theme().muted_foreground;
-        v_flex()
-            .id(id.clone())
-            .aria_label(format!("{} files", self.props().label))
-            .gap_0p5()
-            .children(files.iter().map(|file| {
-                widgets::styled_text(
-                    SharedString::from(format!("{id}:file:{}", widgets::slug(&file.name))),
-                    format!("{} ({})", file.name, file_size(file.size)),
-                    |d| d.text_sm(),
-                )
-            }))
-            .when(files.is_empty(), |el| el.child(div().text_sm().text_color(muted).child("No files")))
-            .test_support()
-    }
 }
 
 fn key_signature(props: &FieldProps) -> String {
@@ -709,7 +692,8 @@ impl Render for FieldView {
             ControlKind::Select | ControlKind::Relationship => self.render_dropdown(&id, cx).into_any_element(),
             ControlKind::MultiSelect => self.render_multi_select(&id, cx).into_any_element(),
             ControlKind::Attachment => self.render_attachments(&id, cx).into_any_element(),
-            ControlKind::Multiline | ControlKind::RichText => match self.area.as_ref() {
+            ControlKind::RichText => self.render_rich_text(&id, cx).into_any_element(),
+            ControlKind::Multiline => match self.area.as_ref() {
                 Some(area) => div()
                     .id(id.clone())
                     .aria_label(props.label.clone())
@@ -761,6 +745,9 @@ impl Render for FieldView {
             })
     }
 }
+
+#[path = "field_formats.rs"]
+mod formats;
 
 #[cfg(test)]
 #[path = "field_tests.rs"]

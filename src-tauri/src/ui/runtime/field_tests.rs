@@ -1,10 +1,10 @@
 //! Port of tests/unit/field-inputs.test.tsx: one field hosted on its own and fed values the
-//! way a form feeds them. The rich-text box here edits plain paragraphs (no toolbar) and the
-//! attachment control only lists files, so those two cases are adapted. Imports are explicit.
+//! way a form feeds them. The rich-text box edits markup instead of a content-editable box, so
+//! those cases are adapted. Imports are explicit.
 
 use super::{FieldProps, FieldView, field_id};
 use crate::data::DataValue;
-use crate::design::{Control, ControlKind, KeyPair, Relationship, SelectOption};
+use crate::design::{Binding, Control, ControlKind, KeyPair, Relationship, SelectOption};
 use crate::ui::testing::Harness;
 use gpui_kit::{AppContext as _, Entity, Render, TestAppContext};
 use serde_json::{Value, json};
@@ -101,12 +101,8 @@ fn formats_masked_entry_as_it_is_typed_and_stores_the_typed_characters(cx: &mut 
     assert_eq!(template, "(___) ___-____");
 }
 
-#[gpui_kit::test]
-fn emits_html_from_the_rich_text_box(cx: &mut TestAppContext) {
-    let changes: Changes = Default::default();
-    let rich = control(ControlKind::RichText);
-    let (mut h, field) = host(cx, props(&rich, Value::Null, false, &changes));
-    // Focus the text area directly: its wrapper is not the focus target.
+// Focuses the text area directly: its wrapper is not the focus target.
+fn focus_area(h: &mut Harness, field: &Entity<FieldView>) -> Entity<gpui_kit::component::input::TextareaState> {
     let area = h.cx.read(|cx| field.read(cx).area.clone().expect("a text area"));
     h.update(|window, cx| {
         use gpui_kit::Focusable as _;
@@ -114,19 +110,66 @@ fn emits_html_from_the_rich_text_box(cx: &mut TestAppContext) {
         handle.focus(window, cx);
     });
     h.settle();
-    h.input("Hello");
-    assert_eq!(changes.borrow().last(), Some(&json!("<p>Hello</p>")));
+    area
 }
 
 #[gpui_kit::test]
-fn shows_read_only_rich_text_without_scripts(cx: &mut TestAppContext) {
+fn emits_html_from_the_rich_text_box(cx: &mut TestAppContext) {
+    let changes: Changes = Default::default();
+    let rich = control(ControlKind::RichText);
+    let (mut h, field) = host(cx, props(&rich, Value::Null, false, &changes));
+    focus_area(&mut h, &field);
+    h.input("Hello *you*");
+    assert_eq!(changes.borrow().last(), Some(&json!("<p>Hello <i>you</i></p>")));
+}
+
+#[gpui_kit::test]
+fn formats_the_selection_from_the_rich_text_toolbar(cx: &mut TestAppContext) {
+    let changes: Changes = Default::default();
+    let rich = control(ControlKind::RichText);
+    let base = id(&rich);
+    let (mut h, field) = host(cx, props(&rich, Value::Null, false, &changes));
+    let area = focus_area(&mut h, &field);
+    h.input("Hello");
+    feed(&mut h, &field, props(&rich, json!("<p>Hello</p>"), false, &changes));
+    h.update(|_, cx| area.update(cx, |s, cx| s.set_selected_range(0..5, cx)));
+    h.click(format!("{base}:format:bold"));
+    assert_eq!(changes.borrow().last(), Some(&json!("<p><b>Hello</b></p>")));
+    feed(&mut h, &field, props(&rich, json!("<p><b>Hello</b></p>"), false, &changes));
+    // Typing goes on in the box after a toolbar click.
+    h.press("end");
+    h.input("!");
+    let shown = h.cx.read(|cx| area.read(cx).value().to_string());
+    assert_eq!(shown, "**Hello**!");
+    h.press("backspace");
+    h.click(format!("{base}:format:numbered-list"));
+    assert_eq!(changes.borrow().last(), Some(&json!("<ol><li><b>Hello</b></li></ol>")));
+    feed(&mut h, &field, props(&rich, json!("<ol><li><b>Hello</b></li></ol>"), false, &changes));
+    // The preview renders the stored HTML.
+    assert_eq!(h.label(format!("{base}:preview")), "Hello");
+    let shown = h.cx.read(|cx| area.read(cx).value().to_string());
+    assert_eq!(shown, "1. **Hello**");
+}
+
+#[gpui_kit::test]
+fn shows_stored_rich_text_as_markup_while_editing(cx: &mut TestAppContext) {
+    let changes: Changes = Default::default();
+    let rich = control(ControlKind::RichText);
+    let value = json!("<p>Plan</p><ul><li><u>one</u></li><li>two</li></ul>");
+    let (mut h, field) = host(cx, props(&rich, value, false, &changes));
+    let shown = h.cx.read(|cx| field.read(cx).area.as_ref().expect("a text area").read(cx).value().to_string());
+    assert_eq!(shown, "Plan\n- ++one++\n- two");
+    assert!(changes.borrow().is_empty(), "showing a value must not change it");
+}
+
+#[gpui_kit::test]
+fn shows_read_only_rich_text_formatted_without_scripts(cx: &mut TestAppContext) {
     let changes: Changes = Default::default();
     let rich = control(ControlKind::RichText);
     let value = json!("<b>Bold</b><script>alert(1)</script>");
-    let (mut h, field) = host(cx, props(&rich, value, true, &changes));
-    let shown = h.cx.read(|cx| field.read(cx).area.as_ref().expect("a text area").read(cx).value().to_string());
-    assert_eq!(shown, "Bold");
-    assert!(h.exists(id(&rich)));
+    let (mut h, _field) = host(cx, props(&rich, value, true, &changes));
+    assert_eq!(h.label(id(&rich)), "Bold");
+    assert!(!h.exists(format!("{}:format:bold", id(&rich))), "read-only rich text has no toolbar");
 }
 
 #[gpui_kit::test]
@@ -148,18 +191,94 @@ fn toggles_choices_into_a_json_array_and_keeps_unknown_stored_choices(cx: &mut T
     assert_eq!(changes.borrow().last(), Some(&Value::Null));
 }
 
+fn two_files() -> Value {
+    json!(json!([
+        {"id": "a", "name": "a.txt", "mime": "text/plain", "size": 10, "sha256": "x"},
+        {"id": "b", "name": "b.txt", "mime": "text/plain", "size": 2000, "sha256": "y"},
+    ])
+    .to_string())
+}
+
+fn attachment_control() -> Control {
+    let mut attachment = control(ControlKind::Attachment);
+    attachment.binding = Some(Binding { table: None, column: "files".into() });
+    attachment
+}
+
 #[gpui_kit::test]
 fn lists_attachment_files_with_their_sizes(cx: &mut TestAppContext) {
     let changes: Changes = Default::default();
-    let files = json!([
-        {"id": "a", "name": "a.txt", "mime": "text/plain", "size": 10, "sha256": "x"},
-        {"id": "b", "name": "b.txt", "mime": "text/plain", "size": 2000, "sha256": "y"},
-    ]);
-    let attachment = control(ControlKind::Attachment);
+    let attachment = attachment_control();
     let base = id(&attachment);
-    let (mut h, _field) = host(cx, props(&attachment, json!(files.to_string()), false, &changes));
+    let (mut h, _field) = host(cx, props(&attachment, two_files(), false, &changes));
     assert_eq!(h.label(format!("{base}:file:a-txt")), "a.txt (10 B)");
     assert_eq!(h.label(format!("{base}:file:b-txt")), "b.txt (2 KB)");
+}
+
+#[gpui_kit::test]
+fn removes_one_file_from_an_attachment_field(cx: &mut TestAppContext) {
+    let changes: Changes = Default::default();
+    let attachment = attachment_control();
+    let base = id(&attachment);
+    let (mut h, field) = host(cx, props(&attachment, two_files(), false, &changes));
+    h.click(format!("{base}:remove:a-txt"));
+    let left = changes.borrow().last().cloned().expect("a change");
+    let files = crate::forms::fields::parse_attachments(&left);
+    assert_eq!(files.iter().map(|f| f.id.as_str()).collect::<Vec<_>>(), ["b"]);
+    feed(&mut h, &field, props(&attachment, left, false, &changes));
+    assert!(!h.exists(format!("{base}:file:a-txt")));
+    // Removing the last file clears the value.
+    h.click(format!("{base}:remove:b-txt"));
+    assert_eq!(changes.borrow().last(), Some(&Value::Null));
+}
+
+#[gpui_kit::test]
+fn read_only_attachments_can_be_saved_but_not_changed(cx: &mut TestAppContext) {
+    let changes: Changes = Default::default();
+    let attachment = attachment_control();
+    let base = id(&attachment);
+    let (mut h, _field) = host(cx, props(&attachment, two_files(), true, &changes));
+    assert!(h.exists(format!("{base}:save:a-txt")));
+    assert!(!h.exists(format!("{base}:remove:a-txt")));
+    assert!(!h.exists(format!("{base}:add")));
+}
+
+#[gpui_kit::test]
+fn adds_a_picked_file_and_saves_a_copy(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    h.create_table("docs", &[("id", "INTEGER", 1), ("files", "TEXT", 0)]);
+    let mut config = h.config();
+    config.entities.push(
+        serde_json::from_value(json!({
+            "id": "e1", "table": "docs", "concurrency": "optimistic",
+            "fields": [{ "id": "f1", "column": "files", "format": "attachment" }],
+        }))
+        .unwrap(),
+    );
+    crate::update_document_config(h.label.clone(), config).expect("update config");
+    let source = h.temp_path("notes.txt");
+    std::fs::write(&source, "hello").unwrap();
+    h.dialogs.queue_open(Some(source));
+    let changes: Changes = Default::default();
+    let attachment = attachment_control();
+    let base = id(&attachment);
+    let mut first = props(&attachment, two_files(), false, &changes);
+    first.window_label = h.label.clone().into();
+    let (mut h, field) = host_in(h, first);
+    h.click(format!("{base}:add"));
+    wait(&mut h);
+    let value = changes.borrow().last().cloned().expect("the new file list");
+    let files = crate::forms::fields::parse_attachments(&value);
+    assert_eq!(files.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["a.txt", "b.txt", "notes.txt"]);
+    let mut next = props(&attachment, value, false, &changes);
+    next.window_label = h.label.clone().into();
+    feed(&mut h, &field, next);
+    assert_eq!(h.label(format!("{base}:file:notes-txt")), "notes.txt (5 B)");
+    let copy = h.temp_path("copy.txt");
+    h.dialogs.queue_save(Some(copy.clone()));
+    h.click(format!("{base}:save:notes-txt"));
+    wait(&mut h);
+    assert_eq!(std::fs::read_to_string(copy).unwrap(), "hello");
 }
 
 // ---- relationship choices (tests/unit/relationship-filter.test.tsx) ------------------------
