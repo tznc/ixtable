@@ -47,6 +47,10 @@ Name captures `<flow>-NN-<what>`.
 | spec | flow |
 |---|---|
 | `app_shell` | start screen, shell, settings YAML, Problems (`app-qa-*`) |
+| `automation` | step editor, test run, actions list, trigger editor, jobs (`automation-*`) |
+| `cloud` | sign-in, apps, publish, conflict, backup size, runtime bar, on mock services (`cloud-*`) |
+| `import` | CSV/XLSX import wizard (`import-*`) |
+| `extras` | file sources, roles, runtime as role, expression problems (`extras-*`) |
 
 Each area adds its spec as it is ported. Flows still to cover: datasheet, schema,
 query, forms, reports, dashboards, automation, persistence, release,

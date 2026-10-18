@@ -5,11 +5,15 @@
 //! Run them with `cargo screenshot [filter]` from `src-tauri/`.
 
 mod app_shell;
+mod automation;
+mod cloud;
 mod pages;
 mod query;
 mod datasheet;
 mod design;
 mod export;
+mod extras;
+mod import;
 mod fields;
 mod schema;
 mod shop;

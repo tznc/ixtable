@@ -30,6 +30,6 @@ pub mod mockhttp;
 #[cfg(test)]
 mod studio_tests;
 #[cfg(test)]
-mod tests;
+pub mod tests;
 #[cfg(test)]
 mod wire_tests;
