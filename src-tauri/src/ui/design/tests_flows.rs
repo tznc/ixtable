@@ -302,3 +302,19 @@ fn retargets_a_navigation_item_to_a_table_page_in_the_navigation_editor(cx: &mut
     assert!(h.config().design.navigation.is_empty());
     assert_eq!(form(&h).name, "Main form");
 }
+
+#[gpui_kit::test]
+fn picking_a_related_table_fills_the_links_when_one_relationship_fits(cx: &mut TestAppContext) {
+    let mut h = tall_document(cx);
+    seed(&mut h);
+    open_designer(&mut h);
+    choose(&mut h, "data-table", "orders");
+    h.click("add-related-list");
+    choose(&mut h, "related-table", "order_items");
+    let related = |h: &Harness| {
+        form(h).controls.into_iter().find_map(|c| c.related).expect("a related list")
+    };
+    wait_until(&mut h, "the related keys", |h| !related(h).foreign_key.is_empty());
+    let r = related(&h);
+    assert_eq!((r.table.as_str(), r.foreign_key.as_str(), r.parent_column.as_str()), ("order_items", "order_id", "id"));
+}

@@ -2,12 +2,14 @@
 //! and the child table, link columns and child form of a related-record list.
 //!
 //! Test ids: `tab-<n>-label` ("Tab n label"), `remove-tab-<n>`, `add-tab`; `related-table`,
-//! `related-fk`, `related-parent`, `related-filter`, `related-form` ("Child form").
+//! `related-fk` ("Field in the related table"), `related-parent` ("Matches field in this form"),
+//! `related-filter`, `related-form` ("Form for each row"). Picking the related table fills both
+//! fields when exactly one single-field relationship links it to this form's table.
 
 use super::studio::DesignStudio;
 use crate::design::{Control, Form, RelatedList, TabPage};
 use crate::forms::{conditions::filter_names, nesting::embeddable_forms, operations::remove_tab, schema::new_id};
-use crate::ui::prelude::*;
+use crate::ui::{prelude::*, task};
 use std::collections::HashSet;
 
 impl DesignStudio {
@@ -99,9 +101,10 @@ impl DesignStudio {
         let mut table_options = vec![(String::new(), "—".to_string())];
         table_options.extend(tables.iter().map(|t| (t.clone(), t.clone())));
         let first_column = columns.first().cloned().unwrap_or_default();
+        let parent_table = crate::forms::schema::form_table(form).unwrap_or_default().to_string();
         let table = self.pick(
             "related-table",
-            "Child table",
+            "Related table",
             related.as_ref().map_or("", |r| r.table.as_str()),
             table_options,
             "—",
@@ -109,8 +112,9 @@ impl DesignStudio {
                 let cid = cid.clone();
                 move |this, picked, cx| {
                     let (table, parent_column) = (picked.to_string(), first_column.clone());
+                    let (child, parent_table, cid) = (table.clone(), parent_table.clone(), cid.clone());
                     this.edit_control(
-                        &cid,
+                        &cid.clone(),
                         "Edit control",
                         move |c| {
                             c.related = Some(RelatedList {
@@ -123,14 +127,15 @@ impl DesignStudio {
                             })
                         },
                         cx,
-                    )
+                    );
+                    this.autofill_related_keys(&cid, child, parent_table, cx);
                 }
             },
             cx,
         );
         let fk = self.column_select(
             "related-fk",
-            "Foreign key column",
+            "Field in the related table",
             related.as_ref().map(|r| r.foreign_key.as_str()),
             &child_columns,
             related_edit(&cid, |r, v| r.foreign_key = v),
@@ -138,7 +143,7 @@ impl DesignStudio {
         );
         let parent = self.column_select(
             "related-parent",
-            "Parent column",
+            "Matches field in this form",
             related.as_ref().map(|r| r.parent_column.as_str()),
             columns,
             related_edit(&cid, |r, v| r.parent_column = v),
@@ -173,7 +178,7 @@ impl DesignStudio {
         );
         let child_form = self.pick(
             "related-form",
-            "Child form",
+            "Form for each row",
             current_form.as_deref().unwrap_or(""),
             form_options,
             "Generated from the table",
@@ -181,6 +186,45 @@ impl DesignStudio {
             cx,
         );
         self.group("related-properties", "Related records", cx).child(table).child(fk).child(parent).child(filter).child(child_form)
+    }
+}
+
+impl DesignStudio {
+    /// Fills related list `cid`'s link fields when one single-field relationship joins `child` to `parent_table`.
+    fn autofill_related_keys(&mut self, cid: &str, child: String, parent_table: String, cx: &mut Context<Self>) {
+        if child.is_empty() || parent_table.is_empty() {
+            return;
+        }
+        let label = self.shell.read(cx).label().to_string();
+        let (cid, wanted) = (cid.to_string(), child.clone());
+        task::spawn_call(
+            cx,
+            move || {
+                let schema = crate::inspect_table(label, child, None).ok()?;
+                let mut links = schema.foreign_keys.iter().filter(|fk| fk.target_table == parent_table);
+                let (first, second) = (links.next()?, links.next());
+                match (second, first.from_columns.as_slice(), first.target_columns.as_slice()) {
+                    (None, [from], [to]) => Some((from.clone(), to.clone())),
+                    _ => None,
+                }
+            },
+            move |this, found, cx| {
+                let Some((foreign_key, parent_column)) = found else {
+                    return;
+                };
+                this.edit_control(
+                    &cid,
+                    "Edit control",
+                    move |c| {
+                        if let Some(r) = c.related.as_mut().filter(|r| r.table == wanted) {
+                            r.foreign_key = foreign_key;
+                            r.parent_column = parent_column;
+                        }
+                    },
+                    cx,
+                );
+            },
+        );
     }
 }
 

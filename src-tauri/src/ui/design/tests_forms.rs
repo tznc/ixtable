@@ -52,7 +52,8 @@ fn edits_tracks_alignment_and_regions_and_hides_enabled_when_on_static_controls(
     let mut h = tall_document(cx);
     open_designer(&mut h);
 
-    choose(&mut h, "grid-column-1-kind", "Fixed (px)");
+    h.click("grid-settings-toggle");
+    choose(&mut h, "grid-column-1-kind", "Fixed size (px)");
     choose(&mut h, "grid-justify", "center");
     let layout = form(&h).layout;
     assert_eq!(layout.columns[0].kind, TrackKind::Fixed);
@@ -73,6 +74,8 @@ fn edits_tracks_alignment_and_regions_and_hides_enabled_when_on_static_controls(
     assert!(h.exists("prop-enabled-when"));
 
     h.click("back-to-form");
+    // The section the user opened stays open after the panel comes back.
+    assert!(!h.exists("grid-settings-summary"));
     h.type_into("grid-region-1-column-span", "0");
     h.press("enter");
     assert_eq!(form(&h).layout.named_regions[0].column_span, 12);
@@ -82,6 +85,7 @@ fn edits_tracks_alignment_and_regions_and_hides_enabled_when_on_static_controls(
 fn renames_and_removes_a_region_a_control_uses_and_keeps_the_document_saveable(cx: &mut TestAppContext) {
     let mut h = tall_document(cx);
     open_designer(&mut h);
+    h.click("grid-settings-toggle");
     h.click("grid-add-region");
     add(&mut h, "label");
     choose(&mut h, "prop-region", "region1");
@@ -90,7 +94,7 @@ fn renames_and_removes_a_region_a_control_uses_and_keeps_the_document_saveable(c
     h.click("back-to-form");
     h.fill("grid-region-1-name", "");
     h.press("enter");
-    assert_eq!(h.label("grid-region-1-name-error"), "Region name is required.");
+    assert_eq!(h.label("grid-region-1-name-error"), "Area name is required.");
     h.type_into("grid-region-1-name", "header");
     h.press("enter");
     let saved = form(&h);

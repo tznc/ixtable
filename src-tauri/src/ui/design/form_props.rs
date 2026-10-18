@@ -255,6 +255,8 @@ impl DesignStudio {
             cx,
         ));
         panel = panel.child(modes);
+        let basics = crate::ui::section::section("form-basics", "Basics", true, window, cx).child(panel).render(cx);
+        let mut panel = v_flex().gap_2().child(basics);
 
         if form.modes.iter().copied().any(is_collection_mode) {
             panel = panel.child(self.render_list_settings(form, &columns, window, cx));
@@ -262,7 +264,12 @@ impl DesignStudio {
         panel = panel.child(self.render_rules(form, &columns, window, cx));
 
         // Events: a query-sourced form is read-only, so it never saves.
-        let mut events = self.group("form-events", "Events", cx);
+        let set_count = EVENTS.iter().filter(|(name, _)| event_slot(&mut form.events.clone(), name).is_some()).count();
+        let mut events = crate::ui::section::section("form-events", "Events", false, window, cx).summary(if set_count == 0 {
+            "No actions run on this form.".to_string()
+        } else {
+            format!("{set_count} of {} events run an action.", EVENTS.len())
+        });
         let actions = self.config(cx).actions.clone();
         for (name, label) in EVENTS {
             if is_query && !matches!(name, "onLoad" | "onCurrent") {
@@ -289,14 +296,14 @@ impl DesignStudio {
                 cx,
             ));
         }
-        panel = panel.child(events);
+        panel = panel.child(events.render(cx));
         let _ = muted;
 
         let items = grid_items(form, None, None);
         let layout = form.layout.clone();
         panel.child(self.layout_settings(
             "grid",
-            "Grid",
+            "Advanced layout",
             &layout,
             &items,
             |this, layout, renames, cx| {
@@ -350,7 +357,7 @@ impl DesignStudio {
             window,
             cx,
         );
-        let mut group = self.group("list-settings", "List", cx).child(page_size).child(detail).child(filter);
+        let mut group = crate::ui::section::section("list-settings", "List", true, window, cx).child(page_size).child(detail).child(filter);
         let all: Vec<String> = columns.to_vec();
         for column in columns {
             let (name, all) = (column.clone(), all.clone());
@@ -375,11 +382,13 @@ impl DesignStudio {
                 cx,
             ));
         }
-        group
+        group.render(cx)
     }
 
     fn render_rules(&mut self, form: &Form, columns: &[String], window: &mut Window, cx: &mut Context<Self>) -> Stateful<Div> {
-        let mut group = self.group("form-rules", "Form validation", cx);
+        let mut group = crate::ui::section::section("form-rules", "Form validation", false, window, cx)
+            .count(form.rules.len())
+            .summary(if form.rules.is_empty() { "No rules. Expand to add one." } else { "Rules must pass before a record saves." });
         for (index, rule) in form.rules.iter().enumerate() {
             let n = index + 1;
             let rule_id = rule.id.clone();
@@ -453,6 +462,7 @@ impl DesignStudio {
                     )
                 })),
         )
+        .render(cx)
     }
 
     /// The grid settings of a selected section or tab group.
@@ -474,7 +484,7 @@ impl DesignStudio {
         let id = control.id.clone();
         Some(self.layout_settings(
             "container",
-            "Container grid",
+            "Container layout",
             &layout,
             &items,
             move |this, layout, renames, cx| {

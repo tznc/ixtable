@@ -297,7 +297,7 @@ impl CreateTableForm {
 }
 
 impl Render for CreateTableForm {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let entity = cx.entity();
         let muted = cx.theme().muted_foreground;
         let rows: Vec<AnyElement> = self
@@ -367,9 +367,12 @@ impl Render for CreateTableForm {
                             })),
                     ),
             )
-            .child(
-                section("Relationships", cx)
-                    .children(self.foreign_keys.iter().enumerate().map(|(i, f)| {
+            .child({
+                let fks = self.foreign_keys.len();
+                crate::ui::section::section("create-relationships", "Relationships", false, window, cx)
+                    .count(fks)
+                    .summary(if fks == 0 { "None yet. Expand to link this table to another." } else { "" })
+                    .child(v_flex().gap_2().children(self.foreign_keys.iter().enumerate().map(|(i, f)| {
                         let entity = entity.clone();
                         h_flex()
                             .gap_2()
@@ -396,20 +399,24 @@ impl Render for CreateTableForm {
                                         })
                                     }),
                             )
-                    }))
-                    .child(self.fk_editor.clone()),
-            )
-            .child(
-                section("Constraints and indexes", cx)
-                    .children(self.uniques.iter().map(|u| {
+                    })))
+                    .child(self.fk_editor.clone())
+                    .render(cx)
+            })
+            .child({
+                let n = self.uniques.len() + self.checks.len() + self.indexes.len();
+                crate::ui::section::section("create-constraints", "Constraints and indexes", false, window, cx)
+                    .count(n)
+                    .summary(if n == 0 { "None yet. Expand to add unique rules, checks or indexes." } else { "" })
+                    .child(v_flex().gap_2().children(self.uniques.iter().map(|u| {
                         summary(format!("Unique ({})", u.join(", ")))
-                    }))
-                    .children(
+                    })))
+                    .child(v_flex().gap_2().children(
                         self.checks
                             .iter()
                             .map(|c| summary(format!("Check ({c})"))),
-                    )
-                    .children(self.indexes.iter().map(|x| {
+                    ))
+                    .child(v_flex().gap_2().children(self.indexes.iter().map(|x| {
                         summary(
                             format!(
                                 "{} {} ({})",
@@ -418,11 +425,12 @@ impl Render for CreateTableForm {
                                 x.columns.join(", ")
                             ),
                         )
-                    }))
+                    })))
                     .child(self.unique_editor.clone())
                     .child(self.check_editor.clone())
-                    .child(self.index_editor.clone()),
-            )
+                    .child(self.index_editor.clone())
+                    .render(cx)
+            })
             .test_support();
         v_flex()
             .id("create-table-form")

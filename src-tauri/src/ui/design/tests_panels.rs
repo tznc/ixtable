@@ -21,15 +21,16 @@ fn labels_each_tracks_kind_size_and_limits(cx: &mut TestAppContext) {
             GridTrack { kind: TrackKind::Fixed, value: Some(120.0), min: None, max: Some(300.0) };
     });
     open_designer(&mut h);
+    h.click("grid-settings-toggle");
     assert_eq!(h.label("grid-column-1-name"), "Column 1");
-    assert_eq!(h.label("grid-column-1-size"), "Size px");
-    assert_eq!(h.label("grid-column-1-min"), "Min px");
-    assert_eq!(h.label("grid-column-1-max"), "Max px");
+    assert_eq!(h.label("grid-column-1-size"), "Size (px)");
+    assert_eq!(h.label("grid-column-1-min"), "Minimum (px)");
+    assert_eq!(h.label("grid-column-1-max"), "Maximum (px)");
     assert_eq!(text_of(&mut h, "grid-column-1-size").as_deref(), Some("120"));
     assert_eq!(text_of(&mut h, "grid-column-1-min").as_deref(), Some(""));
     assert_eq!(text_of(&mut h, "grid-column-1-max").as_deref(), Some("300"));
     // A share track labels its size as a share.
-    assert_eq!(h.label("grid-column-2-size"), "Share");
+    assert_eq!(h.label("grid-column-2-size"), "Flexible share");
 
     // A minimum above the maximum is shown instead of saved.
     h.fill("grid-column-1-min", "400");
@@ -101,6 +102,7 @@ fn edits_form_modes_source_list_rules_and_navigation_bar(cx: &mut TestAppContext
     h.click("list-column:title");
     assert_eq!(form(&h).list_columns, ["title"]);
 
+    h.click("form-rules-toggle");
     h.click("add-rule");
     h.fill("rule-1", "record.title <> ''");
     h.fill("rule-1-message", "Title is required");
@@ -241,4 +243,34 @@ fn edits_select_options_lookups_validation_and_masks(cx: &mut TestAppContext) {
         (relationship.table.as_str(), relationship.value_column.as_str(), relationship.display_column.as_str()),
         ("people", "id", "name")
     );
+}
+
+#[gpui_kit::test]
+fn collapses_the_advanced_layout_with_a_summary_and_expands_it(cx: &mut TestAppContext) {
+    let mut h = tall_document(cx);
+    open_designer(&mut h);
+    assert!(h.exists("form-basics"), "Basics is always listed");
+    assert!(h.exists("form-name"), "Basics starts open");
+    assert!(!h.exists("grid-columns"), "the advanced layout starts collapsed");
+    let layout = form(&h).layout;
+    let expected = format!(
+        "{}, {}",
+        crate::ui::persistence::format::plural(layout.columns.len(), "column"),
+        crate::ui::persistence::format::plural(layout.rows.len(), "row")
+    );
+    assert_eq!(h.label("grid-settings-summary"), expected);
+
+    h.click("grid-settings-toggle");
+    assert!(h.exists("grid-columns"));
+    assert!(!h.exists("grid-settings-summary"), "the summary only shows while collapsed");
+    assert_eq!(h.label("grid-column-1-kind"), "Flexible (share)");
+}
+
+#[gpui_kit::test]
+fn labels_the_related_list_links_in_access_words(cx: &mut TestAppContext) {
+    let mut h = tall_document(cx);
+    open_designer(&mut h);
+    h.click("add-related-list");
+    assert_eq!(h.label("related-table"), "—");
+    assert!(h.exists("related-fk") && h.exists("related-parent"));
 }

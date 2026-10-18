@@ -200,3 +200,10 @@ pub fn fill<C: UiContext>(h: &mut Harness<'_, C>, id: &str, text: &str) {
 pub fn exists<C: UiContext>(h: &mut Harness<'_, C>, id: &str) -> bool {
     h.exists(SharedString::from(id.to_string()))
 }
+
+/// Expands the collapsed section `id` (a no-op while it is open).
+pub fn open_section<C: UiContext>(h: &mut Harness<'_, C>, id: &str) {
+    if exists(h, &format!("{id}-summary")) {
+        click(h, &format!("{id}-toggle"));
+    }
+}

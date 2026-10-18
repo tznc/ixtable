@@ -773,17 +773,17 @@ pub fn remap_region(
 /// Why `name` cannot name region `index` ("" when it can).
 pub fn region_name_problem(regions: &[NamedRegion], index: usize, name: &str) -> String {
     if name.trim().is_empty() {
-        return "Region name is required.".into();
+        return "Area name is required.".into();
     }
     if name != name.trim() {
-        return "Region name cannot start or end with spaces.".into();
+        return "Area name cannot start or end with spaces.".into();
     }
     if regions
         .iter()
         .enumerate()
         .any(|(i, r)| i != index && r.name == name)
     {
-        return format!("Another region is already named {name}.");
+        return format!("Another area is already named {name}.");
     }
     String::new()
 }

@@ -42,6 +42,7 @@ fn designs_a_running_sum_with_conditional_formatting_and_a_chart_and_previews_th
     wait_until(&mut h, "the dataset columns", |h| h.exists("prop-bound-field"));
     choose(&mut h, "prop-bound-field", "amount");
     choose(&mut h, "prop-running-sum", "Over all");
+    h.click("conditions-toggle");
     h.click("add-rule");
     h.fill("rule-1-when", "value > 100");
     let field = last_component(&h, |r| &r.bands.detail);
@@ -197,6 +198,8 @@ fn edits_table_columns_conditions_and_links_in_the_properties_panel(cx: &mut Tes
     choose(&mut h, "table-add-field", "region");
     h.click("add-table-column");
     h.fill("table-col-1-header", "Area");
+    // Fold column 1 so column 2's fields stay inside the window.
+    h.click("table-col-1-toggle");
     h.fill("table-col-2-expression", "record.id &");
     assert!(h.exists("table-col-2-expression-problem"));
     h.fill("table-col-2-expression", "record.id");
@@ -211,8 +214,26 @@ fn edits_table_columns_conditions_and_links_in_the_properties_panel(cx: &mut Tes
     assert_eq!(columns[1]["expression"], "record.id");
     // A width below one is not applied.
     assert_eq!(columns[1]["width"], 60.0);
+    h.click("table-col-1-toggle");
     h.click("remove-table-col-1");
     let columns = last_component(&h, |r| &r.bands.detail).extra["columns"].as_array().unwrap().len();
     assert_eq!(columns, 1);
     assert_eq!(report(&h).bands.detail.components.len(), 1);
+}
+
+#[gpui_kit::test]
+fn collapses_page_setup_with_a_summary_and_drops_the_group_prefix_from_group_labels(cx: &mut TestAppContext) {
+    let mut h = tall_document(cx);
+    new_report(&mut h);
+    assert!(!h.exists("margin-top"), "page setup starts collapsed");
+    assert_eq!(h.label("page-setup-summary"), "A4, portrait");
+    h.click("page-setup-toggle");
+    assert!(h.exists("margin-top"));
+    assert!(!h.exists("page-setup-summary"));
+
+    h.click("add-group");
+    assert!(h.exists("group-1-expression"));
+    assert!(h.exists("group-1-descending"));
+    assert_eq!(h.label("report-groups"), "Groups");
+    assert!(h.label("group-1").starts_with("Group 1"));
 }
