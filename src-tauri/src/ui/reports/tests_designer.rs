@@ -198,6 +198,8 @@ fn edits_table_columns_conditions_and_links_in_the_properties_panel(cx: &mut Tes
     choose(&mut h, "table-add-field", "region");
     h.click("add-table-column");
     h.fill("table-col-1-header", "Area");
+    // Fold column 1 so column 2's fields stay inside the window.
+    h.click("table-col-1-toggle");
     h.fill("table-col-2-expression", "record.id &");
     assert!(h.exists("table-col-2-expression-problem"));
     h.fill("table-col-2-expression", "record.id");
@@ -212,6 +214,7 @@ fn edits_table_columns_conditions_and_links_in_the_properties_panel(cx: &mut Tes
     assert_eq!(columns[1]["expression"], "record.id");
     // A width below one is not applied.
     assert_eq!(columns[1]["width"], 60.0);
+    h.click("table-col-1-toggle");
     h.click("remove-table-col-1");
     let columns = last_component(&h, |r| &r.bands.detail).extra["columns"].as_array().unwrap().len();
     assert_eq!(columns, 1);

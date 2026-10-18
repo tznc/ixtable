@@ -11,7 +11,7 @@ use gpui_kit::{SharedString, TestAppContext};
 #[gpui_kit::test]
 fn collapses_empty_optional_sections_with_a_summary_and_opens_them_on_demand(cx: &mut TestAppContext) {
     let mut h = open_query_mode(cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     pick(&mut h, "source-table", "orders");
     // Sources and Fields are always open.
     assert!(exists(&mut h, "col:o.amount"));
@@ -41,7 +41,7 @@ fn collapses_empty_optional_sections_with_a_summary_and_opens_them_on_demand(cx:
 #[gpui_kit::test]
 fn the_group_by_section_follows_the_aggregates_chosen_on_the_fields(cx: &mut TestAppContext) {
     let mut h = open_query_mode(cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     pick(&mut h, "source-table", "orders");
     click(&mut h, "col:o.customer_id");
     click(&mut h, "col:o.amount");
@@ -74,7 +74,7 @@ fn the_group_by_section_follows_the_aggregates_chosen_on_the_fields(cx: &mut Tes
 #[gpui_kit::test]
 fn warns_next_to_a_join_that_repeats_a_condition(cx: &mut TestAppContext) {
     let mut h = open_query_mode(cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     pick(&mut h, "source-table", "orders");
     click(&mut h, "suggest-join:Join customers on o.customer_id = customers.id");
     assert!(!exists(&mut h, "join-duplicate:c:2"));
@@ -93,7 +93,7 @@ fn warns_next_to_a_join_that_repeats_a_condition(cx: &mut TestAppContext) {
 #[gpui_kit::test]
 fn run_with_values_start_as_the_parameter_defaults_and_show_the_type(cx: &mut TestAppContext) {
     let mut h = open_query_mode(cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     click(&mut h, "tab-sql");
     type_sql(&mut h, "SELECT id FROM orders WHERE amount >= $min ORDER BY id");
     open_section(&mut h, "query-parameters");
