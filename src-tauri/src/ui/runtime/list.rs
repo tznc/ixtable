@@ -551,9 +551,7 @@ impl Render for ListView {
                 );
             }
             if page.rows.is_empty() {
-                rows = rows.child(widgets::styled_text("list-empty", "No records.", |d| {
-                    d.text_sm().text_color(theme.muted_foreground).py_2()
-                }));
+                rows = rows.child(widgets::empty_state("list-empty", "No records yet", "Records you add or that match your search will show here.", cx));
             }
         }
 
@@ -569,7 +567,7 @@ impl Render for ListView {
             }))
         });
         let can_create = self.can_create(cx);
-        let create_label = format!("New {}", detail.name.to_lowercase());
+        let create_label = format!("New {}", widgets::singular(&detail.name.to_lowercase()));
         let name = form.name.clone();
         let export = self.export.clone();
         let (filters, scope) = (self.filters(cx), self.scope(cx));
@@ -619,7 +617,7 @@ impl Render for ListView {
             .children(column_menu)
             .when(!self.error.is_empty(), |d| d.child(super::message("list-error", self.error.clone(), true, cx)))
             .when(self.page.as_ref().is_some_and(|p| p.truncated), |d| {
-                d.child(widgets::styled_text("list-notice", TRUNCATED_NOTICE, |d| d.text_sm().text_color(theme.warning)))
+                d.child(widgets::callout("list-notice", widgets::Severity::Warning, TRUNCATED_NOTICE, None, cx))
             })
             .child(header)
             .child(rows)

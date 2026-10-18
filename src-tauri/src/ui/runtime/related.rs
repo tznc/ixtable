@@ -362,8 +362,7 @@ impl RelatedRecords {
         };
         let props = self.props().clone();
         let Some(related) = props.control.related.clone() else { return };
-        let label = props.control.label.to_lowercase();
-        let answer = crate::ui::dialogs::confirm(cx, "Confirm", &format!("Delete this {label} row?"));
+        let answer = crate::ui::dialogs::confirm(cx, "Delete record?", "This record will be deleted. This cannot be undone.");
         task::after(cx, answer, move |this, ok, cx| {
             if !ok {
                 return;
@@ -462,13 +461,19 @@ impl Render for RelatedRecords {
             body.push(super::message(format!("related:{slug}:error"), self.error.clone(), true, cx).into_any_element());
         }
         if !self.message.is_empty() {
-            body.push(super::message(format!("related:{slug}:message"), self.message.clone(), false, cx).into_any_element());
+            // Reserve the line's height so a confirmation never shifts the rows below it.
+            body.push(
+                div()
+                    .min_h(px(20.))
+                    .child(super::message(format!("related:{slug}:message"), self.message.clone(), false, cx))
+                    .into_any_element(),
+            );
         }
         if self.allowed(Operation::Create, cx) && self.child_form.is_some() && self.editing.is_none() {
             body.push(
                 Button::new(SharedString::from(format!("related:{slug}:add")))
                     .small()
-                    .label(format!("Add {lower}"))
+                    .label(format!("Add {}", widgets::singular(&lower)))
                     .on_click(cx.listener(|this, _, window, cx| this.edit(FormMode::Create, None, window, cx)))
                     .into_any_element(),
             );

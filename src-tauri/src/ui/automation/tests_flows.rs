@@ -335,7 +335,12 @@ fn edits_trigger_fields_and_hides_async_options_for_sync_triggers(cx: &mut TestA
     choose(&mut h, "trigger-event", "Before a record is saved");
     assert!(!h.exists("trigger-mode"), "before-change triggers are always sync");
     assert!(h.label("trigger-help").starts_with("Runs before each new or changed record"));
+    assert!(!h.exists("trigger-item-1-off"));
+    h.click("trigger-enabled");
+    assert_eq!(h.label("trigger-item-1-off"), "Off");
     h.click("delete-trigger");
+    h.settle();
+    assert_eq!(h.dialogs.count("confirm"), 1, "deleting a trigger asks first");
     assert!(h.config().triggers.is_empty());
     assert_eq!(h.label("select-trigger"), "Select or create a trigger.");
 }
@@ -399,7 +404,8 @@ fn lists_automation_problems_after_the_definitions_settle(cx: &mut TestAppContex
     h.click("steps-add");
     assert!(!h.exists("issues-toggle"), "validation waits for the definitions to settle");
     h.advance(Duration::from_millis(400));
-    assert_eq!(h.label("issues-toggle"), "2 automation problems");
+    assert_eq!(h.label("issues-summary"), "2 automation problems");
+    assert_eq!(h.label("issues-toggle"), "Show details");
     h.click("issues-toggle");
     let problems: Vec<String> = (1..=2).map(|i| h.label(id(&format!("issue-{i}")))).collect();
     assert!(problems.iter().any(|p| p.contains("table is empty")), "{problems:?}");
@@ -442,8 +448,22 @@ fn shows_the_list_for_the_current_filter_when_an_older_request_answers_last(
         })
     });
     h.settle();
-    assert_eq!(h.label("job-1-status"), "cancelled");
+    assert_eq!(h.label("job-1-status"), "Cancelled");
     assert!(!h.exists("job-2-status"));
     let jobs = h.cx.read(|cx| panel.read(cx).jobs.clone());
     assert_eq!(jobs.len(), 1);
+}
+
+#[gpui_kit::test]
+fn deleting_an_action_asks_first(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    mode(&mut h);
+    assert!(h.exists("no-actions"));
+    h.click("new-action");
+    assert!(!h.exists("no-actions"));
+    h.click("delete-action");
+    h.settle();
+    assert_eq!(h.dialogs.count("confirm"), 1);
+    assert!(h.config().actions.is_empty());
+    assert!(h.exists("no-actions"));
 }

@@ -14,7 +14,7 @@
 //!
 //! Test ids: `relationship-title` ("N tables · M relationships"), `import-records`,
 //! `new-relationship`, `table-name`, `read-only-badge`, `record-count`, `Filter first
-//! column`, `Refresh`, `design-table`, `data-error`, `select-table` (empty state),
+//! column` (the filter input; labelled "Filter records"), `Refresh`, `design-table`, `data-error`, `select-table` (empty state),
 //! `design-loading`, `design-refreshing`, `footer-range`, `prev-page`, `next-page`,
 //! `query-table` ("Query this table").
 
@@ -33,12 +33,13 @@ use super::{
 use crate::data::{DbObject, Filter, Page, Sort, TableSchema};
 use crate::ui::design::{CreateFormsOffer, OfferEvent};
 use crate::ui::query::QueryMode;
+use crate::manager::AppError;
 use crate::recordstore::capabilities::StoreCapabilities;
 use crate::ui::{
     events::DocEvent,
     export::{
         menu::{table_export, ExportMenu},
-        names::{first_column_filter, thousands},
+        names::first_column_filter,
     },
     import::wizard::{ImportEvent, ImportWizard},
     prelude::*,
@@ -69,7 +70,7 @@ pub struct DataMode {
     revision: u64,
     filter: Entity<InputState>,
     applied: (String, Vec<SheetFilter>),
-    error: String,
+    error: Option<AppError>,
     designing: bool,
     designer: Option<Entity<TableSchemaDesigner>>,
     designer_key: String,
@@ -90,7 +91,7 @@ fn schema_key(schema: &TableSchema) -> String {
 
 impl DataMode {
     pub fn new(shell: Entity<Shell>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let filter = new_input(window, cx, "Filter first column", "");
+        let filter = new_input(window, cx, "Filter records", "");
         let diagram = cx.new(|_| RelationshipBrowser::new());
         // The real runner (with the window label) is set once a table is chosen.
         let runner = crate::ui::export::menu::table_runner(String::new(), String::new(), vec![], vec![]);
@@ -121,7 +122,7 @@ impl DataMode {
                         s.update("Arrange relationship diagram", |c| write_positions(c, &positions), cx)
                     });
                     if let Err(e) = result {
-                        this.error = e.message;
+                        this.error = Some(e);
                         cx.notify();
                     }
                 }
@@ -145,7 +146,7 @@ impl DataMode {
             revision: 0,
             filter,
             applied: (String::new(), vec![]),
-            error: String::new(),
+            error: None,
             designing: false,
             designer: None,
             designer_key: String::new(),
@@ -286,7 +287,7 @@ impl DataMode {
             if table_changed {
                 self.offset = 0;
                 self.sorts.clear();
-                self.error.clear();
+                self.error = None;
                 self.page = None;
                 set_input(&self.filter, "", window, cx);
             }
@@ -356,7 +357,7 @@ impl DataMode {
                         this.push_tables(cx);
                         this.sync_designer(window, cx);
                     }
-                    Err(e) => this.error = e.message,
+                    Err(e) => this.error = Some(e),
                 }
                 cx.notify();
             },
@@ -497,7 +498,7 @@ impl DataMode {
         let store = self.shell.read(cx).store.clone();
         let reloaded = store.update(cx, |s, cx| s.reload(None, cx).map(|_| ()));
         if let Err(e) = reloaded {
-            self.error = e.message;
+            self.error = Some(e);
         }
         self.designing = false;
         self.designer = None;
@@ -613,7 +614,7 @@ impl DataMode {
                 }
                 match result {
                     Ok(page) => this.show_page(table, page, sorts, filters, read_only, window, cx),
-                    Err(e) => this.error = e.message,
+                    Err(e) => this.error = Some(e),
                 }
                 cx.notify();
             },
@@ -674,7 +675,7 @@ impl DataMode {
             }
             SheetEvent::Refresh => this.refresh(window, cx),
             SheetEvent::Error(message) => {
-                this.error = message.clone();
+                this.error = Some(AppError::new("", message));
                 cx.notify();
             }
             SheetEvent::Sorts(sorts) => {
@@ -713,12 +714,12 @@ impl Render for DataMode {
         let read_only = self.read_only(cx);
         let inspector_visible = creating || !selected.is_empty();
         let theme = cx.theme();
-        let (border, muted, danger) = (theme.border, theme.muted_foreground, theme.danger);
+        let (border, muted) = (theme.border, theme.muted_foreground);
         let relationships: usize = self.schemas.iter().map(|s| s.foreign_keys.len()).sum();
         let title = format!(
-            "{} tables \u{b7} {} relationships",
-            self.schemas.len(),
-            relationships
+            "{} \u{b7} {}",
+            widgets::plural(self.schemas.len(), "table"),
+            widgets::plural(relationships, "relationship")
         );
         let relationship_pane = v_flex()
             .id("relationship-pane")
@@ -731,7 +732,7 @@ impl Render for DataMode {
                 h_flex()
                     .gap_3()
                     .items_center()
-                    .child(div().font_weight(FontWeight::SEMIBOLD).child("Relationship Browser"))
+                    .child(div().font_weight(FontWeight::SEMIBOLD).child("Relationships"))
                     .child(div().text_sm().text_color(muted).child(widgets::text("relationship-title", title)))
                     .child(div().flex_1())
                     .child(
@@ -772,9 +773,10 @@ impl Render for DataMode {
             Some(
                 v_flex()
                     .size_full()
-                    .when(!self.schemas_fresh, |el| {
-                        el.child(div().px_4().child(widgets::text("design-refreshing", "Refreshing schema…")))
-                    })
+                    // Fixed-height slot so the designer does not jump when the notice comes and goes.
+                    .child(div().h(px(24.)).flex_none().px_4().text_sm().text_color(muted).when(!self.schemas_fresh, |el| {
+                        el.child(widgets::text("design-refreshing", "Refreshing schema…"))
+                    }))
                     .child(div().flex_1().min_h_0().child(designer))
                     .into_any_element(),
             )
@@ -813,9 +815,9 @@ impl Render for DataMode {
                             })
                             .child(div().text_sm().text_color(muted).child(widgets::text(
                                 "record-count",
-                                page_total.map_or("\u{2014} records".to_string(), |t| format!("{} records", thousands(t))),
+                                page_total.map_or("\u{2014} records".to_string(), |t| widgets::plural(t as usize, "record")),
                             )))
-                            .child(div().w(px(220.)).child(text_input(&self.filter, "Filter first column", "Filter first column")))
+                            .child(div().w(px(220.)).child(text_input(&self.filter, "Filter first column", "Filter records")))
                             .child(
                                 Button::new("Refresh")
                                     .outline()
@@ -844,18 +846,8 @@ impl Render for DataMode {
                                 )
                             }),
                     )
-                    .when(!self.error.is_empty(), |el| {
-                        el.child(
-                            div()
-                                .mx_3()
-                                .px_3()
-                                .py_1()
-                                .rounded_md()
-                                .bg(danger.opacity(0.12))
-                                .text_color(danger)
-                                .text_sm()
-                                .child(widgets::text("data-error", self.error.clone())),
-                        )
+                    .when_some(self.error.as_ref(), |el, error| {
+                        el.child(div().px_3().child(widgets::error_banner("data-error", error, None, cx)))
                     })
                     .child(
                         div()

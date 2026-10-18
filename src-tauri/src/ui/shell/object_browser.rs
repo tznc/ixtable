@@ -7,6 +7,7 @@
 //! `query-draft` for the new query that is not saved yet.
 
 use super::{Selection, SelectionKind, Shell};
+use crate::manager::AppError;
 use crate::ui::widgets;
 use gpui_kit::assets::IconName;
 use crate::ui::widgets::StartAligned as _;
@@ -114,12 +115,12 @@ impl Render for ObjectBrowser {
         let error = shell.metadata_error.clone();
         let theme = cx.theme();
         let muted = theme.muted_foreground;
-        let danger = theme.danger;
         let entity = cx.entity();
 
         let group = |title: &'static str, icon: IconName, items: Vec<Item>, add: Option<(&'static str, &'static str, SelectionKind)>| {
             let count = items.iter().filter(|i| i.kind != SelectionKind::NewQuery).count();
             let empty = items.is_empty() && !needle.is_empty();
+            let items_empty = items.is_empty();
             v_flex()
                 .gap_0p5()
                 .child(
@@ -185,6 +186,35 @@ impl Render for ObjectBrowser {
                 .when(empty, |el| {
                     el.child(div().px_2().text_xs().text_color(muted).child("No matches"))
                 })
+                .when(items_empty && needle.is_empty(), |el| {
+                    let hint = match add {
+                        Some((_, _, SelectionKind::NewTable)) => "No tables yet.",
+                        _ => "No queries yet.",
+                    };
+                    el.child(
+                        v_flex()
+                            .px_2()
+                            .items_start()
+                            .child(widgets::styled_text(
+                                SharedString::from(format!("empty-{}", title.to_lowercase())),
+                                hint,
+                                move |d| d.text_xs().text_color(muted),
+                            ))
+                            .when_some(add, |el, (id, tip, kind)| {
+                                let entity = entity.clone();
+                                el.child(
+                                    Button::new(SharedString::from(format!("{id}-empty")))
+                                        .link()
+                                        .xsmall()
+                                        .label(tip)
+                                        .on_click(move |_, _, cx| {
+                                            let selection = Selection { kind, id: String::new() };
+                                            entity.update(cx, |this, cx| this.choose(selection, cx));
+                                        }),
+                                )
+                            }),
+                    )
+                })
         };
 
         v_flex()
@@ -199,7 +229,9 @@ impl Render for ObjectBrowser {
                     .when(loading, |el| el.child(widgets::styled_text("objects-loading", "Loading…", |d| d.text_xs()))),
             )
             .child(Input::new(&self.search).id("object-search").aria_label("Search database objects"))
-            .when_some(error, |el, e| el.child(widgets::styled_text("objects-error", e, |d| d.text_xs().text_color(danger))))
+            .when_some(error, |el, e| {
+                el.child(widgets::error_callout("objects-error", "The tables could not be loaded.", &AppError::new("", e), None, cx))
+            })
             .child(group("Tables", IconName::Database, tables, Some(("new-table", "New table", SelectionKind::NewTable))))
             .child(group("Queries", IconName::CodeXml, queries, Some(("new-query", "New query", SelectionKind::NewQuery))))
     }

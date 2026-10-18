@@ -101,16 +101,17 @@ Each is one function in a shared UI module. **New** marks components that don't 
 - Bottom-right, it dismisses after 6 s, unless it has an action, in which case it stays 10 s.
 - It never changes layout. A success message is never an inline line under a toolbar. Errors stay inline, next to what failed.
 
-### DataTable (`display::data_table`; the datasheet stays its own grid)
+### DataTable (`display::data_table`, `display::text_table`; the datasheet stays its own grid)
 - A header row in `Label` style. Text is left-aligned, and numbers are right-aligned with tabular figures.
 - Zero values and "—" show in `muted_foreground`.
+- `text_table` is the same table for text-only columns: every column shares the width and is left-aligned (page links).
 - Row actions appear on hover or selection at the row end.
 - Use it for report summaries, the migration list, problems, assets, archive size, the Access migration summary and the import inventory. Log lines keep the same row shape: time, level badge, area, then the message, which alone wraps.
 
 ### KeyValue (`display::key_value`, rows from `display::kv`)
 - A two-column grid with a `Label` column and a `Body` value column.
 - Hashes, fingerprints and paths use `.code()`: monospace, ellipsized, with a copy button.
-- *(planned)* Paths show the file name with a "Show in folder" button.
+- *(planned)* Paths show the file name with a "Show in folder" button. Toasts for exported files already carry it (`dialogs::reveal`).
 
 ### StatusBadge (`display::status_badge`)
 - A pill with a tone (`Tone::{Neutral, Success, Warning, Danger}`) and `Caption` text.
@@ -137,7 +138,7 @@ Each is one function in a shared UI module. **New** marks components that don't 
 ### Navigation and tabs
 - Mode nav (sidebar): icon plus label. The selected item gets an accent tint and medium weight.
 - Tabs: an underline style, with the selected tab in accent and semibold. Use the same component everywhere: Design/Preview, Design/View, settings and diagnostics.
-- Beyond 6 tabs, use a grouped left sub-nav. This applies to Settings.
+- Beyond 6 tabs, use a grouped left sub-nav. Settings does this (`shell/settings.rs` `GROUPS`: Data, App, Release, Diagnostics), with a count badge on Problems.
 - Breadcrumbs appear only for drill-in (nested records, form → control). They replace "Back to form properties" links.
 
 ### Long-running work
@@ -151,7 +152,7 @@ Each is one function in a shared UI module. **New** marks components that don't 
   - *table, field, record, query, form, report, dashboard, macro*
   - *runtime bundle* is the `.ixtr` file
 - Use Access words over builder jargon: "Column widths" and "Row heights" (not tracks), "Flexible (share)" and "Fixed size (px)" (not fr and px), "Areas" (not named regions), "Field in the related table" and "Matches field in this form" (not foreign key and parent column).
-- Write singular entity names in actions ("New order", "Add item"), with correct plurals everywhere (a shared `plural(n, "table")`).
+- Write singular entity names in actions ("New order", "Add item", via `widgets::singular`), with correct plurals everywhere (`widgets::plural(n, "table")` gives "1 table", "1,204 records").
 - Use sentence case for all labels and column headers. Humanize raw field names in runtime headers (`product_name` becomes "Product name").
 - Dates are relative within 7 days ("5 min ago") and local date-times after that. Never show ISO nanoseconds.
 - Don't use marketing copy inside the app. The start-screen hero line is optional for returning users.

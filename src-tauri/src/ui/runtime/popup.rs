@@ -4,7 +4,7 @@
 //! The waiting action gets the value through the `Runtime`'s popup list (see `host.rs`).
 //!
 //! Test ids: `popup:<n>` (labelled with the form name; n counts popups opened in the
-//! Runtime), `popup-close:<n>` ("Close <form name>").
+//! Runtime), `popup-close:<n>` ("Close").
 
 use super::{
     Runtime, RuntimeEnv,
@@ -99,7 +99,7 @@ impl Render for PopupHost {
                             .child(
                                 h_flex().justify_end().child(
                                     Button::new(SharedString::from(format!("popup-close:{id}")))
-                                        .label(format!("Close {name}"))
+                                        .label("Close")
                                         .on_click(move |_, _, cx| {
                                             runtime.update(cx, |r, cx| r.close_popup_by_id(id, None, cx));
                                         }),

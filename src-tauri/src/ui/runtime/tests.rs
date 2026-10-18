@@ -189,6 +189,7 @@ fn offers_to_generate_the_app_from_a_runtime_with_no_pages(cx: &mut TestAppConte
     let id = nav(&mut h, "Customers");
     assert!(h.exists(id));
     assert!(h.exists("new-record"));
+    assert_eq!(h.label("new-record"), "New customer");
     assert!(!h.exists("rt-empty"));
 }
 

@@ -26,6 +26,7 @@ use crate::ui::{
     shell::{ModeId, RevealTarget, Shell},
     toast::Toast,
 };
+use crate::ui::dialogs;
 
 /// Builds list and detail forms for a table, with lookups and related lists from the live
 /// schema of the other tables.
@@ -54,7 +55,7 @@ pub enum Focus {
 #[derive(Default)]
 struct Generate {
     table: String,
-    error: String,
+    error: Option<AppError>,
 }
 
 pub struct DesignMode {
@@ -176,13 +177,13 @@ impl DesignMode {
                         });
                         match edit {
                             Ok(_) => {
-                                this.generate.error.clear();
+                                this.generate.error = None;
                                 this.open_form(&detail_id, None, cx);
                             }
-                            Err(e) => this.generate.error = e.message,
+                            Err(e) => this.generate.error = Some(e),
                         }
                     }
-                    Err(e) => this.generate.error = e.message,
+                    Err(e) => this.generate.error = Some(e),
                 }
                 cx.notify();
             },
@@ -200,15 +201,18 @@ impl DesignMode {
         generate_app(store, label, table.map(|t| vec![t]), cx, |this, result, cx| {
             match result {
                 Ok(added) => {
-                    this.generate.error.clear();
+                    this.generate.error = None;
                     let toast = if added > 0 {
-                        Toast::success(format!("Added {added} forms and navigation items, each form on a page."))
+                        Toast::success(format!(
+                            "Added {}: forms and navigation, each form on a page.",
+                            widgets::plural(added, "item")
+                        ))
                     } else {
                         Toast::info("Every table already has forms.")
                     };
                     this.shell.update(cx, |s, cx| s.toast(toast, cx));
                 }
-                Err(e) => this.generate.error = e.message,
+                Err(e) => this.generate.error = Some(e),
             }
             cx.notify();
         });
@@ -231,9 +235,11 @@ impl DesignMode {
     fn render_sidebar(&mut self, focus: Focus, cx: &mut Context<Self>) -> impl IntoElement {
         let config = self.config(cx).clone();
         let theme = cx.theme();
-        let (border, muted, danger) = (theme.border, theme.muted_foreground, theme.danger);
+        let border = theme.border;
         let current = self.pages.read(cx).current(cx).map(|p| p.id);
-        let heading = |text: &'static str| div().pt_2().text_xs().text_color(muted).child(text);
+        let heading = |id: &'static str, text: &'static str| {
+            div().pt_2().child(widgets::styled_text(id, text, |d| d.text_base().font_weight(FontWeight::SEMIBOLD)))
+        };
         let tables: Vec<String> =
             self.shell.read(cx).objects.iter().filter(|o| o.object_type == "table").map(|o| o.name.clone()).collect();
         let table = Some(self.generate.table.clone()).filter(|t| tables.contains(t)).or_else(|| tables.first().cloned());
@@ -257,7 +263,7 @@ impl DesignMode {
             .border_r_1()
             .border_color(border)
             .overflow_y_scroll()
-            .child(heading("PAGES"))
+            .child(heading("pages-heading", "Pages"))
             .child(
                 Button::new("new-page")
                     .outline()
@@ -308,7 +314,7 @@ impl DesignMode {
                     .selected(focus != Focus::Navigation && current.as_deref() == Some(page.id.as_str()))
                     .on_click(cx.listener(move |this, _, _, cx| this.open_page(&id, None, cx)))
             }))
-            .when(config.pages.is_empty(), |el| el.child(widgets::text("no-pages", "No pages yet.")))
+            .when(config.pages.is_empty(), |el| el.child(widgets::empty_state("no-pages", "No pages yet", "Add a page, or generate pages from a table.", cx)))
             .child(
                 Button::new("design-navigation")
                     .ghost()
@@ -317,7 +323,7 @@ impl DesignMode {
                     .selected(focus == Focus::Navigation)
                     .on_click(cx.listener(|this, _, _, cx| this.show_navigation(cx))),
             )
-            .child(heading("GENERATE"))
+            .child(heading("generate-heading", "Generate"))
             .child(widgets::field(
                 "Table to generate from",
                 choice(
@@ -352,11 +358,11 @@ impl DesignMode {
                     .disabled(no_tables)
                     .on_click(cx.listener(|this, _, _, cx| this.generate(None, cx))),
             )
-            .when(!self.generate.error.is_empty(), |el| {
-                el.child(widgets::styled_text("generate-error", self.generate.error.clone(), move |d| d.text_xs().text_color(danger)))
+            .when_some(self.generate.error.as_ref(), |el, e| {
+                el.child(widgets::error_banner("generate-error", e, None, cx))
             })
             .when(!loose_forms.is_empty() || !loose_reports.is_empty(), |el| {
-                el.child(heading("NOT ON A PAGE"))
+                el.child(heading("loose-heading", "Not on a page"))
                     .children(loose_forms.into_iter().map(|f| {
                         let id = f.id.clone();
                         Button::new(SharedString::from(format!("loose-form:{}", f.id)))
@@ -423,8 +429,18 @@ impl DesignMode {
                             .label("Delete form")
                             .on_click(cx.listener(|this, _, _, cx| {
                                 let id = this.forms.read(cx).form_id.clone().unwrap_or_default();
-                                this.forms.update(cx, |f, cx| f.remove_form(&id, cx));
-                                this.back_to_page(cx);
+                                let name = this.config(cx).design.forms.iter().find(|f| f.id == id).map(|f| f.name.clone()).unwrap_or_default();
+                                let answer = dialogs::confirm(
+                                    cx,
+                                    &format!("Delete form {name}?"),
+                                    "The form is removed from its page and navigation. You can bring it back with Undo.",
+                                );
+                                task::after(cx, answer, move |this, ok, cx| {
+                                    if ok {
+                                        this.forms.update(cx, |f, cx| f.remove_form(&id, cx));
+                                        this.back_to_page(cx);
+                                    }
+                                });
                             })),
                     )
             })

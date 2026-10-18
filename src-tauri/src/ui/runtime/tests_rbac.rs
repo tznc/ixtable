@@ -219,3 +219,22 @@ fn checks_query_read_access_on_paged_saved_queries_like_full_runs(cx: &mut TestA
     crate::authz::set_runtime_role_preview(label.clone(), None).expect("end preview");
     assert_eq!(page("q-secret"), "OK");
 }
+
+#[gpui_kit::test]
+fn deleting_a_role_asks_first(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    h.switch_mode(ModeId::App);
+    h.click("tab-roles");
+    assert!(h.exists("no-roles"));
+    h.click("add-role");
+    h.fill("role-name", "Clerk");
+    h.dialogs.queue_confirm(false);
+    h.click("delete-role");
+    assert_eq!(h.dialogs.count("confirm"), 1);
+    assert_eq!(h.config().roles.len(), 1);
+    h.dialogs.queue_confirm(true);
+    h.click("delete-role");
+    wait(&mut h);
+    assert_eq!(h.dialogs.count("confirm"), 2);
+    assert!(h.config().roles.is_empty());
+}

@@ -90,6 +90,7 @@ fn creates_renames_duplicates_and_deletes_dashboards(cx: &mut TestAppContext) {
     assert_eq!(copy.components.len(), 1);
     assert_ne!(original.components[0].id, copy.components[0].id, "a copy gets fresh component ids");
     h.click("delete-page");
+    assert_eq!(h.dialogs.count("confirm"), 1, "deleting a page asks first");
     let names: Vec<String> = h.config().pages.iter().map(|d| d.name.clone()).collect();
     assert_eq!(names, ["Main form", "Sales board"]);
 }

@@ -297,7 +297,9 @@ fn never_autosaves_untitled_documents(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     h.create_table("loose", &[("id", "INTEGER", 1)]);
     h.advance(Duration::from_secs(20));
-    assert_eq!(h.label("save-status"), "Unsaved changes. Save once to turn on autosave");
+    // The header chip carries the state; the autosave footer waits for a file.
+    assert_eq!(h.label("document-status"), "Not saved");
+    assert!(!h.exists("save-status"));
     assert!(h.state().dirty);
 }
 

@@ -103,8 +103,20 @@ impl RolesTab {
     }
 
     fn remove_role(&mut self, id: String, cx: &mut Context<Self>) {
-        self.selected = None;
-        self.update("Delete role", move |config| config.roles.retain(|r| r.id != id), cx);
+        let name = self.roles(cx).iter().find(|r| r.id == id).map(|r| r.name.clone()).unwrap_or_default();
+        let name = if name.is_empty() { "this role".to_string() } else { format!("the role \"{name}\"") };
+        let answer = crate::ui::dialogs::confirm(
+            cx,
+            "Delete role?",
+            &format!("{} will be deleted. Its users lose the access it gave them.", capitalized(&name)),
+        );
+        task::after(cx, answer, move |this, ok, cx| {
+            if !ok {
+                return;
+            }
+            this.selected = None;
+            this.update("Delete role", move |config| config.roles.retain(|r| r.id != id), cx);
+        });
     }
 
     fn rows(&self, cx: &App) -> Vec<Row> {
@@ -159,7 +171,7 @@ impl Render for RolesTab {
                 move |d| d.text_sm().text_color(color)
             }))
             .children(self.error.clone().map(|e| {
-                super::message("roles-error", format!("{}: {}", e.code, e.message), true, cx)
+                widgets::error_banner("roles-error", &e, None, cx)
             }));
         let list = v_flex()
             .gap_1()
@@ -181,10 +193,12 @@ impl Render for RolesTab {
             ))
             .child(div().text_xs().text_color(theme.muted_foreground).child("The developer always has full access."));
         let editor: AnyElement = match role {
-            None => widgets::styled_text("no-roles", "Create a role to choose what its users can see and change.", {
-                let color = theme.muted_foreground;
-                move |d| d.text_sm().text_color(color)
-            })
+            None => widgets::empty_state(
+                "no-roles",
+                "No roles yet",
+                "Create a role to choose what its users can see and change.",
+                cx,
+            )
             .into_any_element(),
             Some(role) => {
                 let permissions = role.permissions.clone();
@@ -283,14 +297,15 @@ impl Render for RolesTab {
                             ),
                     )
                     .children(gaps.iter().map(|gap| {
-                        super::message(
+                        widgets::callout(
                             SharedString::from(format!("trigger-gap:{}", gap.trigger_id)),
-                            format!(
+                            widgets::Severity::Warning,
+                            &format!(
                                 "Trigger \"{}\" runs as the signed-in user, but this role cannot {}. Saves that fire it will be refused for this role.",
                                 gap.name,
                                 gap.missing.join(", ")
                             ),
-                            true,
+                            None,
                             cx,
                         )
                     }))
@@ -304,7 +319,7 @@ impl Render for RolesTab {
                     .child(navigation)
                     .child(widgets::section_heading("actions-heading", "Actions"))
                     .child(actions)
-                    .when(config.actions.is_empty(), |d| d.child(widgets::text("no-actions", "No actions defined.")))
+                    .when(config.actions.is_empty(), |d| d.child(widgets::empty_state("no-actions", "No actions yet", "Actions you define show up here to give to roles.", cx)))
                     .test_support()
                     .into_any_element()
             }

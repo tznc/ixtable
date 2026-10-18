@@ -418,3 +418,24 @@ pub(crate) fn decode_data_url(url: &str) -> Result<Arc<Image>, String> {
     let bytes = base64::engine::general_purpose::STANDARD.decode(body).map_err(|e| e.to_string())?;
     Ok(Arc::new(Image::from_bytes(format, bytes)))
 }
+
+/// One danger callout for a list of problems. A single problem is the headline; several
+/// get a count headline and one line each (`<id>-body`). The wrapper is `<id>`.
+pub fn problems_callout(id: &str, problems: &[String], cx: &App) -> AnyElement {
+    let (title, body) = match problems {
+        [one] => (one.clone(), None),
+        many => (format!("{} to fix", crate::ui::widgets::plural(many.len(), "problem")), Some(many.join("\n"))),
+    };
+    v_flex()
+        .id(SharedString::from(id.to_string()))
+        .aria_label("Problems")
+        .child(crate::ui::widgets::callout(
+            SharedString::from(format!("{id}-text")),
+            crate::ui::widgets::Severity::Danger,
+            &title,
+            body.as_deref(),
+            cx,
+        ))
+        .test_support()
+        .into_any_element()
+}

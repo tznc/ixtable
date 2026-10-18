@@ -217,7 +217,7 @@ fn runs_async_triggers_on_the_durable_queue_with_retry_after_failure_and_cancel(
     insert_order(&mut h, 1, "open");
     wait_until(&mut h, "the first audit row", |h| audit_messages(h) == ["queued 1"]);
     h.click("tab-jobs");
-    wait_until(&mut h, "a succeeded job", |h| job_with(h, "succeeded", "").is_some());
+    wait_until(&mut h, "a succeeded job", |h| job_with(h, "Succeeded", "").is_some());
 
     // Break the action and allow a single attempt: the job fails.
     h.click("tab-actions");
@@ -227,12 +227,11 @@ fn runs_async_triggers_on_the_durable_queue_with_retry_after_failure_and_cancel(
     assert_eq!(h.config().triggers[0].max_attempts, 1);
     insert_order(&mut h, 2, "open");
     h.click("tab-jobs");
-    wait_until(&mut h, "a failed job", |h| job_with(h, "failed", "add number and text").is_some());
-    let failed = job_with(&mut h, "failed", "").unwrap();
+    wait_until(&mut h, "a failed job", |h| job_with(h, "Failed", "add number and text").is_some());
+    let failed = job_with(&mut h, "Failed", "").unwrap();
     h.click(id(&format!("job-{failed}-history")));
     wait_until(&mut h, "the attempt history", |h| {
-        h.try_label(id(&format!("job-{failed}-attempt-1")))
-            .is_some_and(|l| l.starts_with("Attempt 1: failed"))
+        h.try_label(id(&format!("job-{failed}-attempt-1-result"))).is_some_and(|l| l == "Failed")
     });
 
     // Fix the action and retry the job.
@@ -243,7 +242,7 @@ fn runs_async_triggers_on_the_durable_queue_with_retry_after_failure_and_cancel(
     wait_until(&mut h, "the retried audit row", |h| {
         audit_messages(h) == ["queued 1", "retried 2"]
     });
-    wait_until(&mut h, "no failed job", |h| job_with(h, "failed", "").is_none());
+    wait_until(&mut h, "no failed job", |h| job_with(h, "Failed", "").is_none());
 
     // Fail again with a long backoff: the job waits in the queue and is cancelled.
     h.click("tab-actions");
@@ -254,18 +253,18 @@ fn runs_async_triggers_on_the_durable_queue_with_retry_after_failure_and_cancel(
     assert_eq!(h.config().triggers[0].backoff_ms, 600_000);
     insert_order(&mut h, 3, "open");
     h.click("tab-jobs");
-    choose(&mut h, "jobs-status", "queued");
+    choose(&mut h, "jobs-status", "Queued");
     wait_until(&mut h, "a queued job with its error", |h| {
-        job_with(h, "queued", "add number and text").is_some()
+        job_with(h, "Queued", "add number and text").is_some()
     });
-    let queued = job_with(&mut h, "queued", "add").unwrap();
+    let queued = job_with(&mut h, "Queued", "add").unwrap();
     h.click(id(&format!("job-{queued}-cancel")));
     wait_until(&mut h, "the job to leave the queued list", |h| {
-        job_with(h, "queued", "").is_none()
+        job_with(h, "Queued", "").is_none()
     });
     assert!(!h.exists("jobs-error"));
-    choose(&mut h, "jobs-status", "cancelled");
-    wait_until(&mut h, "the cancelled job", |h| job_with(h, "cancelled", "").is_some());
+    choose(&mut h, "jobs-status", "Cancelled");
+    wait_until(&mut h, "the cancelled job", |h| job_with(h, "Cancelled", "").is_some());
     assert_eq!(audit_messages(&mut h), ["queued 1", "retried 2"]);
 }
 

@@ -105,7 +105,7 @@ impl Render for EntitiesTab {
         let border = cx.theme().border;
         let mut panel = v_flex()
             .gap_3()
-            .child(widgets::section_heading("tab-title", "Entities"))
+            .child(widgets::section_heading("tab-title", "Record conflicts"))
             .child(div().text_sm().text_color(cx.theme().muted_foreground).child(
                 "Choose how each table resolves conflicting edits. Optimistic entities compare the values a user started from and reject the save if someone else changed the record first.",
             ));

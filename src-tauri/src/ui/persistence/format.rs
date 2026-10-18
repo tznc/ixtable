@@ -37,9 +37,7 @@ pub fn format_date_time(iso: &str) -> String {
         .unwrap_or_else(|_| iso.to_string())
 }
 
-pub fn plural(count: usize, word: &str) -> String {
-    format!("{count} {word}{}", if count == 1 { "" } else { "s" })
-}
+pub use crate::ui::widgets::plural;
 
 #[cfg(test)]
 mod tests {

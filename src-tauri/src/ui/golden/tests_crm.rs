@@ -117,7 +117,7 @@ fn golden_crm_runtime_crud_with_master_detail_validation_trigger_action_roles_co
             let _ = row_of(&mut h, "Acme Corp");
             h.click("new-record");
             wait(&mut h);
-            assert_eq!(h.label("record-title"), "New Company");
+            assert_eq!(h.label("record-title"), "New company");
             h.fill("field:name", "Wayne Enterprises");
             h.click("field:industry");
             h.click("field:industry:option:manufacturing");

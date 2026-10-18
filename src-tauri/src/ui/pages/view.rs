@@ -2,7 +2,7 @@
 //! shared grid, and parallel query loading with progress and Cancel. Used by the Studio's
 //! View tab (detached) and by Runtime navigation (attached to the `Runtime`).
 //!
-//! Test ids: `dash-view`, `dash-refresh`, `dash-progress` (label "Loading dashboard data…
+//! Test ids: `dash-view`, `dash-refresh`, `dash-progress` (label "Loading page data…
 //! Ns (X of Y queries done)"), `dash-progress-bar`, `dash-cancel`, `dash-notice`,
 //! `dash-missing`, `dash-empty`; each component is `widget:<title>` (its title, or its kind
 //! when it has none) with the lines `widget-problem:<title>:visible|enabled` and
@@ -36,6 +36,8 @@ use crate::{
             message, BackLink, RuntimeEnv,
         },
         shell::Shell,
+        toast::Toast,
+        widgets::Severity,
     },
 };
 use serde_json::{Map, Value};
@@ -69,7 +71,8 @@ pub struct PageView {
     debounce: u64,
     pub loader: Loader,
     pub(super) pages: HashMap<String, usize>,
-    pub notice: Option<(String, bool)>,
+    /// The last button error, shown above the grid until the next run.
+    pub notice: Option<String>,
     pub(super) options: HashMap<String, Vec<String>>,
     options_asked: HashSet<String>,
     pub(super) inputs: Inputs<PageView, String>,
@@ -193,12 +196,15 @@ impl PageView {
         self.loader.cancel(&label, &runner);
     }
 
+    /// A note from a dashboard button: a toast for news, an inline error callout above
+    /// the grid for a failure (design-language.md, "Toast").
     pub(super) fn say(&mut self, text: impl Into<String>, error: bool, cx: &mut Context<Self>) {
         let text = text.into();
-        self.notice = Some((text.clone(), error));
-        if self.env.attached() {
-            let tone = if error { NoticeTone::Error } else { NoticeTone::Info };
-            self.env.notify(text, tone, cx);
+        if error {
+            self.notice = Some(text);
+        } else {
+            self.notice = None;
+            self.shell.update(cx, |shell, cx| shell.toast(Toast::info(text), cx));
         }
         cx.notify();
     }
@@ -211,7 +217,7 @@ impl PageView {
                 cx.defer(move |cx| env.set_app_state(&key, value, cx));
             }
             // There is no form on a dashboard to hold the state.
-            HostEvent::SetState(StateScope::Form, ..) => self.say("A dashboard button cannot set form state.", true, cx),
+            HostEvent::SetState(StateScope::Form, ..) => self.say("A page button cannot set form state.", true, cx),
             HostEvent::Notify(text, tone) => self.say(text, tone == NoticeTone::Error, cx),
             HostEvent::Refresh => self.refresh(cx),
             _ => {}
@@ -390,7 +396,7 @@ impl PageView {
             return None;
         }
         let (total, done) = (self.loader.total(), self.loader.total() - self.loader.pending());
-        let text = format!("Loading dashboard data… {}s ({done} of {total} queries done)", self.loader.elapsed_ms / 1000);
+        let text = format!("Loading page data… {}s ({done} of {total} queries done)", self.loader.elapsed_ms / 1000);
         let theme = cx.theme();
         let fraction = done as f32 / total.max(1) as f32;
         Some(
@@ -446,7 +452,6 @@ impl PageView {
         let show_title = !component.title.is_empty() && !matches!(component.kind, ComponentKind::Button | ComponentKind::Filter);
         let rows = component.placement.row_span.max(1) as f32;
         let min_height = rows * ROW_HEIGHT + (rows - 1.0) * dashboard.layout.row_gap as f32;
-        let danger = theme.danger;
         let muted = theme.muted_foreground;
         let disabled = !enabled.value;
         v_flex()
@@ -468,7 +473,7 @@ impl PageView {
                 }))
             })
             .children(problems.into_iter().map(|(which, text)| {
-                widgets::styled_text(format!("widget-problem:{name}:{which}"), text, move |d| d.text_sm().text_color(danger))
+                widgets::callout(format!("widget-problem:{name}:{which}"), widgets::Severity::Danger, &text, None, cx)
             }))
             .when(disabled && enabled.error.is_none(), |el| {
                 el.child(widgets::styled_text(format!("widget-disabled:{name}"), "Not available right now.", move |d| {
@@ -549,7 +554,7 @@ impl PageView {
 impl Render for PageView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let Some(dashboard) = self.dashboard(cx) else {
-            return message("dash-missing", "This dashboard does not exist.", true, cx).into_any_element();
+            return message("dash-missing", "This page does not exist.", true, cx).into_any_element();
         };
         let params = self.params(&dashboard);
         let scope = self.scope(&params, cx);
@@ -576,9 +581,11 @@ impl Render for PageView {
                     .on_click(cx.listener(|this, _, _, cx| this.refresh(cx))),
             );
         let progress = self.render_progress(cx);
-        let notice = self.notice.clone().map(|(text, error)| message("dash-notice", text, error, cx));
+        let notice = self.notice.clone().map(|text| {
+            div().px_3().child(widgets::callout("dash-notice", Severity::Danger, &text, None, cx))
+        });
         let grid = if dashboard.components.is_empty() {
-            message("dash-empty", "This dashboard has no components yet.", false, cx).into_any_element()
+            message("dash-empty", "This page has no components yet.", false, cx).into_any_element()
         } else {
             // Hidden components are not rendered; a condition that fails to evaluate keeps its
             // component on screen with the error.

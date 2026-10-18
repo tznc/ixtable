@@ -62,7 +62,7 @@ impl PageEditor {
         if page.parameters.is_empty() {
             panel = panel.child(widgets::styled_text(
                 "page-params-hint",
-                "Parameters are values this page receives when it is opened. Components read them as params.",
+                "Values this page receives when a button or menu item opens it. Components can use them by name.",
                 move |d| d.text_xs().text_color(muted),
             ));
         }
@@ -77,7 +77,7 @@ impl PageEditor {
             let default = self.inputs.get(format!("page-param-default:{n}"), &shown, "", window, cx);
             let logical = choice_field(
                 format!("page-param-type:{n}"),
-                "Value type",
+                "Type",
                 &param.logical_type,
                 PARAMETER_TYPES.iter().map(|t| (t.to_string(), t.to_string())).collect(),
                 "text",

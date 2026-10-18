@@ -111,6 +111,7 @@ fn new_forms_and_reports_get_a_page_and_deleting_them_removes_it(cx: &mut TestAp
     assert_eq!(focus(&mut h), Focus::Form);
     assert_eq!(h.config().pages.len(), 2);
     h.click("delete-form");
+    assert_eq!(h.dialogs.count("confirm"), 1, "deleting a form asks first");
     assert_eq!(h.config().pages.len(), 1);
     assert_eq!(focus(&mut h), Focus::Page);
 }

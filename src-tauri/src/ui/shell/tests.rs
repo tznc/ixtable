@@ -153,6 +153,7 @@ fn edits_yaml_reports_errors_and_undoes_an_applied_change(cx: &mut TestAppContex
     set_yaml(&mut h, &tab, "name: [unclosed");
     h.click("apply-yaml");
     assert!(h.label("yaml-error-code").contains("INVALID_CONFIG"));
+    assert_eq!(h.label("yaml-error-headline"), "This YAML can't be applied.");
 
     set_yaml(&mut h, &tab, "name: Inventory\nactiveMode: app\nversion: 2\n");
     h.click("apply-yaml");
@@ -185,7 +186,11 @@ fn lists_validation_problems(cx: &mut TestAppContext) {
     let problems: Vec<String> = (0..2usize).map(|i| h.label(("problem", i))).collect();
     assert!(problems.iter().any(|p| p.contains("duplicate report id r1")), "{problems:?}");
     assert!(problems.iter().any(|p| p.contains("report r1 has no name")), "{problems:?}");
-    assert_eq!(h.label("problems-summary"), "1 error, 1 warning");
+    assert_eq!(h.label("problems-errors"), "1 error");
+    assert_eq!(h.label("problems-warnings"), "1 warning");
+    assert_eq!(h.label(("problem-severity", 0usize)), "Error");
+    assert!(h.label(("problem-object", 0usize)).starts_with("Report "));
+    assert_eq!(h.label("problems-count"), "2");
 }
 
 #[gpui_kit::test]
@@ -224,4 +229,36 @@ fn confirms_before_closing_a_dirty_document(cx: &mut TestAppContext) {
     assert!(!h.has_shell());
     assert_eq!(h.label("start-heading"), "Your data, in one portable file.");
     assert_eq!(h.dialogs.count("confirm"), 2);
+}
+
+#[gpui_kit::test]
+fn settings_nav_groups_tabs_under_headings(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    h.switch_mode(ModeId::App);
+    for key in ["datasource", "entities", "files", "migrations", "assets", "roles", "yaml", "release", "cloud", "problems", "logs"] {
+        assert!(h.exists(format!("tab-{key}")), "{key}");
+    }
+    assert!(!h.exists("tab-access"));
+    assert_eq!(h.label("tab-datasource"), "Data source");
+}
+
+#[gpui_kit::test]
+fn discarding_yaml_edits_asks_first(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    let tab = yaml_tab(&mut h);
+    set_yaml(&mut h, &tab, "name: Edited\n");
+    h.click("discard-edits");
+    h.settle();
+    assert_eq!(h.dialogs.count("confirm"), 1);
+    assert!(yaml_text(&mut h, &tab).contains("name: Untitled"));
+}
+
+#[gpui_kit::test]
+fn empty_object_groups_say_so_and_offer_the_new_action(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    assert_eq!(h.label("empty-tables"), "No tables yet.");
+    assert_eq!(h.label("empty-queries"), "No queries yet.");
+    assert!(h.exists("new-table-empty"));
+    h.click("new-query-empty");
+    assert!(h.exists("new-query"));
 }

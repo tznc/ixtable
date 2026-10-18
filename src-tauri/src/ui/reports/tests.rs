@@ -81,6 +81,9 @@ fn builds_a_grouped_report_previews_page_1_of_n_with_totals_prints_and_exports_i
     h.click("export-pdf");
     let want = "Exported report-b.pdf".to_string();
     wait_until(&mut h, "the second export", |h| h.notice().as_deref() == Some(want.as_str()));
+    h.click("notice-action");
+    h.settle();
+    assert_eq!(h.dialogs.count("reveal"), 1);
     let a = std::fs::read(&first_pdf).expect("first pdf");
     let b = std::fs::read(&second_pdf).expect("second pdf");
     assert_eq!(&a[..8], b"%PDF-1.4");

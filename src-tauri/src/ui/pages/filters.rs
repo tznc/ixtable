@@ -103,7 +103,7 @@ impl PageEditor {
         let (border, muted) = (theme.border, theme.muted_foreground);
         let mut panel = v_flex().gap_2().child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child("Filters"));
         if dashboard.filters.is_empty() {
-            panel = panel.child(widgets::styled_text("filters-hint", "Filters pass their value to every query parameter with the same name.", move |d| {
+            panel = panel.child(widgets::styled_text("filters-hint", "A filter sends its value to every query that has a parameter with the same name.", move |d| {
                 d.text_xs().text_color(muted)
             }));
         }
@@ -130,7 +130,7 @@ impl PageEditor {
             let types = PARAMETER_TYPES.iter().map(|t| (t.to_string(), t.to_string())).collect();
             let logical = choice_field(
                 format!("filter-type:{fid}"),
-                "Value type",
+                "Type",
                 &filter.logical_type,
                 types,
                 "text",

@@ -11,7 +11,7 @@ use super::fields::{expression_problem, number_problem, parse_whole};
 use crate::ui::controls::{check, choice_field, expr_field, text_field, Inputs};
 use super::picker::action_picker;
 use crate::automation::{Trigger, TriggerEvent, TriggerMode};
-use crate::ui::{prelude::*, shell::Shell};
+use crate::ui::{dialogs, display::{status_badge, Tone}, prelude::*, shell::Shell, task};
 
 const EVENTS: [(&str, &str); 4] = [
     ("beforeChange", "Before a record is saved"),
@@ -152,13 +152,26 @@ impl TriggersPanel {
         };
         let triggers = self.triggers(cx);
         let index = triggers.iter().position(|t| t.id == id);
-        self.selected = index.and_then(|i| {
+        let name = index.map(|i| triggers[i].name.clone()).unwrap_or_default();
+        let name = if name.is_empty() { "Untitled trigger".to_string() } else { name };
+        let neighbor = index.and_then(|i| {
             triggers
                 .get(i + 1)
                 .or_else(|| i.checked_sub(1).and_then(|p| triggers.get(p)))
                 .map(|t| t.id.clone())
         });
-        self.update_config("Delete trigger", move |c| c.triggers.retain(|t| t.id != id), cx);
+        let answer = dialogs::confirm(
+            cx,
+            &format!("Delete trigger {name}?"),
+            "Its action will no longer run automatically. This can be undone with Undo.",
+        );
+        task::after(cx, answer, move |this, ok, cx| {
+            if !ok {
+                return;
+            }
+            this.selected = neighbor;
+            this.update_config("Delete trigger", move |c| c.triggers.retain(|t| t.id != id), cx);
+        });
     }
 
     fn render_list(&self, triggers: &[Trigger], cx: &mut Context<Self>) -> impl IntoElement {
@@ -181,20 +194,29 @@ impl TriggersPanel {
             .children(triggers.iter().enumerate().map(|(i, t)| {
                 let id = t.id.clone();
                 let name = if t.name.is_empty() { "Untitled trigger" } else { t.name.as_str() };
-                let label = if t.enabled { name.to_string() } else { format!("{name} (off)") };
-                Button::new(SharedString::from(format!("trigger-item-{}", i + 1)))
-                    .ghost()
-                    .small()
-                    .w_full()
-                    .start_label(None, label)
-                    .selected(selected.as_deref() == Some(id.as_str()))
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.selected = Some(id.clone());
-                        cx.notify();
-                    }))
+                let item = format!("trigger-item-{}", i + 1);
+                h_flex()
+                    .gap_1()
+                    .items_center()
+                    .child(
+                        Button::new(SharedString::from(item.clone()))
+                            .ghost()
+                            .small()
+                            .flex_1()
+                            .min_w_0()
+                            .start_label(None, name.to_string())
+                            .selected(selected.as_deref() == Some(id.as_str()))
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.selected = Some(id.clone());
+                                cx.notify();
+                            })),
+                    )
+                    .when(!t.enabled, |el| {
+                        el.child(status_badge(format!("{item}-off"), "Off", Tone::Neutral, cx))
+                    })
             }))
             .when(triggers.is_empty(), |el| {
-                el.child(widgets::text("no-triggers", "No triggers yet."))
+                el.child(widgets::empty_state("no-triggers", "No triggers yet", "A trigger runs an action when a record changes.", cx))
             })
     }
 

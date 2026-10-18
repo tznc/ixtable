@@ -28,6 +28,8 @@ pub trait DialogProvider: Send + Sync {
     -> Option<PathBuf>;
     /// OK/Cancel question; true for OK.
     fn confirm(&self, title: &str, message: &str) -> bool;
+    /// Opens the system file manager with `path` selected.
+    fn reveal(&self, path: &std::path::Path);
 }
 
 #[derive(Clone)]
@@ -61,6 +63,12 @@ pub fn save_file(
 pub fn confirm(cx: &App, title: &str, message: &str) -> Task<bool> {
     let (p, title, message) = (provider(cx), title.to_string(), message.to_string());
     cx.background_spawn(async move { p.confirm(&title, &message) })
+}
+
+/// Shows `path` in the system file manager ("Show in folder").
+pub fn reveal(cx: &App, path: PathBuf) {
+    let p = provider(cx);
+    cx.background_spawn(async move { p.reveal(&path) }).detach();
 }
 
 /// Native dialogs through tauri-plugin-dialog.
@@ -107,6 +115,11 @@ impl DialogProvider for TauriDialogs {
             .buttons(MessageDialogButtons::OkCancel)
             .blocking_show()
     }
+    fn reveal(&self, path: &std::path::Path) {
+        if let Err(e) = tauri_plugin_opener::reveal_item_in_dir(path) {
+            crate::logging::warn("ui", &format!("could not show {} in its folder: {e}", path.display()));
+        }
+    }
 }
 
 /// Queued answers for headless tests. An empty queue answers None (canceled) or, for
@@ -129,7 +142,8 @@ impl TestDialogs {
     pub fn queue_confirm(&self, answer: bool) {
         self.confirms.lock().unwrap().push_back(answer);
     }
-    /// How many requests started with `kind` ("open", "folder", "save", "confirm").
+    /// How many requests started with `kind` ("open", "folder", "save", "confirm",
+    /// "reveal").
     pub fn count(&self, kind: &str) -> usize {
         let calls = self.calls.lock().unwrap();
         calls.iter().filter(|c| c.starts_with(kind)).count()
@@ -155,5 +169,8 @@ impl DialogProvider for TestDialogs {
     fn confirm(&self, title: &str, message: &str) -> bool {
         self.record(format!("confirm {title}: {message}"));
         self.confirms.lock().unwrap().pop_front().unwrap_or(true)
+    }
+    fn reveal(&self, path: &std::path::Path) {
+        self.record(format!("reveal {}", path.display()));
     }
 }

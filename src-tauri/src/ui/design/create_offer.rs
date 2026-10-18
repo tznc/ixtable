@@ -4,12 +4,11 @@
 //!
 //! Test ids: `create-forms-offer` (the offer, labelled "Forms for <table>"), `offer-message`,
 //! `create-forms` (the button "Create forms for <table>"), `offer-dismiss` ("Not now"),
-//! `offer-done` ("Forms for <table> are ready in Design and Run mode.") and
-//! `offer-done-dismiss`.
+//! and a success toast "Forms for <table> are ready in Design and Run mode." when done.
 
 use super::generate::{GenerateAppButton, GenerateEvent};
 use crate::forms::schema::form_table;
-use crate::ui::{prelude::*, shell::Shell};
+use crate::ui::{prelude::*, shell::Shell, toast::Toast, widgets::Severity};
 
 pub enum OfferEvent {
     Dismissed,
@@ -36,6 +35,9 @@ impl CreateFormsOffer {
         });
         let subscription = cx.subscribe(&button, |this, _, _: &GenerateEvent, cx| {
             this.done = true;
+            let toast = Toast::success(format!("Forms for {} are ready in Design and Run mode.", this.table));
+            this.shell.update(cx, |s, cx| s.toast(toast, cx));
+            cx.emit(OfferEvent::Dismissed);
             cx.notify();
         });
         Self { shell, table: table.to_string(), done: false, button, _subscription: subscription }
@@ -54,50 +56,14 @@ impl CreateFormsOffer {
 
 impl Render for CreateFormsOffer {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = cx.theme();
-        let (border, background) = (theme.border, theme.muted);
-        if self.done {
-            return h_flex()
-                .id("create-forms-offer")
-                .gap_3()
-                .items_center()
-                .px_3()
-                .py_2()
-                .rounded_md()
-                .border_1()
-                .border_color(border)
-                .bg(background)
-                .child(widgets::text(
-                    "offer-done",
-                    format!("Forms for {} are ready in Design and Run mode.", self.table),
-                ))
-                .child(
-                    Button::new("offer-done-dismiss")
-                        .ghost()
-                        .small()
-                        .label("Dismiss")
-                        .on_click(cx.listener(|_, _, _, cx| cx.emit(OfferEvent::Dismissed))),
-                )
-                .into_any_element();
-        }
-        if self.covered(cx) {
+        if self.done || self.covered(cx) {
             return div().into_any_element();
         }
-        h_flex()
+        let title = format!("Table {} created. Build its screens now?", self.table);
+        widgets::callout("offer-message", Severity::Info, &title, None, cx)
             .id("create-forms-offer")
             .aria_label(format!("Forms for {}", self.table))
-            .gap_3()
             .items_center()
-            .px_3()
-            .py_2()
-            .rounded_md()
-            .border_1()
-            .border_color(border)
-            .bg(background)
-            .child(widgets::text(
-                "offer-message",
-                format!("Table {} created. Build its screens now?", self.table),
-            ))
             .child(self.button.clone())
             .child(
                 Button::new("offer-dismiss")
