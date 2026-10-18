@@ -1,9 +1,8 @@
 import React, { useState, type ReactNode } from "react";
 import {
   formatDate,
-  planPrice,
+  formatPrice,
   useCloudApi,
-  type BillingInterval,
   type FunctionName,
   type Plan,
 } from "@site/src/lib/cloud";
@@ -18,7 +17,6 @@ import {
   Section,
   TableWrap,
 } from "../ui";
-import IntervalToggle from "../IntervalToggle";
 import { useAction, useAsync } from "../useAsync";
 import type { AppTabProps } from "./types";
 
@@ -32,14 +30,12 @@ function money(cents: number, currency: string): string {
 function PlanCard({
   plan,
   current,
-  interval,
   used,
   onChoose,
   pending,
 }: {
   plan: Plan;
   current: boolean;
-  interval: BillingInterval;
   used: number;
   onChoose: (plan: Plan) => void;
   pending: boolean;
@@ -50,8 +46,7 @@ function PlanCard({
       <h3>
         {plan.name} {current && <Badge tone="success">Current plan</Badge>}
       </h3>
-      <div className="pricing-price">{planPrice(plan, interval)}</div>
-      {interval === "year" && <p className="cloud-muted">2 months free</p>}
+      <div className="pricing-price">{formatPrice(plan.price_cents, plan.interval)}</div>
       <ul>
         <li>{plan.runtime_user_allowance} runtime users</li>
         <li>{plan.storage_gb} GB archive storage</li>
@@ -68,7 +63,7 @@ function PlanCard({
           disabled={pending || tooSmall}
           onClick={() => onChoose(plan)}
         >
-          {interval === "year" ? `Choose ${plan.name} annual` : `Choose ${plan.name}`}
+          Choose {plan.name}
         </button>
       )}
     </div>
@@ -78,7 +73,6 @@ function PlanCard({
 /** Plan, allowance, checkout, portal, invoices, and cancellation for one app. */
 export default function BillingTab({ app, entitlement, reloadApp }: AppTabProps): ReactNode {
   const api = useCloudApi();
-  const [interval, setInterval] = useState<BillingInterval | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const state = useAsync(async () => {
     const q = api.q();
@@ -89,19 +83,13 @@ export default function BillingTab({ app, entitlement, reloadApp }: AppTabProps)
     async () => (await api.call("billing-invoices", { appId: app.id })).invoices,
     [api, app.id],
   );
-  const redirect = useAction(
-    async (name: FunctionName, planId?: string, chosen?: BillingInterval) => {
-      const result =
-        name === "billing-checkout"
-          ? await api.call("billing-checkout", {
-              appId: app.id,
-              planId: planId ?? "",
-              interval: chosen ?? "month",
-            })
-          : await api.call("billing-portal", { appId: app.id });
-      window.location.assign((result as { url: string }).url);
-    },
-  );
+  const redirect = useAction(async (name: FunctionName, planId?: string) => {
+    const result =
+      name === "billing-checkout"
+        ? await api.call("billing-checkout", { appId: app.id, planId: planId ?? "" })
+        : await api.call("billing-portal", { appId: app.id });
+    window.location.assign((result as { url: string }).url);
+  });
   const cancel = useAction(async () => {
     await api.call("billing-cancel", { appId: app.id, atPeriodEnd: true });
     setConfirmCancel(false);
@@ -114,8 +102,6 @@ export default function BillingTab({ app, entitlement, reloadApp }: AppTabProps)
   const plans = state.data?.plans ?? [];
   const status = entitlementStatus(entitlement);
   const used = entitlement?.used ?? 0;
-  const currentInterval: BillingInterval = subscription?.billing_interval ?? "month";
-  const shown = interval ?? currentInterval;
   return (
     <>
       <ErrorNotice error={state.error ?? redirect.error} testId="billing-error" />
@@ -128,14 +114,6 @@ export default function BillingTab({ app, entitlement, reloadApp }: AppTabProps)
           <dd data-testid="billing-plan">
             {plans.find((plan) => plan.id === subscription?.plan_id)?.name ?? "No plan"}
           </dd>
-          {subscription && (
-            <>
-              <dt>Billing interval</dt>
-              <dd data-testid="billing-interval">
-                {subscription.billing_interval === "year" ? "Annual" : "Monthly"}
-              </dd>
-            </>
-          )}
           <dt>Status</dt>
           <dd>
             <Badge tone={status.tone}>{status.label}</Badge> {status.help}
@@ -178,21 +156,15 @@ export default function BillingTab({ app, entitlement, reloadApp }: AppTabProps)
         )}
       </Section>
       <Section title={subscription ? "Change plan" : "Choose a plan"}>
-        <IntervalToggle name="billing-interval" value={shown} onChange={setInterval} />
         <div className="pricing-grid">
           {plans.map((plan) => (
             <PlanCard
               key={plan.id}
               plan={plan}
-              interval={shown}
-              current={
-                plan.id === subscription?.plan_id &&
-                subscription.billing_interval === shown &&
-                subscription.status !== "canceled"
-              }
+              current={plan.id === subscription?.plan_id && subscription.status !== "canceled"}
               used={used}
               pending={redirect.pending}
-              onChoose={(row) => redirect.run("billing-checkout", row.id, shown)}
+              onChoose={(row) => redirect.run("billing-checkout", row.id)}
             />
           ))}
         </div>

@@ -1,12 +1,11 @@
-// billing-checkout {appId, planId, interval?: "month"|"year"} → {url, overAllowance}
+// billing-checkout {appId, planId} → {url, overAllowance}
 // Starts a provider checkout for an app's plan (PRD §4.2, §4.5). Allowed for
 // callers with the app's billing capability. The organization is the billing
-// customer (created on its first checkout). Annual prices are two months
-// free; there is no trial. The subscription becomes active only through
+// customer (created on its first checkout). Plans are monthly only and
+// there is no trial. The subscription becomes active only through
 // stripe-webhook (real Stripe or the fake provider's signed event), never here.
 import { audit } from "../_shared/audit.ts";
 import { billingProvider } from "../_shared/billing.ts";
-import { BILLING_INTERVALS } from "../_shared/billing.ts";
 import {
   appBillingUrl,
   ensureOrgBillingCustomer,
@@ -16,7 +15,7 @@ import {
 import { serviceClient } from "../_shared/db.ts";
 import { handler, HttpError, readJson, requireUser } from "../_shared/http.ts";
 import { enforceNamedRateLimit, incrementMetric } from "../_shared/rateLimit.ts";
-import { oneOf, str, uuid } from "../_shared/validate.ts";
+import { str, uuid } from "../_shared/validate.ts";
 
 Deno.serve(
   handler(async (req) => {
@@ -24,19 +23,18 @@ Deno.serve(
     const body = await readJson(req);
     const appId = uuid(body, "appId");
     const planId = str(body, "planId", { min: 1, max: 64 });
-    const interval = oneOf(body, "interval", BILLING_INTERVALS, { optional: true }) ?? "month";
     await enforceNamedRateLimit("billing-checkout", user.id);
     const app = await requireBillingApp(appId, user.id);
 
     const db = serviceClient();
     const { data: plan } = await db
       .from("plans")
-      .select("id, stripe_price_id, stripe_annual_price_id, runtime_user_allowance, active")
+      .select("id, stripe_price_id, runtime_user_allowance, active")
       .eq("id", planId)
       .maybeSingle();
     if (!plan || !plan.active)
       throw new HttpError("VALIDATION", "planId: unknown plan", { field: "planId" });
-    const priceId = interval === "year" ? plan.stripe_annual_price_id : plan.stripe_price_id;
+    const priceId = plan.stripe_price_id;
     if (!priceId)
       throw new HttpError("VALIDATION", "planId: plan is not for sale", { field: "planId" });
 
@@ -44,11 +42,10 @@ Deno.serve(
     if (
       subscription &&
       subscription.plan_id === planId &&
-      subscription.billing_interval === interval &&
       ["active", "trialing"].includes(subscription.status) &&
       !subscription.cancel_at_period_end
     ) {
-      throw new HttpError("VALIDATION", "planId: the app is already on this plan and interval", {
+      throw new HttpError("VALIDATION", "planId: the app is already on this plan", {
         field: "planId",
       });
     }
@@ -59,7 +56,6 @@ Deno.serve(
       appId,
       orgId: app.org_id,
       planId,
-      interval,
       priceId,
       userId: user.id,
       customerId,
@@ -70,7 +66,6 @@ Deno.serve(
       id: checkout.sessionId,
       app_id: appId,
       plan_id: planId,
-      billing_interval: interval,
       user_id: user.id,
       provider: provider.name,
     });
@@ -89,10 +84,8 @@ Deno.serve(
       target: `plan:${planId}`,
       details: {
         planId,
-        interval,
         provider: provider.name,
         previousPlanId: subscription?.plan_id ?? null,
-        previousInterval: subscription?.billing_interval ?? null,
       },
       req,
     });

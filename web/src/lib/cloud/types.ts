@@ -179,8 +179,6 @@ export interface AuditEvent {
   details: Record<string, unknown> | null;
 }
 
-export type BillingInterval = "month" | "year";
-
 /** Console capabilities from the app_capabilities RPC. */
 export type Capability = "owner" | "admin" | "billing" | "view";
 
@@ -199,8 +197,6 @@ export interface Plan {
   id: string;
   name: string;
   price_cents: number;
-  /** Always price_cents * 10 (two months free). */
-  annual_price_cents: number;
   currency: string;
   interval: string;
   runtime_user_allowance: number;
@@ -221,7 +217,6 @@ export interface Entitlement {
   used: number;
   status?: string;
   planId?: string;
-  interval?: BillingInterval;
 }
 
 export interface Subscription {
@@ -229,7 +224,6 @@ export interface Subscription {
   plan_id: string;
   provider: "stripe" | "fake";
   status: string;
-  billing_interval: BillingInterval;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
 }
@@ -353,7 +347,7 @@ export interface FunctionMap {
     };
   };
   "billing-checkout": {
-    in: { appId: string; planId: string; interval?: BillingInterval };
+    in: { appId: string; planId: string };
     out: { url: string; overAllowance: boolean };
   };
   "app-access-update": {

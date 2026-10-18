@@ -188,9 +188,7 @@ export function createQueries(client: SupabaseClient) {
       return unwrap(
         await client
           .from("plans")
-          .select(
-            "id,name,price_cents,annual_price_cents,currency,interval,runtime_user_allowance,storage_gb",
-          )
+          .select("id,name,price_cents,currency,interval,runtime_user_allowance,storage_gb")
           .order("sort"),
       );
     },
@@ -199,9 +197,7 @@ export function createQueries(client: SupabaseClient) {
       const rows = unwrap<Subscription[]>(
         await client
           .from("subscriptions")
-          .select(
-            "app_id,plan_id,provider,status,billing_interval,current_period_end,cancel_at_period_end",
-          )
+          .select("app_id,plan_id,provider,status,current_period_end,cancel_at_period_end")
           .in("app_id", appIds),
       );
       return Object.fromEntries(rows.map((row) => [row.app_id, row]));

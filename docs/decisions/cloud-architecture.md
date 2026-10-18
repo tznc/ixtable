@@ -43,7 +43,8 @@ Migrations: `supabase/migrations/20261003000000_cloud_core.sql` (tables),
 `credential_envelope_put`), `20261003300000_commercial_billing.sql`
 (checkout sessions, webhook ordering and outcome columns) and
 `20261010000000_org_app_access_billing.sql` (per-app access, capabilities,
-annual intervals, org billing customers).
+org billing customers) and `20261018000000_remove_annual_billing.sql`
+(drops the annual prices and billing intervals that migration added).
 
 | Table | Purpose |
 |---|---|
@@ -60,7 +61,7 @@ annual intervals, org billing customers).
 | `installation_backups` | per-installation backup stream |
 | `credential_envelopes` | datasource ciphertext + KEK-wrapped DEK, scope shared or per user |
 | `key_grants` | one row per issued key grant (no key material) |
-| `plans`, `subscriptions`, `billing_events` | catalog (starter 5, team 25, business 100 runtime users) with monthly and annual prices (`annual_price_cents` = 10 × monthly, enforced by a check), one subscription per app with `billing_interval` month/year, webhook idempotency on `event_id` |
+| `plans`, `subscriptions`, `billing_events` | catalog (starter 5, team 25, business 100 runtime users) with monthly prices only, one subscription per app, webhook idempotency on `event_id` |
 | `org_billing_customers` | function-only; one billing (Stripe) customer per organization, PRD §4.5 |
 | `billing_checkout_sessions` | function-only; checkout sessions handed out by `billing-checkout`, consumed once by `billing-fake-complete` |
 | `audit_events` | append-only (trigger blocks UPDATE and DELETE for every role) |
@@ -178,14 +179,12 @@ with a Stripe-shaped event signed by the same secret.
 Billing model (PRD §4.5): the organization is the customer and each app has
 its own subscription. `billing-checkout` creates the org's provider customer
 on first use (`org_billing_customers`) and reuses it for every app, so the
-portal and invoices are per organization. It takes `interval` month or year
-and uses `stripe_price_id` or `stripe_annual_price_id`; buying the same plan
-at the other interval is a change, buying the same plan and interval again
-is 422. Checkout never sets a trial and always collects a payment method.
-The webhook resolves plan and interval from the price first (portal
-switches change the price, not the metadata), then from
-`metadata.plan_id`/`billing_interval`; an interval switch is audited as
-`billing.plan_changed`. Billing functions require the `billing` capability.
+portal and invoices are per organization. Every plan is monthly, with one
+`stripe_price_id`; buying the plan the app already has is 422. Checkout
+never sets a trial and always collects a payment method. The webhook
+resolves the plan from the price first (portal switches change the price,
+not the metadata), then from `metadata.plan_id`. Billing functions require
+the `billing` capability.
 
 Per-app access (PRD §20.3): `app-access-update {appId, userId, role|null}`
 grants, changes or removes an org member's per-app role. Only org
@@ -480,7 +479,7 @@ website's `FunctionMap`).
 | `archive-upload-url` | POST {appId, kind, size, sha256, installationId?} → {uploadId, path, signedUrl, token, expiresAt} | UNAUTHENTICATED, FORBIDDEN, REVOKED, NOT_FOUND, TOO_LARGE, ENTITLEMENT_REQUIRED, VALIDATION, RATE_LIMITED | 60 / 1 h | `uploadId`, `path`, `signedUrl`, `token`, `expiresAt` |
 | `backup-commit` | POST {appId, uploadId, installationId} → {backup} | UNAUTHENTICATED, FORBIDDEN, REVOKED, NOT_FOUND, ENTITLEMENT_REQUIRED, VALIDATION, RATE_LIMITED | 60 / 1 h | `backup` |
 | `billing-cancel` | billing-cancel {appId, atPeriodEnd?=true} → {subscription} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 10 / 10 min | `subscription` |
-| `billing-checkout` | billing-checkout {appId, planId, interval?: "month"\|"year"} → {url, overAllowance} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 10 / 10 min | `url`, `overAllowance` |
+| `billing-checkout` | billing-checkout {appId, planId} → {url, overAllowance} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 10 / 10 min | `url`, `overAllowance` |
 | `billing-fake-complete` | billing-fake-complete {sessionId, appId, planId} → {ok, status} | UNAUTHENTICATED, NOT_FOUND, VALIDATION, RATE_LIMITED | 10 / 10 min | `ok`, `status` |
 | `billing-invoices` | billing-invoices {appId} → {invoices: Invoice[]} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 60 / 10 min | `invoices` |
 | `billing-portal` | billing-portal {appId} → {url} | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION, RATE_LIMITED | 20 / 10 min | `url` |
@@ -509,3 +508,4 @@ website's `FunctionMap`).
 
 - 2026-10-05: Status now covers the implemented functions and desktop client; added the later migrations, `billing_checkout_sessions`, missing shared modules, `retention-sweep` in the `verify_jwt = false` list and the client org writes; corrected member-activation entitlement, upload retry count, manifest fields (dropped the missing PLAN reference), build-config overrides and the release key gate; added billing and desktop Evidence.
 - 2026-10-10: Added per-app console access (`app_collaborators`, `app_capabilities`, `app-access-update`), annual billing intervals, org-level billing customers and the no-trial checkout (PRD §4.5, §20.3).
+- 2026-10-18: Removed annual billing; every plan is monthly only (PRD §4.5).

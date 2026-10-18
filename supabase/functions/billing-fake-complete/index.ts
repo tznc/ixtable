@@ -26,7 +26,7 @@ Deno.serve(
     const db = serviceClient();
     const { data: session } = await db
       .from("billing_checkout_sessions")
-      .select("id, app_id, plan_id, billing_interval, user_id, provider, status, expires_at")
+      .select("id, app_id, plan_id, user_id, provider, status, expires_at")
       .eq("id", sessionId)
       .maybeSingle();
     if (
@@ -62,12 +62,11 @@ Deno.serve(
       (app ? await orgBillingCustomerId(app.org_id) : null) ??
       existing?.stripe_customer_id ??
       `cus_fake_${randomToken(9)}`;
-    const interval = session.billing_interval as "month" | "year";
     // Every checkout creates a new subscription, as Stripe does.
     const subscriptionId = `sub_fake_${randomToken(9)}`;
     for (const type of ["checkout.session.completed", "customer.subscription.created"] as const) {
       const result = await postSignedEvent(
-        buildFakeEvent({ type, appId, planId, interval, customerId, subscriptionId }),
+        buildFakeEvent({ type, appId, planId, customerId, subscriptionId }),
       );
       if (result.status !== 200) {
         throw new Error(`stripe-webhook rejected the fake ${type} event (${result.status})`);

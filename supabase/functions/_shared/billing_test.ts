@@ -41,11 +41,7 @@ Deno.test("buildFakeEvent produces Stripe-shaped events carrying app metadata", 
   assert(String(event.id).startsWith("evt_fake_"));
   const object = (event.data as { object: Record<string, unknown> }).object;
   assertEquals(object.status, "active");
-  assertEquals(object.metadata, {
-    app_id: "app-1234567890",
-    plan_id: "team",
-    billing_interval: "month",
-  });
+  assertEquals(object.metadata, { app_id: "app-1234567890", plan_id: "team" });
   const checkout = buildFakeEvent({
     type: "checkout.session.completed",
     appId: "a",
@@ -65,8 +61,7 @@ Deno.test("fake provider returns website URLs; billingProvider requires a provid
     appId: "app",
     orgId: "org",
     planId: "team",
-    interval: "year",
-    priceId: "price_fake_team_annual",
+    priceId: "price_fake_team",
     userId: "u",
     customerId: "cus_fake_org",
     successUrl: "http://127.0.0.1:3001/ok",
@@ -75,7 +70,6 @@ Deno.test("fake provider returns website URLs; billingProvider requires a provid
   assert(
     checkout.url.startsWith("http://127.0.0.1:3001/cloud/billing/fake-checkout?session=cs_fake_"),
   );
-  assertEquals(new URL(checkout.url).searchParams.get("interval"), "year");
   const customer = await provider.createCustomer({
     orgId: "org",
     orgName: "Acme",

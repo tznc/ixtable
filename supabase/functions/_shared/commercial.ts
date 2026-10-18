@@ -26,7 +26,7 @@ export interface SubscriptionRow extends SubscriptionState {
 }
 
 export const SUBSCRIPTION_COLUMNS =
-  "id, app_id, plan_id, billing_interval, provider, status, current_period_end, cancel_at_period_end, stripe_customer_id, stripe_subscription_id, provider_event_at, created_at, updated_at";
+  "id, app_id, plan_id, provider, status, current_period_end, cancel_at_period_end, stripe_customer_id, stripe_subscription_id, provider_event_at, created_at, updated_at";
 
 /** Client-facing subscription shape (no provider ids). */
 export function publicSubscription(row: SubscriptionRow | null): Record<string, unknown> | null {
@@ -34,7 +34,6 @@ export function publicSubscription(row: SubscriptionRow | null): Record<string, 
   return {
     app_id: row.app_id,
     plan_id: row.plan_id,
-    billing_interval: row.billing_interval,
     provider: row.provider,
     status: row.status,
     current_period_end: row.current_period_end,

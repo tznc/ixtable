@@ -8,15 +8,11 @@
 // stripe-webhook verifies both the same way (verifyStripeSignature).
 import { hmacSha256Hex, randomToken, timingSafeEqual } from "./crypto.ts";
 
-export type BillingInterval = "month" | "year";
-export const BILLING_INTERVALS: readonly BillingInterval[] = ["month", "year"];
-
 export interface CheckoutInput {
   appId: string;
   orgId: string;
   planId: string;
-  interval: BillingInterval;
-  /** plans.stripe_price_id (month) or plans.stripe_annual_price_id (year) */
+  /** plans.stripe_price_id */
   priceId: string;
   userId: string;
   /** The organization's billing customer (org_billing_customers). */
@@ -135,8 +131,6 @@ export interface FakeEventInput {
     | "invoice.payment_failed";
   appId: string;
   planId: string;
-  /** Defaults to "month". */
-  interval?: BillingInterval;
   status?: string;
   customerId?: string;
   subscriptionId?: string;
@@ -156,11 +150,10 @@ export interface FakeEventInput {
  */
 export function buildFakeEvent(input: FakeEventInput): Record<string, unknown> {
   const now = Math.floor(Date.now() / 1000);
-  const interval = input.interval ?? "month";
-  const metadata = { app_id: input.appId, plan_id: input.planId, billing_interval: interval };
+  const metadata = { app_id: input.appId, plan_id: input.planId };
   const customer = input.customerId ?? `cus_fake_${input.appId.slice(0, 8)}`;
   const subscription = input.subscriptionId ?? `sub_fake_${input.appId.slice(0, 8)}`;
-  const periodEnd = input.currentPeriodEnd ?? now + (interval === "year" ? 365 : 30) * 86_400;
+  const periodEnd = input.currentPeriodEnd ?? now + 30 * 86_400;
   const object =
     input.type === "checkout.session.completed"
       ? {
@@ -193,7 +186,7 @@ export function buildFakeEvent(input: FakeEventInput): Record<string, unknown> {
             current_period_end: periodEnd,
             cancel_at_period_end: input.cancelAtPeriodEnd ?? false,
             metadata,
-            items: { data: [{ price: { id: fakePriceId(input.planId, interval) } }] },
+            items: { data: [{ price: { id: `price_fake_${input.planId}` } }] },
           };
   return {
     id: input.eventId ?? `evt_fake_${randomToken(12)}`,
@@ -203,11 +196,6 @@ export function buildFakeEvent(input: FakeEventInput): Record<string, unknown> {
     livemode: false,
     data: { object },
   };
-}
-
-/** The price ids seed.sql gives local plans. */
-export function fakePriceId(planId: string, interval: BillingInterval): string {
-  return interval === "year" ? `price_fake_${planId}_annual` : `price_fake_${planId}`;
 }
 
 export function fakeProvider(siteUrl: string): BillingProvider {
@@ -222,7 +210,6 @@ export function fakeProvider(siteUrl: string): BillingProvider {
       url.searchParams.set("session", sessionId);
       url.searchParams.set("app", input.appId);
       url.searchParams.set("plan", input.planId);
-      url.searchParams.set("interval", input.interval);
       return Promise.resolve({ url: url.toString(), sessionId });
     },
     createPortal(input) {
@@ -313,12 +300,10 @@ export function stripeProvider(
           "metadata[app_id]": input.appId,
           "metadata[org_id]": input.orgId,
           "metadata[plan_id]": input.planId,
-          "metadata[billing_interval]": input.interval,
           "metadata[user_id]": input.userId,
           "subscription_data[metadata][app_id]": input.appId,
           "subscription_data[metadata][org_id]": input.orgId,
           "subscription_data[metadata][plan_id]": input.planId,
-          "subscription_data[metadata][billing_interval]": input.interval,
         }),
       );
       return { url: session.url, sessionId: session.id };
@@ -409,7 +394,6 @@ export interface StripeEvent {
 /** The subscriptions columns the webhook reads and writes. */
 export interface SubscriptionState {
   plan_id: string;
-  billing_interval: BillingInterval;
   status: string;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
@@ -479,28 +463,14 @@ export function eventCustomerId(event: StripeEvent): string | null {
   return text(event.data.object.customer);
 }
 
-/** `metadata.plan_id`, `metadata.billing_interval` and the first price id, for resolving the plan. */
+/** `metadata.plan_id` and the first price id, for resolving the plan. */
 export function eventPlanHint(event: StripeEvent): {
   planId: string | null;
-  interval: BillingInterval | null;
   priceId: string | null;
 } {
   const object = event.data.object;
   const items = (object.items as { data?: { price?: { id?: unknown } }[] } | undefined)?.data;
-  const interval = text(metadataOf(object).billing_interval);
-  return {
-    planId: text(metadataOf(object).plan_id),
-    interval: (BILLING_INTERVALS as readonly (string | null)[]).includes(interval)
-      ? (interval as BillingInterval)
-      : null,
-    priceId: text(items?.[0]?.price?.id),
-  };
-}
-
-/** A plan and interval resolved from an event (price first, then metadata). */
-export interface ResolvedPlan {
-  planId: string;
-  interval: BillingInterval;
+  return { planId: text(metadataOf(object).plan_id), priceId: text(items?.[0]?.price?.id) };
 }
 
 export function mapStripeStatus(status: unknown): SubscriptionStatus {
@@ -532,16 +502,13 @@ function later(a: string | null, b: string | null): string | null {
 
 /**
  * Decides what a webhook event does to the app's subscription row.
- * `plan` is the plan and interval resolved from the event (price or
- * metadata), if any; a bare plan id keeps the current interval.
+ * `planId` is the plan resolved from the event (price or metadata), if any.
  */
 export function decideSubscriptionEvent(
   event: StripeEvent,
   existing: SubscriptionState | null,
-  plan: ResolvedPlan | string | null,
+  planId: string | null,
 ): EventDecision {
-  const planId = typeof plan === "string" ? plan : (plan?.planId ?? null);
-  const interval = typeof plan === "string" ? null : (plan?.interval ?? null);
   if (!(HANDLED_EVENT_TYPES as readonly string[]).includes(event.type)) {
     return { kind: "ignore", reason: "unhandled_type" };
   }
@@ -576,8 +543,6 @@ export function decideSubscriptionEvent(
 
   const base: SubscriptionState = {
     plan_id: planId ?? current?.plan_id ?? existing?.plan_id ?? "",
-    billing_interval:
-      interval ?? current?.billing_interval ?? existing?.billing_interval ?? "month",
     status: current?.status ?? "incomplete",
     current_period_end: current?.current_period_end ?? null,
     cancel_at_period_end: current?.cancel_at_period_end ?? false,
@@ -630,12 +595,8 @@ export function decideSubscriptionEvent(
  * change does not affect access (e.g. a renewal with the same plan).
  */
 export function accessChangeAction(
-  before:
-    | (Pick<SubscriptionState, "status" | "plan_id" | "cancel_at_period_end"> &
-        Partial<Pick<SubscriptionState, "billing_interval">>)
-    | null,
-  after: Pick<SubscriptionState, "status" | "plan_id" | "cancel_at_period_end"> &
-    Partial<Pick<SubscriptionState, "billing_interval">>,
+  before: Pick<SubscriptionState, "status" | "plan_id" | "cancel_at_period_end"> | null,
+  after: Pick<SubscriptionState, "status" | "plan_id" | "cancel_at_period_end">,
 ): string | null {
   const wasEntitled = before !== null && ENTITLED_STATUSES.includes(before.status);
   const isEntitled = ENTITLED_STATUSES.includes(after.status);
@@ -654,12 +615,6 @@ export function accessChangeAction(
     if (before.status === "past_due") return "billing.payment_recovered";
   }
   if (before && before.plan_id !== after.plan_id) return "billing.plan_changed";
-  if (
-    before?.billing_interval &&
-    after.billing_interval &&
-    before.billing_interval !== after.billing_interval
-  )
-    return "billing.plan_changed";
   if (before && before.cancel_at_period_end !== after.cancel_at_period_end) {
     return after.cancel_at_period_end ? "billing.cancel_scheduled" : "billing.cancel_reverted";
   }
