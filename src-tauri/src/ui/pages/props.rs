@@ -122,7 +122,7 @@ impl PageEditor {
     /// "Edit form" / "New form" (and the report equivalents): opens the definition's designer.
     fn open_button(id: &'static str, label: &'static str, cx: &Context<Self>) -> Button {
         Button::new(id)
-            .primary()
+            .outline()
             .small()
             .icon(IconName::Pencil)
             .label(label)
@@ -379,7 +379,7 @@ impl PageEditor {
         self.load_columns(if uses_query { c.query_id.as_deref() } else { None }, dashboard, cx);
         let config = self.shell.read(cx).config(cx).clone();
         let theme = cx.theme().clone();
-        let (muted, danger) = (theme.muted_foreground, theme.danger);
+        let muted = theme.muted_foreground;
         let mut panel = v_flex()
             .gap_2()
             .child(
@@ -389,7 +389,9 @@ impl PageEditor {
                     .start_label(None, "Page settings")
                     .on_click(cx.listener(|this, _, _, cx| this.select(None, cx))),
             )
-            .child(div().text_xs().text_color(muted).child(format!("{} PROPERTIES", kind_label(c.kind).to_uppercase())))
+            .child(widgets::styled_text("component-properties-heading", format!("{} properties", kind_label(c.kind)), |d| {
+                d.text_base().font_weight(FontWeight::SEMIBOLD)
+            }))
             .child(self.text_field("prop-title", "Title", &c.title, "", false, window, cx));
         if uses_query {
             let picker = self.picker(
@@ -400,12 +402,8 @@ impl PageEditor {
                 cx,
             );
             panel = panel.child(picker);
-            if !self.columns.error.is_empty() {
-                panel = panel.child(widgets::styled_text(
-                    "prop-columns-error",
-                    format!("Could not read the query's columns: {}", self.columns.error),
-                    move |d| d.text_sm().text_color(danger),
-                ));
+            if let Some(e) = &self.columns.error {
+                panel = panel.child(widgets::error_callout("prop-columns-error", "This query's columns can't be read.", e, None, cx));
             }
         }
         let names: Vec<String> = ["rows", "params", "app"].iter().map(|n| n.to_string()).collect();

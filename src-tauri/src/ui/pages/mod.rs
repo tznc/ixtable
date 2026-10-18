@@ -256,7 +256,19 @@ impl PagePanel {
                     .small()
                     .icon(IconName::Trash)
                     .label("Delete page")
-                    .on_click(cx.listener(|this, _, _, cx| this.delete(cx))),
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        let name = this.current(cx).map(|p| p.name).unwrap_or_default();
+                        let answer = crate::ui::dialogs::confirm(
+                            cx,
+                            &format!("Delete page {name}?"),
+                            "The page and its components are removed. You can bring it back with Undo.",
+                        );
+                        task::after(cx, answer, |this, ok, cx| {
+                            if ok {
+                                this.delete(cx);
+                            }
+                        });
+                    })),
             )
             .child(widgets::tab_strip(
                 "page-view-tabs",

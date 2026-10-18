@@ -33,7 +33,7 @@ fn shows_progress_and_cancel_after_two_seconds_cancels_and_refreshes(cx: &mut Te
     assert!(!h.exists("dash-cancel"));
 
     advance_by(&mut h, 2100);
-    assert_eq!(h.label("dash-progress"), "Loading dashboard data… 2s (0 of 1 queries done)");
+    assert_eq!(h.label("dash-progress"), "Loading page data… 2s (0 of 1 queries done)");
     assert!(h.exists("dash-progress-bar"));
     h.click("dash-cancel");
     wait_until(&mut h, "the cancelled query", |h| h.try_label(id("gate:Open orders")).as_deref() == Some("Query cancelled."));
@@ -68,7 +68,7 @@ fn reports_a_missing_dashboard_on_a_runtime_page(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     seed_ops(&mut h);
     open_in_runtime(&mut h, "nope");
-    assert_eq!(h.label("dash-missing"), "This dashboard does not exist.");
+    assert_eq!(h.label("dash-missing"), "This page does not exist.");
 }
 
 #[gpui_kit::test]
@@ -76,7 +76,7 @@ fn a_new_dashboard_says_it_has_no_components(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     new_dashboard(&mut h);
     h.click("tab-view");
-    assert_eq!(h.label("dash-empty"), "This dashboard has no components yet.");
+    assert_eq!(h.label("dash-empty"), "This page has no components yet.");
 }
 
 fn conditions_dashboards(h: &mut Harness) {

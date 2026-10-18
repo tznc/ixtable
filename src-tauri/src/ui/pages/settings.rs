@@ -62,13 +62,13 @@ impl PageEditor {
         if layout == dashboard.layout {
             return true;
         }
-        self.edit("Edit dashboard grid", move |d| *d = with_layout(d, layout, &[]), cx);
+        self.edit("Edit page grid", move |d| *d = with_layout(d, layout, &[]), cx);
         true
     }
 
     fn set_alignment(&mut self, justify: bool, key: &str, cx: &mut Context<Self>) {
         let align = align_of(key);
-        self.edit("Edit dashboard grid", move |d| {
+        self.edit("Edit page grid", move |d| {
             let mut layout = d.layout.clone();
             if justify {
                 layout.justify_items = align;
@@ -80,7 +80,6 @@ impl PageEditor {
     }
 
     pub(super) fn render_settings_panel(&mut self, dashboard: &Page, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
-        let muted = cx.theme().muted_foreground;
         let layout = &dashboard.layout;
         let number = |this: &mut Self, id: &str, label: &str, value: usize, window: &mut Window, cx: &mut Context<Self>| {
             let state = this.inputs.get(id.to_string(), &value.to_string(), "", window, cx);
@@ -114,7 +113,7 @@ impl PageEditor {
         v_flex()
             .id("dash-settings")
             .gap_3()
-            .child(div().text_xs().text_color(muted).child("PAGE SETTINGS"))
+            .child(widgets::styled_text("page-settings-heading", "Page settings", |d| d.text_base().font_weight(FontWeight::SEMIBOLD)))
             .child(parameters)
             .child(filters)
             .child(

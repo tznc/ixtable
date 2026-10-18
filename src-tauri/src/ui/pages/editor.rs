@@ -37,7 +37,7 @@ use std::collections::HashMap;
 pub(super) struct Columns {
     pub key: String,
     pub columns: Vec<String>,
-    pub error: String,
+    pub error: Option<crate::manager::AppError>,
 }
 
 pub struct PageEditor {
@@ -244,7 +244,7 @@ impl PageEditor {
                 }
                 match result {
                     Ok(run) => this.columns.columns = run.columns,
-                    Err(e) => this.columns.error = e.message,
+                    Err(e) => this.columns.error = Some(e),
                 }
                 cx.notify();
             },
@@ -333,7 +333,6 @@ impl PageEditor {
 
     fn render_palette(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
-        let muted = theme.muted_foreground;
         v_flex()
             .id("dash-palette")
             .aria_label("Add component")
@@ -343,7 +342,7 @@ impl PageEditor {
             .p_3()
             .border_r_1()
             .border_color(theme.border)
-            .child(div().text_xs().text_color(muted).child("COMPONENTS"))
+            .child(widgets::styled_text("components-heading", "Components", |d| d.text_base().font_weight(FontWeight::SEMIBOLD)))
             .children(COMPONENT_KINDS.into_iter().map(|kind| {
                 let label = if kind == ComponentKind::Kpi { "Add KPI".to_string() } else { format!("Add {}", kind_label(kind).to_lowercase()) };
                 let key = match kind {
@@ -359,16 +358,16 @@ impl PageEditor {
     }
 
     fn render_canvas(&self, dashboard: &Page, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = cx.theme();
-        let (muted, danger, warning) = (theme.muted_foreground, theme.danger, theme.warning);
         let issues = dashboard_issues(dashboard, self.shell.read(cx).config(cx));
         let (select, resize, mv) = (cx.entity(), cx.entity(), cx.entity());
         let canvas = if dashboard.components.is_empty() {
-            div()
-                .text_sm()
-                .text_color(muted)
-                .child(widgets::text("dash-hint", "Add components from the palette. They snap to the dashboard grid."))
-                .into_any_element()
+            widgets::empty_state(
+                "dash-hint",
+                "This page is empty",
+                "Add components from the list on the left. They snap to the page grid.",
+                cx,
+            )
+            .into_any_element()
         } else {
             GridCanvas::new("dash-canvas", dashboard.layout.clone())
                 .editable(true)
@@ -409,8 +408,8 @@ impl PageEditor {
                         .aria_label("Page problems")
                         .gap_1()
                         .children(issues.iter().enumerate().map(|(i, issue)| {
-                            let color = if issue.severity == Severity::Error { danger } else { warning };
-                            widgets::styled_text(format!("issue:{i}"), issue.message.clone(), move |d| d.text_sm().text_color(color))
+                            let tone = if issue.severity == Severity::Error { widgets::Severity::Danger } else { widgets::Severity::Warning };
+                            widgets::callout(format!("issue:{i}"), tone, &issue.message, None, cx)
                         }))
                         .test_support(),
                 )

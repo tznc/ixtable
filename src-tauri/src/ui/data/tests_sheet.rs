@@ -55,12 +55,12 @@ fn filters_by_selection_excludes_a_selection_and_clears_filters(cx: &mut TestApp
     let mut h = Harness::new_document(cx);
     seed_orders(&mut h);
     h.click("cell:0:2");
-    h.click("filter-selection");
+    choose(&mut h, "filter", "Filter by selection");
     assert_eq!(column(&mut h, 1), ["Acme Ltd", "Core Inc"]);
     assert_eq!(h.label("filter-chip:0"), "region = north");
 
     h.click("cell:0:1");
-    h.click("filter-excluding");
+    choose(&mut h, "filter", "Filter excluding selection");
     assert_eq!(column(&mut h, 1), ["Core Inc"]);
 
     h.click("remove-filter:0");
@@ -87,7 +87,7 @@ fn finds_the_next_match_and_replaces_every_match_in_one_batch(cx: &mut TestAppCo
     h.dialogs.queue_confirm(true);
     h.type_into("replace-text", "LLC");
     h.click("find-replace-all");
-    assert_eq!(h.label("find-status"), "Replaced 2 matches in 2 records.");
+    assert_eq!(h.notice().as_deref(), Some("Replaced 2 matches in 2 records."));
     assert_eq!(h.dialogs.count("confirm"), 1);
     let page = h.read_page("orders");
     assert_eq!(column_of(&page, 1), ["Acme LLC", "Bolt LLC", "Core Inc"]);
@@ -102,7 +102,7 @@ fn shows_a_totals_row_computed_over_every_filtered_record(cx: &mut TestAppContex
     assert_eq!(h.label("total:qty"), "15");
 
     h.click("cell:0:2");
-    h.click("filter-selection");
+    choose(&mut h, "filter", "Filter by selection");
     assert_eq!(h.label("total:qty"), "12");
     let s = sheet(&mut h);
     assert!(h.cx.read(|cx| s.read(cx).layout.totals.is_some()));
@@ -185,4 +185,14 @@ fn rejects_a_grid_edit_made_from_stale_values_and_shows_the_current_ones(cx: &mu
     h.fill("cell-input", "done");
     h.press("enter");
     assert_eq!(shown(&h.read_page("tickets").rows[0][1]), "done");
+}
+
+#[gpui_kit::test]
+fn deleting_a_record_asks_first_and_removes_it(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    seed_orders(&mut h);
+    h.dialogs.queue_confirm(true);
+    h.click("delete-row:0");
+    assert_eq!(h.dialogs.count("confirm"), 1);
+    assert_eq!(h.read_page("orders").total, 2);
 }

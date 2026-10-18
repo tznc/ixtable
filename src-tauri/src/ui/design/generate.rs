@@ -76,7 +76,7 @@ pub struct GenerateAppButton {
     label: String,
     tables: Option<Vec<String>>,
     busy: bool,
-    error: Option<String>,
+    error: Option<AppError>,
 }
 impl EventEmitter<GenerateEvent> for GenerateAppButton {}
 
@@ -104,7 +104,7 @@ impl GenerateAppButton {
                     this.error = None;
                     cx.emit(GenerateEvent::Done(added));
                 }
-                Err(e) => this.error = Some(e.message),
+                Err(e) => this.error = Some(e),
             }
             cx.notify();
         });
@@ -113,7 +113,6 @@ impl GenerateAppButton {
 
 impl Render for GenerateAppButton {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let danger = cx.theme().danger;
         let error_id = SharedString::from(format!("{}-error", self.id));
         v_flex()
             .gap_1()
@@ -126,8 +125,6 @@ impl Render for GenerateAppButton {
                     .disabled(self.busy)
                     .on_click(cx.listener(|this, _, _, cx| this.run(cx))),
             )
-            .children(self.error.clone().map(|message| {
-                widgets::styled_text(error_id, message, move |d| d.text_xs().text_color(danger))
-            }))
+            .children(self.error.as_ref().map(|e| widgets::error_banner(error_id, e, None, cx)))
     }
 }

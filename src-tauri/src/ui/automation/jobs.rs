@@ -5,13 +5,14 @@
 //! request number and only the latest may render: a slow answer for an old filter must
 //! not replace the current list.
 //!
-//! Test ids: `jobs-status`, `refresh-jobs`, `jobs-error`, `no-jobs`; per job N `job-N`
+//! Test ids: `jobs-status`, `refresh-jobs`, `jobs-error`, `no-jobs`, `jobs-header`; per job N `job-N`
 //! with cells `job-N-trigger`, `-action`, `-status`, `-attempts`, `-next`, `-error` and
 //! tools `job-N-history`, `-cancel`, `-retry`; the open history is `job-N-attempts` with
-//! `job-N-attempt-M` lines and step logs `job-N-attempt-M-log`.
+//! `job-N-attempt-M` rows (cells `-number`, `-result`, `-started`, `-error`) and step logs `job-N-attempt-M-log`.
 
 use super::actions::step_log;
 use crate::ui::controls::choice_field;
+use crate::ui::display::{status_badge, Tone};
 use crate::automation_runner::{worker::notify_jobs_changed, StepLog};
 use crate::ui::events::DocEvent;
 use crate::jobs::{Job, JobAttempt, JobFilter};
@@ -21,6 +22,18 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 pub const STATUSES: [&str; 5] = ["queued", "running", "succeeded", "failed", "cancelled"];
+
+/// The sentence-case name and badge tone of a job status code.
+pub fn status_label(status: &str) -> (&'static str, Tone) {
+    match status {
+        "queued" => ("Queued", Tone::Neutral),
+        "running" => ("Running", Tone::Warning),
+        "succeeded" => ("Succeeded", Tone::Success),
+        "failed" => ("Failed", Tone::Danger),
+        "cancelled" => ("Cancelled", Tone::Neutral),
+        _ => ("Unknown", Tone::Neutral),
+    }
+}
 
 /// How often the list reloads on its own.
 pub const REFRESH: Duration = Duration::from_secs(2);
@@ -43,7 +56,7 @@ pub struct JobsPanel {
     shell: Entity<Shell>,
     pub status: String,
     pub jobs: Vec<Job>,
-    pub error: Option<String>,
+    pub error: Option<AppError>,
     pub open: Option<String>,
     // Attempts of the opened job, with the job revision (updated_at) they were read at.
     attempts: HashMap<String, (String, Vec<JobAttempt>)>,
@@ -113,7 +126,7 @@ impl JobsPanel {
                 self.jobs = jobs;
                 self.error = None;
             }
-            Err(e) => self.error = Some(e.message),
+            Err(e) => self.error = Some(e),
         }
         if let Some(open) = self.open.clone() {
             self.load_attempts(&open, cx);
@@ -190,7 +203,7 @@ impl JobsPanel {
                     this.load(cx);
                 }
                 Err(e) => {
-                    this.error = Some(e.message);
+                    this.error = Some(e);
                     cx.notify();
                 }
             },
@@ -209,12 +222,7 @@ impl JobsPanel {
             .iter()
             .find(|a| a.id == job.action_id)
             .map_or(job.action_id.clone(), |a| a.name.clone());
-        let theme = cx.theme();
-        let color = match job.status.as_str() {
-            "succeeded" => theme.success,
-            "failed" => theme.danger,
-            _ => theme.foreground,
-        };
+        let (status_text, status_tone) = status_label(&job.status);
         let row = format!("job-{n}");
         let next = if job.status == "queued" { local_time(&job.next_run_at, "%H:%M:%S") } else { String::new() };
         let (open, id) = (self.open.as_deref() == Some(job.id.as_str()), job.id.clone());
@@ -234,11 +242,7 @@ impl JobsPanel {
                     .items_center()
                     .child(cell(140.).child(widgets::text(format!("{row}-trigger"), trigger)))
                     .child(cell(140.).child(widgets::text(format!("{row}-action"), action)))
-                    .child(cell(90.).child(widgets::styled_text(
-                        format!("{row}-status"),
-                        job.status.clone(),
-                        move |d| d.text_color(color),
-                    )))
+                    .child(cell(90.).child(status_badge(format!("{row}-status"), status_text, status_tone, cx)))
                     .child(cell(60.).child(widgets::text(
                         format!("{row}-attempts"),
                         format!("{} / {}", job.attempts, job.max_attempts),
@@ -281,27 +285,50 @@ impl JobsPanel {
             return widgets::text(id, "Loading attempts…").into_any_element();
         };
         if attempts.is_empty() {
-            return widgets::text(id, "No attempts yet.").into_any_element();
+            return widgets::empty_state(id, "No attempts yet", "The job has not started.", cx).into_any_element();
         }
+        let muted = cx.theme().muted_foreground;
+        let cell = |w: f32| div().w(px(w)).flex_none().text_sm();
         v_flex()
             .id(SharedString::from(id))
             .gap_1()
             .pl_4()
+            .child(
+                h_flex()
+                    .gap_2()
+                    .text_xs()
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(muted)
+                    .child(cell(70.).child("Attempt"))
+                    .child(cell(100.).child("Result"))
+                    .child(cell(160.).child("Started"))
+                    .child(div().flex_1().text_sm().child("Error")),
+            )
             .children(attempts.iter().enumerate().map(|(m, a)| {
-                let state = match (a.ok, &a.error) {
-                    (None, _) => "running".to_string(),
-                    (Some(true), _) => "succeeded".to_string(),
-                    (Some(false), e) => format!("failed - {}", e.clone().unwrap_or_default()),
+                let (result, tone) = match a.ok {
+                    None => ("Running", Tone::Warning),
+                    Some(true) => ("Succeeded", Tone::Success),
+                    Some(false) => ("Failed", Tone::Danger),
                 };
-                let line = format!(
-                    "Attempt {}: {state} ({})",
-                    a.attempt,
-                    local_time(&a.started_at, "%Y-%m-%d %H:%M:%S")
-                );
                 let at = format!("{row}-attempt-{}", m + 1);
                 v_flex()
                     .gap_0p5()
-                    .child(widgets::text(at.clone(), line))
+                    .child(
+                        h_flex()
+                            .id(SharedString::from(at.clone()))
+                            .gap_2()
+                            .items_center()
+                            .child(cell(70.).child(widgets::text(format!("{at}-number"), a.attempt.to_string())))
+                            .child(cell(100.).child(status_badge(format!("{at}-result"), result, tone, cx)))
+                            .child(cell(160.).child(widgets::text(
+                                format!("{at}-started"),
+                                local_time(&a.started_at, "%Y-%m-%d %H:%M:%S"),
+                            )))
+                            .child(div().flex_1().min_w_0().text_sm().child(widgets::text(
+                                format!("{at}-error"),
+                                a.error.clone().unwrap_or_default(),
+                            ))),
+                    )
                     .child(step_log(&format!("{at}-log"), &attempt_steps(&a.log), cx))
             }))
             .into_any_element()
@@ -313,8 +340,8 @@ impl Render for JobsPanel {
         self.start(cx);
         let entity = cx.entity();
         let mut options = vec![(String::new(), "All statuses".to_string())];
-        options.extend(STATUSES.iter().map(|s| (s.to_string(), s.to_string())));
-        let danger = cx.theme().danger;
+        options.extend(STATUSES.iter().map(|s| (s.to_string(), status_label(s).0.to_string())));
+        let muted = cx.theme().muted_foreground;
         let jobs: Vec<Job> = self.jobs.clone();
         v_flex()
             .id("jobs-panel")
@@ -342,6 +369,7 @@ impl Render for JobsPanel {
                         Button::new("refresh-jobs")
                             .outline()
                             .small()
+                            .icon(IconName::RefreshCw)
                             .label("Refresh jobs")
                             .on_click(cx.listener(|this, _, _, cx| this.load(cx))),
                     ),
@@ -349,10 +377,30 @@ impl Render for JobsPanel {
             .child(div().text_sm().child(
                 "The job queue runs only while ixtable is open. Jobs left running when it closed are retried.",
             ))
-            .when_some(self.error.clone(), |el, e| {
-                el.child(widgets::styled_text("jobs-error", e, move |d| d.text_color(danger)))
+            .when_some(self.error.clone(), |el, e| el.child(widgets::error_banner("jobs-error", &e, None, cx)))
+            .when(jobs.is_empty(), |el| {
+                el.child(widgets::empty_state("no-jobs", "No jobs", "Jobs appear here when an asynchronous trigger fires.", cx))
             })
-            .when(jobs.is_empty(), |el| el.child(widgets::text("no-jobs", "No jobs.")))
+            .when(!jobs.is_empty(), |el| {
+                let cell = |w: f32| div().w(px(w)).flex_none();
+                el.child(
+                    h_flex()
+                        .id("jobs-header")
+                        .gap_2()
+                        .pb_1()
+                        .border_b_1()
+                        .border_color(cx.theme().border)
+                        .text_xs()
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(muted)
+                        .child(cell(140.).child("Trigger"))
+                        .child(cell(140.).child("Action"))
+                        .child(cell(90.).child("Status"))
+                        .child(cell(60.).child("Attempts"))
+                        .child(cell(80.).child("Next run"))
+                        .child(cell(200.).child("Last error")),
+                )
+            })
             .children(jobs.iter().enumerate().map(|(i, j)| self.render_job(i + 1, j, cx)))
     }
 }

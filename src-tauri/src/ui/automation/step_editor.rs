@@ -330,7 +330,12 @@ impl StepEditor {
         let count = steps.len();
         let mut list = v_flex().gap_3();
         if steps.is_empty() {
-            list = list.child(widgets::text(format!("{controls}-empty"), "No steps yet."));
+            list = list.child(widgets::empty_state(
+                SharedString::from(format!("{controls}-empty")),
+                "No steps yet",
+                "Add a step below to say what this action does.",
+                cx,
+            ));
         }
         for (index, step) in steps.iter().enumerate() {
             let item = format!("{prefix}-{}", index + 1);
@@ -410,12 +415,12 @@ impl StepEditor {
                 .gap_2()
                 .items_end()
                 .child(widgets::field(
-                    &format!("New {} kind", noun.to_lowercase()),
+                    &format!("{noun} type"),
                     choice(
                         SharedString::from(format!("{controls}-kind")),
                         &kind,
                         options,
-                        "Kind",
+                        "Step type",
                         move |value, _, cx| {
                             let (value, path) = (value.to_string(), kind_path.clone());
                             entity.update(cx, |this, cx| {

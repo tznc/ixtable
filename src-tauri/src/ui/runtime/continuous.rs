@@ -245,7 +245,7 @@ impl ContinuousRow {
         if !self.can_delete {
             return;
         }
-        let answer = crate::ui::dialogs::confirm(cx, "Confirm", "Delete this record? This cannot be undone.");
+        let answer = crate::ui::dialogs::confirm(cx, "Delete record?", "This record will be deleted. This cannot be undone.");
         task::after(cx, answer, move |this, ok, cx| {
             if !ok {
                 return;
@@ -455,7 +455,7 @@ impl Render for ContinuousRow {
                     }),
             )
             .when(!problems.is_empty(), |d| {
-                d.child(super::message(SharedString::from(format!("{id}:problem")), problems.join(" "), true, cx))
+                d.child(super::body::problems_callout(&format!("{id}:problem"), &problems, cx))
             })
             .test_support()
     }
@@ -658,7 +658,6 @@ impl ContinuousView {
 
 impl Render for ContinuousView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = cx.theme().clone();
         let total = self.page.as_ref().map_or(0, |p| p.total);
         let shown = self.page.as_ref().map_or(0, |p| p.rows.len() as u64);
         let status = match &self.page {
@@ -675,11 +674,12 @@ impl Render for ContinuousView {
                 d.text_xl().font_weight(FontWeight::SEMIBOLD)
             }))
             .when(!self.error.is_empty(), |d| d.child(super::message("continuous-error", self.error.clone(), true, cx)))
-            .children(self.notice.clone().map(|(text, tone)| {
+            // The status line keeps its space so a save never shifts the rows.
+            .child(div().min_h(px(20.)).children(self.notice.clone().map(|(text, tone)| {
                 super::message("continuous-notice", text, tone == NoticeTone::Error, cx)
-            }))
+            })))
             .when(self.page.as_ref().is_some_and(|p| p.truncated), |d| {
-                d.child(widgets::text("list-notice", TRUNCATED_NOTICE))
+                d.child(widgets::callout("list-notice", widgets::Severity::Warning, TRUNCATED_NOTICE, None, cx))
             })
             .child(
                 v_flex()
@@ -690,10 +690,7 @@ impl Render for ContinuousView {
                     .gap_2()
                     .children(self.rows.iter().map(|(_, row)| row.clone()))
                     .when(self.page.as_ref().is_some_and(|p| p.rows.is_empty()), |d| {
-                        d.child(widgets::styled_text("continuous-empty", "No records.", {
-                            let color = theme.muted_foreground;
-                            move |d| d.text_sm().text_color(color)
-                        }))
+                        d.child(widgets::empty_state("continuous-empty", "No records yet", "Records you add will show here.", cx))
                     })
                     .children(self.new_row.clone()),
             )

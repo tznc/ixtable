@@ -129,7 +129,7 @@ fn lets_a_role_granted_only_a_dashboard_read_the_dashboards_queries(cx: &mut Tes
         assert!(!h.exists(id(&format!("gate:{name}"))), "{name} is not gated");
     }
     wait_until(&mut h, "the denied form", |h| {
-        h.try_label_in(id("widget:Summary form"), id("form-denied")).as_deref() == Some("You do not have access to Summary.")
+        h.try_label_in(id("widget:Summary form"), id("form-denied")).as_deref() == Some("You do not have access to Summary")
     });
     let view = runtime_page(&mut h);
     wait_until(&mut h, "the region choices", |h| h.cx.read(|cx| !view.read(cx).options.is_empty()));

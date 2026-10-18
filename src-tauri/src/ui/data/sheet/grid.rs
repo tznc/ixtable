@@ -11,7 +11,7 @@
 //! Test ids: `cell:<row>:<column index>` (label = the text shown), `cell-input`,
 //! `New <column>` (draft inputs), `insert-row`, `delete-row:<row>`, `sort:<column>`
 //! and `Column options for <column>` in the header, `head:<column>` (label notes
-//! `frozen`), `filter-selection`, `filter-excluding`, `find`, `totals`,
+//! `frozen`), `filter` (menu: Filter by selection / Filter excluding selection), `find`, `totals`,
 //! `hidden-columns`, `unfreeze-columns`, `filter-chip:<n>`, `remove-filter:<n>`,
 //! `clear-filters`, `Total for <column>` and `total:<column>`,
 //! `draft-error`.
@@ -396,7 +396,7 @@ impl Datasheet {
     // ---- Records -----------------------------------------------------------------
 
     fn remove(&mut self, row: usize, cx: &mut Context<Self>) {
-        let ask = dialogs::confirm(cx, "Delete row", "Delete this row?");
+        let ask = dialogs::confirm(cx, "Delete record", "Delete this record?");
         task::after(cx, ask, move |this, yes, cx| {
             if !yes || row >= this.page.rows.len() {
                 return;
@@ -677,24 +677,24 @@ impl Datasheet {
             .items_center()
             .px_3()
             .py_1()
-            .child(
-                Button::new("filter-selection")
+            .child({
+                let entity = entity.clone();
+                Button::new("filter")
                     .outline()
                     .small()
-                    .label("Filter by selection")
-                    .tooltip("Show only records with the selected value")
+                    .label("Filter")
+                    .tooltip("Filter by the selected value")
                     .disabled(!can_filter)
-                    .on_click(cx.listener(|this, _, _, cx| this.filter_selection(false, cx))),
-            )
-            .child(
-                Button::new("filter-excluding")
-                    .outline()
-                    .small()
-                    .label("Filter excluding selection")
-                    .tooltip("Hide records with the selected value")
-                    .disabled(!can_filter)
-                    .on_click(cx.listener(|this, _, _, cx| this.filter_selection(true, cx))),
-            )
+                    .dropdown_menu(move |menu, _, _| {
+                        let (by, excluding) = (entity.clone(), entity.clone());
+                        menu.item(PopupMenuItem::new("Filter by selection").on_click(move |_, _, cx| {
+                            by.update(cx, |this, cx| this.filter_selection(false, cx))
+                        }))
+                        .item(PopupMenuItem::new("Filter excluding selection").on_click(move |_, _, cx| {
+                            excluding.update(cx, |this, cx| this.filter_selection(true, cx))
+                        }))
+                    })
+            })
             .child(
                 Button::new("find")
                     .outline()
@@ -1083,7 +1083,7 @@ impl Datasheet {
                             .ghost()
                             .xsmall()
                             .icon(IconName::Trash)
-                            .tooltip(format!("Delete row {}", self.page.offset as usize + i + 1))
+                            .tooltip(format!("Delete record {}", self.page.offset as usize + i + 1))
                             .on_click(move |_, _, cx| entity.update(cx, |this, cx| this.remove(i, cx))),
                     ),
                 );
@@ -1236,7 +1236,7 @@ impl Render for Datasheet {
             .child(self.toolbar(cx))
             .when_some(self.finding.clone(), |el, panel| el.child(panel))
             .when_some(self.draft_error.clone(), |el, message| {
-                el.child(div().px_3().py_1().text_sm().text_color(cx.theme().danger).child(widgets::text("draft-error", message)))
+                el.child(div().px_3().py_1().child(widgets::error_callout("draft-error", "This record can't be added as it is.", &AppError::new("VALIDATION_ERROR", message), None, cx)))
             })
             .child(
                 div()

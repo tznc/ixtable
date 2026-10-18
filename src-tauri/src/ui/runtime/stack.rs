@@ -392,10 +392,10 @@ impl Render for FormRenderer {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let entry = self.top().clone();
         let Some(form) = resolve_form(self.props.env.config(cx), &entry.form_id) else {
-            return super::message("form-missing", "This form does not exist.", true, cx).into_any_element();
+            return widgets::empty_state("form-missing", "This form does not exist", "It may have been removed from the app.", cx).into_any_element();
         };
         if !self.can_read(&form, cx) {
-            return super::message("form-denied", format!("You do not have access to {}.", form.name), true, cx)
+            return widgets::empty_state("form-denied", &format!("You do not have access to {}", form.name), "Ask the app's owner for access.", cx)
                 .into_any_element();
         }
         let sig = signature(&entry, &form);

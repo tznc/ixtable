@@ -142,33 +142,34 @@ impl AutomationMode {
     }
 
     fn render_issues(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let n = self.issues.len();
-        let theme = cx.theme();
-        let (danger, warning) = (theme.danger, theme.warning);
-        let summary = format!("{n} automation problem{}", if n == 1 { "" } else { "s" });
+        let summary = widgets::plural(self.issues.len(), "automation problem");
+        let severity = if self.issues.iter().any(|i| i.severity == Severity::Error) {
+            widgets::Severity::Danger
+        } else {
+            widgets::Severity::Warning
+        };
+        let open = self.issues_open;
         v_flex()
             .id("automation-issues")
-            .gap_1()
+            .gap_2()
             .px_4()
             .py_2()
+            .child(widgets::callout("issues-summary", severity, &summary, None, cx))
             .child(
-                Button::new("issues-toggle")
-                    .ghost()
-                    .small()
-                    .start_label(None, summary)
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.issues_open = !this.issues_open;
-                        cx.notify();
-                    })),
+                div().child(
+                    Button::new("issues-toggle")
+                        .ghost()
+                        .small()
+                        .start_label(None, if open { "Hide details" } else { "Show details" }.to_string())
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.issues_open = !this.issues_open;
+                            cx.notify();
+                        })),
+                ),
             )
-            .when(self.issues_open, |el| {
+            .when(open, |el| {
                 el.children(self.issues.iter().enumerate().map(|(i, issue)| {
-                    let color = if issue.severity == Severity::Error { danger } else { warning };
-                    widgets::styled_text(
-                        format!("issue-{}", i + 1),
-                        issue.message.clone(),
-                        move |d| d.text_sm().text_color(color),
-                    )
+                    widgets::styled_text(format!("issue-{}", i + 1), issue.message.clone(), |d| d.text_sm())
                 }))
             })
     }

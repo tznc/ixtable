@@ -5,11 +5,10 @@
 use super::Shell;
 use crate::{
     manager::AppError,
-    ui::{store::StoreEvent, task, toast::Toast, widgets},
+    ui::{forms, store::StoreEvent, task, toast::Toast, widgets},
 };
 use gpui_kit::component::{
     Disableable as _,
-    button::{Button, ButtonVariants as _},
     h_flex,
     input::{Editor, EditorState, InputEvent},
     v_flex,
@@ -121,10 +120,20 @@ impl YamlTab {
         cx.notify();
     }
 
+    /// Asks first: discarding throws the typed YAML away.
     fn discard(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.edited = false;
-        self.error = None;
-        self.load(window, cx);
+        let answer = crate::ui::dialogs::confirm(
+            cx,
+            "Discard edits?",
+            "Your changes to the YAML will be lost. This cannot be undone.",
+        );
+        task::after_in(window, cx, answer, |this, ok, window, cx| {
+            if ok {
+                this.edited = false;
+                this.error = None;
+                this.load(window, cx);
+            }
+        });
     }
 }
 
@@ -148,22 +157,18 @@ impl Render for YamlTab {
                 ),
             )
             .when_some(self.error.clone(), |el, e| {
-                el.child(widgets::error_banner("yaml-error", &e, None, cx))
+                el.child(widgets::error_callout("yaml-error", "This YAML can't be applied.", &e, None, cx))
             })
             .child(
                 h_flex()
                     .gap_2()
                     .child(
-                        Button::new("apply-yaml")
-                            .primary()
-                            .label("Apply YAML")
+                        forms::primary("apply-yaml", "Apply YAML")
                             .disabled(!idle)
                             .on_click(cx.listener(|this, _, window, cx| this.apply(window, cx))),
                     )
                     .child(
-                        Button::new("discard-edits")
-                            .outline()
-                            .label("Discard edits")
+                        forms::danger("discard-edits", "Discard edits")
                             .disabled(!idle)
                             .on_click(cx.listener(|this, _, window, cx| this.discard(window, cx))),
                     ),

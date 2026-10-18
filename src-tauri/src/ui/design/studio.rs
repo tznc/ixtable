@@ -354,12 +354,11 @@ impl DesignStudio {
     // ---- Rendering ----------------------------------------------------------------------
 
     fn render_palette(&self, has_form: bool, cx: &mut Context<Self>) -> impl IntoElement {
-        let muted = cx.theme().muted_foreground;
         v_flex()
             .id("palette")
             .aria_label("Components")
             .gap_1()
-            .child(div().text_xs().text_color(muted).child("COMPONENTS"))
+            .child(widgets::styled_text("components-heading", "Components", |d| d.text_base().font_weight(FontWeight::SEMIBOLD)))
             .children(CONTROL_KINDS.into_iter().map(|kind| {
                 Button::new(SharedString::from(format!("add-{}", kind_id(kind))))
                     .outline()
@@ -455,8 +454,8 @@ impl DesignStudio {
                 let theme = cx.theme();
                 let muted = theme.muted_foreground;
                 let kicker = match form.source.as_ref().map(|s| s.kind) {
-                    Some(SourceKind::Query) => "READ-ONLY FORM".to_string(),
-                    _ => form_table(&form).unwrap_or("UNBOUND").to_uppercase(),
+                    Some(SourceKind::Query) => "Read-only form".to_string(),
+                    _ => form_table(&form).map_or("Not linked to a table".to_string(), |t| format!("Table {t}")),
                 };
                 let empty = form.controls.is_empty();
                 v_flex()
@@ -474,20 +473,30 @@ impl DesignStudio {
                     ))
                     .child(self.render_canvas(&form, None, None, window, cx))
                     .when(empty, |el| {
-                        el.child(widgets::text("no-controls", "Add a component to start building this form."))
+                        el.child(widgets::empty_state(
+                            "no-controls",
+                            "This form is empty",
+                            "Add a component from the list on the left to start building it.",
+                            cx,
+                        ))
                     })
                     .into_any_element()
             }
-            (_, None) => widgets::text("no-form", "Create a form or generate one from a table.").into_any_element(),
+            (_, None) => widgets::empty_state(
+                "no-form",
+                "No form selected",
+                "Create a form, or generate forms from a table.",
+                cx,
+            )
+            .into_any_element(),
         }
     }
 
     fn render_properties_panel(&mut self, form: Option<Form>, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
-        let muted = cx.theme().muted_foreground;
         let mut panel = v_flex()
             .id("properties")
             .aria_label("Properties")
-            .w(px(340.))
+            .w(px(300.))
             .h_full()
             .flex_none()
             .gap_2()
@@ -495,7 +504,7 @@ impl DesignStudio {
             .border_l_1()
             .border_color(cx.theme().border)
             .overflow_y_scroll()
-            .child(div().text_xs().text_color(muted).child("PROPERTIES"));
+            .child(widgets::styled_text("properties-heading", "Properties", |d| d.text_base().font_weight(FontWeight::SEMIBOLD)));
         if let Some(form) = form {
             let control = self.selected_control(cx);
             panel = panel
@@ -540,7 +549,7 @@ impl Render for DesignStudio {
         let border = cx.theme().border;
         let left = v_flex()
             .id("design-left")
-            .w(px(250.))
+            .w(px(168.))
             .h_full()
             .flex_none()
             .gap_3()

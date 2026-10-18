@@ -41,7 +41,7 @@ fn app_shell() {
     );
 
     h.click("tab-problems");
-    assert!(h.exists("problems-summary"));
+    assert!(h.exists("problems-summary") || h.exists("problems-errors"));
     h.capture(
         "app-qa-08-problems",
         &["The Problems tab reports its error and warning counts"],

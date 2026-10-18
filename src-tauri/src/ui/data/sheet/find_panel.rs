@@ -19,6 +19,7 @@ use crate::ui::{
     dialogs,
     fields::datasheet::datasheet_value,
     prelude::*,
+    toast::Toast,
 };
 use gpui_kit::component::input::{InputEvent, InputState};
 
@@ -240,12 +241,8 @@ impl FindPanel {
                     this.status = format!("No matches for \u{201c}{find_text}\u{201d}.");
                     return this.end(None, cx);
                 }
-                let records_text = if writes.len() == 1 {
-                    "1 record".to_string()
-                } else {
-                    format!("{} records", writes.len())
-                };
-                let message = format!("Replace {cells} matches in {records_text}? This cannot be undone.");
+                let records_text = widgets::plural(writes.len(), "record");
+                let message = format!("Replace {} in {records_text}? This cannot be undone.", widgets::plural(cells, "match"));
                 let label = this.sheet.read(cx).shell.read(cx).label().to_string();
                 let ask = dialogs::confirm(cx, "Replace all", &message);
                 task::after(cx, ask, move |this, yes, cx| {
@@ -258,7 +255,9 @@ impl FindPanel {
                         move |this, result, cx| match result {
                             Ok(_) => {
                                 cx.emit(FindEvent::Written);
-                                this.status = format!("Replaced {cells} matches in {records_text}.");
+                                let text = format!("Replaced {} in {records_text}.", widgets::plural(cells, "match"));
+                                let shell = this.sheet.read(cx).shell.clone();
+                                shell.update(cx, |shell, cx| shell.toast(Toast::success(text), cx));
                                 this.end(None, cx);
                             }
                             Err(e) => this.end(Some(e.error), cx),

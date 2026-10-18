@@ -675,7 +675,7 @@ impl RecordView {
 
     pub fn remove(&mut self, cx: &mut Context<Self>) {
         let (Some(table), Some(identity)) = (self.table.clone(), self.identity.clone()) else { return };
-        let answer = crate::ui::dialogs::confirm(cx, "Confirm", "Delete this record? This cannot be undone.");
+        let answer = crate::ui::dialogs::confirm(cx, "Delete record?", "This record will be deleted. This cannot be undone.");
         task::after(cx, answer, move |this, ok, cx| {
             if !ok {
                 return;
@@ -874,16 +874,13 @@ impl Render for RecordView {
                     ),
             )
             .children(line("status", &self.status, cx))
-            .children(line("notice", &self.notice, cx))
-            .when(!self.errors.form.is_empty(), |d| {
-                d.child(
-                    v_flex().id("form-errors").aria_label("Form errors").children(
-                        self.errors.form.iter().enumerate().map(|(i, text)| {
-                            super::message(format!("form-error:{i}"), text.clone(), true, cx)
-                        }),
-                    ).test_support(),
-                )
-            })
+            // Success lines reserve their space so saving never shifts the form; errors are callouts.
+            .child(
+                div()
+                    .min_h(px(20.))
+                    .children(line("notice", &self.notice, cx)),
+            )
+            .when(!self.errors.form.is_empty(), |d| d.child(super::body::problems_callout("form-errors", &self.errors.form, cx)))
             .child(div().id("record-body").flex_1().min_h_0().overflow_y_scroll().child(body))
             .when(!read_only, |d| {
                 d.child(

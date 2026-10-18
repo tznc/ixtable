@@ -17,7 +17,8 @@ use crate::automation_runner::{
     ActionResult, StepLog,
 };
 use crate::ui::{
-    dialogs::{DialogProvider, Dialogs},
+    dialogs::{self, DialogProvider, Dialogs},
+    display::status_badge,
     prelude::*,
     shell::Shell,
     task,
@@ -218,15 +219,27 @@ impl ActionsPanel {
         };
         let actions = self.actions(cx);
         let index = actions.iter().position(|a| a.id == id);
+        let name = index.map(|i| actions[i].name.clone()).unwrap_or_default();
+        let name = if name.is_empty() { "Untitled action".to_string() } else { name };
         let neighbor = index.and_then(|i| {
             actions
                 .get(i + 1)
                 .or_else(|| i.checked_sub(1).and_then(|p| actions.get(p)))
                 .map(|a| a.id.clone())
         });
-        self.selected = neighbor;
-        self.outcome = None;
-        self.update_config("Delete action", move |c| c.actions.retain(|a| a.id != id), cx);
+        let answer = dialogs::confirm(
+            cx,
+            &format!("Delete action {name}?"),
+            "Triggers that run it will stop working. This can be undone with Undo.",
+        );
+        task::after(cx, answer, move |this, ok, cx| {
+            if !ok {
+                return;
+            }
+            this.selected = neighbor;
+            this.outcome = None;
+            this.update_config("Delete action", move |c| c.actions.retain(|a| a.id != id), cx);
+        });
     }
 
     /// Runs the selected action against the document's data with the sample record.
@@ -308,7 +321,7 @@ impl ActionsPanel {
                     .on_click(cx.listener(move |this, _, _, cx| this.select(&id, cx)))
             }))
             .when(actions.is_empty(), |el| {
-                el.child(widgets::text("no-actions", "No actions yet."))
+                el.child(widgets::empty_state("no-actions", "No actions yet", "Create one to run steps from a trigger.", cx))
             })
     }
 
@@ -366,22 +379,18 @@ impl ActionsPanel {
     fn render_test_run(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let sample = self.sample.clone();
         let state = self.inputs.get("sample", &sample, "{}", window, cx);
-        let theme = cx.theme();
-        let (ok, fail) = (theme.success, theme.danger);
         let outcome = self.outcome.as_ref().map(|o| {
-            let (text, color) = if o.result.ok {
-                ("Test run succeeded".to_string(), ok)
+            let callout = if o.result.ok {
+                widgets::callout("test-result", widgets::Severity::Success, "Test run succeeded", None, cx)
             } else if o.result.cancelled {
-                ("Test run cancelled".to_string(), fail)
+                widgets::callout("test-result", widgets::Severity::Warning, "Test run cancelled", None, cx)
             } else {
-                (
-                    format!("Test run failed: {}", o.result.error.clone().unwrap_or_default()),
-                    fail,
-                )
+                let error = o.result.error.clone().unwrap_or_default();
+                widgets::callout("test-result", widgets::Severity::Danger, "Test run failed", Some(&error), cx)
             };
             v_flex()
                 .gap_1()
-                .child(widgets::styled_text("test-result", text, move |d| d.text_color(color)))
+                .child(callout)
                 .children(
                     o.events
                         .iter()
@@ -401,7 +410,7 @@ impl ActionsPanel {
             .child(div().text_sm().child("Runs the action against the document's data. Record changes are real."))
             .child(text_field("test-sample", "Sample record (JSON)", &state, cx))
             .when_some(self.problem.clone(), |el, p| {
-                el.child(widgets::styled_text("test-problem", p, move |d| d.text_xs().text_color(fail)))
+                el.child(widgets::callout("test-problem", widgets::Severity::Danger, &p, None, cx))
             })
             .child(
                 div().child(
@@ -420,9 +429,9 @@ impl ActionsPanel {
 /// The log of a run: a header row and one row per step. Rows are `<id>-N` with cells
 /// `<id>-N-step`, `-kind`, `-result` and `-time`.
 pub fn step_log(id: &str, steps: &[StepLog], cx: &App) -> Stateful<Div> {
-    let theme = cx.theme();
-    let (ok, fail, muted) = (theme.success, theme.danger, theme.muted_foreground);
-    let cell = |w: f32| div().w(px(w)).text_sm();
+    use crate::ui::display::Tone as BadgeTone;
+    let muted = cx.theme().muted_foreground;
+    let cell = |w: f32| div().w(px(w)).flex_none().text_sm();
     v_flex()
         .id(SharedString::from(id.to_string()))
         .gap_0p5()
@@ -430,31 +439,44 @@ pub fn step_log(id: &str, steps: &[StepLog], cx: &App) -> Stateful<Div> {
             el.child(
                 h_flex()
                     .gap_2()
+                    .text_xs()
+                    .font_weight(FontWeight::MEDIUM)
                     .text_color(muted)
                     .child(cell(60.).child("Step"))
                     .child(cell(180.).child("Kind"))
                     .child(cell(320.).child("Result"))
-                    .child(cell(70.).child("Time")),
+                    .child(cell(70.).text_right().child("Time")),
             )
         })
         .children(steps.iter().enumerate().map(|(i, s)| {
             let row = format!("{id}-{}", i + 1);
             let number = if s.path.is_empty() { (s.step_index + 1).to_string() } else { step_number(&s.path) };
-            let (result, color) = match (&s.error, s.skipped, s.ok) {
-                (_, true, _) => ("Skipped".to_string(), muted),
-                (_, _, true) => ("OK".to_string(), ok),
-                (e, _, _) => (format!("Failed: {}", e.clone().unwrap_or_default()), fail),
+            let (result, tone, error) = match (&s.error, s.skipped, s.ok) {
+                (_, true, _) => ("Skipped", BadgeTone::Neutral, String::new()),
+                (_, _, true) => ("OK", BadgeTone::Success, String::new()),
+                (e, _, _) => ("Failed", BadgeTone::Danger, e.clone().unwrap_or_default()),
             };
             h_flex()
                 .gap_2()
+                .items_center()
                 .child(cell(60.).child(widgets::text(format!("{row}-step"), number)))
                 .child(cell(180.).child(widgets::text(format!("{row}-kind"), step_label(&s.kind).to_string())))
-                .child(cell(320.).child(widgets::styled_text(
-                    format!("{row}-result"),
-                    result,
-                    move |d| d.text_color(color),
-                )))
-                .child(cell(70.).child(widgets::text(format!("{row}-time"), format!("{} ms", s.duration_ms))))
+                .child(
+                    h_flex()
+                        .w(px(320.))
+                        .flex_none()
+                        .gap_2()
+                        .items_center()
+                        .text_sm()
+                        .child(status_badge(format!("{row}-result"), result, tone, cx))
+                        .when(!error.is_empty(), |el| el.child(widgets::text(format!("{row}-error"), error))),
+                )
+                .child(
+                    cell(70.)
+                        .text_right()
+                        .text_color(muted)
+                        .child(widgets::text(format!("{row}-time"), format!("{} ms", s.duration_ms))),
+                )
         }))
 }
 

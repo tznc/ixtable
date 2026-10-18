@@ -147,7 +147,7 @@ impl RecordNavBar {
     pub fn position(&self) -> String {
         match (self.total, self.index()) {
             (None, _) => "Loading…".into(),
-            (Some(total), None) => format!("{total} records"),
+            (Some(total), None) => widgets::plural(total as usize, "record"),
             (Some(total), Some(index)) => format!("Record {} of {total}", (index as u64 + 1).min(total)),
         }
     }

@@ -79,14 +79,14 @@ fn datasheet() {
     h.capture(
         "datasheet-01-toolbar-and-multi-sort",
         &[
-            "A Datasheet tools bar above the grid shows Filter by selection, Filter excluding selection, Find and Totals.",
+            "A Datasheet tools bar above the grid shows a Filter menu (Filter by selection, Filter excluding selection), Find and Totals.",
             "The region and qty headers show sort arrows with small 1 and 2 markers, and rows are ordered by region then qty.",
             "Each column header has a small options button next to its name.",
         ],
     );
 
     h.click("cell:2:2");
-    h.click("filter-selection");
+    choose(&mut h, "filter", "Filter by selection");
     assert_eq!(names(&mut h), ["Fox Ltd", "Acme Ltd", "Core Inc"]);
     assert_eq!(h.label("filter-chip:0"), "region = North");
     h.capture(
@@ -112,12 +112,12 @@ fn datasheet() {
     );
     h.dialogs.queue_confirm(true);
     h.click("find-replace-all");
-    assert_eq!(h.label("find-status"), "Replaced 4 matches in 4 records.");
+    assert_eq!(h.notice().as_deref(), Some("Replaced 4 matches in 4 records."));
     assert!(names(&mut h).contains(&"Acme LLC".to_string()));
     h.capture(
         "datasheet-04-replace-all",
         &[
-            "The panel reports 'Replaced 4 matches in 4 records.'",
+            "A toast reports 'Replaced 4 matches in 4 records.'",
             "Every customer that ended in 'Ltd' now ends in 'LLC'; 'Core Inc' and 'Echo Inc' are unchanged.",
         ],
     );

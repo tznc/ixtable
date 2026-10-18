@@ -2,6 +2,7 @@
 
 use super::rows::{original_values, typed_values, SheetFields};
 use crate::data::Page;
+use crate::ui::widgets::plural;
 use crate::records::{RecordWrite, RecordWriteMeta};
 use std::collections::BTreeMap;
 
@@ -136,21 +137,13 @@ pub fn paste_writes(
     Ok(writes)
 }
 
-fn records(n: usize) -> String {
-    if n == 1 {
-        "1 record".into()
-    } else {
-        format!("{n} records")
-    }
-}
-
 /// Summary shown after a paste, e.g. "Pasted into 2 records and added 1 record."
 pub fn pasted_message(updated: usize, added: usize) -> String {
     if added == 0 {
-        format!("Pasted into {}.", records(updated))
+        format!("Pasted into {}.", plural(updated, "record"))
     } else if updated == 0 {
-        format!("Added {}.", records(added))
+        format!("Added {}.", plural(added, "record"))
     } else {
-        format!("Pasted into {} and added {}.", records(updated), records(added))
+        format!("Pasted into {} and added {}.", plural(updated, "record"), plural(added, "record"))
     }
 }

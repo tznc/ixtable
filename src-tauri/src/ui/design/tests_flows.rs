@@ -170,7 +170,7 @@ fn lists_expression_errors_in_problems_opens_the_owning_control_and_blocks_bundl
 
     h.switch_mode(ModeId::App);
     h.click("tab-problems");
-    wait_until(&mut h, "the problems", |h| h.label("problems-summary") != "Checking…");
+    wait_until(&mut h, "the problems", |h| h.exists(("problem", 0usize)));
     let problem = h.label(("problem", 0usize));
     assert!(problem.contains("Control \"Total\" › Visible when"), "{problem}");
     assert!(problem.contains("Unexpected end of expression"), "{problem}");
@@ -200,7 +200,7 @@ fn lists_expression_errors_in_problems_opens_the_owning_control_and_blocks_bundl
     assert!(!h.exists("prop-visible-when-problem"));
     h.switch_mode(ModeId::App);
     h.click("tab-problems");
-    wait_until(&mut h, "no errors", |h| h.label("problems-summary").starts_with("0 errors,"));
+    wait_until(&mut h, "no errors", |h| h.exists("problems-errors") && h.label("problems-errors") == "0 errors");
     assert!(!h.exists(("problem", 0usize)));
 }
 
@@ -257,15 +257,16 @@ fn offers_forms_for_a_new_table_and_generates_the_app_from_the_form_list(cx: &mu
     create_table_in_ui(&mut h, "orders");
     assert_eq!(h.label("create-forms-offer"), "Forms for orders");
     h.click("create-forms");
-    wait_until(&mut h, "the forms", |h| h.exists("offer-done"));
-    assert_eq!(h.label("offer-done"), "Forms for orders are ready in Design and Run mode.");
+    wait_until(&mut h, "the forms", |h| h.notice().is_some());
+    assert_eq!(h.notice().as_deref(), Some("Forms for orders are ready in Design and Run mode."));
+    assert!(!h.exists("create-forms-offer"));
     let names = |h: &Harness| h.config().design.forms.into_iter().map(|f| f.name).collect::<Vec<_>>();
     assert_eq!(names(&h), ["Main form", "Orders list", "Orders"]);
 
     h.switch_mode(ModeId::Design);
     h.click("generate-app");
     wait_until(&mut h, "the notice", |h| h.notice().is_some());
-    assert_eq!(h.notice().as_deref(), Some("Added 3 forms and navigation items, each form on a page."));
+    assert_eq!(h.notice().as_deref(), Some("Added 3 items: forms and navigation, each form on a page."));
     h.click("generate-app");
     wait_until(&mut h, "the second notice", |h| {
         h.notice().as_deref() == Some("Every table already has forms.")

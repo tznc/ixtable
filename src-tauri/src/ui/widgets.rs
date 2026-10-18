@@ -249,11 +249,14 @@ pub fn error_callout(
                     |d| d.font_weight(FontWeight::SEMIBOLD),
                 ))
                 .child(text(id.clone(), error.message.clone()))
-                .child(styled_text(
-                    SharedString::from(format!("{id}-code")),
-                    format!("Error code {}", error.code),
-                    |d| d.text_xs().text_color(theme.muted_foreground),
-                )),
+                // A plain-text error (no code) shows no support line.
+                .when(!error.code.is_empty(), |col| {
+                    col.child(styled_text(
+                        SharedString::from(format!("{id}-code")),
+                        format!("Error code {}", error.code),
+                        |d| d.text_xs().text_color(theme.muted_foreground),
+                    ))
+                }),
         )
         .when_some(on_dismiss, |el, f| {
             el.child(
@@ -332,6 +335,18 @@ pub fn plural_word(word: &str) -> String {
     }
 }
 
+/// The singular form of a plural noun, the inverse of `plural_word` ("orders" -> "order",
+/// "categories" -> "category", "boxes" -> "box"). Words not ending in "s" are unchanged.
+pub fn singular(word: &str) -> String {
+    match word {
+        w if w.ends_with("ies") && w.len() > 3 => format!("{}y", &w[..w.len() - 3]),
+        w if w.ends_with("ches") || w.ends_with("xes") || w.ends_with("sses") => w[..w.len() - 2].to_string(),
+        w if w.ends_with("ss") => w.to_string(),
+        w if w.ends_with('s') && w.len() > 1 => w[..w.len() - 1].to_string(),
+        w => w.to_string(),
+    }
+}
+
 /// Turns a label into a kebab-case element id ("Save project" -> "save-project").
 pub fn slug(label: &str) -> String {
     let mut out = String::new();
@@ -385,7 +400,16 @@ pub fn tab_strip(
 
 #[cfg(test)]
 mod plural_tests {
-    use super::plural;
+    use super::{plural, singular};
+
+    #[test]
+    fn singular_inverts_plural_word() {
+        for (one, many) in [("order", "orders"), ("category", "categories"), ("box", "boxes"), ("match", "matches"), ("key", "keys")] {
+            assert_eq!(singular(many), one);
+        }
+        assert_eq!(singular("staff"), "staff");
+        assert_eq!(singular("address"), "address");
+    }
 
     #[test]
     fn pluralizes_counts_with_grouping() {

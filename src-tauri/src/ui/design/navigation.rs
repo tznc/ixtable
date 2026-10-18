@@ -13,7 +13,8 @@ use crate::forms::{
     operations::{map_navigation, regroup_navigation, shift_navigation, take_navigation},
     schema::{FORM_MODES, flatten_navigation, form_mode_from_key, form_mode_key, new_id},
 };
-use crate::ui::prelude::*;
+use crate::page_engine::links::LinkSource;
+use crate::ui::{display, prelude::*};
 
 const KINDS: [(&str, NavKind); 5] = [
     ("page", NavKind::Page),
@@ -355,8 +356,32 @@ fn page_links(config: &crate::archive::DocumentConfig, cx: &App) -> impl IntoEle
         .child(div().text_xs().text_color(muted).child(
             "How users move between pages. Buttons set their target page in the page designer; actions use an Open page step.",
         ))
-        .children(links.iter().enumerate().map(|(i, link)| {
-            widgets::styled_text(SharedString::from(format!("page-link:{}", i + 1)), link.describe_with(&config.pages), |d| d.text_sm())
-        }))
-        .when(links.is_empty(), |el| el.child(widgets::text("no-page-links", "No links between pages yet.")))
+        .when(!links.is_empty(), |el| {
+            let rows = links
+                .iter()
+                .enumerate()
+                .map(|(i, link)| {
+                    let from = match &link.source {
+                        LinkSource::Navigation { label, .. } => format!("Navigation item {label}"),
+                        LinkSource::Button { page_name, title, .. } => format!("Button {title} on {page_name}"),
+                        LinkSource::Step { action_name, .. } => format!("Action {action_name}"),
+                    };
+                    let to = config.pages.iter().find(|p| p.id == link.target).map_or("A missing page".to_string(), |p| p.name.clone());
+                    let passes = if link.params.is_empty() {
+                        "—".to_string()
+                    } else {
+                        link.params.iter().map(|(k, v)| format!("{k} = {v}")).collect::<Vec<_>>().join(", ")
+                    };
+                    (
+                        ElementId::from(SharedString::from(format!("page-link:{}", i + 1))),
+                        link.describe_with(&config.pages),
+                        vec![from, to, passes],
+                    )
+                })
+                .collect();
+            el.child(display::data_table("page-links-table", &["From", "To", "Passes"], rows, cx))
+        })
+        .when(links.is_empty(), |el| {
+            el.child(widgets::empty_state("no-page-links", "No links between pages yet", "Add a navigation item, or set a button's target page.", cx))
+        })
 }
