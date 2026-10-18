@@ -142,7 +142,7 @@ fn navigates_to_existing_targets_and_rejects_missing_ones() {
 fn passes_evaluated_parameters_to_open_dashboard() {
     let db = orders_db();
     db.set_config(|c| {
-        c.dashboards = vec![serde_json::from_value(json!({"id": "d1", "name": "Sales"})).unwrap()];
+        c.pages = vec![serde_json::from_value(json!({"id": "d1", "name": "Sales"})).unwrap()];
     });
     let a = action(
         "a",
@@ -155,7 +155,7 @@ fn passes_evaluated_parameters_to_open_dashboard() {
     assert!(run_action(&a, ctx).ok);
     assert_eq!(
         events(&h),
-        vec![json!(["navigate", {"kind": "dashboard", "id": "d1", "params": {"region": "East"}}])]
+        vec![json!(["navigate", {"kind": "page", "id": "d1", "params": {"region": "East"}}])]
     );
 }
 

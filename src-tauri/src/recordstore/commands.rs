@@ -197,7 +197,7 @@ pub fn config_dependents(config: &DocumentConfig, table: &str) -> Vec<Dependent>
         ("savedQueries", "query"),
         ("design", "form"),
         ("reports", "report"),
-        ("dashboards", "dashboard"),
+        ("pages", "page"),
         ("actions", "action"),
         ("triggers", "trigger"),
     ] {

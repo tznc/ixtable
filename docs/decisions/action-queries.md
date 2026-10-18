@@ -117,7 +117,7 @@ change a row's key. A dry run skips the triggers.
 a record write. Tables whose entity routes updates and deletes to a custom
 action refuse update and delete queries.
 
-**Where they run.** Query mode authors them (query type and target table),
+**Where they run.** The query editor on the Data page authors them (query type and target table),
 previews them with a dry run, and runs the saved definition after a
 confirmation. Automation runs them with a `runQuery` step, and `storeAs` gets
 `{ changed, removed }`. Read paths (`run_saved_query`, pages, forms, reports,

@@ -47,7 +47,7 @@ fn labels(items: &[NavigationItem]) -> Vec<&str> {
 }
 
 fn generate(design: &DesignSchema, schemas: &[TableSchema]) -> DesignSchema {
-    add_generated_app(design, schemas, None, &[]).expect("something to add")
+    add_generated_app(design, &[], schemas, None, &[]).expect("something to add")
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn adds_list_and_detail_forms_and_a_page_per_table_linking_lookups_and_related_l
 fn is_idempotent_running_it_again_changes_nothing() {
     let schemas = [customers(), orders()];
     let once = generate(&empty(), &schemas);
-    assert!(add_generated_app(&once, &schemas, None, &[]).is_none());
+    assert!(add_generated_app(&once, &[], &schemas, None, &[]).is_none());
 }
 
 #[test]
@@ -138,7 +138,7 @@ fn adds_only_what_is_missing_keeping_hand_built_forms_and_pages() {
 #[test]
 fn limits_generation_to_the_named_tables() {
     let only = vec!["orders".to_string()];
-    let design = add_generated_app(&empty(), &[customers(), orders()], Some(&only), &[]).unwrap();
+    let design = add_generated_app(&empty(), &[], &[customers(), orders()], Some(&only), &[]).unwrap();
     assert_eq!(names(&design.forms), ["Orders list", "Orders"]);
     assert_eq!(labels(&design.navigation), ["Orders"]);
 }
@@ -206,7 +206,7 @@ fn embeds_a_plain_child_form_when_the_childs_own_form_has_related_lists() {
         related_form_id(by_name("Orders")),
         Some(by_name("Order lines").id.clone())
     );
-    assert!(add_generated_app(&design, &schemas, None, &[]).is_none());
+    assert!(add_generated_app(&design, &[], &schemas, None, &[]).is_none());
 }
 
 #[test]
@@ -229,4 +229,23 @@ fn embeds_a_plain_form_for_a_self_referencing_key_instead_of_the_form_itself() {
         design.forms.iter().find(|f| f.id == related).unwrap().name,
         "Employees (related)"
     );
+}
+
+#[test]
+fn a_blank_form_page_yields_the_start_page_and_a_form_page_makes_its_table_navigable() {
+    let mut design = empty();
+    design.forms.push(new_form("Main form", None));
+    let mut config = crate::archive::DocumentConfig { design, ..Default::default() };
+    config.pages.clear();
+    config.design.navigation = vec![NavigationItem { id: "main".into(), label: "Main".into(), kind: NavKind::Form, target_id: Some(config.design.forms[0].id.clone()), ..Default::default() }];
+    config.design.start_page = Some("main".into());
+    crate::pages::upgrade::wrap_definitions(&mut config);
+    assert_eq!(config.design.navigation[0].kind, NavKind::Page);
+    let design = add_generated_app(&config.design, &config.pages, &[customers()], None, &[]).expect("generated");
+    assert_eq!(design.start_page.as_ref(), Some(&design.navigation[1].id));
+
+    // Once the customers list is on a page that navigation opens, nothing more is added.
+    config.design = design;
+    crate::pages::upgrade::sync(&mut config);
+    assert!(add_generated_app(&config.design, &config.pages, &[customers()], None, &[]).is_none());
 }

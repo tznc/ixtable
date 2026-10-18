@@ -22,7 +22,7 @@ use crate::forms::actions::NoticeTone;
 use crate::forms::data::{table_context, table_schema};
 use crate::forms::generate::GenerateOptions;
 use crate::forms::generate_app::add_generated_app;
-use crate::forms::navigation::{PageKind, RuntimePage, can_open, page_for, start_page, visible_navigation};
+use crate::forms::navigation::{PageKind, RuntimePage, can_open, page_for, solo_page, start_page, visible_navigation};
 use crate::forms::rbac::assigned_runtime_role;
 use crate::forms::registry::table_forms;
 use crate::forms::schema::{flatten_navigation, form_table};
@@ -37,7 +37,7 @@ pub type PageBuilder =
 #[derive(Clone, Default)]
 pub struct PageBuilders {
     pub report: Option<PageBuilder>,
-    pub dashboard: Option<PageBuilder>,
+    pub page: Option<PageBuilder>,
 }
 impl Global for PageBuilders {}
 
@@ -45,14 +45,18 @@ impl Global for PageBuilders {}
 /// blank form (no source, no controls).
 pub fn has_pages(config: &DocumentConfig) -> bool {
     flatten_navigation(&config.design.navigation).iter().any(|item| {
-        if item.kind != NavKind::Form {
+        let Some(page) = page_for(item) else {
+            return item.kind != NavKind::Form;
+        };
+        let page = solo_page(config, &page);
+        if page.kind != PageKind::Form {
             return true;
         }
         config
             .design
             .forms
             .iter()
-            .find(|f| Some(&f.id) == item.target_id.as_ref())
+            .find(|f| f.id == page.id)
             .is_some_and(|f| form_table(f).is_some() || !f.controls.is_empty())
     })
 }
@@ -232,6 +236,7 @@ impl RunBody {
         let view: AnyView = if !can_open(self.env.config(cx), role.as_deref(), page) {
             cx.new(|_| Placeholder { back: None, text: "You do not have access to this page.".into() }).into()
         } else {
+            let page = &solo_page(self.env.config(cx), page);
             match page.kind {
                 PageKind::Form => {
                     let mut props = FormRendererProps::new(env, page.id.clone());
@@ -253,12 +258,12 @@ impl RunBody {
                     let table = page.id.clone();
                     cx.new(|cx| TablePage::new(env, table, back, window, cx)).into()
                 }
-                PageKind::Report | PageKind::Dashboard => {
+                PageKind::Report | PageKind::Page => {
                     let builders = cx.try_global::<PageBuilders>().cloned().unwrap_or_default();
                     let (builder, noun) = if page.kind == PageKind::Report {
                         (builders.report, "Reports")
                     } else {
-                        (builders.dashboard, "Dashboards")
+                        (builders.page, "Pages")
                     };
                     match builder {
                         Some(build) => {
@@ -292,10 +297,13 @@ impl RunBody {
                 let Ok(schemas) = schemas else { return };
                 let (store, env) = (this.env.store.clone(), this.env.clone());
                 let entities = env.config(cx).entities.clone();
-                let design = env.config(cx).design.clone();
-                match add_generated_app(&design, &schemas, None, &entities) {
+                let (design, pages) = (env.config(cx).design.clone(), env.config(cx).pages.clone());
+                match add_generated_app(&design, &pages, &schemas, None, &entities) {
                     Some(next) => {
-                        let _ = store.update(cx, |s, cx| s.update("Generate app", move |c| c.design = next, cx));
+                        let _ = store.update(cx, |s, cx| s.update("Generate app", move |c| {
+                            c.design = next;
+                            crate::pages::upgrade::sync(c);
+                        }, cx));
                     }
                     None => env.notify("There are no tables to generate from.", NoticeTone::Error, cx),
                 }

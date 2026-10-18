@@ -2,7 +2,7 @@
 //! `src/dashboards/data.ts`). Chart series come from `report_engine::chart_geometry`, which
 //! reports share.
 
-use crate::dashboards::{DashboardComponent, DashboardFilter, FilterControl};
+use crate::pages::{PageComponent, PageFilter, FilterControl};
 use crate::data::DataValue;
 use crate::design::Tone;
 use crate::expr::{self, EvaluateOptions};
@@ -57,7 +57,7 @@ fn precision15(x: f64) -> f64 {
 }
 
 /// KPI value and optional comparison (value minus comparison). Expression errors are returned.
-pub fn kpi_value(component: &DashboardComponent, rows: &[Row], scope: &Map<String, Value>) -> Result<KpiValue, String> {
+pub fn kpi_value(component: &PageComponent, rows: &[Row], scope: &Map<String, Value>) -> Result<KpiValue, String> {
     let value = measure(component.value_field.as_deref(), component.expression.as_deref(), rows, scope)?;
     let format = component.format.as_deref();
     let mut result = KpiValue { text: format_number(&value, format), value, comparison: None };
@@ -91,7 +91,7 @@ fn blank(value: &Value) -> bool {
 
 /// Converts one filter's raw control value to query parameters (blank becomes null, which
 /// leaves the query default). A filter without a parameter name contributes nothing.
-pub fn filter_params(filter: &DashboardFilter, value: &Value) -> Map<String, Value> {
+pub fn filter_params(filter: &PageFilter, value: &Value) -> Map<String, Value> {
     let mut out = Map::new();
     if filter.param.is_empty() {
         return out;
@@ -120,7 +120,7 @@ pub fn filter_params(filter: &DashboardFilter, value: &Value) -> Map<String, Val
 }
 
 /// Initial control values by filter id: each filter's default.
-pub fn default_filter_values(filters: &[DashboardFilter]) -> Map<String, Value> {
+pub fn default_filter_values(filters: &[PageFilter]) -> Map<String, Value> {
     filters
         .iter()
         .map(|f| {
@@ -135,7 +135,7 @@ pub fn default_filter_values(filters: &[DashboardFilter]) -> Map<String, Value> 
 }
 
 /// The parameters every component query receives, keyed by parameter name.
-pub fn dashboard_params(filters: &[DashboardFilter], values: &Map<String, Value>) -> Map<String, Value> {
+pub fn dashboard_params(filters: &[PageFilter], values: &Map<String, Value>) -> Map<String, Value> {
     let mut out = Map::new();
     for filter in filters {
         let value = values.get(&filter.id).filter(|v| !v.is_null()).or(filter.default_value.as_ref()).cloned().unwrap_or(Value::Null);
@@ -197,7 +197,7 @@ pub struct TableSlice {
 /// matching `styles` rule for their column. A filter that does not parse is returned as
 /// `Filter: <message>`.
 pub fn table_slice(
-    component: &DashboardComponent,
+    component: &PageComponent,
     columns: &[String],
     rows: &[Vec<DataValue>],
     scope: &Map<String, Value>,

@@ -32,7 +32,7 @@ zstd = "0.13"
 sha2 = "0.10"
 # Unpacks the bundled DuckDB extension archives (data/extensions.rs).
 flate2 = "1"
-uuid = { version = "1", features = ["v4", "v7", "serde"] }
+uuid = { version = "1", features = ["v4", "v5", "v7", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 base64 = "0.22"

@@ -68,7 +68,7 @@ pub struct LegacyIds {
 
 /// Rewrites the legacy `main` form and navigation ids of a loaded config to UUIDv7 ids,
 /// with every reference to them: navigation targets, `startPage`, `detailFormId`,
-/// related-list forms, `openForm`/`navigate` action steps, dashboard form components,
+/// related-list forms, `openForm`/`navigate` action steps, page form components,
 /// and role permissions. Returns the ids it assigned. Mirrors `upgradeLegacyIds` in
 /// src/design/schema.ts. Studio runs it on open; runtime sessions keep ids as published.
 pub fn rekey_legacy_ids(config: &mut crate::archive::DocumentConfig) -> Result<LegacyIds, String> {
@@ -119,9 +119,12 @@ pub fn rekey_value(config: &mut Value, ids: &LegacyIds) {
     for action in items(config, "actions") {
         rekey_steps(items(action, "steps"), form);
     }
-    for dashboard in items(config, "dashboards") {
-        for component in items(dashboard, "components") {
-            replace(component.get_mut("formId"), form);
+    // Raw configs older than version 8 keep pages under `dashboards`.
+    for key in ["pages", "dashboards"] {
+        for page in items(config, key) {
+            for component in items(page, "components") {
+                replace(component.get_mut("formId"), form);
+            }
         }
     }
     for role in items(config, "roles") {
@@ -302,7 +305,10 @@ mod legacy_id_tests {
         let form = &config.design.forms[0].id;
         assert_eq!(uuid::Uuid::parse_str(form).unwrap().get_version_num(), 7);
         let nav = &config.design.navigation[0];
-        assert_eq!(nav.target_id.as_deref(), Some(form.as_str()));
+        // Navigation opens the page that holds the form.
+        let page = config.pages.iter().find(|p| Some(&p.id) == nav.target_id.as_ref()).unwrap();
+        assert_eq!(uuid::Uuid::parse_str(&page.id).unwrap().get_version_num(), 7);
+        assert_eq!(page.components[0].form_id.as_deref(), Some(form.as_str()));
         assert_eq!(config.design.start_page.as_deref(), Some(nav.id.as_str()));
         assert_ne!(&nav.id, form);
     }

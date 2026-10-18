@@ -8,7 +8,7 @@
 
 use crate::archive::{DocumentConfig, QueryParameter, SavedQuery};
 use crate::data::DataValue;
-use crate::ui::dashboards::test_support::{
+use crate::ui::pages::test_support::{
     component, dashboard, define, new_dashboard, pick_query, uid, wait_for_columns,
 };
 use crate::ui::reports::test_support::{choose, edit_store, id, wait_until};
@@ -99,7 +99,7 @@ fn dashboards_designer_view_and_filter() {
         "dashboards-01-designer",
         &[
             "The dashboard canvas shows the Revenue KPI and the chart as grid items in design mode.",
-            "Dashboard settings list the status filter with its three choices.",
+            "Page settings list the status filter with its three choices.",
         ],
     );
 
@@ -206,6 +206,82 @@ fn dashboards_conditions_and_expression_error() {
             "In the table, amounts above 300 (340, 410) carry a warning tone; smaller amounts are plain.",
             "With Status = open the 'Showing one status only' text appears and the embedded Orders list is greyed out as disabled, with a 'Not available right now.' note.",
             "The embedded Orders list shows customer names, not ids, and its New orders button fits inside the card.",
+        ],
+    );
+}
+
+/// The Design page (`pages-NN-*`): the page list after "Generate app", page parameters, a
+/// button that opens a page with a value, the links overview, and a page's form opened in
+/// the form designer.
+#[test]
+#[ignore = "screenshot spec: run with `cargo screenshot`"]
+fn pages_parameters_and_links() {
+    let mut cx = context();
+    let mut h = start(&mut cx);
+    seed_sales(&mut h);
+    crate::ui::pages::test_support::open_dashboards(&mut h);
+    h.click("generate-app");
+    wait_until(&mut h, "the generated pages", |h| h.notice().is_some());
+    let pages = h.config().pages.len();
+    assert!(pages >= 5, "a page per generated form, got {pages}");
+    h.click(id("page-item-1"));
+    h.capture(
+        "pages-01-design-sidebar",
+        &[
+            "Design mode lists the pages on the left: Main form plus a page for each generated customers and orders form.",
+            "There is no separate Reports or Dashboards mode in the mode bar.",
+        ],
+    );
+
+    new_dashboard(&mut h);
+    h.fill("page-name", "Orders by status");
+    h.click("add-text");
+    // Back from the new component to the page settings.
+    h.click("dashboard-settings");
+    h.click("add-page-param");
+    h.fill("page-param-name:1", "status");
+    h.click("page-param-required:1");
+    assert!(dashboard(&h).parameters[0].required);
+    h.capture(
+        "pages-02-parameters",
+        &[
+            "The page settings list a required text parameter named status.",
+            "The page has one text component on its grid.",
+        ],
+    );
+
+    h.click("new-page");
+    h.fill("page-name", "Home");
+    h.click("add-button");
+    h.fill("prop-label", "Open orders");
+    choose(&mut h, "prop-target-page", "Orders by status");
+    h.fill("prop-page-param:status", "'open'");
+    assert_eq!(dashboard(&h).components[0].page_params.get("status").map(String::as_str), Some("'open'"));
+    h.capture(
+        "pages-03-button-link",
+        &[
+            "The selected button's properties show 'Then open page' set to Orders by status.",
+            "Below it, a status field holds the expression 'open'.",
+        ],
+    );
+
+    h.click("design-navigation");
+    assert!(h.exists(id("page-link:1")));
+    h.capture(
+        "pages-04-page-links",
+        &["The navigation editor ends with a Page links list naming the Open orders button on Home, which opens Orders by status (status = 'open')."],
+    );
+
+    h.click(id("page-item-1"));
+    let first = h.config().pages[0].components[0].id.clone();
+    h.click(id(&first));
+    h.click("edit-form");
+    assert_eq!(h.label("design-studio"), "Form builder");
+    h.capture(
+        "pages-05-edit-form",
+        &[
+            "The form designer shows Main form, with a 'Back to Main form' link above the canvas.",
+            "The Design sidebar stays on the left.",
         ],
     );
 }

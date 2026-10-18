@@ -337,9 +337,9 @@ fn readers_of(config: &DocumentConfig, id: &str) -> Vec<String> {
         })
         .map(|r| format!("Report \"{}\"", r.name));
     let dashboards = config
-        .dashboards
+        .pages
         .iter()
         .filter(|d| crate::authz::dashboard_queries(d).any(|q| q == id))
-        .map(|d| format!("Dashboard \"{}\"", d.name));
+        .map(|d| format!("Page \"{}\"", d.name));
     forms.chain(reports).chain(dashboards).collect()
 }

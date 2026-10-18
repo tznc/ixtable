@@ -30,7 +30,7 @@ frontend remains, and Tauri hosts no webview.
 ## Conventions
 
 - **Registries:**
-  - Modes: `ui/shell/modes.rs` (`build_view`, `build_sidebar`).
+  - Modes: `ui/shell/modes.rs` (`build_view`, `build_sidebar`). Design is `ui::pages::DesignMode`.
   - Settings tabs: `ui/shell/settings.rs` (`build_tab`).
   - Start screen actions and panels: `ui/start_sections.rs`.
   - Extra Lucide icons: `ui/assets.rs`. gpui-kit embeds only about 100 icons by default.
@@ -77,11 +77,27 @@ Two rules apply to test modules:
 
 Run the tests with `cd src-tauri && cargo test --lib`.
 
-## Dashboards
+## Data page and queries
 
-`dashboard_engine/` holds the non-UI logic of the former `src/dashboards/` (model,
+Saved queries have no Studio mode of their own. The Data page's object browser lists
+tables, views and queries, and whatever is chosen there opens in the Data workspace:
+the diagram with a table's datasheet below it, or the query editor
+(`ui::query::QueryMode`) filling the workspace. One list and one place to open objects
+keeps users from having to decide which page holds a query.
+
+- `DataMode` builds the query editor the first time a query is chosen and keeps it,
+  so an unsaved draft survives a visit to a table.
+- A new query is selected as `SelectionKind::NewQuery` with the draft's id; the editor
+  publishes the unsaved draft to `Shell::unsaved_query` so the object browser lists it.
+- Renaming is editing the name and saving. Duplicate and Delete are in the editor
+  header. A table's datasheet offers **Query this table**.
+- Documents stored with `active_mode = "query"` open on the Data page.
+
+## Pages (formerly dashboards)
+
+Dashboards became pages in config version 8 (see `pages.md`). `page_engine/` holds the non-UI logic of the former `src/dashboards/` (model,
 filter-to-parameter mapping, KPI and table slices, chart figures, run state). Views live in
-`ui/dashboards/`. Charts reuse `report_engine`'s chart geometry and drawing through
+`ui/pages/`. Charts reuse `report_engine`'s chart geometry and drawing through
 `chart_item`, so a dashboard chart and a report chart cannot drift apart. Embedded forms are a
 detached `ui::runtime::FormRenderer`; query pickers are `ui::query::QueryPicker`. The Runtime
 shows a dashboard through the `PageBuilders` hook that `ui::dashboards::register` installs.

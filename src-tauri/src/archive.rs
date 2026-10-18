@@ -7,7 +7,7 @@
 //! File-format I/O (versions, streaming payloads, preservation) lives in `archive_io`.
 use crate::design::DesignSchema;
 pub use crate::validation::{check_named_ids, validate_config, Issue, Severity};
-use crate::{automation, dashboards, migrations, recordstore, reports, roles};
+use crate::{automation, pages, migrations, recordstore, reports, roles};
 use chrono::Utc;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ pub use crate::archive_io::{
     read_archive, read_header, write_archive, ArchiveHeader, FORMAT_VERSION, MIN_FORMAT_VERSION,
 };
 /// Current `DocumentConfig.version`. Version 2 configs load through serde defaults.
-pub const CONFIG_VERSION: u32 = 7;
+pub const CONFIG_VERSION: u32 = 8;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ArchiveError {
@@ -58,8 +58,10 @@ pub struct DocumentConfig {
     pub design: DesignSchema,
     #[serde(default)]
     pub reports: Vec<reports::Report>,
-    #[serde(default)]
-    pub dashboards: Vec<dashboards::Dashboard>,
+    /// Pages (config version 8): grids of forms, reports, charts, filters and buttons.
+    /// Earlier configs stored them as `dashboards`.
+    #[serde(default, alias = "dashboards")]
+    pub pages: Vec<pages::Page>,
     #[serde(default)]
     pub actions: Vec<automation::ActionDef>,
     #[serde(default)]
@@ -155,14 +157,17 @@ impl DocumentConfig {
         if self.version > CONFIG_VERSION {
             return Err(ArchiveError::NewerConfig(self.version));
         }
+        let version = self.version;
+        pages::upgrade::upgrade(&mut self, version);
         self.version = CONFIG_VERSION;
         Ok(self)
     }
 }
 
 impl Default for DocumentConfig {
+    /// A new document: the default design's form on a page of its own.
     fn default() -> Self {
-        Self {
+        let mut config = Self {
             version: CONFIG_VERSION,
             name: "Untitled".into(),
             active_mode: "data".into(),
@@ -171,7 +176,7 @@ impl Default for DocumentConfig {
             saved_queries: vec![],
             design: DesignSchema::default(),
             reports: vec![],
-            dashboards: vec![],
+            pages: vec![],
             actions: vec![],
             triggers: vec![],
             migrations: vec![],
@@ -182,7 +187,9 @@ impl Default for DocumentConfig {
             file_sources: vec![],
             cloud: None,
             extra: serde_json::Map::new(),
-        }
+        };
+        pages::upgrade::wrap_definitions(&mut config);
+        config
     }
 }
 
@@ -394,7 +401,7 @@ mod tests {
             name: "Sales".into(),
             ..Default::default()
         });
-        config.dashboards.push(crate::dashboards::Dashboard {
+        config.pages.push(crate::pages::Page {
             id: "d1".into(),
             name: "Overview".into(),
             ..Default::default()

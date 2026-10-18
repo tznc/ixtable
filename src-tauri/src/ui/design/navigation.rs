@@ -3,7 +3,9 @@
 //! Test ids: the editor is `navigation-editor` ("Navigation editor"), its list
 //! `navigation-items` ("Navigation items"); per item `nav-label:<id>`, `nav-kind:<id>`,
 //! `nav-target:<id>` ("<label> opens"), `nav-mode:<id>`, `nav-group:<id>`, `nav-up:<id>`,
-//! `nav-down:<id>`, `nav-remove:<id>`; then `add-nav-item`, `add-nav-group` and `start-page`.
+//! `nav-down:<id>`, `nav-remove:<id>`, and `nav-param:<id>:<name>` for each parameter of the
+//! page an item opens; then `add-nav-item`, `add-nav-group` and `start-page`. The page links
+//! overview is `page-links` with one `page-link:<n>` row per link (`no-page-links`).
 
 use super::{ctl::icon_button, studio::DesignStudio};
 use crate::design::{FormMode, NavKind, NavigationItem};
@@ -14,15 +16,15 @@ use crate::forms::{
 use crate::ui::prelude::*;
 
 const KINDS: [(&str, NavKind); 5] = [
+    ("page", NavKind::Page),
     ("form", NavKind::Form),
     ("report", NavKind::Report),
-    ("dashboard", NavKind::Dashboard),
     ("table", NavKind::Table),
     ("group", NavKind::Group),
 ];
 
 fn kind_key(kind: NavKind) -> &'static str {
-    KINDS.iter().find(|(_, k)| *k == kind).map_or("form", |(key, _)| key)
+    KINDS.iter().find(|(_, k)| *k == kind).map_or("page", |(key, _)| key)
 }
 
 /// What each kind of item can open, and the groups an item can move into.
@@ -51,7 +53,7 @@ impl DesignStudio {
     }
 
     fn add_navigation(&mut self, kind: NavKind, cx: &mut Context<Self>) {
-        let first = self.design(cx).forms.first().map(|f| (f.id.clone(), f.name.clone()));
+        let first = self.config(cx).pages.first().map(|p| (p.id.clone(), p.name.clone()));
         let is_group = kind == NavKind::Group;
         let item = NavigationItem {
             id: new_id(),
@@ -59,6 +61,7 @@ impl DesignStudio {
             kind,
             target_id: if is_group { None } else { first.map(|f| f.0) },
             mode: None,
+            params: Default::default(),
             children: vec![],
         };
         self.edit_design(
@@ -84,7 +87,7 @@ impl DesignStudio {
             by_kind: vec![
                 (NavKind::Form, design.forms.iter().map(|f| (f.id.clone(), f.name.clone())).collect()),
                 (NavKind::Report, config.reports.iter().map(|r| (r.id.clone(), r.name.clone())).collect()),
-                (NavKind::Dashboard, config.dashboards.iter().map(|d| (d.id.clone(), d.name.clone())).collect()),
+                (NavKind::Page, config.pages.iter().map(|d| (d.id.clone(), d.name.clone())).collect()),
                 (NavKind::Table, self.tables(cx).into_iter().map(|t| (t.clone(), t)).collect()),
                 (NavKind::Group, vec![]),
             ],
@@ -122,7 +125,7 @@ impl DesignStudio {
                             .small()
                             .icon(IconName::Plus)
                             .label("Add navigation item")
-                            .on_click(cx.listener(|this, _, _, cx| this.add_navigation(NavKind::Form, cx))),
+                            .on_click(cx.listener(|this, _, _, cx| this.add_navigation(NavKind::Page, cx))),
                     )
                     .child(
                         Button::new("add-nav-group")
@@ -134,6 +137,7 @@ impl DesignStudio {
                     ),
             )
             .child(start)
+            .child(page_links(&config, cx))
             .test_support()
     }
 
@@ -196,7 +200,42 @@ impl DesignStudio {
                     cx,
                 )
             });
-            let mode = (item.kind == NavKind::Form).then(|| {
+            let target_page = (item.kind == NavKind::Page)
+                .then(|| design_page(&self.config(cx).pages, item.target_id.as_deref()))
+                .flatten();
+            let solo_form = target_page.as_ref().is_some_and(|p| {
+                matches!(p.components.as_slice(), [only] if only.kind == crate::pages::ComponentKind::Form)
+            });
+            let params: Vec<_> = target_page
+                .map(|page| {
+                    page.parameters
+                        .iter()
+                        .map(|param| {
+                            let (iid, name) = (id.clone(), param.name.clone());
+                            let label = if param.required { format!("{} (required)", param.name) } else { param.name.clone() };
+                            self.text_field(
+                                &format!("nav-param:{id}:{}", param.name),
+                                &label,
+                                item.params.get(&param.name).map(String::as_str).unwrap_or(""),
+                                "Expression, e.g. 'East'",
+                                move |this, text, cx| {
+                                    let name = name.clone();
+                                    this.patch_navigation(&iid, move |i| {
+                                        if text.trim().is_empty() {
+                                            i.params.remove(&name);
+                                        } else {
+                                            i.params.insert(name.clone(), text.clone());
+                                        }
+                                    }, cx)
+                                },
+                                window,
+                                cx,
+                            )
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            let mode = (item.kind == NavKind::Form || solo_form).then(|| {
                 let mut choices = vec![(String::new(), "Default mode".to_string())];
                 choices.extend(
                     FORM_MODES
@@ -279,6 +318,7 @@ impl DesignStudio {
                             .child(down)
                             .child(remove),
                     )
+                    .when(!params.is_empty(), |el| el.child(h_flex().gap_2().pl(px(16.)).flex_wrap().children(params)))
                     .when(item.kind == NavKind::Group, |el| {
                         el.child(self.render_nav_items(&item.children, depth + 1, targets, design, window, cx))
                     }),
@@ -295,4 +335,28 @@ fn design_group_children(design: &crate::design::DesignSchema, group: &str) -> V
         .find(|i| i.id == group)
         .map(|g| g.children.iter().map(|c| c.id.clone()).collect())
         .unwrap_or_default()
+}
+
+fn design_page(pages: &[crate::pages::Page], id: Option<&str>) -> Option<crate::pages::Page> {
+    pages.iter().find(|p| Some(p.id.as_str()) == id).cloned()
+}
+
+/// Every way one page leads to another: navigation items, page buttons and "Open page"
+/// steps, with the parameters each passes.
+fn page_links(config: &crate::archive::DocumentConfig, cx: &App) -> impl IntoElement {
+    let muted = cx.theme().muted_foreground;
+    let links = crate::page_engine::links::page_links(config);
+    v_flex()
+        .id("page-links")
+        .aria_label("Page links")
+        .gap_1()
+        .pt_3()
+        .child(widgets::section_heading("page-links-title", "Page links"))
+        .child(div().text_xs().text_color(muted).child(
+            "How users move between pages. Buttons set their target page in the page designer; actions use an Open page step.",
+        ))
+        .children(links.iter().enumerate().map(|(i, link)| {
+            widgets::styled_text(SharedString::from(format!("page-link:{}", i + 1)), link.describe_with(&config.pages), |d| d.text_sm())
+        }))
+        .when(links.is_empty(), |el| el.child(widgets::text("no-page-links", "No links between pages yet.")))
 }

@@ -3,7 +3,7 @@
 //! `recordId` (an expression over `params` and `app`), or the first row of the form's source
 //! when it is blank; that row is looked up again after record writes, but only while the form
 //! has no unsaved edits, and a shown table record that was deleted gets a message instead of
-//! a switch. The form's row filter holds here too (`dashboard_engine::binding`).
+//! a switch. The form's row filter holds here too (`page_engine::binding`).
 //!
 //! Test ids: the messages `embed-missing`, `embed-unsupported`, `embed-loading`,
 //! `embed-empty`, `embed-gone` (with the `embed-show-first` button), `embed-outside` and
@@ -11,11 +11,11 @@
 //! embedded forms, so tests look them up inside the widget (`widget:<title>`).
 
 use crate::{
-    dashboard_engine::{
+    page_engine::{
         binding::{effective_expression, form_table, resolve, Resolved},
         model::embeddable_modes,
     },
-    dashboards::DashboardComponent,
+    pages::PageComponent,
     design::FormMode,
     forms::registry::resolve_form,
     ui::{
@@ -58,7 +58,7 @@ pub struct EmbeddedForm {
 }
 
 impl EmbeddedForm {
-    pub fn new(env: RuntimeEnv, component: &DashboardComponent, params: Map<String, Value>, cx: &mut Context<Self>) -> Self {
+    pub fn new(env: RuntimeEnv, component: &PageComponent, params: Map<String, Value>, cx: &mut Context<Self>) -> Self {
         let subscription = cx.subscribe(&env.bus.clone(), |this, _, _: &DocEvent, cx| this.records_changed(cx));
         Self {
             env,
@@ -79,7 +79,7 @@ impl EmbeddedForm {
     }
 
     /// The component's settings changed (the Studio's View tab shows edits live).
-    pub fn set_component(&mut self, component: &DashboardComponent, params: Map<String, Value>, cx: &mut Context<Self>) {
+    pub fn set_component(&mut self, component: &PageComponent, params: Map<String, Value>, cx: &mut Context<Self>) {
         let (form_id, mode, record_id) = (component.form_id.clone().unwrap_or_default(), component.mode, component.record_id.clone());
         if form_id == self.form_id && mode == self.mode && record_id == self.record_id && params == self.params {
             return;
@@ -227,7 +227,7 @@ impl Render for EmbeddedForm {
         };
         let mode = self.shown_mode(cx);
         if !embeddable_modes(Some(&form)).contains(&mode) {
-            let text = format!("{} cannot open in {} mode.", form.name, crate::ui::dashboards::mode_name(mode));
+            let text = format!("{} cannot open in {} mode.", form.name, crate::ui::pages::mode_name(mode));
             return message("embed-unsupported", text, true, cx).into_any_element();
         }
         if !self.started {

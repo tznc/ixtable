@@ -1,4 +1,4 @@
-//! The Design tab of a dashboard (port of `DashboardEditor.tsx`): the component palette,
+//! The Design tab of a dashboard (port of `PageEditor.tsx`): the component palette,
 //! the editable grid canvas, the problems list and the properties panel.
 //!
 //! Test ids: the palette buttons `add-<kind>` (`add-kpi`, `add-chart`, `add-table`,
@@ -11,13 +11,13 @@
 
 use super::ROW_HEIGHT;
 use crate::{
-    dashboard_engine::{
+    page_engine::{
         data::{dashboard_params, default_filter_values},
         model::{
             COMPONENT_KINDS, chart_label, constraints_for, dashboard_issues, kind_key, kind_label, new_component,
         },
     },
-    dashboards::{ChartType, ComponentKind, Dashboard, DashboardComponent},
+    pages::{ChartType, ComponentKind, Page, PageComponent},
     design::Placement,
     ui::{
         grid::canvas::{GridCanvas, GridItem},
@@ -40,17 +40,17 @@ pub(super) struct Columns {
     pub error: String,
 }
 
-pub struct DashboardEditor {
+pub struct PageEditor {
     pub(super) shell: Entity<Shell>,
     pub(super) dashboard_id: String,
     pub selected: Option<String>,
-    pub(super) inputs: Inputs<DashboardEditor, String>,
+    pub(super) inputs: Inputs<PageEditor, String>,
     pub(super) pickers: HashMap<String, (Entity<QueryPicker>, Subscription)>,
     pub(super) areas: HashMap<String, (Entity<TextareaState>, Subscription)>,
     pub(super) columns: Columns,
 }
 
-impl DashboardEditor {
+impl PageEditor {
     pub fn new(shell: Entity<Shell>, dashboard_id: &str, focus: Option<String>) -> Self {
         Self {
             shell,
@@ -63,23 +63,23 @@ impl DashboardEditor {
         }
     }
 
-    pub fn dashboard(&self, cx: &App) -> Option<Dashboard> {
-        self.shell.read(cx).config(cx).dashboards.iter().find(|d| d.id == self.dashboard_id).cloned()
+    pub fn dashboard(&self, cx: &App) -> Option<Page> {
+        self.shell.read(cx).config(cx).pages.iter().find(|d| d.id == self.dashboard_id).cloned()
     }
 
-    pub fn selected_component(&self, cx: &App) -> Option<DashboardComponent> {
+    pub fn selected_component(&self, cx: &App) -> Option<PageComponent> {
         let dashboard = self.dashboard(cx)?;
         dashboard.components.into_iter().find(|c| Some(&c.id) == self.selected.as_ref())
     }
 
     /// Applies `mutate` to the dashboard as one undo step named `label`.
-    pub(super) fn edit(&mut self, label: &str, mutate: impl FnOnce(&mut Dashboard) + 'static, cx: &mut Context<Self>) {
+    pub(super) fn edit(&mut self, label: &str, mutate: impl FnOnce(&mut Page) + 'static, cx: &mut Context<Self>) {
         let (id, store) = (self.dashboard_id.clone(), self.shell.read(cx).store.clone());
         let result = store.update(cx, |s, cx| {
             s.update(
                 label,
                 move |config| {
-                    if let Some(dashboard) = config.dashboards.iter_mut().find(|d| d.id == id) {
+                    if let Some(dashboard) = config.pages.iter_mut().find(|d| d.id == id) {
                         mutate(dashboard);
                     }
                 },
@@ -93,7 +93,7 @@ impl DashboardEditor {
     }
 
     /// Applies `mutate` to the selected component.
-    pub(super) fn change(&mut self, label: &str, mutate: impl FnOnce(&mut DashboardComponent) + 'static, cx: &mut Context<Self>) {
+    pub(super) fn change(&mut self, label: &str, mutate: impl FnOnce(&mut PageComponent) + 'static, cx: &mut Context<Self>) {
         let Some(id) = self.selected.clone() else { return };
         self.change_component(&id, label, mutate, cx);
     }
@@ -102,7 +102,7 @@ impl DashboardEditor {
         &mut self,
         id: &str,
         label: &str,
-        mutate: impl FnOnce(&mut DashboardComponent) + 'static,
+        mutate: impl FnOnce(&mut PageComponent) + 'static,
         cx: &mut Context<Self>,
     ) {
         let id = id.to_string();
@@ -117,7 +117,7 @@ impl DashboardEditor {
         );
     }
 
-    pub fn add(&mut self, kind: ComponentKind, extra: impl FnOnce(&mut DashboardComponent) + 'static, cx: &mut Context<Self>) {
+    pub fn add(&mut self, kind: ComponentKind, extra: impl FnOnce(&mut PageComponent) + 'static, cx: &mut Context<Self>) {
         let Some(dashboard) = self.dashboard(cx) else { return };
         let component = new_component(kind, &dashboard, extra);
         self.selected = Some(component.id.clone());
@@ -135,13 +135,64 @@ impl DashboardEditor {
         cx.notify();
     }
 
-    /// Opens the element another mode asked to reveal (a Problems link).
-    pub fn reveal(&mut self, cx: &mut Context<Self>) {
-        let request = self.shell.update(cx, |s, _| s.take_reveal(crate::ui::shell::ModeId::Dashboards));
-        if let Some(RevealTarget::Dashboards { element_id, .. }) = request {
-            self.selected = element_id;
-            cx.notify();
+    /// Opens the selected form or report component's definition in its designer. A component
+    /// without one gets a new form or report first, in the same undo step.
+    pub fn open_target(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(component) = self.selected_component(cx) else { return };
+        let config = self.shell.read(cx).config(cx);
+        let existing = match component.kind {
+            ComponentKind::Form => component.form_id.clone().filter(|id| config.design.forms.iter().any(|f| &f.id == id)),
+            ComponentKind::Report => component.report_id.clone().filter(|id| config.reports.iter().any(|r| &r.id == id)),
+            _ => return,
+        };
+        let target = match existing {
+            Some(id) => id,
+            None => self.create_target(&component, cx),
+        };
+        let reveal = if component.kind == ComponentKind::Form {
+            RevealTarget::Design { object_id: target, element_id: None }
+        } else {
+            RevealTarget::Reports { object_id: target, element_id: None }
+        };
+        self.shell.update(cx, |s, cx| s.request_reveal(reveal, window, cx));
+    }
+
+    /// Adds a form or report named after the page and points `component` at it.
+    fn create_target(&mut self, component: &PageComponent, cx: &mut Context<Self>) -> String {
+        let config = self.shell.read(cx).config(cx);
+        let page = self.dashboard(cx).map(|p| p.name).unwrap_or_default();
+        let (page_id, cid) = (self.dashboard_id.clone(), component.id.clone());
+        if component.kind == ComponentKind::Form {
+            let taken: Vec<String> = config.design.forms.iter().map(|f| f.name.clone()).collect();
+            let form = crate::forms::schema::new_form(&unique(&format!("{page} form"), &taken), None);
+            let (id, mode) = (form.id.clone(), form.modes.first().copied());
+            self.edit_config("New form", move |c| {
+                c.design.forms.push(form);
+                if let Some(target) = find_component(c, &page_id, &cid) {
+                    target.form_id = Some(id);
+                    target.mode = mode;
+                }
+            }, cx);
+            return self.selected_component(cx).and_then(|c| c.form_id).unwrap_or_default();
         }
+        let taken: Vec<String> = config.reports.iter().map(|r| r.name.clone()).collect();
+        let report = crate::report_engine::model::new_report(&unique(&format!("{page} report"), &taken));
+        let id = report.id.clone();
+        self.edit_config("New report", move |c| {
+            c.reports.push(report);
+            if let Some(target) = find_component(c, &page_id, &cid) {
+                target.report_id = Some(id);
+            }
+        }, cx);
+        self.selected_component(cx).and_then(|c| c.report_id).unwrap_or_default()
+    }
+
+    fn edit_config(&mut self, label: &str, mutate: impl FnOnce(&mut crate::archive::DocumentConfig) + 'static, cx: &mut Context<Self>) {
+        let store = self.shell.read(cx).store.clone();
+        if let Err(e) = store.update(cx, |s, cx| s.update(label, mutate, cx)) {
+            self.shell.update(cx, |s, cx| s.set_error(Some(e), cx));
+        }
+        cx.notify();
     }
 
     /// A query picker for `key` showing `value`; changes arrive as `on_pick`.
@@ -170,7 +221,7 @@ impl DashboardEditor {
     }
 
     /// Finds the columns of `query_id` when it, its SQL or the parameters changed.
-    pub(super) fn load_columns(&mut self, query_id: Option<&str>, dashboard: &Dashboard, cx: &mut Context<Self>) {
+    pub(super) fn load_columns(&mut self, query_id: Option<&str>, dashboard: &Page, cx: &mut Context<Self>) {
         let Some(query_id) = query_id.filter(|q| !q.is_empty()) else {
             self.columns = Columns::default();
             return;
@@ -186,7 +237,7 @@ impl DashboardEditor {
         let (label, id) = (self.shell.read(cx).label().to_string(), query_id.to_string());
         task::spawn_call(
             cx,
-            move || crate::dashboard_engine::load::run_saved(&label, &id, &params, Some(1), &uuid::Uuid::new_v4().to_string()),
+            move || crate::page_engine::load::run_saved(&label, &id, &params, Some(1), &uuid::Uuid::new_v4().to_string()),
             move |this, result, cx| {
                 if this.columns.key != key {
                     return;
@@ -201,12 +252,12 @@ impl DashboardEditor {
     }
 
     fn on_edit(this: &mut Self, key: &String, text: String, cx: &mut Context<Self>) {
-        if !this.on_component_edit(key, &text, cx) && !this.on_filter_edit(key, &text, cx) {
+        if !this.on_component_edit(key, &text, cx) && !this.on_filter_edit(key, &text, cx) && !this.on_param_edit(key, &text, cx) {
             this.on_layout_edit(key, &text, cx);
         }
     }
 
-    fn summary(&self, c: &DashboardComponent, dashboard: &Dashboard, cx: &App) -> String {
+    fn summary(&self, c: &PageComponent, dashboard: &Page, cx: &App) -> String {
         let config = self.shell.read(cx).config(cx);
         let query_name = |id: &Option<String>| match id.as_deref().filter(|i| !i.is_empty()) {
             Some(id) => config.saved_queries.iter().find(|q| q.id == id).map_or("Missing query".to_string(), |q| q.name.clone()),
@@ -235,10 +286,17 @@ impl DashboardEditor {
                 None => "No form".into(),
             },
             ComponentKind::Report => if c.report_id.as_deref().is_some_and(|r| !r.is_empty()) { "Report preview" } else { "No report" }.into(),
-            ComponentKind::Button => match c.action_id.as_deref().filter(|a| !a.is_empty()) {
-                Some(_) => format!("Runs an action · “{}”", c.label.clone().unwrap_or_default()),
-                None => "No action".into(),
-            },
+            ComponentKind::Button => {
+                let opens = c.target_page_id.as_deref().filter(|t| !t.is_empty()).map(|t| {
+                    config.pages.iter().find(|p| p.id == t).map_or("a missing page".to_string(), |p| p.name.clone())
+                });
+                match (c.action_id.as_deref().filter(|a| !a.is_empty()), opens) {
+                    (Some(_), Some(page)) => format!("Runs an action, then opens {page}"),
+                    (Some(_), None) => format!("Runs an action · “{}”", c.label.clone().unwrap_or_default()),
+                    (None, Some(page)) => format!("Opens {page}"),
+                    (None, None) => "No action".into(),
+                }
+            }
             ComponentKind::Text => {
                 let text: String = c.text.clone().unwrap_or_default().chars().take(80).collect();
                 if text.is_empty() { "Empty text".into() } else { text }
@@ -246,7 +304,7 @@ impl DashboardEditor {
         }
     }
 
-    fn card(&self, c: &DashboardComponent, dashboard: &Dashboard, cx: &App) -> AnyElement {
+    fn card(&self, c: &PageComponent, dashboard: &Page, cx: &App) -> AnyElement {
         let theme = cx.theme();
         let span = c.placement.row_span.max(1) as f32;
         let min = span * ROW_HEIGHT * 0.6 + (span - 1.0) * dashboard.layout.row_gap as f32;
@@ -300,7 +358,7 @@ impl DashboardEditor {
             }))
     }
 
-    fn render_canvas(&self, dashboard: &Dashboard, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_canvas(&self, dashboard: &Page, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
         let (muted, danger, warning) = (theme.muted_foreground, theme.danger, theme.warning);
         let issues = dashboard_issues(dashboard, self.shell.read(cx).config(cx));
@@ -348,7 +406,7 @@ impl DashboardEditor {
                 el.child(
                     v_flex()
                         .id("dash-issues")
-                        .aria_label("Dashboard problems")
+                        .aria_label("Page problems")
                         .gap_1()
                         .children(issues.iter().enumerate().map(|(i, issue)| {
                             let color = if issue.severity == Severity::Error { danger } else { warning };
@@ -377,9 +435,21 @@ fn component_icon(kind: ComponentKind) -> IconName {
     }
 }
 
-impl Render for DashboardEditor {
+fn find_component<'a>(config: &'a mut crate::archive::DocumentConfig, page: &str, id: &str) -> Option<&'a mut PageComponent> {
+    config.pages.iter_mut().find(|p| p.id == page)?.components.iter_mut().find(|c| c.id == id)
+}
+
+/// `base`, or `base 2`, `base 3`, ... the first not taken.
+fn unique(base: &str, taken: &[String]) -> String {
+    let base = base.trim();
+    std::iter::once(base.to_string())
+        .chain((2..).map(|n| format!("{base} {n}")))
+        .find(|name| !taken.contains(name))
+        .unwrap_or_default()
+}
+
+impl Render for PageEditor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.reveal(cx);
         let Some(dashboard) = self.dashboard(cx) else {
             return div().into_any_element();
         };
@@ -393,7 +463,7 @@ impl Render for DashboardEditor {
         };
         h_flex()
             .id("dash-editor")
-            .aria_label("Dashboard designer")
+            .aria_label("Page designer")
             .size_full()
             .child(self.render_palette(cx))
             .child(self.render_canvas(&dashboard, cx))

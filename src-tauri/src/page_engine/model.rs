@@ -1,8 +1,8 @@
-//! Dashboard definition helpers: creation, duplication, placement, grid changes and the
+//! Page definition helpers: creation, duplication, placement, grid changes and the
 //! editor-side checks (port of `src/dashboards/model.ts`).
 
 use crate::archive::{DocumentConfig, Issue, QueryParameter, SavedQuery, Severity};
-use crate::dashboards::{ChartType, ComponentKind, Dashboard, DashboardComponent, DashboardFilter, FilterControl};
+use crate::pages::{ChartType, ComponentKind, Page, PageComponent, PageFilter, FilterControl};
 use crate::design::{Form, FormMode, GridLayout, SourceKind};
 use crate::forms::schema::FORM_MODES;
 use crate::ui::grid::engine::{
@@ -145,18 +145,19 @@ pub fn constraints_for(kind: ComponentKind) -> SpanConstraints {
     size(kind).min
 }
 
-pub fn new_dashboard(name: &str) -> Dashboard {
-    Dashboard {
+pub fn new_dashboard(name: &str) -> Page {
+    Page {
         id: new_id(),
         name: name.into(),
         layout: default_grid_layout(),
         filters: vec![],
         components: vec![],
+        parameters: vec![],
     }
 }
 
-pub fn new_filter(name: &str, param: &str) -> DashboardFilter {
-    DashboardFilter {
+pub fn new_filter(name: &str, param: &str) -> PageFilter {
+    PageFilter {
         id: new_id(),
         name: name.into(),
         param: param.into(),
@@ -167,13 +168,13 @@ pub fn new_filter(name: &str, param: &str) -> DashboardFilter {
 }
 
 /// A new component of `kind` at the first free slot of the dashboard grid; `extra` adjusts it.
-pub fn new_component(kind: ComponentKind, dashboard: &Dashboard, extra: impl FnOnce(&mut DashboardComponent)) -> DashboardComponent {
+pub fn new_component(kind: ComponentKind, dashboard: &Page, extra: impl FnOnce(&mut PageComponent)) -> PageComponent {
     let count = dashboard.layout.columns.len() as i64;
     let size = size(kind);
     let existing: Vec<_> = dashboard.components.iter().map(|c| c.placement.clone()).collect();
     let placement = next_placement(&dashboard.layout, &existing, Some(size.columns.min(count)), Some(size.rows));
     let n = dashboard.components.iter().filter(|c| c.kind == kind).count() + 1;
-    let mut component = DashboardComponent {
+    let mut component = PageComponent {
         id: new_id(),
         kind,
         title: format!("{} {n}", kind_label(kind)),
@@ -193,7 +194,7 @@ pub fn new_component(kind: ComponentKind, dashboard: &Dashboard, extra: impl FnO
 }
 
 /// A copy with fresh ids; filter components follow their copied filters.
-pub fn duplicate_dashboard(dashboard: &Dashboard, name: &str) -> Dashboard {
+pub fn duplicate_dashboard(dashboard: &Page, name: &str) -> Page {
     let filter_ids: Vec<(String, String)> = dashboard.filters.iter().map(|f| (f.id.clone(), new_id())).collect();
     let mut copy = dashboard.clone();
     copy.id = new_id();
@@ -214,7 +215,7 @@ pub fn duplicate_dashboard(dashboard: &Dashboard, name: &str) -> Dashboard {
 
 /// Clamps every placement into the layout's base columns (after a column-count change).
 /// `renames` are (old, new) region names, so placed components follow a renamed region.
-pub fn with_layout(dashboard: &Dashboard, next: GridLayout, renames: &[(String, String)]) -> Dashboard {
+pub fn with_layout(dashboard: &Page, next: GridLayout, renames: &[(String, String)]) -> Page {
     let mut layout = next;
     layout.named_regions = clamp_regions(&layout.named_regions, layout.columns.len());
     let mut out = dashboard.clone();
@@ -228,13 +229,13 @@ pub fn with_layout(dashboard: &Dashboard, next: GridLayout, renames: &[(String, 
 }
 
 /// Editor-side checks: the shared grid rules plus missing references (mirrors `dashboards.rs`).
-pub fn dashboard_issues(dashboard: &Dashboard, config: &DocumentConfig) -> Vec<Issue> {
+pub fn dashboard_issues(dashboard: &Page, config: &DocumentConfig) -> Vec<Issue> {
     let items: Vec<GridItemRef> = dashboard
         .components
         .iter()
         .map(|c| GridItemRef { id: c.id.clone(), placement: c.placement.clone() })
         .collect();
-    let mut issues = validate_layout(&dashboard.layout, &items, "dashboard", &dashboard.id, "dashboardComponent");
+    let mut issues = validate_layout(&dashboard.layout, &items, "page", &dashboard.id, "dashboardComponent");
     let mut error = |id: &str, message: String| issues.push(Issue::error("dashboardComponent", id, message));
     for c in &dashboard.components {
         let title = if c.title.is_empty() { &c.id } else { &c.title };
@@ -271,7 +272,7 @@ pub fn error_messages(issues: &[Issue]) -> Vec<String> {
 }
 
 /// Parameters declared by the saved queries this dashboard's components use, as (name, type).
-pub fn dashboard_query_parameters(dashboard: &Dashboard, queries: &[SavedQuery]) -> Vec<(String, String)> {
+pub fn dashboard_query_parameters(dashboard: &Page, queries: &[SavedQuery]) -> Vec<(String, String)> {
     let ids: Vec<&String> = dashboard.components.iter().filter_map(|c| c.query_id.as_ref()).collect();
     let mut seen: Vec<(String, String)> = vec![];
     for q in queries.iter().filter(|q| ids.contains(&&q.id)) {

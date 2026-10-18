@@ -1,7 +1,7 @@
 //! Form list, form properties, containers and style rules (the editors that the React tests
 //! reached through the larger flows), and the track labels of `tests/unit/designer-inputs`.
 
-use super::test_support::{choose, control, edit_store, form, id, open_designer, studio};
+use super::test_support::{choose, control, edit_store, form, id, open_designer, open_form, studio};
 use super::tests::tall_document;
 use crate::design::{ControlKind, FormMode, GridTrack, SourceKind, Tone, TrackKind};
 use crate::ui::testing::Harness;
@@ -52,26 +52,28 @@ fn creates_renames_duplicates_and_deletes_forms(cx: &mut TestAppContext) {
     let created = forms[1].clone();
     assert_eq!(h.label("form-title"), "Form 2");
 
-    h.click(format!("rename:{}", created.id));
-    h.fill("rename-input", "Suppliers");
-    h.press("enter");
-    assert_eq!(h.config().design.forms[1].name, "Suppliers");
-    assert!(!h.exists("rename-input"));
-    assert_eq!(h.label(format!("form:{}", created.id)), "Suppliers");
+    // A new form gets a page of its own.
+    assert!(h.config().pages.iter().any(|p| p.components.iter().any(|c| c.form_id.as_ref() == Some(&created.id))));
 
-    h.click(format!("duplicate:{}", created.id));
+    h.fill("form-name", "Suppliers");
+    assert_eq!(h.config().design.forms[1].name, "Suppliers");
+    assert_eq!(h.label("form-title"), "Suppliers");
+
+    h.click("duplicate-form");
     let forms = h.config().design.forms;
     assert_eq!(forms.len(), 3);
     assert_ne!(forms[2].id, created.id);
     assert!(forms[2].name.starts_with("Suppliers"), "{}", forms[2].name);
+    assert_eq!(h.label("form-title"), forms[2].name);
 
-    h.click(format!("delete:{}", forms[2].id));
-    h.click(format!("delete:{}", created.id));
-    let forms = h.config().design.forms;
-    assert_eq!(forms.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["Main form"]);
-    // Deleting a form removes the navigation items that opened it, never leaving a dangling id.
-    assert!(h.config().design.navigation.iter().all(|n| n.target_id.as_deref() != Some(created.id.as_str())));
-    assert_eq!(h.label("form-title"), "Main form");
+    h.click("delete-form");
+    open_form(&mut h, &created.id);
+    h.click("delete-form");
+    let config = h.config();
+    assert_eq!(config.design.forms.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["Main form"]);
+    // Deleting a form removes its page and the navigation items that opened it.
+    assert!(config.design.navigation.iter().all(|n| n.target_id.as_deref() != Some(created.id.as_str())));
+    assert_eq!(config.pages.len(), 1);
 }
 
 #[gpui_kit::test]

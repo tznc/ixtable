@@ -571,6 +571,12 @@ Charts consume saved query results and do not implement independent datasource l
 
 Dashboard components must reuse form, table, query, expression, and action primitives. A second dashboard-only layout or state engine is prohibited.
 
+### 16.1 Pages
+
+Since config version 8, forms, reports, and dashboards are built in one place: the Design page. A page is a grid of components (forms, reports, charts, KPIs, tables, filters, buttons, and text), so a dashboard is a page with charts, and a data-entry screen is a page with a form. Form and report definitions stay reusable: a page component points at one, and the form and report designers open from the page. Navigation opens pages. A page that holds only one form or report shows it full page. See `docs/decisions/pages.md`.
+
+A page can declare parameters (name, type, default, required). Navigation items, page buttons, and "Open page" actions open a page and pass values for its parameters as expressions. The navigation editor lists every link between pages, and validation reports links to missing pages or that leave a required parameter without a value.
+
 ---
 
 ## 17. Expressions, Actions, and Triggers

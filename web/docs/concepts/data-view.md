@@ -14,7 +14,7 @@ Open Data view to see how tables relate before you change their records. The obj
 
 The **object browser** groups tables, saved queries, and SQL scripts in the project sidebar. Select a table to make it active. Use the search field to narrow a larger project by object name.
 
-Each table entry includes its record count. Selecting a saved query opens it in Query mode, where you edit the SQL or the visual builder and run it with parameters.
+Each table entry includes its record count. Selecting a saved query opens it in the Data view's workspace, where you edit the SQL or the visual builder and run it with parameters.
 
 ## Table designer
 

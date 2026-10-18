@@ -42,7 +42,7 @@ pub struct ObjectPermission {
     pub delete: bool,
 }
 
-const OBJECT_KINDS: [&str; 5] = ["form", "report", "dashboard", "table", "query"];
+const OBJECT_KINDS: [&str; 5] = ["form", "report", "page", "table", "query"];
 
 fn nav_ids(items: &[NavigationItem], out: &mut Vec<String>) {
     for item in items {
@@ -82,7 +82,7 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
             let exists = match object.kind.as_str() {
                 "form" => config.design.forms.iter().any(|f| f.id == object.id),
                 "report" => config.reports.iter().any(|r| r.id == object.id),
-                "dashboard" => config.dashboards.iter().any(|d| d.id == object.id),
+                "page" => config.pages.iter().any(|d| d.id == object.id),
                 "query" => config.saved_queries.iter().any(|q| q.id == object.id),
                 _ => true,
             };

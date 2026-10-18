@@ -10,8 +10,8 @@
 //! `chart-big:<name>` and `chart-delta:<name>`.
 
 use crate::{
-    dashboard_engine::chart::{figure, Body, ChartSpec, Figure, SummaryBody},
-    dashboards::DashboardComponent,
+    page_engine::chart::{figure, Body, ChartSpec, Figure, SummaryBody},
+    pages::PageComponent,
     report_engine::{ChartItem, Mark, PathItem},
     ui::{prelude::*, reports::chart_element},
 };
@@ -21,12 +21,12 @@ use serde_json::{Map, Value};
 const BOX: (f64, f64) = (250.0, 140.0);
 const ZOOM: f32 = 1.5;
 
-pub fn chart_figure(component: &DashboardComponent, rows: &[Map<String, Value>]) -> Figure {
+pub fn chart_figure(component: &PageComponent, rows: &[Map<String, Value>]) -> Figure {
     figure(&ChartSpec::from(component), &component.title, rows, BOX)
 }
 
 fn sparkline(big: &SummaryBody) -> ChartItem {
-    let (w, h) = crate::dashboard_engine::chart::SPARKLINE;
+    let (w, h) = crate::page_engine::chart::SPARKLINE;
     let mut marks = vec![Mark::Path(PathItem {
         ops: big.path.clone(),
         fill: None,

@@ -1,4 +1,4 @@
-//! Helpers shared by the Query mode tests: seeded data, drop-down picking, typing into
+//! Helpers shared by the query editor tests: seeded data, drop-down picking, typing into
 //! the SQL editor and waiting for runs (which execute on a worker thread).
 
 use super::QueryMode;
@@ -72,25 +72,24 @@ pub fn seed_sales<C: UiContext>(h: &mut Harness<'_, C>) {
     }
 }
 
-/// Seeds a document's sales data and opens Query mode (for any harness).
+/// Seeds a document's sales data on the Data page, where queries open (for any harness).
 pub fn open_query<C: UiContext>(h: &mut Harness<'_, C>) {
     seed_sales(h);
-    h.switch_mode(ModeId::Query);
-    assert_eq!(h.label("mode-title"), "Query");
+    assert_eq!(h.mode(), ModeId::Data);
 }
 
-/// A new document with the sales data, in Query mode.
+/// A new document with the sales data, on the Data page.
 pub fn open_query_mode(cx: &mut TestAppContext) -> Harness<'_, TestAppContext> {
     let mut h = Harness::new_document(cx);
-    seed_sales(&mut h);
-    h.switch_mode(ModeId::Query);
-    assert_eq!(h.label("mode-title"), "Query");
+    open_query(&mut h);
     h
 }
 
+/// The Data page's query editor (built once a query has been chosen).
 pub fn query_mode<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<QueryMode> {
     let view = h.read_shell(|s, _| s.mode_view()).expect("mode view");
-    view.downcast().expect("QueryMode")
+    let data: Entity<crate::ui::data::workbench::DataMode> = view.downcast().expect("DataMode");
+    h.cx.read(|cx| data.read(cx).query_view().cloned()).expect("a query has been chosen")
 }
 
 /// Reads the mode.

@@ -491,10 +491,10 @@ impl StepEditor {
                 let targets = match target_kind.as_str() {
                     "form" => env.forms.clone(),
                     "report" => env.reports.clone(),
-                    "dashboard" => env.dashboards.clone(),
+                    "page" => env.pages.clone(),
                     _ => env.tables.clone(),
                 };
-                let kinds = plain_options(&["form", "report", "dashboard", "table"]);
+                let kinds = plain_options(&["form", "report", "page", "table"]);
                 let picked = {
                     let (me, id) = (me.clone(), id.clone());
                     move |value: &str, _: &mut Window, cx: &mut App| {
@@ -578,7 +578,7 @@ impl StepEditor {
                 let (field, label, options) = if kind == "openReport" {
                     ("reportId", "Report", env.reports.clone())
                 } else {
-                    ("dashboardId", "Dashboard", env.dashboards.clone())
+                    ("dashboardId", "Page", env.pages.clone())
                 };
                 let target = self.pick(&me, item, step, field, label, options, label, cx);
                 let when = self.when(item, step, window, cx);
@@ -725,7 +725,7 @@ fn kebab(name: &str) -> String {
         "query-id" => "query".into(),
         "form-id" => "form".into(),
         "report-id" => "report".into(),
-        "dashboard-id" => "dashboard".into(),
+        "dashboard-id" => "page".into(),
         "action-id" => "action".into(),
         "id" => "target".into(),
         _ => out,

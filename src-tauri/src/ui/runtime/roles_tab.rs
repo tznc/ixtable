@@ -113,7 +113,7 @@ impl RolesTab {
         let mut rows: Vec<Row> = vec![];
         rows.extend(config.design.forms.iter().map(|f| Row { kind: "form", id: f.id.clone(), name: f.name.clone() }));
         rows.extend(config.reports.iter().map(|r| Row { kind: "report", id: r.id.clone(), name: r.name.clone() }));
-        rows.extend(config.dashboards.iter().map(|d| Row { kind: "dashboard", id: d.id.clone(), name: d.name.clone() }));
+        rows.extend(config.pages.iter().map(|d| Row { kind: "page", id: d.id.clone(), name: d.name.clone() }));
         rows.extend(
             shell
                 .objects

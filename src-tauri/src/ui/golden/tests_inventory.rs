@@ -98,6 +98,8 @@ use crate::ui::testing::Harness;
 
 #[gpui_kit::test]
 fn golden_inventory_constraints_transactional_transfers_and_concurrency_policies(cx: &mut TestAppContext) {
+    // The action runner is process-wide: hold the real one so a parallel test's double cannot replace it.
+    let _runner = crate::ui::runtime::tests::with_real_runner();
     with_journey(APP, "transactions", |journey| {
         let mut h = journey.step("Create Inventory from the start screen", move |_| start_from_template(cx, "inventory"));
         let label = h.label.clone();

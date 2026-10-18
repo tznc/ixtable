@@ -2,10 +2,10 @@
 //! generic over the harness's context, so they drive both the test and the headless-renderer
 //! apps.
 
-use super::DashboardView;
+use super::PageView;
 
 use crate::archive::{DocumentConfig, QueryParameter, SavedQuery};
-use crate::dashboards::{Dashboard, DashboardComponent};
+use crate::pages::{Page, PageComponent};
 use crate::data::DataValue;
 pub use crate::ui::reports::test_support::edit_store;
 use crate::ui::reports::test_support::{id, wait_until};
@@ -44,23 +44,33 @@ pub fn seed_sales<C: UiContext>(h: &mut Harness<'_, C>) {
     edit_store(h, |c: &mut DocumentConfig| c.saved_queries.push(query));
 }
 
-pub fn open_dashboards<C: UiContext>(h: &mut Harness<'_, C>) {
-    h.switch_mode(ModeId::Dashboards);
-    assert_eq!(h.mode(), ModeId::Dashboards);
+/// The Design mode's view.
+pub fn design_mode<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<super::DesignMode> {
+    h.read_shell(|s, _| s.mode_view())
+        .expect("a mode is showing")
+        .downcast::<super::DesignMode>()
+        .ok()
+        .expect("Design mode is showing")
 }
 
-/// Opens the mode and creates "Dashboard 1".
+pub fn open_dashboards<C: UiContext>(h: &mut Harness<'_, C>) {
+    h.switch_mode(ModeId::Design);
+    assert_eq!(h.mode(), ModeId::Design);
+}
+
+/// Opens Design mode and creates "Page 1".
 pub fn new_dashboard<C: UiContext>(h: &mut Harness<'_, C>) {
     open_dashboards(h);
-    h.click("new-dashboard");
-    assert_eq!(h.label("mode-title"), "Dashboard 1");
+    h.click("new-page");
+    assert_eq!(h.label("mode-title"), "Page 1");
 }
 
-pub fn dashboard<C: UiContext>(h: &Harness<'_, C>) -> Dashboard {
-    h.config().dashboards.into_iter().next().expect("a dashboard")
+/// The page added last (a new document already has its main form's page).
+pub fn dashboard<C: UiContext>(h: &Harness<'_, C>) -> Page {
+    h.config().pages.into_iter().last().expect("a page")
 }
 
-pub fn component<C: UiContext>(h: &Harness<'_, C>, title: &str) -> DashboardComponent {
+pub fn component<C: UiContext>(h: &Harness<'_, C>, title: &str) -> PageComponent {
     dashboard(h).components.into_iter().find(|c| c.title == title).unwrap_or_else(|| panic!("no component {title}"))
 }
 
@@ -152,7 +162,7 @@ fn at3(column: u32) -> Value {
 /// The "Ops" dashboard of the React view tests: a KPI on query q1, a button running action a1
 /// and a two-paragraph note, with a Region select filter.
 pub fn seed_ops<C: UiContext>(h: &mut Harness<'_, C>) {
-    let dashboard: Dashboard = serde_json::from_value(json!({
+    let dashboard: Page = serde_json::from_value(json!({
         "id": "d1", "name": "Ops",
         "filters": [{"id": "f1", "name": "Region", "param": "region", "logicalType": "text", "control": "select", "options": ["East"]}],
         "components": [
@@ -169,7 +179,7 @@ pub fn seed_ops<C: UiContext>(h: &mut Harness<'_, C>) {
     .expect("action");
     let query = SavedQuery { id: "q1".into(), name: "Orders".into(), sql: "SELECT 1 AS n".into(), ..Default::default() };
     edit_store(h, move |c: &mut DocumentConfig| {
-        c.dashboards = vec![dashboard];
+        c.pages = vec![dashboard];
         c.saved_queries = vec![query];
         c.actions = vec![action];
     });
@@ -235,7 +245,7 @@ pub fn at(column: u32, row: u32, column_span: u32) -> Value {
 pub fn define<C: UiContext>(h: &mut Harness<'_, C>, forms: Vec<Value>, dashboards: Vec<Value>) {
     seed(h, move |c: &mut DocumentConfig| {
         c.design.forms.extend(forms.into_iter().map(|f| serde_json::from_value::<Form>(f).expect("form")));
-        c.dashboards.extend(dashboards.into_iter().map(|d| serde_json::from_value::<Dashboard>(d).expect("dashboard")));
+        c.pages.extend(dashboards.into_iter().map(|d| serde_json::from_value::<Page>(d).expect("dashboard")));
     });
 }
 
@@ -243,7 +253,7 @@ pub fn define<C: UiContext>(h: &mut Harness<'_, C>, forms: Vec<Value>, dashboard
 /// returns its element id.
 pub fn nav_home<C: UiContext>(h: &mut Harness<'_, C>, target: &str) -> String {
     let (item_id, target) = (uid(), target.to_string());
-    let item = NavigationItem { id: item_id.clone(), label: "Home".into(), kind: NavKind::Dashboard, target_id: Some(target), ..Default::default() };
+    let item = NavigationItem { id: item_id.clone(), label: "Home".into(), kind: NavKind::Page, target_id: Some(target), ..Default::default() };
     seed(h, move |c: &mut DocumentConfig| {
         c.design.navigation = vec![item];
         c.design.start_page = None;
@@ -274,7 +284,7 @@ pub fn edit_store_query<C: UiContext>(h: &mut Harness<'_, C>, query: SavedQuery)
 }
 
 /// The dashboard page the Runtime shows.
-pub fn runtime_page<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<DashboardView> {
+pub fn runtime_page<C: UiContext>(h: &mut Harness<'_, C>) -> Entity<PageView> {
     let view = h.read_shell(|s, _| s.mode_view()).expect("a mode view");
     let mode: Entity<crate::ui::runtime::RunMode> = view.downcast().ok().expect("RunMode");
     let body = h.cx.read(|cx| mode.read(cx).body().cloned()).expect("the Run body is rendered");

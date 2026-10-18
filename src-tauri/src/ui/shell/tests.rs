@@ -114,13 +114,10 @@ fn lists_recent_documents_and_opens_one(cx: &mut TestAppContext) {
 fn switches_modes_and_persists_the_active_mode(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     for (mode, heading) in [
-        (ModeId::Query, "Query"),
-        (ModeId::Reports, "Reports"),
-        (ModeId::Dashboards, "Dashboards"),
         (ModeId::Automation, "Automation"),
         (ModeId::Run, "Runtime"),
         (ModeId::App, "Application settings"),
-        (ModeId::Design, "Form builder"),
+        (ModeId::Design, "Main form"),
     ] {
         h.switch_mode(mode);
         assert_eq!(h.label("mode-title"), heading, "{mode:?}");
@@ -144,7 +141,7 @@ fn settings_is_an_icon_button_beside_save(cx: &mut TestAppContext) {
 #[gpui_kit::test]
 fn keeps_the_mode_out_of_undo_history(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
-    h.switch_mode(ModeId::Reports);
+    h.switch_mode(ModeId::Design);
     assert!(!h.can_undo());
 }
 
@@ -163,7 +160,7 @@ fn edits_yaml_reports_errors_and_undoes_an_applied_change(cx: &mut TestAppContex
     assert_eq!(h.notice().as_deref(), Some("YAML applied."));
     assert!(!h.exists("yaml-error"));
     assert_eq!(h.label("document-name"), "Inventory");
-    assert!(yaml_text(&mut h, &tab).contains("version: 7"));
+    assert!(yaml_text(&mut h, &tab).contains("version: 8"));
 
     h.click("undo");
     assert_eq!(h.config().name, "Untitled");

@@ -87,7 +87,7 @@ pub fn step_label(kind: &str) -> &str {
         "openForm" => "Open form",
         "closeForm" => "Close popup form",
         "openReport" => "Open report",
-        "openDashboard" => "Open dashboard",
+        "openDashboard" => "Open page",
         "setState" => "Set state",
         "confirm" => "Confirm",
         "message" => "Show message",
@@ -917,9 +917,9 @@ fn run_step(step: &Step, frame: &Frame, path: &str) -> StepResult {
         }
         "openDashboard" => {
             let id = field(step, "dashboardId");
-            exists(&ctx.config, "dashboard", id)?;
+            exists(&ctx.config, "page", id)?;
             let params = eval_map(step.fields.get("params"), frame)?;
-            let mut to = NavigationTarget::new("dashboard", id);
+            let mut to = NavigationTarget::new("page", id);
             to.params = Some(params);
             let host = ctx.host.clone();
             effect(frame, move || host.navigate(&to))
@@ -1062,7 +1062,7 @@ fn exists(config: &DocumentConfig, kind: &str, id: &str) -> StepResult {
     let found = match kind {
         "form" => Some(config.design.forms.iter().any(|f| f.id == id)),
         "report" => Some(config.reports.iter().any(|r| r.id == id)),
-        "dashboard" => Some(config.dashboards.iter().any(|d| d.id == id)),
+        "page" | "dashboard" => Some(config.pages.iter().any(|d| d.id == id)),
         _ => None,
     };
     match found {

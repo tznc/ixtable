@@ -4,8 +4,24 @@ use super::generate::{GenerateOptions, GeneratedCrud, generate_crud_forms, human
 use super::schema::{flatten_navigation, form_table, new_id};
 use crate::data::TableSchema;
 use crate::design::{DesignSchema, Form, FormMode, NavKind, NavigationItem};
+use crate::pages::{ComponentKind, Page};
 use crate::recordstore::EntitySettings;
 use std::collections::{HashMap, HashSet};
+
+/// The form a navigation item opens: its target form, or the only form on its target page.
+fn nav_form<'a>(item: &'a NavigationItem, pages: &'a [Page]) -> Option<&'a String> {
+    match item.kind {
+        NavKind::Form => item.target_id.as_ref(),
+        NavKind::Page => {
+            let page = pages.iter().find(|p| Some(&p.id) == item.target_id.as_ref())?;
+            match page.components.as_slice() {
+                [only] if only.kind == ComponentKind::Form => only.form_id.as_ref(),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
 
 /// A form that edits records of a table: the detail form a generated app links to.
 fn is_record_form(form: &Form) -> bool {
@@ -17,9 +33,10 @@ fn is_record_form(form: &Form) -> bool {
 /// has it as its source, generated or built by hand; it counts as navigable when a
 /// navigation item opens one of its forms or the table itself. Running it again on its own
 /// result changes nothing, so it never duplicates forms or navigation. Returns None when
-/// nothing was missing.
+/// nothing was missing. `pages` resolves navigation items that open a page holding one form.
 pub fn add_generated_app<'a>(
     design: &DesignSchema,
+    pages: &[Page],
     schemas: &'a [TableSchema],
     only: Option<&[String]>,
     entities: &'a [EntitySettings],
@@ -103,11 +120,8 @@ pub fn add_generated_app<'a>(
                 navigable.insert(target.clone());
             }
         }
-        if item.kind == NavKind::Form {
-            let table = forms
-                .iter()
-                .find(|f| Some(&f.id) == item.target_id.as_ref())
-                .and_then(form_table);
+        if let Some(target) = nav_form(item, pages) {
+            let table = forms.iter().find(|f| &f.id == target).and_then(form_table);
             if let Some(table) = table {
                 navigable.insert(table.to_string());
             }
@@ -146,8 +160,8 @@ pub fn add_generated_app<'a>(
         .into_iter()
         .find(|item| Some(&item.id) == design.start_page.as_ref());
     let start_form = start
-        .filter(|s| s.kind == NavKind::Form)
-        .and_then(|s| forms.iter().find(|f| Some(&f.id) == s.target_id.as_ref()));
+        .and_then(|s| nav_form(s, pages))
+        .and_then(|target| forms.iter().find(|f| &f.id == target));
     let blank = start.is_none()
         || start_form.is_some_and(|f| f.source.is_none() && f.controls.is_empty());
     let first_new = navigation.get(design.navigation.len()).map(|n| n.id.clone());

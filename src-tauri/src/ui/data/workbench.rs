@@ -1,5 +1,8 @@
-//! Data mode (port of `src/data/DatabaseWorkbench.tsx`): the relationship diagram, and
-//! below it the selected table's datasheet, its design form or the new-table form.
+//! The Data page (port of `src/data/DatabaseWorkbench.tsx`): the relationship diagram, and
+//! below it the selected table's datasheet, its design form or the new-table form. A
+//! saved or new query chosen in the object browser fills the workspace with the query
+//! editor (`ui::query::QueryMode`), which is kept while other objects are shown so its
+//! draft survives.
 //!
 //! The workbench owns what the datasheet reads with (offset, sorts, the first-column
 //! search and the filters applied from the sheet) and pushes each freshly read page into
@@ -12,7 +15,8 @@
 //! Test ids: `relationship-title` ("N tables · M relationships"), `import-records`,
 //! `new-relationship`, `table-name`, `read-only-badge`, `record-count`, `Filter first
 //! column`, `Refresh`, `design-table`, `data-error`, `select-table` (empty state),
-//! `design-loading`, `design-refreshing`, `footer-range`, `prev-page`, `next-page`.
+//! `design-loading`, `design-refreshing`, `footer-range`, `prev-page`, `next-page`,
+//! `query-table` ("Query this table").
 
 use crate::ui::controls::{input_text, new_input, set_input, text_input};
 use super::{
@@ -28,6 +32,7 @@ use super::{
 };
 use crate::data::{DbObject, Filter, Page, Sort, TableSchema};
 use crate::ui::design::{CreateFormsOffer, OfferEvent};
+use crate::ui::query::QueryMode;
 use crate::recordstore::capabilities::StoreCapabilities;
 use crate::ui::{
     events::DocEvent,
@@ -74,6 +79,7 @@ pub struct DataMode {
     relating: Option<Entity<RelateDialog>>,
     importing: Option<Entity<ImportWizard>>,
     export: Entity<ExportMenu>,
+    query: Option<Entity<QueryMode>>,
     _subscriptions: Vec<Subscription>,
     _child_subscriptions: Vec<Subscription>,
 }
@@ -148,6 +154,7 @@ impl DataMode {
             relating: None,
             importing: None,
             export,
+            query: None,
             _subscriptions: subscriptions,
             _child_subscriptions: vec![],
         };
@@ -190,6 +197,37 @@ impl DataMode {
 
     fn read_only(&self, cx: &App) -> bool {
         matches!(&self.shell.read(cx).selection, Some(Selection { kind: SelectionKind::View, .. }))
+    }
+
+    /// A saved or new query is chosen.
+    fn querying(&self, cx: &App) -> bool {
+        matches!(
+            &self.shell.read(cx).selection,
+            Some(Selection { kind: SelectionKind::Query | SelectionKind::NewQuery, .. })
+        )
+    }
+
+    /// The query editor, once a query has been chosen.
+    pub fn query_view(&self) -> Option<&Entity<QueryMode>> {
+        self.query.as_ref()
+    }
+
+    /// Builds the query editor the first time a query is chosen; it follows the shell
+    /// selection from then on.
+    fn ensure_query(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Entity<QueryMode> {
+        if let Some(query) = &self.query {
+            return query.clone();
+        }
+        let shell = self.shell.clone();
+        let query = cx.new(|cx| QueryMode::new(shell, window, cx));
+        self.query = Some(query.clone());
+        query
+    }
+
+    fn query_table(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let table = self.selected(cx);
+        let query = self.ensure_query(window, cx);
+        query.update(cx, |q, cx| q.new_query_from(&table, window, cx));
     }
 
     fn creating(&self, cx: &App) -> bool {
@@ -235,6 +273,9 @@ impl DataMode {
         if objects != self.seen_objects {
             self.seen_objects = objects;
             self.reload_schemas(window, cx);
+        }
+        if self.querying(cx) {
+            self.ensure_query(window, cx);
         }
         if selection != self.seen_selection {
             let table_changed = self.table_of(&selection) != self.table_of(&self.seen_selection);
@@ -664,6 +705,9 @@ impl DataMode {
 
 impl Render for DataMode {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if let Some(query) = self.query.clone().filter(|_| self.querying(cx)) {
+            return div().size_full().child(query).into_any_element();
+        }
         let selected = self.selected(cx);
         let creating = self.creating(cx);
         let read_only = self.read_only(cx);
@@ -781,6 +825,14 @@ impl Render for DataMode {
                                     .on_click(cx.listener(|this, _, window, cx| this.refresh(window, cx))),
                             )
                             .child(self.export.clone())
+                            .child(
+                                Button::new("query-table")
+                                    .outline()
+                                    .small()
+                                    .icon(IconName::CodeXml)
+                                    .label("Query this table")
+                                    .on_click(cx.listener(|this, _, window, cx| this.query_table(window, cx))),
+                            )
                             .when(!read_only, |el| {
                                 el.child(
                                     Button::new("design-table")
@@ -856,8 +908,6 @@ impl Render for DataMode {
                     .into_any_element(),
             )
         };
-        let select_prompt = inspector_visible && data_pane.is_none();
-        let _ = select_prompt;
         div()
             .relative()
             .size_full()
@@ -880,5 +930,6 @@ impl Render for DataMode {
             )
             .when_some(self.importing.clone(), |el, wizard| el.child(wizard))
             .when_some(self.relating.clone(), |el, dialog| el.child(dialog))
+            .into_any_element()
     }
 }

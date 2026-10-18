@@ -1,4 +1,4 @@
-//! Query mode behaviors beyond the two ported integration files: the shell selection,
+//! Query editor behaviors beyond the two ported integration files: the shell selection,
 //! discard confirmations, name checks, export, undo, and the reusable `QueryPicker`.
 
 use super::{
@@ -9,7 +9,10 @@ use super::{
 };
 use crate::{
     archive::{ActionKind, ActionSpec, SavedQuery},
-    ui::{shell::ModeId, testing::Harness},
+    ui::{
+        shell::{ModeId, SelectionKind},
+        testing::Harness,
+    },
 };
 use gpui_kit::{AppContext as _, TestAppContext};
 
@@ -46,27 +49,61 @@ fn action_query(id: &str, name: &str) -> SavedQuery {
     }
 }
 
+fn draft_name(h: &mut Harness) -> String {
+    with_mode(h, |q, _| q.draft().map(|d| d.query.name.clone()).unwrap_or_default())
+}
+
 fn draft_id(h: &mut Harness) -> Option<String> {
     with_mode(h, |q, _| q.draft().map(|d| d.query.id.clone()))
 }
 
 #[gpui_kit::test]
-fn the_object_browser_opens_new_and_saved_queries_in_query_mode(cx: &mut TestAppContext) {
+fn the_object_browser_opens_new_and_saved_queries_on_the_data_page(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     add_queries(&mut h, vec![query("q1", "Everyone", "SELECT 1 AS one")]);
-    h.switch_mode(ModeId::Data);
+    assert_eq!(ModeId::from_key("query"), ModeId::Data, "documents saved in Query mode open on Data");
+    assert!(!h.exists("mode-query"), "queries have no mode of their own");
     click(&mut h, "new-query");
-    assert_eq!(h.mode(), ModeId::Query);
+    assert_eq!(h.mode(), ModeId::Data);
     assert!(with_mode(&mut h, |q, _| q.draft().is_some_and(|d| d.is_new)));
-    assert!(h.read_shell(|s, _| s.selection.is_none()), "the new-query request is consumed");
+    let id = draft_id(&mut h).unwrap();
+    let selection = h.read_shell(|s, _| s.selection.clone()).unwrap();
+    assert_eq!((selection.kind, selection.id), (SelectionKind::NewQuery, id));
 
-    h.switch_mode(ModeId::Data);
     click(&mut h, "query:q1");
-    assert_eq!(h.mode(), ModeId::Query);
+    assert_eq!(h.mode(), ModeId::Data);
     assert_eq!(draft_id(&mut h).as_deref(), Some("q1"));
     click(&mut h, "query-run");
     expect_grid(&mut h, &[&["1"]]);
     assert_eq!(h.label("run-status").split(" · ").next(), Some("1 row"));
+}
+
+#[gpui_kit::test]
+fn a_query_draft_survives_a_visit_to_a_table(cx: &mut TestAppContext) {
+    let mut h = open_query_mode(cx);
+    add_queries(&mut h, vec![query("q1", "First", "SELECT 1")]);
+    click(&mut h, "query:q1");
+    fill(&mut h, "query-name", "First, edited");
+    click(&mut h, "table:customers");
+    assert!(h.exists("table-name"), "the datasheet replaces the query editor");
+    assert!(!h.exists("query-name"));
+
+    click(&mut h, "query:q1");
+    assert!(h.dialogs.calls.lock().unwrap().is_empty(), "nothing to discard");
+    assert_eq!(draft_name(&mut h), "First, edited");
+    assert!(with_mode(&mut h, |q, _| q.is_dirty()));
+}
+
+#[gpui_kit::test]
+fn query_this_table_starts_a_builder_query_on_the_table(cx: &mut TestAppContext) {
+    let mut h = open_query_mode(cx);
+    click(&mut h, "table:orders");
+    click(&mut h, "query-table");
+    let model = with_mode(&mut h, |q, _| q.model()).expect("a builder query");
+    assert_eq!(model.sources[0].table, "orders");
+    assert_eq!(draft_name(&mut h), "orders query");
+    assert_eq!(h.label("query-draft"), "orders query (unsaved)");
+    assert!(h.read_shell(|s, _| s.selection.as_ref().is_some_and(|s| s.kind == SelectionKind::NewQuery)));
 }
 
 #[gpui_kit::test]
@@ -76,13 +113,13 @@ fn asks_before_discarding_unsaved_changes(cx: &mut TestAppContext) {
         &mut h,
         vec![query("q1", "First", "SELECT 1"), query("q2", "Second", "SELECT 2")],
     );
-    click(&mut h, "query-open:q1");
+    click(&mut h, "query:q1");
     fill(&mut h, "query-name", "First, edited");
     assert!(with_mode(&mut h, |q, _| q.is_dirty()));
     assert!(exists(&mut h, "query-unsaved"));
 
     h.dialogs.queue_confirm(false);
-    click(&mut h, "query-open:q2");
+    click(&mut h, "query:q2");
     assert_eq!(draft_id(&mut h).as_deref(), Some("q1"));
     assert!(h
         .dialogs
@@ -93,7 +130,7 @@ fn asks_before_discarding_unsaved_changes(cx: &mut TestAppContext) {
         .any(|c| c.contains("Discard unsaved changes to First, edited?")));
 
     h.dialogs.queue_confirm(true);
-    click(&mut h, "query-open:q2");
+    click(&mut h, "query:q2");
     assert_eq!(draft_id(&mut h).as_deref(), Some("q2"));
     assert!(!with_mode(&mut h, |q, _| q.is_dirty()));
 }
@@ -102,7 +139,7 @@ fn asks_before_discarding_unsaved_changes(cx: &mut TestAppContext) {
 fn checks_names_when_saving_and_renaming(cx: &mut TestAppContext) {
     let mut h = open_query_mode(cx);
     add_queries(&mut h, vec![query("q1", "Taken", "SELECT 1")]);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     click(&mut h, "tab-sql");
     type_sql(&mut h, "SELECT 2");
     fill(&mut h, "query-name", "");
@@ -115,24 +152,24 @@ fn checks_names_when_saving_and_renaming(cx: &mut TestAppContext) {
     fill(&mut h, "query-name", "Fresh");
     click(&mut h, "query-save");
     assert!(!exists(&mut h, "query-error"));
-    click(&mut h, "query-rename:q1");
-    fill(&mut h, "rename-input", "FRESH");
-    click(&mut h, "rename-confirm");
-    assert_eq!(h.label("query-error"), "Another query is already named FRESH");
+    fill(&mut h, "query-name", "TAKEN");
+    click(&mut h, "query-save");
+    assert_eq!(h.label("query-error"), "Another query is already named TAKEN");
     assert_eq!(h.config().saved_queries[0].name, "Taken");
 }
 
 #[gpui_kit::test]
 fn a_clean_draft_follows_undo_and_a_new_draft_is_listed_as_unsaved(cx: &mut TestAppContext) {
     let mut h = open_query_mode(cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     assert_eq!(h.label("query-draft"), "Untitled query (unsaved)");
     click(&mut h, "tab-sql");
     type_sql(&mut h, "SELECT 1");
     click(&mut h, "query-save");
     let id = draft_id(&mut h).unwrap();
     assert!(!exists(&mut h, "query-draft"));
-    assert!(exists(&mut h, &format!("query-open:{id}")));
+    assert!(exists(&mut h, &format!("query:{id}")));
+    assert_eq!(h.read_shell(|s, _| s.selection.clone()).map(|s| s.id), Some(id.clone()));
 
     click(&mut h, "undo");
     assert!(h.config().saved_queries.is_empty());
@@ -143,7 +180,7 @@ fn a_clean_draft_follows_undo_and_a_new_draft_is_listed_as_unsaved(cx: &mut Test
 #[gpui_kit::test]
 fn switching_a_builder_query_to_sql_confirms_and_keeps_the_generated_sql(cx: &mut TestAppContext) {
     let mut h = open_query_mode(cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     pick(&mut h, "source-table", "customers");
     click(&mut h, "col:c.name");
     click(&mut h, "tab-sql");
@@ -160,7 +197,7 @@ fn switching_a_builder_query_to_sql_confirms_and_keeps_the_generated_sql(cx: &mu
 #[gpui_kit::test]
 fn exports_the_full_result_of_the_query_shown(cx: &mut TestAppContext) {
     let mut h = open_query_mode(cx);
-    click(&mut h, "query-new");
+    click(&mut h, "new-query");
     click(&mut h, "tab-sql");
     type_sql(&mut h, "SELECT name FROM customers ORDER BY id");
     assert!(!exists(&mut h, "export"), "no export before a run");
