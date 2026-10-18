@@ -58,33 +58,32 @@ test("owner grants an org member the Viewer role and the viewer sees a read-only
   }
 });
 
-test("billing tab and pricing page show annual prices", async ({ page, cloud }) => {
+test("billing tab and pricing page show monthly prices only", async ({ page, cloud }) => {
   const { owner, app } = await seedPublishedApp(cloud);
   await loginFromHome(page, owner.email, owner.password);
   await openCloudApp(page, app.name);
   await page.getByRole("tab", { name: "Billing" }).click();
-  await page.getByText("Annual (2 months free)").first().click();
-  await expect(page.getByText(/\$190(\.00)? per year/).first()).toBeVisible();
-  await expect(page.getByText("2 months free", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/\$19(\.00)? per month/).first()).toBeVisible();
+  await expect(page.getByText(/per year|Annual/)).toHaveCount(0);
   await expect(page.getByText("Loading invoices...")).toHaveCount(0);
-  await captureOutcome(page, "ui-app-access-03-billing-annual", {
+  await captureOutcome(page, "ui-app-access-03-billing-monthly", {
     expectations: [
-      "The Billing tab shows the Team plan, with the interval toggle on Annual.",
-      "Plan cards show annual prices (Starter $190 per year) and 2 months free.",
+      "The Billing tab shows the Team plan and monthly plan cards (Starter $19 per month).",
+      "There is no billing interval toggle and no annual price.",
     ],
   });
 
   await page.goto("/pricing");
-  await page.getByText("Annual (2 months free)").first().click();
   const starter = page.getByRole("region", { name: "Starter plan" });
-  await expect(starter).toContainText(/\$190(\.00)? per year/);
-  await expect(starter).toContainText("2 months free");
-  // Let the toggle's colour transition settle before the capture.
-  await page.waitForTimeout(600);
-  await captureOutcome(page, "ui-app-access-04-pricing-annual", {
+  await expect(starter).toContainText(/\$19(\.00)? per month/);
+  await expect(page.getByTestId("pricing-terms")).toHaveText(
+    "Billed monthly, per app. No free trial.",
+  );
+  await expect(page.getByText(/per year|Annual/)).toHaveCount(0);
+  await captureOutcome(page, "ui-app-access-04-pricing-monthly", {
     expectations: [
-      "The Pricing page shows the Annual toggle selected.",
-      "Starter, Team and Business cards show annual prices and 2 months free.",
+      "The Pricing page says billing is monthly, per app, with no free trial.",
+      "Starter, Team and Business cards show monthly prices and no annual option.",
     ],
   });
 });

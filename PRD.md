@@ -160,7 +160,7 @@ ixtable Cloud provides:
 
 - **Billed per cloud application.** Each cloud application has its own subscription and plan. An organization with three paid apps has three subscriptions.
 - **The organization pays.** Each organization is one billing customer (one Stripe customer, one card, one billing portal and invoice history). Every app subscription in the organization bills to it.
-- **Monthly or annual.** Every plan is sold monthly or annually. The annual price is ten times the monthly price (two months free). Customers switch interval through checkout; the change follows the same rules as a plan change.
+- **Monthly only.** Every plan is billed monthly. There is no annual billing.
 - **No free trial.** A cloud app is entitled only after its first successful payment. Checkout never creates a trial period. The free desktop edition is the evaluation path.
 - **Seats.** A plan's Runtime User allowance counts active Runtime Users of that app only. Organization members and per-app console access (§20.3) are free and unlimited.
 - **Seller.** ixtable Cloud is sold by a Singapore sole proprietorship. Prices are in USD; Stripe pays out in SGD. No GST is charged while the business is below the GST registration threshold; invoices show the business name and address.

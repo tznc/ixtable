@@ -1,8 +1,8 @@
 /**
  * Contract: per-app console access for organization members and
- * organization-level billing with monthly or annual intervals (PRD §4.5,
+ * organization-level billing, monthly only (PRD §4.5,
  * §20.3): app-access-update, app_capabilities, the RLS policies that read
- * them, billing-checkout with `interval`, and org_billing_customers.
+ * them, billing-checkout and org_billing_customers.
  */
 import { callFunction, getServiceClient } from "../clients";
 import { expect, test } from "../fixture";
@@ -163,9 +163,7 @@ test("leaving the organization drops every per-app grant in it", async ({ cloud 
   });
 });
 
-test("annual checkout bills the organization's one customer and records the year interval", async ({
-  cloud,
-}) => {
+test("monthly checkouts of two apps bill the organization's one customer", async ({ cloud }) => {
   const owner = await cloud.user();
   const billing = await cloud.user();
   const viewer = await cloud.user();
@@ -177,48 +175,41 @@ test("annual checkout bills the organization's one customer and records the year
   await grant(owner, second.id, billing.user.id, "billing");
   await grant(owner, second.id, viewer.user.id, "viewer");
 
-  await checkoutAndPay(owner, first.id, "starter", "year");
+  await checkoutAndPay(owner, first.id, "starter");
   const byViewer = await callFunction<ErrorBody>("billing-checkout", {
     jwt: viewer.jwt,
     body: { appId: second.id, planId: "team" },
   });
   await checkoutAndPay(billing, second.id, "team");
-  const annual = await subscriptionRow(first.id);
-  const monthly = await subscriptionRow(second.id);
-  const entitlement = await entitlementAs(owner, first.id);
+  const starter = await subscriptionRow(first.id);
+  const team = await subscriptionRow(second.id);
   const { data: customers } = await getServiceClient()
     .from("org_billing_customers")
     .select("stripe_customer_id")
     .eq("org_id", org.id);
-  const sameInterval = await callFunction<ErrorBody>("billing-checkout", {
+  const samePlan = await callFunction<ErrorBody>("billing-checkout", {
     jwt: owner.jwt,
-    body: { appId: first.id, planId: "starter", interval: "year" },
+    body: { appId: first.id, planId: "starter" },
   });
-  const badInterval = await callFunction<ErrorBody>("billing-checkout", {
-    jwt: owner.jwt,
-    body: { appId: first.id, planId: "starter", interval: "week" },
-  });
-  const { data: plans } = await owner.client
-    .from("plans")
-    .select("id, price_cents, annual_price_cents");
+  const annualColumn = await owner.client.from("plans").select("annual_price_cents");
+  const { data: plans } = await owner.client.from("plans").select("id, interval");
 
-  expect(annual).toMatchObject({ plan_id: "starter", billing_interval: "year", status: "active" });
-  expect(monthly).toMatchObject({ plan_id: "team", billing_interval: "month", status: "active" });
-  expect(entitlement).toMatchObject({ allowed: true, interval: "year" });
+  expect(starter).toMatchObject({ plan_id: "starter", status: "active" });
+  expect(team).toMatchObject({ plan_id: "team", status: "active" });
   expect(customers).toHaveLength(1);
-  expect(annual?.stripe_customer_id).toBe(customers?.[0].stripe_customer_id);
-  expect(monthly?.stripe_customer_id).toBe(customers?.[0].stripe_customer_id);
+  expect(starter?.stripe_customer_id).toBe(customers?.[0].stripe_customer_id);
+  expect(team?.stripe_customer_id).toBe(customers?.[0].stripe_customer_id);
   expect(byViewer.status).toBe(403);
-  expect(sameInterval.status).toBe(422);
-  expect(badInterval.status).toBe(422);
-  for (const plan of plans ?? []) expect(plan.annual_price_cents).toBe(plan.price_cents * 10);
+  expect(samePlan.status).toBe(422);
+  expect(annualColumn.error).not.toBeNull();
+  for (const plan of plans ?? []) expect(plan.interval).toBe("month");
 
-  recordOutcome("app-access-04-annual-org-billing", {
+  recordOutcome("app-access-04-monthly-org-billing", {
     expectations: [
-      "An annual checkout writes a year-interval subscription; entitlement reports interval year.",
-      "Both apps of the organization bill to the same single org customer; a per-app billing member can buy, a viewer cannot (403).",
-      "Every plan's annual price is ten times the monthly price (two months free).",
+      "Both apps of the organization bill to the same single org customer.",
+      "A per-app billing member can buy a plan; a viewer cannot (403).",
+      "Every plan is monthly and the catalog has no annual price.",
     ],
-    details: { annual, monthly, customers, plans, byViewer: byViewer.body },
+    details: { starter, team, customers, plans, byViewer: byViewer.body },
   });
 });

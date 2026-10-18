@@ -138,19 +138,20 @@ export async function publishOk(
 
 /** A plan with a one-user allowance (inactive, so the website never lists it). */
 export async function ensureSingleUserPlan(): Promise<string> {
-  const { error } = await getServiceClient().from("plans").upsert(
-    {
-      id: "qa_single",
-      name: "QA single user",
-      price_cents: 0,
-      annual_price_cents: 0,
-      runtime_user_allowance: 1,
-      storage_gb: 1,
-      active: false,
-      sort: 99,
-    },
-    { onConflict: "id" },
-  );
+  const { error } = await getServiceClient()
+    .from("plans")
+    .upsert(
+      {
+        id: "qa_single",
+        name: "QA single user",
+        price_cents: 0,
+        runtime_user_allowance: 1,
+        storage_gb: 1,
+        active: false,
+        sort: 99,
+      },
+      { onConflict: "id" },
+    );
   if (error) throw new Error(`ensureSingleUserPlan: ${error.message}`);
   return "qa_single";
 }
