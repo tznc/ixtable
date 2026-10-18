@@ -19,17 +19,17 @@ use gpui_kit::TestAppContext;
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 
-pub(super) fn scripted(cx: &mut TestAppContext) -> Arc<Mutex<State>> {
+pub(crate) fn scripted(cx: &mut TestAppContext) -> Arc<Mutex<State>> {
     let (mock, state) = Mock::new();
     cx.update(|cx| Services::install(mock, cx));
     state
 }
 
-pub(super) fn member(app_id: &str, name: &str, role: &str) -> MemberApp {
+pub(crate) fn member(app_id: &str, name: &str, role: &str) -> MemberApp {
     MemberApp { app_id: app_id.into(), name: name.into(), role_id: "r1".into(), role_name: role.into() }
 }
 
-pub(super) fn local(app_id: &str, version: &str) -> LocalInstallation {
+pub(crate) fn local(app_id: &str, version: &str) -> LocalInstallation {
     LocalInstallation {
         app_id: app_id.into(),
         installation_id: "i1".into(),
@@ -50,7 +50,7 @@ pub(super) fn runtime_info(app_id: &str) -> Arc<dyn Fn() -> crate::cloud::runtim
     })
 }
 
-pub(super) fn size_report(over: bool) -> ArchiveSizeReport {
+pub(crate) fn size_report(over: bool) -> ArchiveSizeReport {
     ArchiveSizeReport {
         total_bytes: if over { 600_000_000 } else { 2048 },
         records_bytes: 1024,
