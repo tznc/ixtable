@@ -233,6 +233,11 @@ impl Shell {
         };
         this.reload_metadata(cx);
         window.focus(&this.focus, cx);
+        // A document saved in Run (templates open there) opens Studio in Data beside the
+        // running app.
+        if !initial.runtime_only && initial.active_mode == ModeId::Run.key() {
+            crate::ui::runtime::window::open(&cx.entity(), cx);
+        }
         this
     }
 
@@ -355,8 +360,13 @@ impl Shell {
         );
     }
 
-    /// Switches the Studio mode (not an undo step) and builds its view.
+    /// Switches the Studio mode (not an undo step) and builds its view. Run opens the Run
+    /// App window instead.
     pub fn change_mode(&mut self, mode: ModeId, window: &mut Window, cx: &mut Context<Self>) {
+        if mode == ModeId::Run && !self.doc.runtime_only {
+            crate::ui::runtime::window::open(&cx.entity(), cx);
+            return;
+        }
         if self.doc.mode == mode && self.view.is_some() {
             return;
         }
@@ -618,7 +628,7 @@ impl Shell {
             }))
             .child(h_flex().child(self.render_document_status(cx)));
         // Settings is an icon button beside Save, so the list skips it.
-        let modes = ModeId::ALL.into_iter().filter(|m| *m != ModeId::App);
+        let modes = ModeId::STUDIO.into_iter().filter(|m| *m != ModeId::App);
         let mode_switch = v_flex().px_2().gap_0p5().children(modes.map(|mode| {
             let active = self.doc.mode == mode;
             Button::new(mode.button_id())
@@ -630,6 +640,15 @@ impl Shell {
                 .disabled(busy)
                 .on_click(cx.listener(move |this, _, window, cx| this.change_mode(mode, window, cx)))
         }));
+        let run_app = div()
+            .px_2()
+            .pt_2()
+            .child(crate::ui::runtime::window::run_app_button(
+                cx.entity(),
+                &self.label,
+                self.config(cx),
+                busy,
+            ));
         let sidebar = self.view.as_ref().and_then(|(_, _, s)| s.clone());
         v_flex()
             .w(px(250.))
@@ -639,7 +658,7 @@ impl Shell {
             .border_color(theme.border)
             .bg(theme.sidebar)
             .child(brand)
-            .when(!self.doc.runtime_only, |el| el.child(label).child(mode_switch))
+            .when(!self.doc.runtime_only, |el| el.child(label).child(mode_switch).child(run_app))
             .child(
                 div()
                     .id("mode-sidebar")
@@ -738,7 +757,7 @@ impl Shell {
                     .label(format!("{} view", current.label()))
                     .dropdown_menu(move |menu, _, _| {
                         let mut menu = menu.label("Switch view");
-                        for mode in ModeId::ALL {
+                        for mode in ModeId::STUDIO {
                             let shell = shell.clone();
                             menu = menu.item(
                                 PopupMenuItem::new(format!("{} view", mode.label()))

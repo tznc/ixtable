@@ -302,7 +302,7 @@ fn cloud_live_publishes_installs_with_the_assigned_role_updates_in_place_and_rev
     let config = h.config();
     let nav_has = |label: &str| config.design.navigation.iter().any(|n| n.label == label);
     assert!(nav_has("Deals"));
-    assert!(!h.exists("role:developer"), "no role preview in a cloud runtime");
+    assert!(!h.exists("run-as"), "no role preview in a cloud runtime");
     assert!(h.label("cloud-runtime-role").contains("Role: Sales rep"));
     assert!(!h.exists("undo") && !h.exists("save-project"));
     let name = |v: &str| crate::data::NamedValue { column: "name".into(), value: crate::data::DataValue::Text(v.into()) };

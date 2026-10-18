@@ -120,7 +120,7 @@ fn lets_a_role_granted_only_a_dashboard_read_the_dashboards_queries(cx: &mut Tes
 
     h.switch_mode(ModeId::Run);
     wait(&mut h);
-    h.click("role:viewer");
+    crate::ui::runtime::tests::run_as(&mut h, "Viewer");
     wait(&mut h);
     h.click(nav);
     wait_until(&mut h, "the revenue", |h| h.try_label(id("kpi-value:Revenue")).as_deref() == Some("500"));

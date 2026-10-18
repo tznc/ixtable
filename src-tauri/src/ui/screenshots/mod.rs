@@ -18,6 +18,7 @@ mod fields;
 mod schema;
 mod shop;
 mod reports;
+mod run_app;
 mod runtime;
 mod access_import;
 mod migrations;

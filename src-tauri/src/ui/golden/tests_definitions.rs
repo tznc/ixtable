@@ -136,7 +136,8 @@ fn golden_lists_the_three_golden_applications_on_the_start_screen(cx: &mut TestA
                 (&state.name, &state.path, &state.active_mode),
                 ("Inventory", None::<String>, "run"),
             );
-            assert_eq!(h.mode(), ModeId::Run);
+            assert_eq!(h.mode(), ModeId::Data);
+            assert!(h.run_app_window().is_some(), "the app opens in the Run App window");
         });
     });
 }

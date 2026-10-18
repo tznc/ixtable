@@ -41,6 +41,7 @@ pub mod task;
 pub mod section;
 pub mod toast;
 pub mod widgets;
+pub mod windows;
 #[cfg(test)]
 pub mod screenshot;
 #[cfg(test)]
@@ -79,7 +80,10 @@ pub fn launch(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         app,
         GpuiConfig::new()
             .assets(assets::AppAssets)
-            .on_launch(move |cx| init(Arc::new(dialogs::TauriDialogs(handle)), cx)),
+            .on_launch(move |cx| {
+                init(Arc::new(dialogs::TauriDialogs(handle.clone())), cx);
+                cx.set_global(windows::WindowHost::Tauri(handle));
+            }),
     )?;
     let window = tauri::WindowBuilder::new(app, MAIN_WINDOW)
         .title("ixtable")

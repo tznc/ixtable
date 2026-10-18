@@ -81,7 +81,11 @@ impl UiContext for TestAppContext {
 
 pub struct Harness<'a, C: UiContext = TestAppContext> {
     pub cx: &'a mut C,
+    /// The window interactions go to: the main window, or the Run App window after
+    /// `switch_mode(ModeId::Run)`.
     pub window: AnyWindowHandle,
+    /// The main (Studio) window.
+    pub main: AnyWindowHandle,
     pub root: Entity<AppView>,
     /// The backend session key of this test's window.
     pub label: String,
@@ -117,6 +121,7 @@ impl<'a, C: UiContext> Harness<'a, C> {
         let mut harness = Self {
             cx,
             window,
+            main: window,
             root,
             label,
             dialogs,
@@ -141,8 +146,12 @@ impl<'a, C: UiContext> Harness<'a, C> {
         }
     }
 
-    /// Runs `f` against the window.
+    /// Runs `f` against the window. Once the Run App window has closed (its document
+    /// closed), interactions go back to the main window.
     pub fn update<R>(&mut self, f: impl FnOnce(&mut Window, &mut App) -> R) -> R {
+        if self.window != self.main && self.cx.update_window(self.window, |_, _, _| ()).is_err() {
+            self.window = self.main;
+        }
         self.cx
             .update_window(self.window, |_, window, cx| f(window, cx))
             .expect("test window is open")
@@ -150,6 +159,7 @@ impl<'a, C: UiContext> Harness<'a, C> {
 
     pub fn click(&mut self, id: impl Into<ElementId>) {
         let id = id.into();
+        self.route(&id);
         self.update(|w, cx| {
             w.render_frame(cx);
             w.click(id, cx)
@@ -220,6 +230,7 @@ impl<'a, C: UiContext> Harness<'a, C> {
 
     pub fn find(&mut self, id: impl Into<ElementId>) -> ElementSnapshot {
         let id = id.into();
+        self.route(&id);
         self.update(|w, _| w.find(id))
     }
 
@@ -306,9 +317,48 @@ impl<'a, C: UiContext> Harness<'a, C> {
         self.read_shell(|s, cx| s.store.read(cx).can_redo())
     }
 
-    /// Clicks a mode-switch button.
+    /// Clicks a mode-switch button in the main window. Run clicks "Run App" instead and
+    /// directs later interactions to the Run App window (a runtime bundle is always in Run).
     pub fn switch_mode(&mut self, mode: ModeId) {
-        self.click(mode.button_id());
+        self.focus_window(self.main);
+        if mode != ModeId::Run {
+            self.click(mode.button_id());
+        } else if !self.read_shell(|s, _| s.doc.runtime_only) {
+            self.click("run-app-open");
+            let window = self.run_app_window().expect("Run App opened its window");
+            self.focus_window(window);
+        }
+    }
+
+    /// A click on (or read of) a Studio element while the Run App window has the
+    /// interactions goes to the main window, as a user clicking into Studio would.
+    fn route(&mut self, id: &ElementId) {
+        if self.window == self.main || self.update(|w, _| w.try_find(id.clone()).is_some()) {
+            return;
+        }
+        let main = self.main;
+        let in_main = self.cx.update_window(main, |_, w, cx| {
+            w.render_frame(cx);
+            w.try_find(id.clone()).is_some()
+        });
+        if in_main.unwrap_or(false) {
+            self.focus_window(main);
+        }
+    }
+
+    /// The open Run App window of this document.
+    pub fn run_app_window(&mut self) -> Option<AnyWindowHandle> {
+        let label = self.label.clone();
+        self.cx
+            .read(|cx| super::runtime::window::find(&label, cx))
+            .map(|(window, _)| window)
+    }
+
+    /// Activates `window` (as clicking into it would) and directs interactions to it.
+    pub fn focus_window(&mut self, window: AnyWindowHandle) {
+        self.window = window;
+        self.update(|window, _| window.activate_window());
+        self.settle();
     }
 
     /// The shell's error banner text ("CODE: message"), if shown.

@@ -2,7 +2,8 @@
 //! test built its forms in the Design studio; here the app comes from "Generate app" and
 //! the visible-when rule from the config. Imports are explicit.
 
-use super::tests::{nav, renderer, seed, wait};
+use super::tests::{nav, renderer, run_as, seed, wait};
+use super::window::OWNER;
 use crate::data::{DataValue, NamedValue};
 use crate::manager::AppError;
 use crate::recordstore::WriteOp;
@@ -75,7 +76,6 @@ fn previews_roles_hides_navigation_blocks_deletes_and_shows_fields_conditionally
     h.click(np);
     let names: Vec<String> = h.config().roles.iter().map(|r| r.name.clone()).collect();
     assert_eq!(names, ["Clerk"]);
-    let clerk = h.config().roles[0].id.clone();
 
     // Developer view: every page, delete available, the vat field follows the kind.
     h.switch_mode(ModeId::Run);
@@ -100,7 +100,7 @@ fn previews_roles_hides_navigation_blocks_deletes_and_shows_fields_conditionally
     wait(&mut h);
 
     // The Clerk: no Notes page, no New button, no Delete, no direct access to notes.
-    h.click(format!("role:{clerk}"));
+    run_as(&mut h, "Clerk");
     wait(&mut h);
     assert!(!h.exists(notes_nav));
     assert!(!h.exists("new-record"));
@@ -151,11 +151,11 @@ fn previews_roles_hides_navigation_blocks_deletes_and_shows_fields_conditionally
         "FORBIDDEN"
     );
 
-    // Back to the developer, then the Clerk again, then out of Run mode (preview ends).
-    h.click("role:developer");
+    // Back to the owner, then the Clerk again, then back to Studio (enforcement ends).
+    run_as(&mut h, OWNER);
     wait(&mut h);
     assert_eq!(table_page(&h, "notes"), "OK");
-    h.click(format!("role:{clerk}"));
+    run_as(&mut h, "Clerk");
     wait(&mut h);
     assert_eq!(table_page(&h, "notes"), "FORBIDDEN");
     h.switch_mode(ModeId::App);
