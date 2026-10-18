@@ -1,8 +1,12 @@
-//! Field formats in the table designer (`fields-01`). The Runtime entry capture
-//! (`fields-02`) belongs to the Runtime spec.
+//! Field formats in the table designer (`fields-01`), and rich text and attachments on a
+//! Run mode form (`fields-03` to `fields-05`). The Runtime entry capture (`fields-02`)
+//! belongs to the Runtime spec.
 
 use crate::ui::data::testkit::{data_mode, make_table};
+use crate::ui::runtime::tests::{seed, task_form, wait};
 use crate::ui::screenshot::context;
+use super::runtime::field;
+use crate::ui::shell::ModeId;
 use crate::ui::testing::{Harness, UiContext as _};
 use serde_json::json;
 
@@ -45,6 +49,98 @@ fn fields() {
             "The Field settings section lists the text columns with a Format picker each.",
             "phone shows the input mask (000) 000-0000 and its preview (___) ___-____.",
             "notes is Rich text, interests is Multiple choices with three choices, documents is Attachments.",
+        ],
+    );
+}
+
+#[test]
+#[ignore = "screenshot spec: run with `cargo screenshot`"]
+fn fields_runtime() {
+    let mut cx = context();
+    let mut h = Harness::start_sized(&mut cx, (1280.0, 1000.0));
+    h.click("new-document");
+    h.create_table("tasks", &[("id", "INTEGER", 1), ("title", "TEXT", 0), ("notes", "TEXT", 0), ("files", "TEXT", 0)]);
+    h.database_changed();
+    seed(&mut h, |config| {
+        config.entities.push(
+            serde_json::from_value(json!({
+                "id": "tasks-entity", "table": "tasks", "concurrency": "optimistic",
+                "fields": [
+                    { "id": "notes-field", "column": "notes", "format": "richText" },
+                    { "id": "files-field", "column": "files", "format": "attachment" },
+                ],
+            }))
+            .expect("entity settings"),
+        );
+    });
+    task_form(
+        &mut h,
+        json!({
+            "controls": [
+                field("Title", "title", "text", 1, 1, 12),
+                field("Notes", "notes", "richText", 2, 1, 12),
+                field("Files", "files", "attachment", 3, 1, 12),
+            ],
+        }),
+    );
+    h.switch_mode(ModeId::Run);
+    wait(&mut h);
+    h.click("new-record");
+    wait(&mut h);
+    h.fill("field:title", "Plan the launch");
+
+    // Bold from the toolbar, then a bulleted list typed as markup.
+    h.click("field:notes");
+    h.input("Before Friday");
+    h.select_all();
+    h.click("field:notes:format:bold");
+    h.press("end");
+    h.press("enter");
+    h.input("Book the van");
+    h.press("enter");
+    h.input("Confirm the ++venue++");
+    h.press("shift-up");
+    h.click("field:notes:format:bulleted-list");
+    assert_eq!(h.label("field:notes:preview"), "Before Friday\nBook the van\nConfirm the venue");
+    h.capture(
+        "fields-03-rich-text-toolbar",
+        &[
+            "Above the Notes box a toolbar shows Bold, Italic, Underline, Bulleted list and Numbered list buttons.",
+            "The box holds markup: '**Before Friday**' and two lines starting '- '.",
+            "Below it a preview shows 'Before Friday' in bold and a two-item bulleted list with 'venue' underlined.",
+        ],
+    );
+
+    for name in ["agenda.pdf", "venue-map.png"] {
+        let path = h.temp_path(name);
+        std::fs::write(&path, vec![b'x'; 2048]).expect("write a sample file");
+        h.dialogs.queue_open(Some(path));
+        h.click("field:files:add");
+        wait(&mut h);
+    }
+    assert_eq!(h.label("field:files:file:agenda-pdf"), "agenda.pdf (2 KB)");
+    h.click("field:files:remove:agenda-pdf");
+    wait(&mut h);
+    assert!(!h.exists("field:files:file:agenda-pdf"));
+    assert!(h.exists("field:files:remove:venue-map-png"));
+    h.capture(
+        "fields-04-attachment-removed",
+        &[
+            "Files lists only venue-map.png (2 KB) with a download and a trash button beside it.",
+            "An 'Add file' button sits under the list; agenda.pdf is gone.",
+        ],
+    );
+
+    h.click("create");
+    wait(&mut h);
+    assert_eq!(h.label("field:notes"), "Before Friday\nBook the van\nConfirm the venue");
+    assert!(h.exists("field:files:save:venue-map-png"));
+    assert!(!h.exists("field:files:remove:venue-map-png"));
+    h.capture(
+        "fields-05-read-only",
+        &[
+            "The saved record shows Notes formatted: a bold first line and a two-item bulleted list.",
+            "Files shows venue-map.png with only a download button, and no Add file button.",
         ],
     );
 }

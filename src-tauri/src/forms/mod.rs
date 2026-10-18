@@ -23,6 +23,7 @@ pub mod pushdown;
 pub mod rbac;
 pub mod registry;
 pub mod richtext;
+pub mod richtext_markup;
 pub mod row_writes;
 pub mod schema;
 pub mod state;

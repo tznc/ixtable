@@ -56,6 +56,24 @@ view sanitizes again before rendering, because a value can also come from an
 import, an action, or another PostgreSQL client. Lists, the datasheet,
 reports, and the required check use `richTextPlain`.
 
+**The GPUI editor edits rich text as light markup.** GPUI has no
+content-editable box, so the form's rich-text control
+(`src-tauri/src/ui/runtime/field_formats.rs`) shows the stored HTML as
+Markdown-like text and renders the result in a preview under it.
+`forms/richtext_markup.rs` converts both ways: `**bold**`, `*italic*`,
+`++underline++`, `~~strike~~`, and `[text](url)` inside a line, and `- `, `1. `,
+`# ` to `### `, and `> ` at the start of a line. Every other line is a
+paragraph, and `\` keeps a marker character literal. The toolbar (bold, italic,
+underline, bulleted list, numbered list) edits the markup around the selection.
+The stored value is still the sanitized HTML subset, so other readers do not
+change. A read-only control renders the HTML.
+
+**The attachment control adds, saves, and removes files.** Add file uploads a
+picked file through `upload_record_attachment_file`. Save writes a copy through
+`save_record_attachment`. Remove drops the file from the field's JSON array, and
+its bytes stay stored until cleanup, like a cancelled upload. A read-only
+control offers Save only.
+
 **Attachment bytes live in the record store.** `record_attachments.rs` writes
 each file through the session's `RecordStore` into the hidden
 `_ixtable_attachments` table (BLOB on SQLite, BYTEA on PostgreSQL), created on
