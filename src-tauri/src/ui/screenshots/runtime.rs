@@ -398,7 +398,7 @@ fn runtime_popup_form() {
     h.capture(
         "form-views-05-popup",
         &[
-            "A modal dialog titled 'New Tasks' sits over a dimmed Planner page.",
+            "A modal dialog titled 'New task' sits over a dimmed Planner page.",
             "The dialog shows Title 'Call the landlord', Owner 'Ben', and Cancel, Create and Close buttons.",
         ],
     );

@@ -113,6 +113,8 @@ fn object_name(config: &DocumentConfig, kind: &str, id: &str) -> Option<String> 
 
 /// "Report Sales": the kind in sentence case, then the object's name (its id when unnamed).
 fn object_label(kind: &str, name: &str) -> String {
+    // Validation calls tables "entity"; users know them as tables.
+    let kind = if kind == "entity" { "table" } else { kind };
     let mut chars = kind.chars();
     let kind = chars.next().map(|c| c.to_uppercase().chain(chars).collect::<String>()).unwrap_or_default();
     format!("{kind} {name}")

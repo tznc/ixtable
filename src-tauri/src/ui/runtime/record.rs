@@ -215,7 +215,7 @@ impl RecordView {
 
     pub fn title(&self) -> String {
         match self.props.mode {
-            FormMode::Create => format!("New {}", self.form.name),
+            FormMode::Create => format!("New {}", widgets::singular(&self.form.name).to_lowercase()),
             FormMode::Edit => format!("Edit {}", self.form.name),
             _ => self.form.name.clone(),
         }

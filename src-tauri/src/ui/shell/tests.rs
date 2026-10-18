@@ -258,7 +258,7 @@ fn discarding_yaml_edits_asks_first(cx: &mut TestAppContext) {
 fn empty_object_groups_say_so_and_offer_the_new_action(cx: &mut TestAppContext) {
     let mut h = Harness::new_document(cx);
     assert_eq!(h.label("empty-tables"), "No tables yet.");
-    assert_eq!(h.label("empty-queries"), "No queries yet. Create one.");
+    assert_eq!(h.label("empty-queries"), "No queries yet.");
     assert!(h.exists("new-table-empty"));
     h.click("new-query-empty");
     assert!(h.exists("new-query"));

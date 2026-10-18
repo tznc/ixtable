@@ -340,7 +340,7 @@ pub fn validate_tables(config: &DocumentConfig, tables: &[String]) -> Vec<Issue>
                 "entity",
                 t,
                 format!(
-                    "Table {t} has no concurrency policy; set one in Entities settings"
+                    "Table {t} has no concurrency policy; set one in Settings > Record conflicts"
                 ),
             )
         })

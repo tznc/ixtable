@@ -189,13 +189,12 @@ impl Render for ObjectBrowser {
                 .when(items_empty && needle.is_empty(), |el| {
                     let hint = match add {
                         Some((_, _, SelectionKind::NewTable)) => "No tables yet.",
-                        _ => "No queries yet. Create one.",
+                        _ => "No queries yet.",
                     };
                     el.child(
-                        h_flex()
+                        v_flex()
                             .px_2()
-                            .gap_2()
-                            .items_center()
+                            .items_start()
                             .child(widgets::styled_text(
                                 SharedString::from(format!("empty-{}", title.to_lowercase())),
                                 hint,
@@ -205,7 +204,7 @@ impl Render for ObjectBrowser {
                                 let entity = entity.clone();
                                 el.child(
                                     Button::new(SharedString::from(format!("{id}-empty")))
-                                        .ghost()
+                                        .link()
                                         .xsmall()
                                         .label(tip)
                                         .on_click(move |_, _, cx| {

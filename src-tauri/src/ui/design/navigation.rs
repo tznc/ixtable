@@ -379,7 +379,7 @@ fn page_links(config: &crate::archive::DocumentConfig, cx: &App) -> impl IntoEle
                     )
                 })
                 .collect();
-            el.child(display::data_table("page-links-table", &["From", "To", "Passes"], rows, cx))
+            el.child(display::text_table("page-links-table", &["From", "To", "Passes"], rows, cx))
         })
         .when(links.is_empty(), |el| {
             el.child(widgets::empty_state("no-page-links", "No links between pages yet", "Add a navigation item, or set a button's target page.", cx))

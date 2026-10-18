@@ -4,11 +4,12 @@
 use super::Shell;
 use crate::ui::{
     display::{Tone, status_badge},
+    widgets::StartAligned as _,
     store::StoreEvent,
     task, widgets,
 };
 use gpui_kit::component::{
-    ActiveTheme as _, Selectable as _, Sizable as _,
+    ActiveTheme as _, Sizable as _,
     button::{Button, ButtonVariants as _},
     h_flex, v_flex,
 };
@@ -230,7 +231,7 @@ impl AppSettings {
         cx: &App,
     ) -> impl IntoElement {
         let theme = cx.theme();
-        let (muted, border) = (theme.muted_foreground, theme.border);
+        let (muted, border, accent) = (theme.muted_foreground, theme.border, theme.primary);
         v_flex()
             .id("settings-nav")
             .w(px(200.))
@@ -264,10 +265,10 @@ impl AppSettings {
                                         .ghost()
                                         .small()
                                         .w_full()
-                                        .justify_start()
-                                        .label(label)
-                                        .when(selected, |b| b.font_weight(FontWeight::MEDIUM))
-                                        .selected(selected)
+                                        .start_label(None, label)
+                                        .when(selected, |b| {
+                                            b.font_weight(FontWeight::MEDIUM).bg(accent.opacity(0.12)).text_color(accent)
+                                        })
                                         .on_click(move |_, _, cx| entity.update(cx, |this, cx| this.select(key, cx))),
                                 ),
                             )

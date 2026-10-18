@@ -13,13 +13,35 @@ pub fn data_table(
     rows: Vec<(ElementId, String, Vec<String>)>,
     cx: &App,
 ) -> Stateful<Div> {
+    table(id, headers, rows, true, cx)
+}
+
+/// `data_table` for text-only columns: every column shares the width and is
+/// left-aligned (page links, names, paths).
+pub fn text_table(
+    id: impl Into<ElementId>,
+    headers: &[&str],
+    rows: Vec<(ElementId, String, Vec<String>)>,
+    cx: &App,
+) -> Stateful<Div> {
+    table(id, headers, rows, false, cx)
+}
+
+fn table(
+    id: impl Into<ElementId>,
+    headers: &[&str],
+    rows: Vec<(ElementId, String, Vec<String>)>,
+    numeric: bool,
+    cx: &App,
+) -> Stateful<Div> {
     let theme = cx.theme();
     let (muted, border) = (theme.muted_foreground, theme.border);
-    let cell = |value: String, first: bool| {
+    let cell = move |value: String, first: bool| {
+        let number = numeric && !first;
         let quiet = !first && (value == "0" || value == "—");
         div()
-            .when(first, |d| d.flex_1().min_w_0().overflow_hidden().text_ellipsis())
-            .when(!first, |d| d.w(px(104.)).flex_none().text_right())
+            .when(!number, |d| d.flex_1().min_w_0().overflow_hidden().text_ellipsis())
+            .when(number, |d| d.w(px(104.)).flex_none().text_right())
             .when(quiet, |d| d.text_color(muted))
             .child(value)
     };
