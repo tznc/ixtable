@@ -32,6 +32,7 @@ fn props(control: &Control, value: Value, read_only: bool, changes: &Changes) ->
     let log = changes.clone();
     FieldProps {
         label: control.label.clone().into(),
+        hide_label: false,
         control: control.clone(),
         value,
         read_only,

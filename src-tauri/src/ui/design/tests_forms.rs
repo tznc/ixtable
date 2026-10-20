@@ -127,6 +127,7 @@ fn applies_a_typed_span_on_blur_instead_of_snapping_each_keystroke(cx: &mut Test
     open_designer(&mut h);
     let related = add(&mut h, "related-list");
     let before = placement(&h, ControlKind::RelatedList).column_span;
+    h.click("control-position-toggle");
     h.fill("prop-column-span", "10");
     assert_eq!(placement(&h, ControlKind::RelatedList).column_span, before, "applied before blur");
     h.press("enter");
@@ -188,4 +189,38 @@ fn clears_a_stored_enabled_when_that_a_label_cannot_use(cx: &mut TestAppContext)
     h.click("clear-enabled-when");
     assert_eq!(control(&h, ControlKind::Label).expect("note").enabled_when, None);
     assert!(!h.exists("clear-enabled-when"));
+}
+
+#[test]
+fn width_options_offer_only_even_shares_of_the_grid() {
+    use super::control_props::width_options;
+    let labels = |columns, current| width_options(columns, current).into_iter().map(|(v, l)| format!("{v}={l}")).collect::<Vec<_>>();
+    assert_eq!(labels(12, 12), ["12=Full", "8=⅔", "6=½", "4=⅓", "3=¼"]);
+    assert_eq!(labels(4, 3), ["4=Full", "3=3 of 4 columns", "2=½", "1=¼"]);
+}
+
+#[gpui_kit::test]
+fn sets_the_column_span_from_the_width_choice_and_hides_exact_position(cx: &mut TestAppContext) {
+    let mut h = tall_document(cx);
+    open_designer(&mut h);
+    add(&mut h, "related-list");
+    assert!(h.exists(id("prop-width")));
+    assert!(!h.exists(id("prop-column-span")), "exact position starts collapsed");
+    choose(&mut h, "prop-width", "½");
+    let columns = form(&h).layout.columns.len() as u16;
+    assert_eq!(placement(&h, ControlKind::RelatedList).column_span, columns / 2);
+    h.click("control-position-toggle");
+    assert!(h.exists(id("prop-column-span")));
+}
+
+#[gpui_kit::test]
+fn keyboard_help_lives_behind_the_shortcuts_button(cx: &mut TestAppContext) {
+    let mut h = tall_document(cx);
+    open_designer(&mut h);
+    assert!(h.exists("form-shortcuts"));
+    assert!(!h.exists("form-hint"));
+    h.click("form-shortcuts");
+    assert_eq!(h.label("form-hint"), "Enter selects a control, Alt+Arrow resizes, Alt+Shift+Arrow moves.");
+    h.click("form-shortcuts");
+    assert!(!h.exists("form-hint"));
 }

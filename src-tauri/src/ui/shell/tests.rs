@@ -193,6 +193,18 @@ fn lists_validation_problems(cx: &mut TestAppContext) {
     assert_eq!(h.label(("problem-severity", 0usize)), "Error");
     assert!(h.label(("problem-object", 0usize)).starts_with("Report "));
     assert_eq!(h.label("problems-count"), "2");
+    // Each report problem has an owner to go to.
+    assert!(h.exists(("problem-open", 0usize)) && h.exists(("problem-open", 1usize)));
+}
+
+#[gpui_kit::test]
+fn settings_nav_marks_the_selected_tab(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    h.switch_mode(ModeId::App);
+    h.click("tab-yaml");
+    let view = h.read_shell(|s, _| s.mode_view()).expect("settings view");
+    let settings: Entity<AppSettings> = view.downcast().expect("AppSettings");
+    assert_eq!(h.cx.read(|cx| settings.read(cx).selected()), "yaml");
 }
 
 #[gpui_kit::test]

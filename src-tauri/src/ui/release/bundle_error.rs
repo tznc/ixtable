@@ -3,6 +3,10 @@
 
 use crate::{manager::AppError, ui::prelude::*};
 
+/// Why an older version is refused, shown with the downgrade error.
+pub const DOWNGRADE_WARNING: &str =
+    "An older version may not be able to read data saved by the newer one, so nothing was changed. Keep the installed version, or reset the installation data first.";
+
 fn summary(code: &str) -> &'static str {
     match code {
         "BUNDLE_SIGNATURE" => "This file is not a valid ixtable runtime bundle, or it was changed after it was signed. It was not opened.",
@@ -37,7 +41,12 @@ pub fn is_password_error(error: &AppError) -> bool {
 /// The error callout for a bundle error: the plain-language summary as its headline
 /// (`<id>-headline`) and the backend detail under `id`. The code is not shown.
 pub fn bundle_error_banner(id: &'static str, error: &AppError, cx: &App) -> Div {
-    let plain = AppError::new("", &error.message);
+    let message = if error.code == "BUNDLE_DOWNGRADE" {
+        format!("{} {DOWNGRADE_WARNING}", error.message)
+    } else {
+        error.message.clone()
+    };
+    let plain = AppError::new("", &message);
     widgets::error_callout(id, summary(&error.code), &plain, None, cx)
 }
 

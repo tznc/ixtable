@@ -140,3 +140,48 @@ fn hides_and_disables_components_from_params_keeping_other_placements(cx: &mut T
     assert_eq!(h.try_find(id("widget:Always")).map(|s| s.bounds()), always, "other placements stay put");
     assert_eq!(shown(&mut h)[1], ("Go".to_string(), true, false));
 }
+
+#[test]
+fn filter_chips_name_each_applied_filter_on_the_widgets_that_use_it() {
+    use super::view::filter_chips;
+    use crate::archive::{QueryParameter, SavedQuery};
+    use crate::pages::Page;
+    let page: Page = serde_json::from_value(json!({
+        "id": "d", "name": "Ops",
+        "filters": [
+            {"id": "f1", "name": "Status", "param": "status", "control": "select"},
+            {"id": "f2", "name": "", "param": "when", "control": "dateRange"},
+        ],
+        "components": [{"id": "k", "kind": "kpi", "queryId": "q"}, {"id": "t", "kind": "text", "queryId": "q"}],
+    }))
+    .expect("page");
+    let parameter = |name: &str| QueryParameter { name: name.into(), logical_type: "text".into(), ..Default::default() };
+    let query = SavedQuery { id: "q".into(), parameters: vec![parameter("status"), parameter("whenFrom")], ..Default::default() };
+    let applied = params(json!({"status": "open", "whenFrom": "2026-01-01", "whenTo": "2026-02-01"}));
+    let chips = |c: usize, p: &Map<String, Value>| {
+        filter_chips(&page, &page.components[c], p, std::slice::from_ref(&query)).into_iter().map(|(_, t)| t).collect::<Vec<_>>()
+    };
+    // Only the parameters the query declares count; the text component shows none.
+    assert_eq!(chips(0, &applied), ["Status: open", "when: from 2026-01-01"]);
+    assert!(chips(1, &applied).is_empty());
+    assert!(chips(0, &params(json!({"status": null, "whenFrom": ""}))).is_empty());
+}
+
+#[gpui_kit::test]
+fn a_widget_shows_a_chip_for_the_filter_applied_to_it(cx: &mut TestAppContext) {
+    use crate::archive::QueryParameter;
+    let mut h = Harness::new_document(cx);
+    seed_ops(&mut h);
+    crate::ui::reports::test_support::edit_store(&mut h, |c| {
+        c.saved_queries[0].parameters =
+            vec![QueryParameter { name: "region".into(), logical_type: "text".into(), ..Default::default() }];
+    });
+    let fake = FakeQueries::new(7, false);
+    install_fake(&mut h, &fake);
+    open_view(&mut h);
+    wait_until(&mut h, "the KPI", |h| h.try_label(id("kpi-value:Open orders")).as_deref() == Some("7"));
+    assert!(!h.exists(id("widget-filter-text:Open orders:f1")), "no filter applied yet");
+    choose(&mut h, "filter:Region", "East");
+    advance_by(&mut h, 300);
+    wait_until(&mut h, "the chip", |h| h.try_label(id("widget-filter-text:Open orders:f1")).as_deref() == Some("Region: East"));
+}

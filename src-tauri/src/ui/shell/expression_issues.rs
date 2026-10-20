@@ -173,10 +173,10 @@ fn walk_report(c: &mut Collector, report: &Report) {
     walk_band(c, report, &bands.report_header, "Report header");
     walk_band(c, report, &bands.page_header, "Page header");
     for (i, group) in bands.groups.iter().enumerate() {
-        let n = i + 1;
-        c.add(&owner, &format!("Group {n} › Group by"), Some(&group.group_by), &REPORT_SCOPE_NAMES);
-        walk_band(c, report, &group.header, &format!("Group {n} header"));
-        walk_band(c, report, &group.footer, &format!("Group {n} footer"));
+        let name = crate::report_engine::model::group_label(group, i);
+        c.add(&owner, &format!("{name} › Group by"), Some(&group.group_by), &REPORT_SCOPE_NAMES);
+        walk_band(c, report, &group.header, &format!("{name} header"));
+        walk_band(c, report, &group.footer, &format!("{name} footer"));
     }
     walk_band(c, report, &bands.detail, "Detail");
     walk_band(c, report, &bands.page_footer, "Page footer");

@@ -19,6 +19,8 @@ pub struct RelationshipEdge {
     pub target: String,
     pub target_handle: String,
     pub label: Option<String>,
+    /// Plain-language reading of the label, e.g. "One order \u{2192} many shipments".
+    pub tooltip: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -91,6 +93,16 @@ pub fn relationship_edges(schemas: &[TableSchema]) -> Vec<RelationshipEdge> {
             } else {
                 "1 — ∞"
             };
+            let one = if cardinality == "1 — 1" { "one" } else { "many" };
+            let tooltip = format!(
+                "One {} \u{2192} {one} {}",
+                crate::ui::widgets::singular(&key.target_table.to_lowercase()),
+                if one == "one" {
+                    crate::ui::widgets::singular(&schema.name.to_lowercase())
+                } else {
+                    schema.name.to_lowercase()
+                }
+            );
             let composite = if key.from_columns.len() > 1 {
                 format!(" ({})", key.from_columns.join(", "))
             } else {
@@ -116,6 +128,7 @@ pub fn relationship_edges(schemas: &[TableSchema]) -> Vec<RelationshipEdge> {
                     target: schema.name.clone(),
                     target_handle: handle_id(target_index, Direction::Target),
                     label: (i == 0).then(|| format!("{cardinality}{composite}")),
+                    tooltip: (i == 0).then(|| tooltip.clone()),
                 });
             }
         }

@@ -19,7 +19,7 @@
 use super::{
     layout::{default_layout, LayoutNode, Position},
     relationships::{drawn_from, handle_id, relationship_edges, Connection, Direction, DrawnRelationship},
-    routing::{halfway, route, Rect, View},
+    routing::{route, Rect, View},
 };
 use crate::archive::DocumentConfig;
 use crate::data::TableSchema;
@@ -36,6 +36,15 @@ use std::rc::Rc;
 pub const NODE_WIDTH: f32 = 240.0;
 const HEADER: f32 = 40.0;
 const FIELD: f32 = 24.0;
+/// The distance between the ports of relationships that share a column row.
+const PORT_GAP: f32 = 6.0;
+/// The size of an edge label in diagram coordinates.
+const LABEL_W: f32 = 44.0;
+const LABEL_H: f32 = 20.0;
+
+/// A relationship's label, its plain-language reading and its route.
+type RouteInfo = (Option<String>, Option<String>, Vec<(f32, f32)>);
+
 /// Width of the grab zone at each end of a column row.
 const GRAB: f32 = 12.0;
 /// Background dot spacing at 100%.
@@ -147,6 +156,47 @@ pub struct RelationshipBrowser {
 }
 impl EventEmitter<DiagramEvent> for RelationshipBrowser {}
 
+fn overlaps(a: &Rect, b: &Rect) -> bool {
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+}
+
+/// The point `fraction` of the way along a route.
+fn point_at(points: &[(f32, f32)], fraction: f32) -> (f32, f32) {
+    let length = |a: (f32, f32), b: (f32, f32)| (b.0 - a.0).abs() + (b.1 - a.1).abs();
+    let total: f32 = points.windows(2).map(|w| length(w[0], w[1])).sum();
+    let mut left = total * fraction;
+    for w in points.windows(2) {
+        let part = length(w[0], w[1]);
+        if part >= left && part > 0.0 {
+            let t = left / part;
+            return (w[0].0 + (w[1].0 - w[0].0) * t, w[0].1 + (w[1].1 - w[0].1) * t);
+        }
+        left -= part;
+    }
+    points.first().copied().unwrap_or((0.0, 0.0))
+}
+
+/// The top-left corner of each label, in diagram coordinates. A label sits on its route,
+/// at the first spot (middle first) where it touches no card and no earlier label.
+pub(super) fn place_labels(routes: &[RouteInfo], cards: &[Rect]) -> Vec<Option<(f32, f32)>> {
+    const TRIES: [f32; 9] = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9];
+    let mut placed: Vec<Rect> = vec![];
+    routes
+        .iter()
+        .map(|(label, _, points)| {
+            label.as_ref()?;
+            let rect_at = |f: f32| {
+                let (x, y) = point_at(points, f);
+                Rect { x: x - LABEL_W / 2.0, y: y - LABEL_H - 2.0, w: LABEL_W, h: LABEL_H }
+            };
+            let free = |r: &Rect| !cards.iter().chain(placed.iter()).any(|o| overlaps(r, o));
+            let rect = TRIES.iter().map(|f| rect_at(*f)).find(free).unwrap_or_else(|| rect_at(0.5));
+            placed.push(rect);
+            Some((rect.x, rect.y))
+        })
+        .collect()
+}
+
 fn card_rect(at: Position, columns: usize) -> Rect {
     Rect {
         x: at.x,
@@ -226,17 +276,37 @@ impl RelationshipBrowser {
     }
 
     /// Each relationship's route, in diagram coordinates, in `relationship_edges` order.
-    fn routes(&self, positions: &HashMap<String, Position>) -> Vec<(Option<String>, Vec<(f32, f32)>)> {
+    /// Relationships that share a column row each get their own port on the card edge.
+    fn routes(&self, positions: &HashMap<String, Position>) -> Vec<RouteInfo> {
         let cards: Vec<Rect> = self.cards(positions).into_iter().map(|(_, r)| r).collect();
-        relationship_edges(&self.schemas)
+        let parse = |h: &str| h.trim_start_matches('c').split('-').next()?.parse::<usize>().ok();
+        let edges: Vec<_> = relationship_edges(&self.schemas)
+            .into_iter()
+            .filter(|e| positions.contains_key(&e.source) && positions.contains_key(&e.target))
+            .collect();
+        let mut sharing: HashMap<(String, String), usize> = HashMap::new();
+        for e in &edges {
+            *sharing.entry((e.source.clone(), e.source_handle.clone())).or_default() += 1;
+            *sharing.entry((e.target.clone(), e.target_handle.clone())).or_default() += 1;
+        }
+        let mut taken: HashMap<(String, String), usize> = HashMap::new();
+        let mut port = |table: &str, handle: &str, at: Position, direction: Direction| {
+            let key = (table.to_string(), handle.to_string());
+            let count = sharing.get(&key).copied().unwrap_or(1);
+            let slot = taken.entry(key).or_default();
+            let offset = (*slot as f32 - (count as f32 - 1.0) / 2.0) * PORT_GAP;
+            *slot += 1;
+            let (x, y) = handle_point(at, parse(handle)?, direction);
+            Some((x, y + offset))
+        };
+        edges
             .into_iter()
             .filter_map(|edge| {
                 let parent = positions.get(&edge.source)?;
                 let child = positions.get(&edge.target)?;
-                let parse = |h: &str| h.trim_start_matches('c').split('-').next()?.parse::<usize>().ok();
-                let from = handle_point(*parent, parse(&edge.source_handle)?, Direction::Source);
-                let to = handle_point(*child, parse(&edge.target_handle)?, Direction::Target);
-                Some((edge.label, route(from, to, &cards)))
+                let from = port(&edge.source, &edge.source_handle, *parent, Direction::Source)?;
+                let to = port(&edge.target, &edge.target_handle, *child, Direction::Target)?;
+                Some((edge.label, edge.tooltip, route(from, to, &cards)))
             })
             .collect()
     }
@@ -309,7 +379,7 @@ impl RelationshipBrowser {
 
     #[cfg(test)]
     pub fn route_points(&self) -> Vec<Vec<(f32, f32)>> {
-        self.routes(&self.positions()).into_iter().map(|(_, r)| r).collect()
+        self.routes(&self.positions()).into_iter().map(|(_, _, r)| r).collect()
     }
 
     fn minimap(&self, positions: &HashMap<String, Position>, size: (f32, f32)) -> Option<Minimap> {
@@ -504,7 +574,7 @@ impl Render for RelationshipBrowser {
         .absolute()
         .size_full();
 
-        let paint_routes: Vec<Vec<(f32, f32)>> = routes.iter().map(|(_, r)| r.clone()).collect();
+        let paint_routes: Vec<Vec<(f32, f32)>> = routes.iter().map(|(_, _, r)| r.clone()).collect();
         let lines = canvas(
             |_, _, _| (),
             move |bounds: Bounds<Pixels>, _, window, _| {
@@ -652,19 +722,28 @@ impl Render for RelationshipBrowser {
             })
             .collect();
 
-        let edge_labels = routes.iter().enumerate().filter_map(|(n, (label, points))| {
+        let all_cards: Vec<Rect> = self.cards(&positions).into_iter().map(|(_, r)| r).collect();
+        let anchors = place_labels(&routes, &all_cards);
+        let edge_labels = routes.iter().enumerate().filter_map(|(n, (label, tooltip, _))| {
             let label = label.clone()?;
-            let (x, y) = view.to_screen(halfway(points));
+            let (x, y) = view.to_screen(anchors[n]?);
+            let tooltip = tooltip.clone().unwrap_or_default();
             Some(
                 div()
+                    .id(SharedString::from(format!("edge-tip:{n}")))
                     .absolute()
-                    .left(px(x - 18. * z))
-                    .top(px(y - 24. * z))
-                    .px(px(4. * z))
+                    .left(px(x))
+                    .top(px(y))
+                    .w(px(LABEL_W * z))
+                    .h(px(LABEL_H * z))
+                    .flex()
+                    .items_center()
+                    .justify_center()
                     .rounded_sm()
                     .bg(bg)
                     .text_color(fg)
                     .text_size(px(12. * z))
+                    .when(!tooltip.is_empty(), |d| d.tooltip(move |window, cx| gpui_kit::component::tooltip::Tooltip::new(tooltip.clone()).build(window, cx)))
                     .child(widgets::text(SharedString::from(format!("edge-label:{n}")), label)),
             )
         });

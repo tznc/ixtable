@@ -7,7 +7,7 @@
 //! expression error) and `("problem-open", index)` (the link to an expression error's
 //! object, labelled "Open <kind> <name>"), `re-check`.
 
-use super::{Shell, expression_issues::{ExpressionIssue, load_expression_issues}};
+use super::{AutomationTab, RevealTarget, Shell, expression_issues::{ExpressionIssue, load_expression_issues}};
 use crate::{
     archive::DocumentConfig,
     manager::AppError,
@@ -20,7 +20,8 @@ use crate::{
     validation::{Issue, Severity},
 };
 use gpui_kit::assets::IconName;
-use gpui_kit::component::{ActiveTheme as _, Sizable as _, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme as _, Icon, Sizable as _, h_flex, v_flex};
+use crate::ui::widgets::Severity as Sev;
 use gpui_kit::*;
 use gpui_kit::prelude::FluentBuilder as _;
 
@@ -32,6 +33,8 @@ enum Problem {
 
 pub struct ProblemsTab {
     shell: Entity<Shell>,
+    /// Keys of the repeated-problem groups that are expanded.
+    expanded: std::collections::HashSet<String>,
     issues: Option<Vec<Problem>>,
     error: Option<AppError>,
     _subscription: Subscription,
@@ -47,6 +50,7 @@ impl ProblemsTab {
         });
         let mut this = Self {
             shell,
+            expanded: Default::default(),
             issues: None,
             error: None,
             _subscription: subscription,
@@ -120,8 +124,168 @@ fn object_label(kind: &str, name: &str) -> String {
     format!("{kind} {name}")
 }
 
-const SEVERITY_W: f32 = 76.;
+/// Where a plain issue's owner lives, when it has an editor to open.
+fn plain_target(kind: &str, id: &str) -> Option<RevealTarget> {
+    let object_id = id.to_string();
+    match kind {
+        "form" => Some(RevealTarget::Design { object_id, element_id: None }),
+        "report" => Some(RevealTarget::Reports { object_id, element_id: None }),
+        "page" | "dashboard" => Some(RevealTarget::Page { object_id, element_id: None }),
+        "action" => Some(RevealTarget::Automation { tab: AutomationTab::Actions, object_id }),
+        "trigger" => Some(RevealTarget::Automation { tab: AutomationTab::Triggers, object_id }),
+        _ => None,
+    }
+}
+
+/// A run of problems that differ only in the object they name.
+pub struct Group {
+    pub key: String,
+    /// "3 tables have no concurrency policy".
+    pub title: String,
+    pub members: Vec<usize>,
+}
+
+/// A row of the list: one problem, or a group of repeats.
+pub enum Entry {
+    One(usize),
+    Group(Group),
+}
+
+/// "Table orders has no concurrency policy; set one in X" with name "orders" gives
+/// "has no concurrency policy" and kind "table".
+fn tail(message: &str, name: &str, id: &str) -> Option<String> {
+    let mut rest = message;
+    for key in [name, id] {
+        if key.is_empty() {
+            continue;
+        }
+        // The name as a whole word, so a short name does not match inside "Table".
+        let found = message.match_indices(key).find(|(at, _)| {
+            let before = message[..*at].chars().next_back();
+            let after = message[at + key.len()..].chars().next();
+            before.is_none_or(|c| !c.is_alphanumeric()) && after.is_none_or(|c| !c.is_alphanumeric())
+        });
+        if let Some((at, _)) = found {
+            rest = &message[at + key.len()..];
+            break;
+        }
+    }
+    let rest = rest.split(';').next()?.trim();
+    let verb = ["has ", "is ", "have ", "are "].iter().find(|v| rest.starts_with(**v))?;
+    let swapped = match *verb {
+        "has " => "have ",
+        "is " => "are ",
+        v => v,
+    };
+    Some(format!("{swapped}{}", &rest[verb.len()..]))
+}
+
+/// Groups three or more problems of the same severity, kind and wording.
+pub fn group_problems(items: &[(bool, String, String, String, String)]) -> Vec<Entry> {
+    // Each item: (is_error, kind, name, id, message).
+    let keys: Vec<Option<(bool, String, String)>> = items
+        .iter()
+        .map(|(error, kind, name, id, message)| {
+            tail(message, name, id).map(|t| (*error, kind.clone(), t))
+        })
+        .collect();
+    let mut entries = vec![];
+    let mut done = vec![false; items.len()];
+    for ix in 0..items.len() {
+        if done[ix] {
+            continue;
+        }
+        let Some(key) = &keys[ix] else {
+            entries.push(Entry::One(ix));
+            continue;
+        };
+        let members: Vec<usize> = (ix..items.len()).filter(|&j| keys[j].as_ref() == Some(key)).collect();
+        if members.len() < 3 {
+            entries.push(Entry::One(ix));
+            continue;
+        }
+        for &m in &members {
+            done[m] = true;
+        }
+        let kind = if key.1 == "entity" { "table" } else { key.1.as_str() };
+        entries.push(Entry::Group(Group {
+            key: format!("{}:{}:{}", key.0, key.1, key.2),
+            title: format!("{} {}", plural(members.len(), kind), key.2),
+            members,
+        }));
+    }
+    entries
+}
+
 const OBJECT_W: f32 = 200.;
+
+impl ProblemsTab {
+    fn problem_row(&self, ix: usize, problem: &Problem, indent: bool, config: &DocumentConfig, cx: &mut Context<Self>) -> AnyElement {
+        let border = cx.theme().border;
+        let (kind, id, text) = match problem {
+            Problem::Plain(issue) => (&issue.object_kind, &issue.object_id, issue.message.clone()),
+            Problem::Expression(issue) => (&issue.object_kind, &issue.object_id, format!("{}: {}", issue.field, issue.message)),
+        };
+        let name = match problem {
+            Problem::Expression(issue) if !issue.object_name.is_empty() => issue.object_name.clone(),
+            _ => object_name(config, kind, id).unwrap_or_else(|| id.clone()),
+        };
+        let target = match problem {
+            Problem::Expression(issue) => Some(issue.target.clone()),
+            Problem::Plain(issue) => plain_target(&issue.object_kind, &issue.object_id),
+        };
+        let go_label = format!("Open {} {}", kind, name);
+        let row = h_flex()
+            .id(("problem-row", ix))
+            .gap_3()
+            .items_start()
+            .px_2()
+            .py_1()
+            .when(indent, |r| r.pl_6())
+            .border_b_1()
+            .border_color(border.opacity(0.5))
+            .text_sm()
+            .child(severity_cell(("problem-severity", ix), problem.is_error(), cx))
+            .child(div().w(px(OBJECT_W)).flex_none().child(widgets::text(("problem-object", ix), object_label(kind, &name))))
+            .child(div().flex_1().min_w_0().child(widgets::text(("problem", ix), text)));
+        match target {
+            None => row.into_any_element(),
+            Some(target) => {
+                let (shell, row_target) = (self.shell.clone(), target.clone());
+                row.cursor_pointer()
+                    .hover(|r| r.bg(cx.theme().muted.opacity(0.5)))
+                    .on_click(move |_, window, cx| {
+                        let target = row_target.clone();
+                        shell.update(cx, |s, cx| s.request_reveal(target, window, cx));
+                    })
+                    .child(
+                        forms::link(("problem-open", ix), &go_label).small().on_click({
+                            let shell = self.shell.clone();
+                            move |_, window, cx| {
+                                let target = target.clone();
+                                shell.update(cx, |s, cx| s.request_reveal(target, window, cx));
+                            }
+                        }),
+                    )
+                    .into_any_element()
+            }
+        }
+    }
+}
+
+/// A severity icon in the status color with a plain-text label.
+fn severity_cell(id: (&'static str, usize), error: bool, cx: &App) -> impl IntoElement {
+    let (label, severity) = if error { ("Error", Sev::Danger) } else { ("Warning", Sev::Warning) };
+    h_flex()
+        .w(px(SEVERITY_W))
+        .flex_none()
+        .gap_1()
+        .items_center()
+        .child(div().text_color(severity.color(cx)).child(Icon::new(severity.icon()).small()))
+        .child(widgets::text(id, label))
+}
+
+const SEVERITY_W: f32 = 84.;
 
 impl Render for ProblemsTab {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -133,6 +297,63 @@ impl Render for ProblemsTab {
         let (muted, border) = (cx.theme().muted_foreground, cx.theme().border);
         let header = |label: &'static str| div().child(label);
         let has_rows = self.issues.as_ref().is_some_and(|i| !i.is_empty());
+        let issues = self.issues.clone().unwrap_or_default();
+        let items: Vec<_> = issues
+            .iter()
+            .map(|p| match p {
+                Problem::Plain(i) => (
+                    p.is_error(),
+                    i.object_kind.clone(),
+                    object_name(&config, &i.object_kind, &i.object_id).unwrap_or_default(),
+                    i.object_id.clone(),
+                    i.message.clone(),
+                ),
+                Problem::Expression(i) => (true, i.object_kind.clone(), i.object_name.clone(), i.object_id.clone(), i.message.clone()),
+            })
+            .collect();
+        let mut rows: Vec<AnyElement> = vec![];
+        for entry in group_problems(&items) {
+            match entry {
+                Entry::One(ix) => rows.push(self.problem_row(ix, &issues[ix], false, &config, cx)),
+                Entry::Group(group) => {
+                    let open = self.expanded.contains(&group.key);
+                    let error = items[group.members[0]].0;
+                    let first = group.members[0];
+                    let key = group.key.clone();
+                    rows.push(
+                        h_flex()
+                            .id(("problem-group", first))
+                            .gap_3()
+                            .items_center()
+                            .px_2()
+                            .py_1()
+                            .border_b_1()
+                            .border_color(border.opacity(0.5))
+                            .text_sm()
+                            .cursor_pointer()
+                            .child(severity_cell(("problem-group-severity", first), error, cx))
+                            .child(div().flex_1().min_w_0().child(widgets::text(("problem-group-title", first), group.title.clone())))
+                            .child(
+                                forms::link(("problem-group-toggle", first), if open { "Hide" } else { "Show all" })
+                                    .small()
+                                    .icon(if open { IconName::ChevronDown } else { IconName::ChevronRight }),
+                            )
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                if !this.expanded.remove(&key) {
+                                    this.expanded.insert(key.clone());
+                                }
+                                cx.notify();
+                            }))
+                            .into_any_element(),
+                    );
+                    if open {
+                        for &ix in &group.members {
+                            rows.push(self.problem_row(ix, &issues[ix], true, &config, cx));
+                        }
+                    }
+                }
+            }
+        }
         v_flex()
             .gap_3()
             .child(widgets::section_heading("problems-heading", "Problems"))
@@ -192,54 +413,30 @@ impl Render for ProblemsTab {
                         .child(header("Problem").flex_1().min_w_0()),
                 )
             })
-            .children(self.issues.iter().flatten().enumerate().map(|(ix, problem)| {
-                let (severity, tone) = if problem.is_error() { ("Error", Tone::Danger) } else { ("Warning", Tone::Warning) };
-                let (kind, id, text) = match problem {
-                    Problem::Plain(issue) => (&issue.object_kind, &issue.object_id, issue.message.clone()),
-                    Problem::Expression(issue) => {
-                        (&issue.object_kind, &issue.object_id, format!("{}: {}", issue.field, issue.message))
-                    }
-                };
-                let name = match problem {
-                    Problem::Expression(issue) if !issue.object_name.is_empty() => issue.object_name.clone(),
-                    _ => object_name(&config, kind, id).unwrap_or_else(|| id.clone()),
-                };
-                let row = h_flex()
-                    .gap_3()
-                    .items_start()
-                    .px_2()
-                    .py_1()
-                    .border_b_1()
-                    .border_color(border.opacity(0.5))
-                    .text_sm()
-                    .child(
-                        div()
-                            .w(px(SEVERITY_W))
-                            .flex_none()
-                            .child(status_badge(("problem-severity", ix), severity, tone, cx)),
-                    )
-                    .child(
-                        div()
-                            .w(px(OBJECT_W))
-                            .flex_none()
-                            .child(widgets::text(("problem-object", ix), object_label(kind, &name))),
-                    )
-                    .child(div().flex_1().min_w_0().child(widgets::text(("problem", ix), text)));
-                match problem {
-                    Problem::Plain(_) => row,
-                    Problem::Expression(issue) => {
-                        let target = issue.target.clone();
-                        let shell = self.shell.clone();
-                        row.child(
-                            forms::link(("problem-open", ix), &format!("Open {} {}", issue.object_kind, name))
-                                .small()
-                                .on_click(move |_, window, cx| {
-                                    let target = target.clone();
-                                    shell.update(cx, |s, cx| s.request_reveal(target, window, cx));
-                                }),
-                        )
-                    }
-                }
-            }))
+            .children(rows)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Entry, group_problems};
+
+    fn item(name: &str) -> (bool, String, String, String, String) {
+        (false, "entity".into(), name.into(), name.into(), format!("Table {name} has no concurrency policy; set one in Settings > Record conflicts"))
+    }
+
+    #[test]
+    fn groups_three_or_more_repeats_into_one_sentence() {
+        let entries = group_problems(&[item("a"), item("b"), item("c")]);
+        assert_eq!(entries.len(), 1);
+        let Entry::Group(g) = &entries[0] else { panic!("expected a group") };
+        assert_eq!(g.title, "3 tables have no concurrency policy");
+        assert_eq!(g.members, vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn leaves_one_or_two_repeats_alone() {
+        let entries = group_problems(&[item("a"), item("b")]);
+        assert!(entries.iter().all(|e| matches!(e, Entry::One(_))));
     }
 }

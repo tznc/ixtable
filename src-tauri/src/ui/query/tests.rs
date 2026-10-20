@@ -322,6 +322,7 @@ fn authors_previews_and_runs_an_action_query_in_query_mode(cx: &mut TestAppConte
     wait_until(&mut h, "the preview", |h| h.exists("action-result") || h.exists("action-error"));
     assert!(!h.exists("action-error"), "{}", h.label("action-error"));
     assert_eq!(h.label("action-result"), "Would update 2 rows in orders. Nothing was changed.");
+    assert_eq!(h.label("apply-action"), "Apply to 2 rows");
     let statuses: Vec<String> = (0..3).map(|i| text_value(&mut h, i, 3, "orders")).collect();
     assert_eq!(statuses, ["open", "open", "open"]);
 
@@ -331,7 +332,7 @@ fn authors_previews_and_runs_an_action_query_in_query_mode(cx: &mut TestAppConte
     });
     assert_eq!(h.label("action-result"), "Updated 2 rows in orders.");
     assert!(h.dialogs.calls.lock().unwrap().iter().any(|c| c.contains(
-        "Run Extend due dates? It changes rows in orders and cannot be undone."
+        "Run Extend due dates? It changes 2 rows in orders and cannot be undone."
     )));
     let page = h.read_page("orders");
     let rows: Vec<(String, String)> = page
@@ -462,3 +463,24 @@ fn runs_action_queries_with_parameters_and_reports_changed_rows(cx: &mut TestApp
 }
 
 // ---- Sections, grouping, join warnings and run values ----------------------------------------
+
+#[gpui_kit::test]
+fn a_preview_offers_to_apply_to_the_rows_it_found_after_confirming(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    orders(&mut h);
+    author_update(&mut h);
+    assert!(!h.exists("apply-action"), "nothing to apply before a preview");
+    click(&mut h, "preview-changes");
+    wait_until(&mut h, "the preview", |h| h.exists("apply-action"));
+
+    h.dialogs.queue_confirm(false);
+    click(&mut h, "apply-action");
+    assert!(h.exists("apply-action"), "declined: still previewing");
+    assert!(h.label("action-result").starts_with("Would update"));
+
+    click(&mut h, "apply-action");
+    wait_until(&mut h, "the run", |h| {
+        h.try_label("action-result").is_some_and(|t| t.starts_with("Updated"))
+    });
+    assert!(!h.exists("apply-action"));
+}

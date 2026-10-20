@@ -704,6 +704,16 @@ impl Datasheet {
                     .tooltip("Find and replace (Ctrl+F)")
                     .on_click(cx.listener(|this, _, window, cx| this.open_find(window, cx))),
             )
+            .when(!self.sorts.is_empty(), |el| {
+                el.child(
+                    Button::new("clear-sort")
+                        .outline()
+                        .small()
+                        .label("Clear sort")
+                        .tooltip("Remove the sort from every column")
+                        .on_click(cx.listener(|_, _, _, cx| cx.emit(SheetEvent::Sorts(vec![])))),
+                )
+            })
             .child(
                 Button::new("totals")
                     .outline()
@@ -838,8 +848,10 @@ impl Datasheet {
         let menu_entity = entity.clone();
         let menu_name = name.clone();
         let sort_name = name.clone();
+        let sorted = at.is_some();
         v_flex()
             .id(SharedString::from(format!("head:{name}")))
+            .group("sheet-head")
             .aria_label(format!("{name}{}", if frozen { " (frozen)" } else { "" }))
             .w(px(COLUMN_WIDTH))
             .h(px(HEAD_HEIGHT))
@@ -854,7 +866,7 @@ impl Datasheet {
                 h_flex()
                     .items_center()
                     .justify_between()
-                    .child(
+                    .child(h_flex().items_center().child(
                         Button::new(SharedString::from(format!("sort:{name}")))
                             .ghost()
                             .xsmall()
@@ -872,6 +884,16 @@ impl Datasheet {
                                 }
                             }),
                     )
+                    // Unsorted columns show a sort chevron only while the header is hovered.
+                    .when(!sorted, |el| {
+                        el.child(
+                            div()
+                                .invisible()
+                                .group_hover("sheet-head", |d| d.visible())
+                                .text_color(muted)
+                                .child(Icon::new(IconName::ChevronDown).size_3()),
+                        )
+                    }))
                     .child(
                         Button::new(SharedString::from(format!("Column options for {name}")))
                             .ghost()
@@ -1024,7 +1046,10 @@ impl Datasheet {
         let entity = cx.entity();
         let pick_name = name.clone();
         let value = self.totals.get(&name).filter(|_| chosen.is_some()).map(show_total);
+        // The aggregate picker shows on hover, or while a function is set.
+        let picker_group = SharedString::from(format!("total-cell:{name}"));
         h_flex()
+            .group(picker_group.clone())
             .w(px(COLUMN_WIDTH))
             .h(px(TOTAL_HEIGHT))
             .flex_none()
@@ -1033,18 +1058,24 @@ impl Datasheet {
             .items_center()
             .border_r_1()
             .border_color(theme.border)
-            .child(select(
-                SharedString::from(format!("Total for {name}")),
-                chosen.map_or("", total_key),
-                options,
-                "None",
-                move |key, _, cx| {
-                    let (name, key) = (pick_name.clone(), key.to_string());
-                    entity.update(cx, |this, cx| this.change_total(&name, &key, cx));
-                },
-            ))
+            .child(
+                div()
+                    .when(chosen.is_none(), |el| el.opacity(0.).group_hover(picker_group, |d| d.opacity(1.)))
+                    .child(select(
+                        SharedString::from(format!("Total for {name}")),
+                        chosen.map_or("", total_key),
+                        options,
+                        "None",
+                        move |key, _, cx| {
+                            let (name, key) = (pick_name.clone(), key.to_string());
+                            entity.update(cx, |this, cx| this.change_total(&name, &key, cx));
+                        },
+                    )),
+            )
             .when_some(value, |el, text| {
-                el.child(widgets::styled_text(SharedString::from(format!("total:{name}")), text, |d| d.text_sm()))
+                el.child(widgets::styled_text(SharedString::from(format!("total:{name}")), text, |d| {
+                    d.text_sm().flex_1().text_right()
+                }))
             })
             .into_any_element()
     }

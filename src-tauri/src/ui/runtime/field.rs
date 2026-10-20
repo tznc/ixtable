@@ -41,6 +41,8 @@ pub type EnterHandler = Rc<dyn Fn(&mut App)>;
 #[derive(Clone)]
 pub struct FieldProps {
     pub label: SharedString,
+    /// Repeated rows show their labels once in a header; the input keeps its accessibility label.
+    pub hide_label: bool,
     pub control: Control,
     pub value: Value,
     /// Read-only display (detail mode, disabled by `enabledWhen`, or no permission).
@@ -725,16 +727,18 @@ impl Render for FieldView {
             .gap_1()
             .w_full()
             .when_some(tone, |el, color| el.border_l_2().border_color(color).pl_2())
-            .child(
-                div()
-                    .id(SharedString::from(format!("{id}:label")))
-                    .aria_label(label.clone())
-                    .text_sm()
-                    .font_weight(FontWeight::MEDIUM)
-                    .text_color(tone.unwrap_or(theme.muted_foreground))
-                    .child(label)
-                    .test_support(),
-            )
+            .when(!props.hide_label, |el| {
+                el.child(
+                    div()
+                        .id(SharedString::from(format!("{id}:label")))
+                        .aria_label(label.clone())
+                        .text_sm()
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(tone.unwrap_or(theme.muted_foreground))
+                        .child(label.clone())
+                        .test_support(),
+                )
+            })
             .child(if inline { h_flex().child(input).into_any_element() } else { input })
             .when_some(props.error.clone(), |el, error| {
                 el.child(widgets::styled_text(

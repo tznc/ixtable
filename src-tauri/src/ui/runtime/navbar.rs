@@ -52,6 +52,11 @@ fn order_key(props: &NavBarProps) -> String {
     )
 }
 
+/// Cursor of a just-created record: past the end, so the bar clamps it to the last place.
+pub fn end_cursor(form_id: &str) -> RecordCursor {
+    RecordCursor { form_id: form_id.to_string(), index: usize::MAX, sorts: vec![], filters: vec![], params: Default::default() }
+}
+
 impl RecordNavBar {
     pub fn new(props: NavBarProps, cx: &mut Context<Self>) -> Self {
         let bus = props.env.bus.clone();
@@ -113,7 +118,9 @@ impl RecordNavBar {
     }
 
     fn index(&self) -> Option<usize> {
-        self.props.cursor.as_ref().map(|c| c.index)
+        // A just-created record carries an index past the end; it sits at the last place.
+        let total = self.total.map(|t| t.saturating_sub(1) as usize);
+        self.props.cursor.as_ref().map(|c| total.map_or(c.index, |t| c.index.min(t)))
     }
 
     fn last(&self) -> i64 {

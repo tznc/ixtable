@@ -114,6 +114,8 @@ fn generates_crud_forms_validates_creates_edits_and_manages_related_records(cx: 
     wait(&mut h);
     h.fill("field:product", "Widget");
     h.fill("field:quantity", "2");
+    // A nested editor names its record so stacked Save buttons stay distinguishable.
+    assert_eq!(h.label("create"), "Create order item");
     h.click("create");
     wait(&mut h);
     assert_eq!(h.label("related:order-items:cell:0:product"), "Widget");
@@ -129,6 +131,7 @@ fn generates_crud_forms_validates_creates_edits_and_manages_related_records(cx: 
     h.click("related:order-items:edit:0");
     wait(&mut h);
     h.fill("field:quantity", "5");
+    assert_eq!(h.label("save"), "Save order item");
     h.click("save");
     wait(&mut h);
     assert_eq!(h.label("related:order-items:cell:0:quantity"), "5");

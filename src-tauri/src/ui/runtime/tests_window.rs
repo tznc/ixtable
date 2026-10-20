@@ -40,7 +40,7 @@ fn run_app_opens_its_own_window_and_studio_keeps_its_mode(cx: &mut TestAppContex
     assert_ne!(h.label("mode-title"), "Run App", "Studio keeps showing Design");
 
     h.focus_window(run);
-    assert_eq!(h.label("mode-title"), "Run App");
+    assert_ne!(h.label("mode-title"), "Run App", "the Run App window is titled with the app name");
     assert_eq!(h.label("run-as"), OWNER);
     assert_eq!(role_in_force(&mut h), None);
 

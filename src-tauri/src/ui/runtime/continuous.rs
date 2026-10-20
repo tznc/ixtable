@@ -13,7 +13,7 @@
 
 use super::{
     BodyKey, RuntimeEnv,
-    body::{BodyContext, control_grid},
+    body::{BodyContext, control_grid, header_grid},
     host::{HostEvent, UiHost, context, run_action_job},
 };
 use crate::data::{DataValue, TableSchema};
@@ -689,6 +689,10 @@ impl Render for ContinuousView {
                     .min_h_0()
                     .overflow_y_scroll()
                     .gap_2()
+                    // Labels once as column headers; rows carry none (inset to match a row's padding and border).
+                    .when(!self.rows.is_empty() || self.new_row.is_some(), |d| {
+                        d.child(div().id("continuous-header").px(px(9.)).child(header_grid(&self.form)).test_support())
+                    })
                     .children(self.rows.iter().map(|(_, row)| row.clone()))
                     .when(self.page.as_ref().is_some_and(|p| p.rows.is_empty()), |d| {
                         d.child(widgets::empty_state("continuous-empty", "No records yet", "Records you add will show here.", cx))

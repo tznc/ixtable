@@ -124,11 +124,15 @@ fn a_new_table_refits_the_view(cx: &mut TestAppContext) {
 }
 
 #[gpui_kit::test]
-fn refits_when_the_diagram_shrinks_for_the_datasheet(cx: &mut TestAppContext) {
+fn collapses_the_diagram_for_the_datasheet_and_refits_when_expanded(cx: &mut TestAppContext) {
     let mut h = shop(cx);
     let d = diagram(&mut h);
     let full = h.cx.read(|cx| d.read(cx).view());
     h.go("table:Customers");
+    h.settle();
+    assert!(h.exists("relationship-toggle"), "the header stays with a toggle");
+    assert!(h.exists("relationship-title"));
+    h.click("relationship-toggle");
     h.settle();
     let (view, visible, cards) = h.cx.read(|cx| {
         let d = d.read(cx);
@@ -140,4 +144,73 @@ fn refits_when_the_diagram_shrinks_for_the_datasheet(cx: &mut TestAppContext) {
     });
     assert!(view.zoom < full.zoom, "{view:?}");
     assert!(cards.iter().all(|c| inside(&visible, c)), "every card shows: {visible:?}");
+}
+
+#[gpui_kit::test]
+fn relationships_sharing_a_column_get_their_own_ports(cx: &mut TestAppContext) {
+    let mut h = shop(cx);
+    super::testkit::make_table(
+        &h,
+        "Shipments",
+        serde_json::json!([
+            { "name": "Shipment ID", "declaredType": "INTEGER", "nullable": false, "primaryKeyPosition": 1 },
+            { "name": "Order ID", "declaredType": "TEXT", "nullable": true, "primaryKeyPosition": 0 },
+        ]),
+        serde_json::json!([{ "columns": ["Order ID"], "targetTable": "Orders", "targetColumns": ["Order ID"] }]),
+    );
+    h.database_changed();
+    h.settle();
+    let d = diagram(&mut h);
+    let routes = h.cx.read(|cx| d.read(cx).route_points());
+    assert_eq!(routes.len(), 4);
+    // Orders.Order ID feeds Order Items and Shipments: their routes leave from different points.
+    let starts: Vec<(f32, f32)> = routes.iter().map(|r| r[0]).collect();
+    let ends: Vec<(f32, f32)> = routes.iter().map(|r| *r.last().unwrap()).collect();
+    for (i, a) in starts.iter().enumerate() {
+        for b in &starts[i + 1..] {
+            assert_ne!(a, b, "two relationships leave from one port: {starts:?}");
+        }
+    }
+    for (i, a) in ends.iter().enumerate() {
+        for b in &ends[i + 1..] {
+            assert_ne!(a, b, "two relationships enter one port: {ends:?}");
+        }
+    }
+}
+
+#[test]
+fn labels_do_not_stack_or_touch_cards() {
+    use super::diagram::place_labels;
+    let route = vec![(0.0, 100.0), (100.0, 100.0), (100.0, 300.0)];
+    let routes = vec![
+        (Some("1 \u{2014} \u{221e}".to_string()), None, route.clone()),
+        (Some("1 \u{2014} \u{221e}".to_string()), None, route.clone()),
+        (None, None, route.clone()),
+    ];
+    let card = Rect { x: 40.0, y: 60.0, w: 120.0, h: 80.0 };
+    let at = place_labels(&routes, &[card]);
+    assert_eq!(at[2], None);
+    let rects: Vec<Rect> = at[..2]
+        .iter()
+        .map(|p| {
+            let (x, y) = p.expect("placed");
+            Rect { x, y, w: 44.0, h: 20.0 }
+        })
+        .collect();
+    let touches = |a: &Rect, b: &Rect| a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    assert!(!touches(&rects[0], &rects[1]), "{rects:?}");
+    assert!(rects.iter().all(|r| !touches(r, &card)), "{rects:?}");
+}
+
+#[gpui_kit::test]
+fn each_relationship_label_explains_itself_in_a_tooltip(cx: &mut TestAppContext) {
+    let h = shop(cx);
+    let schemas: Vec<_> = ["Customers", "Products", "Orders", "Order Items"]
+        .iter()
+        .map(|t| super::testkit::inspect(&h, t))
+        .collect();
+    let edges = super::relationships::relationship_edges(&schemas);
+    let tips: Vec<String> = edges.iter().filter_map(|e| e.tooltip.clone()).collect();
+    assert!(tips.contains(&"One order \u{2192} many order items".to_string()), "{tips:?}");
+    assert!(tips.contains(&"One customer \u{2192} many orders".to_string()), "{tips:?}");
 }

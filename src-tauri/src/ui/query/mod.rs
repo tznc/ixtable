@@ -101,6 +101,8 @@ pub(crate) struct ActionState {
     pub busy: bool,
     /// Text of the last preview or run, and whether it is an error.
     pub result: Option<(String, bool)>,
+    /// Rows the last preview would change; offered as "Apply to N rows".
+    pub preview_rows: Option<u64>,
 }
 
 pub struct QueryMode {
@@ -117,6 +119,8 @@ pub struct QueryMode {
     pub(crate) action: ActionState,
     pub(crate) export: export::ExportState,
     pub(crate) sql_editor: Entity<EditorState>,
+    /// Read-only view of the SQL a builder query generates.
+    pub(crate) generated_editor: Entity<EditorState>,
     inputs: HashMap<Field, InputSlot>,
     /// The default each "Run with" input last followed, by parameter name.
     param_defaults: HashMap<String, String>,
@@ -132,6 +136,7 @@ pub struct QueryMode {
 impl QueryMode {
     pub fn new(shell: Entity<Shell>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let sql_editor = cx.new(|cx| EditorState::new(window, cx).language("sql"));
+        let generated_editor = cx.new(|cx| EditorState::new(window, cx).language("sql"));
         let results = cx.new(|_| ResultTable::new());
         let subscriptions = vec![
             cx.observe_in(&shell, window, |this, _, window, cx| {
@@ -160,6 +165,7 @@ impl QueryMode {
             action: ActionState::default(),
             export: export::ExportState::default(),
             sql_editor,
+            generated_editor,
             inputs: HashMap::new(),
             param_defaults: HashMap::new(),
             open_choice: None,

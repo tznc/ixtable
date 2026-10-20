@@ -150,3 +150,12 @@ fn persists_saved_query_metadata_through_public_commands(cx: &mut TestAppContext
     let deleted = crate::delete_saved_query(h.label.clone(), id).unwrap();
     assert!(deleted.saved_queries.is_empty());
 }
+
+#[gpui_kit::test]
+fn plain_fields_offer_an_input_mask_without_a_phone_example(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    docs(&mut h);
+    open_designer(&mut h);
+    assert!(h.exists("phone input mask"));
+    assert!(!crate::ui::fields::settings_editor::MASK_PLACEHOLDER.contains("000"));
+}

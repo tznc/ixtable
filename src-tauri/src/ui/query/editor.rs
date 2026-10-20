@@ -3,7 +3,7 @@
 //!
 //! Test ids: `query-name` (input), `query-mode-badge`, `query-unsaved`, `query-run`,
 //! `query-save`, `query-duplicate`, `query-delete` (saved queries only), `tab-builder`,
-//! `tab-sql`, `generated-sql`, `switch-to-sql` ("Edit as SQL"),
+//! `tab-sql`, `generated-sql`, `switch-to-sql` ("Edit as SQL (one-way)"),
 //! `start-builder`, `query-note`, `query-results` (labelled Preview or Results).
 
 use super::{QueryMode, Tab, inputs::Field, model::empty_model, sql};
@@ -32,7 +32,6 @@ impl QueryMode {
     /// Switches a generated query to hand-written SQL (the model is discarded).
     pub fn switch_to_sql(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let (sql, _) = self.compiled();
-        let confirm = self.model().is_some_and(|m| !m.is_empty());
         let apply = move |this: &mut Self, cx: &mut Context<Self>| {
             this.edit_query(
                 |q| {
@@ -46,14 +45,11 @@ impl QueryMode {
             this.tab = Tab::Sql;
             this.touched(cx);
         };
-        if !confirm {
-            return apply(self, cx);
-        }
         let answer = dialogs::confirm(
             cx,
-            "Switch to SQL",
-            "Switch this query to SQL? The visual builder model is discarded and the query \
-             cannot return to the builder.",
+            "Edit as SQL",
+            "Edit this query as SQL? This is one-way: the visual builder settings are discarded \
+             and the query cannot return to the builder.",
         );
         task::after_in(window, cx, answer, move |this, ok, _, cx| {
             if ok {
@@ -209,19 +205,37 @@ impl QueryMode {
             }
         } else if has_model {
             let shown = if generated.is_empty() { compile_error.clone() } else { generated.clone() };
+            if *self.generated_editor.read(cx).value() != *shown {
+                self.generated_editor
+                    .update(cx, |e, cx| e.set_value(shown.clone(), window, cx));
+            }
+            let lines = shown.lines().count().clamp(3, 14) as f32;
+            let editable = !generated.is_empty() && compile_error.is_empty();
             v_flex()
                 .gap_2()
                 .items_start()
-                .child(widgets::styled_text("generated-sql", shown, |d| {
-                    d.font_family("monospace").text_sm().whitespace_normal()
-                }))
-                .child(
-                    Button::new("switch-to-sql")
-                        .outline()
-                        .label("Edit as SQL")
-                        .tooltip("Turns this query into hand-written SQL. It cannot go back to the builder.")
-                        .on_click(cx.listener(|this, _, window, cx| this.switch_to_sql(window, cx))),
-                )
+                .child(widgets::observed(
+                    div()
+                        .id("generated-sql")
+                        .aria_label(shown.clone())
+                        .w_full()
+                        .h(px(lines * 20. + 16.))
+                        .child(
+                            Editor::new(&self.generated_editor)
+                                .h_full()
+                                .readonly(true)
+                                .aria_label("Generated SQL"),
+                        ),
+                ))
+                .when(editable, |el| {
+                    el.child(
+                        Button::new("switch-to-sql")
+                            .outline()
+                            .label("Edit as SQL (one-way)")
+                            .tooltip("Turns this query into hand-written SQL. It cannot go back to the builder.")
+                            .on_click(cx.listener(|this, _, window, cx| this.switch_to_sql(window, cx))),
+                    )
+                })
                 .into_any_element()
         } else {
             div()
@@ -256,16 +270,28 @@ impl QueryMode {
     ) -> AnyElement {
         if query.action.is_some() {
             let result = self.action.result.clone();
+            let apply = self
+                .action
+                .preview_rows
+                .filter(|_| self.action_blocked().is_none());
             return widgets::observed(
                 v_flex()
                     .id("action-results")
                     .aria_label("Action query result")
+                    .gap_2()
+                    .items_start()
                     .children(result.map(|(text, error)| {
                         if error {
                             self.error_line("action-error", &text, cx)
                         } else {
                             widgets::text("action-result", text).into_any_element()
                         }
+                    }))
+                    .children(apply.map(|n| {
+                        Button::new("apply-action")
+                            .primary()
+                            .label(format!("Apply to {}", widgets::plural(n as usize, "row")))
+                            .on_click(cx.listener(|this, _, window, cx| this.go_action(false, window, cx)))
                     })),
             )
             .into_any_element();

@@ -170,8 +170,11 @@ impl Render for ObjectBrowser {
                         Some(tag) => format!("{} ({tag})", item.name),
                         None => item.name.clone(),
                     };
-                    // The name truncates; the tag badge stays visible.
-                    Button::new(SharedString::from(item.key))
+                    // The name truncates; the tag badge stays visible. The row icon shows on
+                    // hover or selection only, and keeps its space so names don't shift.
+                    let group_name = SharedString::from(format!("row-{}", item.key));
+                    let icon_group = group_name.clone();
+                    div().w_full().group(group_name).child(Button::new(SharedString::from(item.key))
                         .ghost()
                         .small()
                         .w_full()
@@ -182,7 +185,12 @@ impl Render for ObjectBrowser {
                                 .min_w_0()
                                 .gap_1()
                                 .items_center()
-                                .child(Icon::new(icon).small())
+                                .child(
+                                    div()
+                                        .flex_none()
+                                        .when(!selected, |d| d.opacity(0.).group_hover(icon_group, |s| s.opacity(1.)))
+                                        .child(Icon::new(icon).small()),
+                                )
                                 .child(div().min_w_0().overflow_hidden().whitespace_nowrap().text_ellipsis().child(item.name.clone()))
                                 .when_some(item.tag, |row, tag| {
                                     row.child(
@@ -202,7 +210,7 @@ impl Render for ObjectBrowser {
                         .on_click(move |_, _, cx| {
                             let selection = selection.clone();
                             entity.update(cx, |this, cx| this.choose(selection, cx));
-                        })
+                        }))
                 }))
                 .when(empty, |el| {
                     el.child(div().px_2().text_xs().text_color(muted).child("No matches"))

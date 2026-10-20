@@ -229,22 +229,6 @@ fn simplify(points: Vec<Point>) -> Vec<Point> {
     out
 }
 
-/// The point halfway along a route, where its label sits.
-pub fn halfway(points: &[Point]) -> Point {
-    let length = |a: Point, b: Point| (b.0 - a.0).abs() + (b.1 - a.1).abs();
-    let total: f32 = points.windows(2).map(|w| length(w[0], w[1])).sum();
-    let mut left = total / 2.0;
-    for w in points.windows(2) {
-        let part = length(w[0], w[1]);
-        if part >= left && part > 0.0 {
-            let t = left / part;
-            return (w[0].0 + (w[1].0 - w[0].0) * t, w[0].1 + (w[1].1 - w[0].1) * t);
-        }
-        left -= part;
-    }
-    points.first().copied().unwrap_or((0.0, 0.0))
-}
-
 pub const MIN_ZOOM: f32 = 0.5;
 pub const MAX_ZOOM: f32 = 1.4;
 /// The share of the view left empty around the diagram on fit-to-view.
@@ -374,12 +358,6 @@ mod tests {
         assert!(!crosses(&r, &parent) && !crosses(&r, &child), "{r:?}");
         let before_end = r[r.len() - 2];
         assert!(before_end.0 < 0.0, "enters the child from its left: {r:?}");
-    }
-
-    #[test]
-    fn halfway_splits_the_route_length() {
-        assert_eq!(halfway(&[(0.0, 0.0), (10.0, 0.0), (10.0, 10.0)]), (10.0, 0.0));
-        assert_eq!(halfway(&[(0.0, 0.0), (40.0, 0.0)]), (20.0, 0.0));
     }
 
     #[test]

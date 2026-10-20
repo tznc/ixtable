@@ -118,3 +118,13 @@ fn joins_several_checks_the_way_the_store_compares_them_and_is_empty_without_any
     );
     assert_eq!(column_check(&schema("t", columns(), &[]), "qty"), "");
 }
+
+#[gpui_kit::test]
+fn decimal_precision_and_scale_inputs_are_labelled(cx: &mut gpui_kit::TestAppContext) {
+    let mut h = crate::ui::testing::Harness::new_document(cx);
+    h.go("new-table");
+    assert!(!h.exists("Column 1:precision-label"));
+    h.pick("Column 1:type", "Decimal (precision, scale)");
+    assert_eq!(h.label("Column 1:precision-label"), "Precision");
+    assert_eq!(h.label("Column 1:scale-label"), "Scale");
+}

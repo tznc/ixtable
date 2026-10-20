@@ -39,6 +39,10 @@ fn edits_adds_and_deletes_records_in_place_on_a_continuous_form(cx: &mut TestApp
     assert!(h.exists("crow:1"));
     assert!(h.exists("crow:2"));
     assert!(h.exists("crow:new"));
+    // Labels appear once as column headers, not on every row.
+    assert!(h.exists("continuous-header"));
+    assert!(!h.exists("record-1:field:title:label"));
+    assert!(!h.exists("record-new:field:title:label"));
 
     // Edit in place: Save appears once the row changes.
     assert!(!h.exists("crow:1:save"));
@@ -281,4 +285,20 @@ fn saves_a_continuous_row_when_save_is_pressed_and_keeps_edits_in_other_rows(cx:
     h.click("crow:new:save");
     wait(&mut h);
     assert_eq!(titles(&h), ["Draft plan", "Approve budget", "Hire help"]);
+}
+
+#[gpui_kit::test]
+fn the_bar_reads_record_n_of_n_after_a_record_is_created(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    seed_tasks(&mut h, &["Alpha", "Bravo", "Charlie"]);
+    task_form(&mut h, json!({"modes": ["split", "detail", "create", "edit"], "navigationBar": true}));
+    open_tasks(&mut h);
+    h.click("row:0");
+    wait(&mut h);
+    h.click("nav-new");
+    wait(&mut h);
+    h.fill("field:title", "Delta");
+    h.click("create");
+    wait(&mut h);
+    assert_eq!(h.label("nav-position"), "Record 4 of 4");
 }

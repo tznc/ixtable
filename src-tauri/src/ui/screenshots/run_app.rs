@@ -35,7 +35,7 @@ fn run_app() {
         config.roles = vec![sales, Role { id: "auditor".into(), name: "Auditor".into(), permissions: Permissions::default() }];
     });
     let run = h.run_app_window().expect("Run App is open");
-    assert_eq!(h.label("mode-title"), "Run App");
+    assert_ne!(h.label("mode-title"), "Run App", "the window is titled with the app name");
     assert_eq!(h.label("run-as"), OWNER);
     h.capture(
         "run-app-01-owner-window",

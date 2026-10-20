@@ -151,7 +151,9 @@ fn exports_from_studio_opens_runtime_only_and_updates_keeping_runtime_records(
     assert!(!h.exists("update-confirm"));
     let error = bundle_error_text(&mut h);
     assert!(error.starts_with("A newer version"), "{error}");
-    assert!(error.ends_with("Installed: 1.1.0. This file: 1.0.0."), "{error}");
+    assert!(error.contains("Installed: 1.1.0. This file: 1.0.0."), "{error}");
+    assert!(error.contains(super::bundle_error::DOWNGRADE_WARNING), "{error}");
+    assert!(error.contains("older version may not be able to read"), "{error}");
     assert!(!error.contains("BUNDLE_DOWNGRADE") && !h.exists("bundle-error-code"));
     // The earlier success toast is cleared when the refusal shows.
     assert!(h.notice().is_none());
@@ -319,6 +321,9 @@ fn previews_a_protected_updates_notes_and_migrations_then_shows_jobs_and_logs(
     h.click("diagnostics-tab-logs");
     let lines: Vec<String> = (0..200).filter_map(|i| h.try_label(crate::ui::forms::eid(format!("log:{i}")))).collect();
     assert!(lines.iter().any(|l| l.contains("Untitled 2.0.0")), "{lines:?}");
+    // Log times read as dates, not raw ISO stamps.
+    let shown = h.try_label(crate::ui::forms::eid("log:0".to_string())).unwrap_or_default();
+    assert!(shown.contains("2026") || shown.contains("T"), "{shown}");
     h.click("diagnostics-close");
     assert!(!h.exists("diagnostics"));
     let state = h.state();

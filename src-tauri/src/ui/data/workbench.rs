@@ -62,6 +62,8 @@ pub struct DataMode {
     seen_objects: Vec<(String, String)>,
     seen_selection: Option<Selection>,
     diagram: Entity<RelationshipBrowser>,
+    // Whether the diagram stays open while a table is open; kept for the session.
+    diagram_expanded: bool,
     sheet: Option<Entity<Datasheet>>,
     page: Option<Page>,
     // Records in the table with no filter applied; set only while a filter is active.
@@ -140,6 +142,7 @@ impl DataMode {
             seen_objects: vec![],
             seen_selection: None,
             diagram,
+            diagram_expanded: false,
             sheet: None,
             page: None,
             unfiltered_total: None,
@@ -746,9 +749,12 @@ impl Render for DataMode {
             widgets::plural(self.schemas.len(), "table"),
             widgets::plural(relationships, "relationship")
         );
+        // With a table open the diagram collapses to its header so the datasheet gets the space.
+        let diagram_open = !inspector_visible || self.diagram_expanded;
         let relationship_pane = v_flex()
             .id("relationship-pane")
-            .when(inspector_visible, |el| el.h(px(300.)).flex_none())
+            .when(inspector_visible && diagram_open, |el| el.h(px(300.)).flex_none())
+            .when(inspector_visible && !diagram_open, |el| el.flex_none())
             .when(!inspector_visible, |el| el.flex_1())
             .min_h_0()
             .gap_2()
@@ -757,6 +763,19 @@ impl Render for DataMode {
                 h_flex()
                     .gap_3()
                     .items_center()
+                    .when(inspector_visible, |el| {
+                        el.child(
+                            Button::new("relationship-toggle")
+                                .ghost()
+                                .xsmall()
+                                .icon(if diagram_open { IconName::ChevronDown } else { IconName::ChevronRight })
+                                .tooltip(if diagram_open { "Collapse the diagram" } else { "Expand the diagram" })
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.diagram_expanded = !this.diagram_expanded;
+                                    cx.notify();
+                                })),
+                        )
+                    })
                     .child(div().font_weight(FontWeight::SEMIBOLD).child("Relationships"))
                     .child(div().text_sm().text_color(muted).child(widgets::text("relationship-title", title)))
                     .child(div().flex_1())
@@ -779,7 +798,7 @@ impl Render for DataMode {
                         )
                     }),
             )
-            .child(div().flex_1().min_h_0().child(self.diagram.clone()));
+            .when(diagram_open, |el| el.child(div().flex_1().min_h_0().child(self.diagram.clone())));
 
         let page_total = self.page.as_ref().map(|p| p.total);
         let page_rows = self.page.as_ref().map_or(0, |p| p.rows.len() as u64);

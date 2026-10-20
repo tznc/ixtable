@@ -61,6 +61,31 @@ impl Span {
     }
 }
 
+/// Width choices for a grid of `columns`: only the shares that divide it evenly, plus the
+/// current span when it is none of them.
+pub(super) fn width_options(columns: u16, current: u16) -> Vec<(String, String)> {
+    let mut options: Vec<(u16, &str)> = vec![(columns, "Full")];
+    for (div, num, label) in [(2, 1, "½"), (3, 1, "⅓"), (4, 1, "¼"), (3, 2, "⅔")] {
+        if columns > 1 && columns % div == 0 {
+            let span = columns / div * num;
+            if !options.iter().any(|(s, _)| *s == span) {
+                options.push((span, label));
+            }
+        }
+    }
+    if !options.iter().any(|(s, _)| *s == current) {
+        options.push((current, "Custom"));
+    }
+    options.sort_by_key(|(s, _)| std::cmp::Reverse(*s));
+    options
+        .into_iter()
+        .map(|(span, label)| {
+            let text = if label == "Custom" { format!("{span} of {columns} columns") } else { label.to_string() };
+            (span.to_string(), text)
+        })
+        .collect()
+}
+
 fn options_text(options: &[SelectOption]) -> String {
     options
         .iter()
@@ -118,6 +143,29 @@ impl DesignStudio {
                 String::new()
             },
             window,
+            cx,
+        )
+    }
+
+    /// "Width": the column span as a share of the form grid (Full, ½, ⅓, ¼, ⅔).
+    fn width_field(&mut self, control: &Control, grid: &GridLayout, limits: SpanConstraints, cx: &mut Context<Self>) -> Div {
+        let columns = grid.columns.len() as u16;
+        let current = control.placement.column_span;
+        let options = width_options(columns, current);
+        let (cid, placement, grid) = (control.id.clone(), control.placement.clone(), grid.clone());
+        self.pick(
+            "prop-width",
+            "Width",
+            &current.to_string(),
+            options,
+            "Full",
+            move |this, value, cx| {
+                let Ok(span) = value.parse::<u16>() else { return };
+                let mut next = placement.clone();
+                next.column_span = span;
+                let next = resize_placement(&clamp_placement(&next, columns as usize), GridDelta::default(), &grid, limits);
+                this.edit_control(&cid, "Move control", move |c| c.placement = next, cx);
+            },
             cx,
         )
     }
@@ -233,20 +281,30 @@ impl DesignStudio {
             cx,
         ));
 
-        let (column, row) = (
-            self.span_field(Span::Column, "prop-column", "Column", control, &grid, limits, window, cx),
-            self.span_field(Span::Row, "prop-row", "Row", control, &grid, limits, window, cx),
-        );
-        let (column_span, row_span) = (
-            self.span_field(Span::ColumnSpan, "prop-column-span", "Column span", control, &grid, limits, window, cx),
-            self.span_field(Span::RowSpan, "prop-row-span", "Row span", control, &grid, limits, window, cx),
-        );
-        panel = panel
-            .child(h_flex().gap_2().child(column).child(row))
-            .child(h_flex().gap_2().child(column_span).child(row_span))
-            .when(in_region, |el| {
-                el.child(div().text_xs().text_color(muted).child("Placed in a region; choose None to set column and row."))
-            });
+        if !in_region {
+            panel = panel.child(self.width_field(control, &grid, limits, cx));
+        }
+        let mut exact = crate::ui::section::section("control-position", "Exact position", false, window, cx)
+            .summary(format!(
+                "Column {}, row {}, {} × {}",
+                control.placement.column, control.placement.row, control.placement.column_span, control.placement.row_span
+            ));
+        if exact.is_open() {
+            let (column, row) = (
+                self.span_field(Span::Column, "prop-column", "Column", control, &grid, limits, window, cx),
+                self.span_field(Span::Row, "prop-row", "Row", control, &grid, limits, window, cx),
+            );
+            let (column_span, row_span) = (
+                self.span_field(Span::ColumnSpan, "prop-column-span", "Column span", control, &grid, limits, window, cx),
+                self.span_field(Span::RowSpan, "prop-row-span", "Row span", control, &grid, limits, window, cx),
+            );
+            exact = exact
+                .child(h_flex().gap_2().child(column).child(row))
+                .child(h_flex().gap_2().child(column_span).child(row_span));
+        }
+        panel = panel.child(exact.render(cx)).when(in_region, |el| {
+            el.child(div().text_xs().text_color(muted).child("Placed in a region; choose None to set column and row."))
+        });
         if let Some(region) = self.region_picker(&grid, control, cx) {
             panel = panel.child(region);
         }

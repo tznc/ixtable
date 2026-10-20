@@ -135,7 +135,7 @@ fn size(kind: ComponentKind) -> Size {
         ComponentKind::Filter => (3, 1, min(Some(2), None)),
         ComponentKind::Form => (6, 3, min(Some(4), Some(2))),
         ComponentKind::Report => (12, 4, min(Some(6), Some(2))),
-        ComponentKind::Button => (2, 1, min(None, None)),
+        ComponentKind::Button => (3, 1, min(Some(2), None)),
         ComponentKind::Text => (4, 1, min(None, None)),
     };
     Size { columns, rows, min }

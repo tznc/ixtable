@@ -12,7 +12,7 @@
 //! Test ids: toolbar `prev-page`, `next-page`, `page-status` ("Page 1 of 2"), `zoom`
 //! (a choice), `print`, `export-pdf`; message `preview-error`;
 //! loading `report-loading`, `loading-seconds`, `cancel-load`, `load-cancelled`,
-//! `retry-load`, `load-error`; `truncated`; `diagnostics-toggle` and `diagnostic-N`;
+//! `retry-load`, `load-error`; `truncated`; `running-total-caption` and `conditional-format-caption` under the page; `diagnostics-toggle` and `diagnostic-N`;
 //! the page is `page_view`'s `report-page`.
 
 use crate::ui::controls::choice;
@@ -301,6 +301,7 @@ impl ReportPreview {
         };
         let ready = self.document().is_some();
         let status = if ready { format!("Page {} of {total}", index + 1) } else { "No pages".to_string() };
+        let muted = cx.theme().muted_foreground;
         let entity = cx.entity();
         let zoom_options: Vec<(String, String)> = ZOOMS
             .iter()
@@ -324,7 +325,7 @@ impl ReportPreview {
                     .disabled(!ready || index == 0)
                     .on_click(cx.listener(move |this, _, _, cx| this.go(index.saturating_sub(1), cx))),
             )
-            .child(widgets::text("page-status", status))
+            .child(widgets::styled_text("page-status", status, move |d| d.text_xs().text_color(muted)))
             .child(
                 Button::new("next-page")
                     .ghost()
@@ -334,7 +335,7 @@ impl ReportPreview {
                     .disabled(!ready || index + 1 >= total)
                     .on_click(cx.listener(move |this, _, _, cx| this.go(index + 1, cx))),
             )
-            .child(div().text_sm().child("Zoom"))
+            .child(div().text_xs().text_color(muted).child("Zoom"))
             .child(choice(
                 "zoom",
                 &self.zoom.to_string(),
@@ -429,6 +430,46 @@ impl ReportPreview {
                     ))
                 },
             )
+    }
+
+    /// Explains what the page does not: columns that hold a running total and values that
+    /// a conditional formatting rule highlights.
+    fn render_legend(&self, cx: &App) -> Option<AnyElement> {
+        let config = self.shell.read(cx).config(cx);
+        let report = config.reports.iter().find(|r| r.id == self.report_id)?;
+        let mut sums = vec![];
+        let mut rules = false;
+        for entry in crate::report_engine::model::band_entries(report) {
+            for c in &entry.band.components {
+                rules |= !super::extra::objects(c, "conditions").is_empty();
+                let scope = match super::extra::text(c, "runningSum").as_str() {
+                    "group" => "over each group",
+                    "all" => "over all rows",
+                    _ => continue,
+                };
+                sums.push(format!("{} ({scope})", super::extra::canvas_text(c)));
+            }
+        }
+        if sums.is_empty() && !rules {
+            return None;
+        }
+        let muted = cx.theme().muted_foreground;
+        let mut notes = v_flex().id("report-legend").gap_1();
+        if !sums.is_empty() {
+            notes = notes.child(widgets::styled_text(
+                "running-total-caption",
+                format!("Running total: {}", sums.join(", ")),
+                move |d| d.text_xs().text_color(muted),
+            ));
+        }
+        if rules {
+            notes = notes.child(widgets::styled_text(
+                "conditional-format-caption",
+                "Bold or shaded values follow a conditional formatting rule.",
+                move |d| d.text_xs().text_color(muted),
+            ));
+        }
+        Some(notes.into_any_element())
     }
 
     fn render_notes(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -564,14 +605,20 @@ impl Render for ReportPreview {
             .child(self.render_status(cx))
             .child(self.render_notes(cx))
             .child(
-                div()
+                h_flex()
                     .id("report-page-scroller")
                     .flex_1()
                     .min_h_0()
+                    .items_start()
                     .overflow_scroll()
                     .p_4()
                     .bg(cx.theme().muted)
-                    .when_some(page, |el, page| el.child(page)),
+                    .when_some(page, |el, page| {
+                        // Equal spacers center the page and shrink to nothing when it overflows.
+                        el.child(div().flex_1().min_w_0())
+                            .child(v_flex().flex_none().gap_3().child(page).children(self.render_legend(cx)))
+                            .child(div().flex_1().min_w_0())
+                    }),
             )
             .into_any_element()
     }

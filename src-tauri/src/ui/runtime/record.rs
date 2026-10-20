@@ -216,8 +216,18 @@ impl RecordView {
     pub fn title(&self) -> String {
         match self.props.mode {
             FormMode::Create => format!("New {}", widgets::singular(&self.form.name).to_lowercase()),
-            FormMode::Edit => format!("Edit {}", self.form.name),
+            FormMode::Edit => format!("Edit {}", widgets::singular(&self.form.name).to_lowercase()),
             _ => self.form.name.clone(),
+        }
+    }
+
+    /// Save/Create button text. Embedded editors name their record so nested pairs are distinguishable.
+    pub fn submit_label(&self) -> String {
+        let verb = if self.props.mode == FormMode::Create { "Create" } else { "Save" };
+        if self.props.embedded {
+            format!("{verb} {}", widgets::singular(&self.form.name).to_lowercase())
+        } else {
+            verb.to_string()
         }
     }
 
@@ -823,6 +833,7 @@ impl Render for RecordView {
         };
         let mode = self.props.mode;
         let embedded = self.props.embedded;
+        let submit_label = self.submit_label();
         let can_edit = self.can_edit(cx);
         let can_delete = self.can_delete(cx);
         let record_id = self.props.record_id.clone();
@@ -894,7 +905,7 @@ impl Render for RecordView {
                         .child(
                             Button::new(if mode == FormMode::Create { "create" } else { "save" })
                                 .primary()
-                                .label(if mode == FormMode::Create { "Create" } else { "Save" })
+                                .label(submit_label.clone())
                                 .disabled(!self.can_save())
                                 .on_click(cx.listener(|this, _, _, cx| this.save(cx))),
                         ),

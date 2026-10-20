@@ -4,8 +4,8 @@
 //!
 //! Test ids:
 //! - palette `add-<kind>` (`add-staticText`, `add-field`, `add-calculated`, `add-image`,
-//!   `add-line`, `add-rectangle`, `add-table`, `add-subreport`, `add-chart`) and the
-//!   hint `table-hint`;
+//!   `add-line`, `add-rectangle`, `add-table`, `add-subreport`, `add-chart`); Table and
+//!   Subreport carry the `TABLE_HINT` tooltip in page bands;
 //! - canvas: band label buttons `band-<band key>` (`band-detail`, `band-groupHeader:<id>`),
 //!   bands `band-area-<key>`, components `component-<id>` (label "<Kind> <summary>"),
 //!   resize handles `resize-<id>`, band grips `band-grip-<key>`;
@@ -79,6 +79,8 @@ pub struct ReportDesigner {
     /// A component to select on the first render (a Problems link).
     pending_focus: Option<String>,
     pub(super) inputs: Inputs<ReportDesigner, String>,
+    /// Fields whose Value picker is on "Custom expression…" while the expression is empty.
+    pub(super) custom_value: std::collections::HashSet<String>,
     handles: HashMap<String, FocusHandle>,
     pub drag: Option<Drag>,
     _subscription: Subscription,
@@ -102,6 +104,7 @@ impl ReportDesigner {
             assets_loaded: false,
             pending_focus: focus,
             inputs: Inputs::new(Self::on_edit),
+            custom_value: Default::default(),
             handles: HashMap::new(),
             drag: None,
             _subscription: subscription,
@@ -459,6 +462,7 @@ impl Render for ReportDesigner {
                 .small()
                 .label(label)
                 .opacity(if blocked { 0.5 } else { 1.0 })
+                .when(blocked, |b| b.tooltip(TABLE_HINT))
                 .on_click(move |_, _, cx| entity.update(cx, |this, cx| this.add(kind, cx)))
         });
         let canvas = self.render_canvas(&report, window, cx);
@@ -475,11 +479,6 @@ impl Render for ReportDesigner {
                     .gap_2()
                     .p_3()
                     .child(h_flex().id("report-palette").flex_wrap().gap_1().children(palette))
-                    .when(page_band, |el| {
-                        el.child(widgets::styled_text("table-hint", TABLE_HINT, move |d| {
-                            d.text_sm().text_color(muted)
-                        }))
-                    })
                     .child(widgets::styled_text(
                         "canvas-hint",
                         format!(

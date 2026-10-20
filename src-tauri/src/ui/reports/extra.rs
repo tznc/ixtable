@@ -125,3 +125,37 @@ pub fn canvas_label(c: &Component) -> String {
         .trim()
         .to_string()
 }
+
+/// The field a bound expression names (`record.amount`, `record.[Unit price]`).
+pub fn bound_field(expression: &str) -> Option<String> {
+    let rest = expression.trim().strip_prefix("record.")?;
+    let name = match rest.strip_prefix('[').and_then(|r| r.strip_suffix(']')) {
+        Some(inner) => inner,
+        None if rest.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+            && rest.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') => rest,
+        None => return None,
+    };
+    (!name.is_empty() && !name.contains(['[', ']'])).then(|| name.to_string())
+}
+
+/// What a component shows on the canvas: the field name, or "Expression" with a short
+/// preview, instead of the raw expression.
+pub fn canvas_text(c: &Component) -> String {
+    if !matches!(c.kind.as_str(), "field" | "calculated") {
+        return summary(c);
+    }
+    let expression = text(c, "expression");
+    if expression.trim().is_empty() {
+        return "No value yet".to_string();
+    }
+    if let Some(field) = bound_field(&expression) {
+        return field;
+    }
+    let flat = expression.split_whitespace().collect::<Vec<_>>().join(" ");
+    let short: String = flat.chars().take(18).collect();
+    if flat.chars().count() > 18 {
+        format!("Expression: {short}…")
+    } else {
+        format!("Expression: {short}")
+    }
+}

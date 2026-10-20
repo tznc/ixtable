@@ -1,7 +1,7 @@
 //! The properties panel of the designer (port of `ComponentProperties.tsx`): the selected
 //! component's settings, or the band and report settings when nothing is selected.
 //!
-//! Test ids: `props-title`, `prop-text`, `prop-bound-field`, `prop-expression`,
+//! Test ids: `props-title`, `prop-text`, `prop-bound-field` (the Value picker), `prop-expression` (shown for a custom value),
 //! `prop-format`, `prop-running-sum`, `prop-image`, `prop-direction`, `prop-x`, `prop-y`,
 //! `prop-w`, `prop-h`, `prop-font-size`, `prop-align`, `prop-bold`, `prop-can-grow`,
 //! `prop-border-width`, `prop-fill`, `delete-component`. Chart, table, subreport and
@@ -15,6 +15,9 @@ use crate::report_engine::model::{field_expression, is_page_band, kind_label, Ba
 use crate::reports::{Component, Report};
 use crate::ui::prelude::*;
 use serde_json::{json, Value};
+
+/// The Value picker's option that reveals the expression input.
+const CUSTOM_VALUE: &str = "\u{1}custom";
 
 /// Background fills offered for report boxes (gray levels).
 pub const FILLS: [(&str, Option<f64>); 4] = [
@@ -154,32 +157,40 @@ impl ReportDesigner {
             col = col.child(self.labeled("prop-text", "Text", &extra::text(c, "text"), "", window, cx));
         }
         if matches!(c.kind.as_str(), "field" | "calculated") {
-            if c.kind == "field" && !self.columns.is_empty() {
+            let expression = extra::text(c, "expression");
+            let bound = extra::bound_field(&expression).filter(|f| self.columns.contains(f));
+            let picker = c.kind == "field" && !self.columns.is_empty();
+            let custom = !picker
+                || self.custom_value.contains(&id)
+                || (bound.is_none() && !expression.trim().is_empty());
+            if picker {
                 let (target, columns) = (id.clone(), self.columns.clone());
+                let mut options = Self::same(&columns);
+                options.push((CUSTOM_VALUE.to_string(), "Custom expression…".to_string()));
+                let current = if custom { CUSTOM_VALUE.to_string() } else { bound.clone().unwrap_or_default() };
                 col = col.child(self.pick(
                     "prop-bound-field",
-                    "Bound field",
-                    "",
-                    Self::same(&columns),
+                    "Value",
+                    &current,
+                    options,
                     "Choose a field…",
                     move |this, value, cx| {
-                        if !value.is_empty() {
+                        if value == CUSTOM_VALUE {
+                            this.custom_value.insert(target.clone());
+                            cx.notify();
+                        } else if !value.is_empty() {
+                            this.custom_value.remove(&target);
                             this.set_extra(&target, "expression", json!(field_expression(value)), cx);
                         }
                     },
                     cx,
                 ));
             }
-            let placeholder = if c.kind == "field" { "record.amount" } else { "sum(rows.amount)" };
-            col = col.child(self.expression(
-                "prop-expression",
-                "Expression",
-                &extra::text(c, "expression"),
-                placeholder,
-                &REPORT_SCOPE_NAMES,
-                window,
-                cx,
-            ));
+            if custom {
+                let placeholder = if c.kind == "field" { "record.amount" } else { "sum(rows.amount)" };
+                let label = if picker { "Custom expression" } else if c.kind == "field" { "Value" } else { "Expression" };
+                col = col.child(self.expression("prop-expression", label, &expression, placeholder, &REPORT_SCOPE_NAMES, window, cx));
+            }
             col = col.child(self.labeled("prop-format", "Format", &extra::text(c, "format"), "#,##0.00 or MMM d, yyyy", window, cx));
             if !page_band {
                 let target = id.clone();

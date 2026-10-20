@@ -228,3 +228,15 @@ fn a_form_not_on_a_page_does_not_name_another_page_in_the_back_link(cx: &mut Tes
     // The page that is selected does not show this form, so the back link goes to the pages.
     assert_eq!(h.label("back-to-page"), "Back to pages");
 }
+
+#[gpui_kit::test]
+fn generate_app_is_offered_in_the_empty_state_with_its_reason(cx: &mut TestAppContext) {
+    let mut h = tall_document(cx);
+    open_dashboards(&mut h);
+    // A new document has a page and no table: the reason shows beside the Generate group.
+    assert_eq!(h.label("generate-app-hint"), "Add a table first.");
+    assert!(!h.exists("generate-app-empty"), "the empty state only shows without pages");
+    crate::ui::reports::test_support::edit_store(&mut h, |c| c.pages.clear());
+    assert!(h.exists("generate-app-empty"));
+    assert_eq!(h.label("generate-app-empty-hint"), "Add a table first.");
+}

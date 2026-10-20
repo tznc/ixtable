@@ -76,6 +76,7 @@ pub struct DesignStudio {
     assets_loading: bool,
     pub(super) previews: HashMap<String, super::asset_picker::Preview>,
     wired: bool,
+    shortcuts_open: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -107,6 +108,7 @@ impl DesignStudio {
             assets_loading: false,
             previews: HashMap::new(),
             wired: false,
+            shortcuts_open: false,
             _subscriptions: subscriptions,
         }
     }
@@ -464,14 +466,36 @@ impl DesignStudio {
                     .gap_2()
                     .p_3()
                     .child(div().text_xs().text_color(muted).child(kicker))
-                    .child(widgets::styled_text("form-title", form.name.clone(), |d| {
-                        d.text_xl().font_weight(FontWeight::SEMIBOLD)
-                    }))
-                    .child(widgets::styled_text(
-                        "form-hint",
-                        "Enter selects a control, Alt+Arrow resizes, Alt+Shift+Arrow moves.",
-                        move |d| d.text_sm().text_color(muted),
-                    ))
+                    .child(
+                        h_flex()
+                            .items_center()
+                            .justify_between()
+                            .child(widgets::styled_text("form-title", form.name.clone(), |d| {
+                                d.text_xl().font_weight(FontWeight::SEMIBOLD)
+                            }))
+                            .child(
+                                Button::new("form-shortcuts")
+                                    .ghost()
+                                    .small()
+                                    .icon(IconName::Info)
+                                    .label("Shortcuts")
+                                    .selected(self.shortcuts_open)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.shortcuts_open = !this.shortcuts_open;
+                                        cx.notify();
+                                    })),
+                            ),
+                    )
+                    .when(self.shortcuts_open, |el| {
+                        el.child(widgets::slide_in(
+                            "form-hint-slide",
+                            widgets::styled_text(
+                                "form-hint",
+                                "Enter selects a control, Alt+Arrow resizes, Alt+Shift+Arrow moves.",
+                                move |d| d.text_sm().text_color(muted),
+                            ),
+                        ))
+                    })
                     .child(self.render_canvas(&form, None, None, window, cx))
                     .when(empty, |el| {
                         el.child(widgets::empty_state(
