@@ -342,8 +342,8 @@ impl DesignStudio {
                     cx,
                 )
             };
-            let min = limit(Limit::Min, "min", "Minimum (px)", track.min, self, window, cx);
-            let max = limit(Limit::Max, "max", "Maximum (px)", track.max, self, window, cx);
+            let min = limit(Limit::Min, "min", "Min (px)", track.min, self, window, cx);
+            let max = limit(Limit::Max, "max", "Max (px)", track.max, self, window, cx);
             list = list.child(
                 v_flex()
                     .gap_1()

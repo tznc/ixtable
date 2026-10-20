@@ -20,7 +20,7 @@ use gpui_kit::HeadlessAppContext;
 use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
 
-const TALL: (f32, f32) = (1280.0, 1300.0);
+const TALL: (f32, f32) = (1280.0, 1600.0);
 const WINDOW: (f32, f32) = (1280.0, 1000.0);
 
 type H<'a> = Harness<'a, HeadlessAppContext>;
@@ -136,8 +136,8 @@ fn cloud_sign_in_and_apps() {
     }
     h.click("cloud-signin-submit");
     assert_eq!(h.label("cloud-account"), "Signed in as ada@example.test");
-    assert_eq!(h.label("cloud-app:app-1"), "Open cloud app CRM");
-    assert_eq!(h.label("cloud-app:app-2"), "Install cloud app Inventory");
+    assert_eq!(h.label("cloud-app:app-1"), "Open");
+    assert_eq!(h.label("cloud-app:app-2"), "Install");
     h.capture(
         "cloud-02-apps-list",
         &[

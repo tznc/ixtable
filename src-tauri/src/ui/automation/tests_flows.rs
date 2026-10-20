@@ -276,6 +276,8 @@ fn moves_and_removes_steps_and_edits_the_branches_of_a_condition(cx: &mut TestAp
     h.click("step-2-up");
     assert_eq!(h.label("step-1-title"), "Step 1: If / else");
 
+    assert_eq!(h.label("step-1-then-heading"), "Then");
+    assert_eq!(h.label("step-1-else-heading"), "Else");
     choose(&mut h, "step-1-then-kind", "Fail with message");
     h.click("step-1-then-add");
     assert_eq!(h.label("step-1-then-1-title"), "Then step 1: Fail with message");

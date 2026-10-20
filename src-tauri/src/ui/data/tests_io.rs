@@ -156,11 +156,17 @@ fn bundles_a_csv_as_a_read_only_file_source_that_queries_read_after_save_and_reo
     h.click("add-file-source");
     assert_eq!(h.label("source-preview"), "3 rows \u{b7} region (text), amount (integer)");
     assert_eq!(h.find("Source name").value(), Some("sales"));
+    assert_eq!(h.label("source-file"), "sales.csv");
     h.click("confirm-add-source");
     assert_eq!(h.notice().as_deref(), Some("Added files.sales."));
     assert_eq!(h.label("source:sales"), "files.sales");
     assert_eq!(h.label("source-columns:sales"), "region, amount");
     assert_eq!(h.label("source-rows:sales"), "3");
+    assert!(h.exists("sources-header"));
+    // Remove asks first; declining keeps the source.
+    h.dialogs.queue_confirm(false);
+    h.click("Remove sales");
+    assert!(h.exists("source:sales"));
 
     let sql = "SELECT region, sum(amount) AS total FROM files.sales GROUP BY region ORDER BY region";
     let expected = vec![
@@ -175,6 +181,11 @@ fn bundles_a_csv_as_a_read_only_file_source_that_queries_read_after_save_and_reo
     crate::close_document(h.label.clone(), true).unwrap();
     crate::open_document(h.label.clone(), saved.to_string_lossy().into_owned()).unwrap();
     assert_eq!(query(&h, sql).unwrap(), expected);
+
+    // Confirming removes the source.
+    h.dialogs.queue_confirm(true);
+    h.click("Remove sales");
+    assert!(!h.exists("source:sales"));
 }
 
 #[gpui_kit::test]
@@ -193,7 +204,7 @@ fn imports_a_late_bad_value_as_a_skipped_row_instead_of_failing_the_import(cx: &
     h.click("import-run");
     assert_eq!(
         h.label("import-summary"),
-        "Imported 22,004 of 22,005 rows into late. 1 rows were skipped."
+        "Imported 22,004 of 22,005 rows into late. 1 row was skipped."
     );
     assert_eq!(h.label("report-row:0:row"), "22002");
     assert_eq!(h.label("report-row:0:problem"), "age requires an integer");

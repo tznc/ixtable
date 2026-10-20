@@ -542,12 +542,12 @@ impl Render for RelationshipBrowser {
                     .iter()
                     .enumerate()
                     .map(|(i, column)| {
-                        let tag = if column.primary_key_position > 0 {
-                            "PK"
-                        } else if schema.foreign_keys.iter().any(|k| k.from_columns.contains(&column.name)) {
-                            "FK"
-                        } else {
-                            ""
+                        let is_fk = schema.foreign_keys.iter().any(|k| k.from_columns.contains(&column.name));
+                        let tag = match (column.primary_key_position > 0, is_fk) {
+                            (true, true) => "PK FK",
+                            (true, false) => "PK",
+                            (false, true) => "FK",
+                            (false, false) => "",
                         };
                         let hot_source = self.connecting.as_ref() == Some(&(name.clone(), i));
                         let (down_name, up_name) = (name.clone(), name.clone());
@@ -659,7 +659,7 @@ impl Render for RelationshipBrowser {
                 div()
                     .absolute()
                     .left(px(x - 18. * z))
-                    .top(px(y - 9. * z))
+                    .top(px(y - 24. * z))
                     .px(px(4. * z))
                     .rounded_sm()
                     .bg(bg)

@@ -458,8 +458,9 @@ impl Render for RunBody {
                                         .aria_label("Build your app")
                                         .gap_2()
                                         .p_4()
+                                        .child(widgets::styled_text("rt-empty-title", "Build your app", |d| d.text_base().font_semibold()))
                                         .child(div().text_sm().text_color(theme.muted_foreground).child(
-                                            "This application has no pages yet.",
+                                            "This application has no pages yet. Generate a list and a form for each table to start.",
                                         ))
                                         .child(
                                             Button::new("generate-app")

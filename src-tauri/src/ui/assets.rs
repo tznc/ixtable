@@ -9,6 +9,9 @@ gpui_kit::assets::icon_assets!(
     [
         ArrowDownUp,
         Bold,
+        ChartColumn,
+        ChevronFirst,
+        ChevronLast,
         CodeXml,
         Construction,
         Database,
@@ -16,6 +19,8 @@ gpui_kit::assets::icon_assets!(
         DatabaseZap,
         FilePlus,
         FolderPlus,
+        Funnel,
+        Gauge,
         Hash,
         Italic,
         Link,

@@ -767,6 +767,9 @@ impl Datasheet {
                         .id("active-filters")
                         .gap_2()
                         .items_center()
+                        .px_2()
+                        .rounded_md()
+                        .bg(theme.primary.opacity(0.12))
                         .children(self.filters.iter().enumerate().map(|(i, filter)| {
                             let label = describe_filter(filter);
                             h_flex()
@@ -803,7 +806,7 @@ impl Datasheet {
                 )
             })
             .child(div().flex_1())
-            .child(div().text_xs().text_color(muted).child(format!("{} columns", self.visible().len())))
+            .child(div().text_xs().text_color(muted).child(widgets::plural(self.visible().len(), "column")))
     }
 
     fn show_columns(&mut self, names: &[String], cx: &mut Context<Self>) {
@@ -1223,8 +1226,12 @@ impl Render for Datasheet {
         let frozen: Vec<usize> = visible.iter().take(self.layout.frozen).copied().collect();
         let rest: Vec<usize> = visible.iter().skip(self.layout.frozen).copied().collect();
         let left_columns = frozen.clone();
+        // A heavier rule than the cell borders marks where the frozen columns end.
+        let divider = cx.theme().muted_foreground;
         let left = h_flex()
+            .id("frozen-divider")
             .flex_none()
+            .when(!frozen.is_empty(), |el| el.border_r_2().border_color(divider))
             .child(self.rownums(cx))
             .child(self.block(&left_columns, true, false, cx));
         let right = self.block(&rest, false, !self.read_only, cx);

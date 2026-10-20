@@ -647,7 +647,18 @@ impl StepEditor {
                         .unwrap_or_default();
                     let prefix = format!("{item}-{}", branch.key());
                     let list = self.list(&branch_path, &prefix, noun, &prefix, &nested, env, window, cx);
-                    out.push(list.into_any_element());
+                    let heading = if branch == Branch::Then { "Then" } else { "Else" };
+                    out.push(
+                        v_flex()
+                            .gap_1()
+                            .child(widgets::styled_text(
+                                SharedString::from(format!("{prefix}-heading")),
+                                heading.to_string(),
+                                |d| d.font_weight(FontWeight::SEMIBOLD),
+                            ))
+                            .child(list)
+                            .into_any_element(),
+                    );
                 }
             }
             "runAction" => {

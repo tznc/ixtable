@@ -313,6 +313,7 @@ impl PageEditor {
         v_flex()
             .size_full()
             .min_h(px(min))
+            .overflow_hidden()
             .gap_1()
             .p_2()
             .rounded_md()
@@ -320,13 +321,14 @@ impl PageEditor {
             .border_color(theme.border)
             .bg(theme.background)
             .child(
-                h_flex()
-                    .justify_between()
-                    .child(div().font_weight(FontWeight::SEMIBOLD).child(title))
-                    .child(div().text_xs().text_color(muted).child(kind_label(c.kind))),
+                // Title and type tag on separate rows; both truncate instead of wrapping.
+                v_flex()
+                    .min_w_0()
+                    .child(div().min_w_0().truncate().font_weight(FontWeight::SEMIBOLD).child(title))
+                    .child(div().min_w_0().truncate().text_xs().text_color(muted).child(kind_label(c.kind))),
             )
             .child(widgets::styled_text(format!("card-summary:{}", c.id), self.summary(c, dashboard, cx), move |d| {
-                d.text_xs().text_color(muted)
+                d.min_w_0().truncate().text_xs().text_color(muted)
             }))
             .into_any_element()
     }
@@ -345,6 +347,7 @@ impl PageEditor {
             .child(widgets::styled_text("components-heading", "Components", |d| d.text_base().font_weight(FontWeight::SEMIBOLD)))
             .children(COMPONENT_KINDS.into_iter().map(|kind| {
                 let label = if kind == ComponentKind::Kpi { "Add KPI".to_string() } else { format!("Add {}", kind_label(kind).to_lowercase()) };
+                let label = if kind == ComponentKind::Button { "Add button".to_string() } else { label };
                 let key = match kind {
                     ComponentKind::Filter => "add-filter-component".to_string(),
                     other => format!("add-{}", kind_key(other)),
@@ -421,11 +424,11 @@ impl PageEditor {
     }
 }
 
-fn component_icon(kind: ComponentKind) -> IconName {
+pub(super) fn component_icon(kind: ComponentKind) -> IconName {
     match kind {
         ComponentKind::Kpi => IconName::Gauge,
         ComponentKind::Chart => IconName::ChartColumn,
-        ComponentKind::Table => IconName::Table,
+        ComponentKind::Table => IconName::Table2,
         ComponentKind::Filter => IconName::Funnel,
         ComponentKind::Form => IconName::LayoutDashboard,
         ComponentKind::Report => IconName::FileText,
@@ -464,6 +467,8 @@ impl Render for PageEditor {
             .id("dash-editor")
             .aria_label("Page designer")
             .size_full()
+            // Keep the palette at the top instead of centred beside a tall canvas.
+            .items_start()
             .child(self.render_palette(cx))
             .child(self.render_canvas(&dashboard, cx))
             .child(

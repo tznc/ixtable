@@ -78,7 +78,7 @@ fn forgot_password_sends_the_recovery_email_for_the_typed_address(cx: &mut TestA
     let mut h = Harness::start(cx);
     h.click("cloud-apps-signin");
     h.click("cloud-forgot");
-    assert!(h.label("cloud-signin-error").contains("Enter your email address"));
+    assert!(h.label("cloud-signin-error-body").contains("Enter your email address"));
     assert!(state.lock().unwrap().resets.is_empty());
     h.fill("cloud-email", "ada@example.test");
     h.click("cloud-forgot");
@@ -100,7 +100,7 @@ fn accepts_an_invitation_link_through_invitations_accept(cx: &mut TestAppContext
     h.click("invite-open");
     h.fill("invite-link", "https://x.test/invite");
     h.click("invite-accept");
-    assert!(h.label("invite-error").contains("Paste the invitation link"));
+    assert!(h.label("invite-error-body").contains("Paste the invitation link"));
     assert!(state.lock().unwrap().calls.is_empty());
     h.fill("invite-link", "https://x.test/invite?token=abcdefghijklmnopqrstuvwxyz");
     h.click("invite-accept");
@@ -135,7 +135,7 @@ fn a_short_password_is_refused_before_any_request(cx: &mut TestAppContext) {
     h.fill("cloud-email", "ada@example.test");
     h.fill("cloud-password", "short");
     h.click("cloud-signin-submit");
-    assert!(h.label("cloud-signin-error").contains("at least 8 characters"));
+    assert!(h.label("cloud-signin-error-body").contains("at least 8 characters"));
     assert!(state.lock().unwrap().session.is_none());
 }
 
@@ -192,7 +192,7 @@ fn installs_a_shared_app_and_opens_it(cx: &mut TestAppContext) {
         s.runtime_info = Some(runtime_info("app-1"));
     }
     let mut h = Harness::start(cx);
-    assert_eq!(h.label("cloud-app:app-1"), "Install cloud app CRM");
+    assert_eq!(h.label("cloud-app:app-1"), "Install");
     assert_eq!(h.label("cloud-app-detail:app-1"), "Role: Sales rep · not installed");
     h.click("cloud-app:app-1");
     assert!(h.has_shell());
@@ -215,7 +215,7 @@ fn an_installed_app_opens_offline_and_says_so(cx: &mut TestAppContext) {
     reply(&state, "sync-check", vec![Err(super::errors::CloudError::new("CLOUD_OFFLINE", "offline"))]);
     let mut h = Harness::start(cx);
     assert!(h.exists("cloud-apps-offline"));
-    assert_eq!(h.label("cloud-app:app-1"), "Open cloud app CRM");
+    assert_eq!(h.label("cloud-app:app-1"), "Open");
     assert_eq!(h.label("cloud-app-detail:app-1"), "Runtime user · installed 1.0.0");
     h.click("cloud-app:app-1");
     assert!(h.has_shell());
@@ -240,7 +240,7 @@ fn a_revoked_user_is_told_so_instead_of_opening(cx: &mut TestAppContext) {
     let mut h = Harness::start(cx);
     h.click("cloud-app:app-1");
     assert!(!h.has_shell());
-    assert!(h.label("cloud-apps-error").starts_with("REVOKED"));
+    assert!(h.label("cloud-apps-error").contains("revoked"));
 }
 
 #[gpui_kit::test]

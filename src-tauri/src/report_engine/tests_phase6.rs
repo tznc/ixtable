@@ -71,9 +71,9 @@ fn running_sums_accumulate_over_all_rows_or_restart_at_each_group() {
         ),
     ]);
     let doc = lay(&report, &orders());
-    assert_eq!(strings(texts_of(&doc, "all")), ["80", "90", "390", "510.5", "552.75"]);
-    assert_eq!(strings(texts_of(&doc, "grp")), ["80", "90", "300", "120.5", "162.75"]);
-    assert_eq!(strings(texts_of(&doc, "plain")), ["80", "10", "300", "120.5", "42.25"]);
+    assert_eq!(strings(texts_of(&doc, "all")), ["80.00", "90.00", "390.00", "510.50", "552.75"]);
+    assert_eq!(strings(texts_of(&doc, "grp")), ["80.00", "90.00", "300.00", "120.50", "162.75"]);
+    assert_eq!(strings(texts_of(&doc, "plain")), ["80.00", "10.00", "300.00", "120.50", "42.25"]);
     assert_eq!(diag(&doc), json!([]));
 }
 

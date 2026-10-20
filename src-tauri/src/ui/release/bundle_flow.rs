@@ -104,6 +104,10 @@ impl BundleFlow {
         self.focus_prompt = true;
     }
 
+    pub fn has_error(&self) -> bool {
+        self.error.is_some()
+    }
+
     pub fn is_busy(&self) -> bool {
         self.busy
     }

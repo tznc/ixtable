@@ -110,6 +110,8 @@ pub struct Env<'a> {
     pub tables: &'a HashMap<String, Vec<Row>>,
     pub assets: &'a HashMap<String, AssetInfo>,
     pub diagnostics: Diagnostics,
+    /// Columns of the report rows that hold fractions (bound numbers print two decimals).
+    pub fractional_columns: HashSet<String>,
 }
 
 /// Evaluation context for one band instance.

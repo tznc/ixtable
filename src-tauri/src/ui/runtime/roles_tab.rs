@@ -145,6 +145,9 @@ impl RolesTab {
     }
 }
 
+/// Width of a permission column: wide enough that "Update" never wraps.
+const FLAG_WIDTH: Pixels = px(64.);
+
 fn capitalized(word: &str) -> String {
     let mut chars = word.chars();
     chars.next().map_or(String::new(), |c| c.to_uppercase().collect::<String>() + chars.as_str())
@@ -234,10 +237,10 @@ impl Render for RolesTab {
                         .gap_3()
                         .items_center()
                         .child(div().w(px(260.)).text_sm().child(format!("{} {}", row.kind, row.name)))
-                        .children(cells)
+                        .children(cells.map(|c| div().w(FLAG_WIDTH).flex_none().child(c)))
                 }));
                 let header = h_flex().gap_3().child(div().w(px(260.)).text_sm().child("Object")).children(
-                    FLAGS.iter().map(|name| div().w(px(24.)).text_xs().child(capitalized(name))),
+                    FLAGS.iter().map(|name| div().w(FLAG_WIDTH).flex_none().whitespace_nowrap().text_xs().child(capitalized(name))),
                 );
                 let nav: Vec<&NavigationItem> = flatten_navigation(&config.design.navigation);
                 let navigation = v_flex().gap_0p5().items_start().children(nav.iter().map(|item| {
@@ -281,6 +284,7 @@ impl Render for RolesTab {
                     .aria_label(format!("Role {}", role.name))
                     .gap_2()
                     .flex_1()
+                    .min_w_0()
                     .child(
                         h_flex()
                             .gap_2()
@@ -310,7 +314,7 @@ impl Render for RolesTab {
                         )
                     }))
                     .child(widgets::section_heading("objects-heading", "Objects"))
-                    .child(div().text_sm().text_color(theme.muted_foreground).child(
+                    .child(div().w_full().min_w_0().text_sm().text_color(theme.muted_foreground).child(
                         "Form permissions govern records changed through that form. Table permissions govern table pages and actions that write to the table. Reading a form, report, or dashboard also lets the role read the saved queries it shows.",
                     ))
                     .child(header)

@@ -385,7 +385,7 @@ impl ActionsPanel {
             } else if o.result.cancelled {
                 widgets::callout("test-result", widgets::Severity::Warning, "Test run cancelled", None, cx)
             } else {
-                let error = o.result.error.clone().unwrap_or_default();
+                let error = friendly_error(&o.result.error.clone().unwrap_or_default());
                 widgets::callout("test-result", widgets::Severity::Danger, "Test run failed", Some(&error), cx)
             };
             v_flex()
@@ -426,6 +426,17 @@ impl ActionsPanel {
     }
 }
 
+/// An error from the runner with its step kind shown as the step's name:
+/// "Step 1 (createRecord) failed: x" becomes "Step 1 (Create record) failed: x".
+pub fn friendly_error(message: &str) -> String {
+    let named = message.strip_prefix("Step ").and_then(|rest| {
+        let (number, tail) = rest.split_once(" (")?;
+        let (kind, after) = tail.split_once(')')?;
+        Some(format!("Step {number} ({}){after}", step_label(kind)))
+    });
+    named.unwrap_or_else(|| message.to_string())
+}
+
 /// The log of a run: a header row and one row per step. Rows are `<id>-N` with cells
 /// `<id>-N-step`, `-kind`, `-result` and `-time`.
 pub fn step_log(id: &str, steps: &[StepLog], cx: &App) -> Stateful<Div> {
@@ -454,7 +465,7 @@ pub fn step_log(id: &str, steps: &[StepLog], cx: &App) -> Stateful<Div> {
             let (result, tone, error) = match (&s.error, s.skipped, s.ok) {
                 (_, true, _) => ("Skipped", BadgeTone::Neutral, String::new()),
                 (_, _, true) => ("OK", BadgeTone::Success, String::new()),
-                (e, _, _) => ("Failed", BadgeTone::Danger, e.clone().unwrap_or_default()),
+                (e, _, _) => ("Failed", BadgeTone::Danger, friendly_error(&e.clone().unwrap_or_default())),
             };
             h_flex()
                 .gap_2()

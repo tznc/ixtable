@@ -421,3 +421,34 @@ mod plural_tests {
         assert_eq!(plural(2, "key"), "2 keys");
     }
 }
+
+/// One tab button in the shared tab look: ghost, medium label, accent tint when selected.
+/// For tab rows whose keys are dynamic (form tabs); `tab_strip` covers fixed ones.
+pub fn tab_button(id: impl Into<ElementId>, label: impl Into<SharedString>, selected: bool, cx: &App) -> Button {
+    use gpui_kit::component::Selectable as _;
+    let accent = cx.theme().primary;
+    Button::new(id)
+        .ghost()
+        .small()
+        .label(label)
+        .selected(selected)
+        .font_weight(FontWeight::MEDIUM)
+        .when(selected, |b| b.bg(accent.opacity(0.12)).text_color(accent))
+}
+
+/// Slides `element` in: its height grows from 0 to its natural height (capped at 160 px)
+/// while it fades in, over 200 ms. `id` should change with the content so a new
+/// message re-animates.
+pub fn slide_in(id: impl Into<ElementId>, element: impl IntoElement) -> impl IntoElement {
+    use gpui::{Animation, AnimationExt as _, ease_out_quint};
+    div()
+        .w_full()
+        .overflow_hidden()
+        .child(element)
+        .with_animation(
+            id,
+            Animation::new(std::time::Duration::from_millis(200)).with_easing(ease_out_quint()),
+            // The cap only applies while sliding, so long messages are never clipped once shown.
+            |el, delta| if delta >= 1. { el } else { el.max_h(px(160. * delta)).opacity(delta) },
+        )
+}

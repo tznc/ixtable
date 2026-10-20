@@ -24,8 +24,8 @@ fn labels_each_tracks_kind_size_and_limits(cx: &mut TestAppContext) {
     h.click("grid-settings-toggle");
     assert_eq!(h.label("grid-column-1-name"), "Column 1");
     assert_eq!(h.label("grid-column-1-size"), "Size (px)");
-    assert_eq!(h.label("grid-column-1-min"), "Minimum (px)");
-    assert_eq!(h.label("grid-column-1-max"), "Maximum (px)");
+    assert_eq!(h.label("grid-column-1-min"), "Min (px)");
+    assert_eq!(h.label("grid-column-1-max"), "Max (px)");
     assert_eq!(text_of(&mut h, "grid-column-1-size").as_deref(), Some("120"));
     assert_eq!(text_of(&mut h, "grid-column-1-min").as_deref(), Some(""));
     assert_eq!(text_of(&mut h, "grid-column-1-max").as_deref(), Some("300"));

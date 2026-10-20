@@ -10,7 +10,7 @@
 //! tools `job-N-history`, `-cancel`, `-retry`; the open history is `job-N-attempts` with
 //! `job-N-attempt-M` rows (cells `-number`, `-result`, `-started`, `-error`) and step logs `job-N-attempt-M-log`.
 
-use super::actions::step_log;
+use super::actions::{friendly_error, step_log};
 use crate::ui::controls::choice_field;
 use crate::ui::display::{status_badge, Tone};
 use crate::automation_runner::{worker::notify_jobs_changed, StepLog};
@@ -248,9 +248,9 @@ impl JobsPanel {
                         format!("{} / {}", job.attempts, job.max_attempts),
                     )))
                     .child(cell(80.).child(widgets::text(format!("{row}-next"), next)))
-                    .child(cell(200.).child(widgets::text(
+                    .child(div().flex_1().min_w_0().text_sm().child(widgets::text(
                         format!("{row}-error"),
-                        job.last_error.clone().unwrap_or_default(),
+                        friendly_error(&job.last_error.clone().unwrap_or_default()),
                     )))
                     .child(
                         h_flex()
@@ -326,7 +326,7 @@ impl JobsPanel {
                             )))
                             .child(div().flex_1().min_w_0().text_sm().child(widgets::text(
                                 format!("{at}-error"),
-                                a.error.clone().unwrap_or_default(),
+                                friendly_error(&a.error.clone().unwrap_or_default()),
                             ))),
                     )
                     .child(step_log(&format!("{at}-log"), &attempt_steps(&a.log), cx))
@@ -398,7 +398,7 @@ impl Render for JobsPanel {
                         .child(cell(90.).child("Status"))
                         .child(cell(60.).child("Attempts"))
                         .child(cell(80.).child("Next run"))
-                        .child(cell(200.).child("Last error")),
+                        .child(div().flex_1().min_w_0().child("Last error")),
                 )
             })
             .children(jobs.iter().enumerate().map(|(i, j)| self.render_job(i + 1, j, cx)))
@@ -408,6 +408,16 @@ impl Render for JobsPanel {
 #[cfg(test)]
 mod tests {
     use super::{attempt_steps, local_time};
+    use crate::ui::automation::actions::friendly_error;
+
+    #[test]
+    fn step_errors_name_the_step_kind_in_plain_words() {
+        assert_eq!(
+            friendly_error("Step 1 (createRecord) failed: Can't add"),
+            "Step 1 (Create record) failed: Can't add"
+        );
+        assert_eq!(friendly_error("Transaction failed: x"), "Transaction failed: x");
+    }
     use serde_json::json;
 
     #[test]

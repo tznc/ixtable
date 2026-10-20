@@ -191,7 +191,7 @@ impl Render for RecordNavBar {
             .gap_1()
             .items_center()
             .child(
-                button("nav-first", IconName::ChevronsLeft, self.can_first())
+                button("nav-first", IconName::ChevronFirst, self.can_first())
                     .on_click(cx.listener(|this, _, _, cx| this.go(0, cx))),
             )
             .child(
@@ -212,7 +212,7 @@ impl Render for RecordNavBar {
                     })),
             )
             .child(
-                button("nav-last", IconName::ChevronsRight, self.can_last())
+                button("nav-last", IconName::ChevronLast, self.can_last())
                     .on_click(cx.listener(move |this, _, _, cx| this.go(last, cx))),
             )
             .children(self.props.on_new.clone().map(|on_new| {

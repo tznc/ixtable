@@ -636,6 +636,12 @@ pub fn layout_report(report: &Report, input_rows: &[Row], options: &LayoutOption
         tables: &options.tables,
         assets: &options.assets,
         diagnostics: Diagnostics::default(),
+        fractional_columns: input_rows
+            .iter()
+            .flat_map(|r| r.iter())
+            .filter(|(_, v)| v.as_f64().is_some_and(|n| n.fract() != 0.0))
+            .map(|(k, _)| k.clone())
+            .collect(),
     };
     let loaded: Loaded = options
         .subreports

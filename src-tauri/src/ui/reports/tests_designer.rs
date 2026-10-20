@@ -236,4 +236,5 @@ fn collapses_page_setup_with_a_summary_and_drops_the_group_prefix_from_group_lab
     assert!(h.exists("group-1-descending"));
     assert_eq!(h.label("report-groups"), "Groups");
     assert!(h.label("group-1").starts_with("Group 1"));
+    assert!(!h.label("group-1").contains("record."), "group headings never show raw expressions");
 }

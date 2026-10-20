@@ -63,6 +63,8 @@ fn runs_on_load_on_current_before_update_and_after_update_actions(cx: &mut TestA
     let orders = nav(&mut h, "Orders");
     h.click(orders);
     wait(&mut h);
+    // No message, no reserved line; the message slides in once an action posts it.
+    assert!(!h.exists("notice:info"));
     h.click("row:0");
     wait(&mut h);
     assert_eq!(h.label("notice:info"), "Hello Developer");

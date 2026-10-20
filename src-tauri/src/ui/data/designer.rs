@@ -694,27 +694,27 @@ impl Render for TableSchemaDesigner {
                 let name = row.name.clone();
                 let (stage_name, drop_name) = (name.clone(), name.clone());
                 h_flex()
-                    .flex_wrap()
                     .items_center()
                     .gap_2()
                     .py_1()
                     .border_b_1()
                     .border_color(border)
-                    .child(div().min_w(px(112.)).font_weight(FontWeight::SEMIBOLD).child(name.clone()))
-                    .child(row.fields.clone())
+                    .child(div().w(px(112.)).flex_none().truncate().font_weight(FontWeight::SEMIBOLD).child(name.clone()))
+                    .child(div().flex_1().min_w_0().child(row.fields.clone()))
                     .child(
                         Button::new(SharedString::from(format!("stage-column:{name}")))
                             .outline()
                             .small()
-                            .label(format!("Stage changes to {name}"))
+                            .label("Stage")
+                            .tooltip(format!("Stage changes to {name}"))
                             .on_click(cx.listener(move |this, _, _, cx| this.stage_column(&stage_name, cx))),
                     )
                     .child(
                         Button::new(SharedString::from(format!("drop-column:{name}")))
                             .danger()
-                            .outline()
+                            .ghost()
                             .small()
-                            .label("Drop")
+                            .icon(IconName::Trash)
                             .tooltip(format!("Drop {name}"))
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.stage(vec![AlterTable::DropColumn { column: drop_name.clone() }], cx)

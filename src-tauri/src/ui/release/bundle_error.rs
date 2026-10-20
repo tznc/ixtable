@@ -35,9 +35,10 @@ pub fn is_password_error(error: &AppError) -> bool {
 }
 
 /// The error callout for a bundle error: the plain-language summary as its headline
-/// (`<id>-headline`), the backend detail under `id`, and the code (`<id>-code`).
+/// (`<id>-headline`) and the backend detail under `id`. The code is not shown.
 pub fn bundle_error_banner(id: &'static str, error: &AppError, cx: &App) -> Div {
-    widgets::error_callout(id, summary(&error.code), error, None, cx)
+    let plain = AppError::new("", &error.message);
+    widgets::error_callout(id, summary(&error.code), &plain, None, cx)
 }
 
 #[cfg(test)]

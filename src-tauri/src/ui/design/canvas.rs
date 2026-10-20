@@ -104,12 +104,12 @@ impl DesignStudio {
             if control.validation.required { " · required" } else { "" },
             if conditional { " · conditional" } else { "" },
         );
-        let header = h_flex()
-            .gap_2()
-            .items_baseline()
-            .child(div().font_weight(FontWeight::BOLD).child(control.label.clone()))
-            .child(div().text_xs().text_color(muted).child(kind));
-        let card = v_flex().gap_1().p_2().rounded_md().border_1().border_color(border).child(header);
+        // Title and type tag on separate rows; both truncate with an ellipsis instead of wrapping.
+        let header = v_flex()
+            .min_w_0()
+            .child(div().min_w_0().truncate().font_weight(FontWeight::BOLD).child(control.label.clone()))
+            .child(div().min_w_0().truncate().text_xs().text_color(muted).child(kind));
+        let card = v_flex().min_w_0().overflow_hidden().gap_1().p_2().rounded_md().border_1().border_color(border).child(header);
         let stop = |_: &MouseDownEvent, _: &mut Window, cx: &mut App| cx.stop_propagation();
         match control.kind {
             ControlKind::Section => {
@@ -151,7 +151,7 @@ impl DesignStudio {
                 });
                 card.child(strip).children(body).into_any_element()
             }
-            _ => card.child(div().text_xs().text_color(muted).child(summary(control))).into_any_element(),
+            _ => card.child(div().min_w_0().truncate().text_xs().text_color(muted).child(summary(control))).into_any_element(),
         }
     }
 }

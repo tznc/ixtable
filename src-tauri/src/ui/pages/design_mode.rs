@@ -252,6 +252,8 @@ impl DesignMode {
         let loose_forms: Vec<_> = config.design.forms.iter().filter(|f| !placed(ComponentKind::Form, &f.id)).cloned().collect();
         let loose_reports: Vec<_> = config.reports.iter().filter(|r| !placed(ComponentKind::Report, &r.id)).cloned().collect();
         let no_tables = table.is_none();
+        let open_form = self.forms.read(cx).form_id.clone();
+        let open_report = self.reports.read(cx).selected.clone();
         v_flex()
             .id("design-sidebar")
             .aria_label("Pages")
@@ -311,7 +313,7 @@ impl DesignMode {
                         Some(IconName::LayoutDashboard.into()),
                         if page.name.is_empty() { "Untitled page".to_string() } else { page.name.clone() },
                     )
-                    .selected(focus != Focus::Navigation && current.as_deref() == Some(page.id.as_str()))
+                    .selected(focus == Focus::Page && current.as_deref() == Some(page.id.as_str()))
                     .on_click(cx.listener(move |this, _, _, cx| this.open_page(&id, None, cx)))
             }))
             .when(config.pages.is_empty(), |el| el.child(widgets::empty_state("no-pages", "No pages yet", "Add a page, or generate pages from a table.", cx)))
@@ -369,6 +371,7 @@ impl DesignMode {
                             .ghost()
                             .small()
                             .start_label(Some(IconName::LayoutDashboard.into()), f.name.clone())
+                            .selected(focus == Focus::Form && open_form.as_deref() == Some(f.id.as_str()))
                             .on_click(cx.listener(move |this, _, _, cx| this.open_form(&id, None, cx)))
                     }))
                     .children(loose_reports.into_iter().map(|r| {
@@ -377,6 +380,7 @@ impl DesignMode {
                             .ghost()
                             .small()
                             .start_label(Some(IconName::FileText.into()), r.name.clone())
+                            .selected(focus == Focus::Report && open_report.as_deref() == Some(r.id.as_str()))
                             .on_click(cx.listener(move |this, _, _, cx| this.open_report(&id, None, cx)))
                     }))
             })
@@ -384,7 +388,15 @@ impl DesignMode {
 
     /// The bar above a form or report opened from a page: back link and the object's name.
     fn render_crumb(&self, focus: Focus, name: String, cx: &mut Context<Self>) -> impl IntoElement {
-        let page = self.pages.read(cx).current(cx).map(|p| p.name).filter(|n| !n.is_empty());
+        // Only name the page when it shows the object being edited; otherwise go back to the list.
+        let open = if focus == Focus::Form { self.forms.read(cx).form_id.clone() } else { self.reports.read(cx).selected.clone() };
+        let page = self
+            .pages
+            .read(cx)
+            .current(cx)
+            .filter(|p| p.components.iter().any(|c| [c.form_id.as_ref(), c.report_id.as_ref()].contains(&open.as_ref())))
+            .map(|p| p.name)
+            .filter(|n| !n.is_empty());
         let back = match page {
             Some(name) => format!("Back to {name}"),
             None => "Back to pages".to_string(),

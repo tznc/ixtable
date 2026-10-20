@@ -432,24 +432,30 @@ impl PublishPanel {
                 if size.measured == "snapshot" { " (unsaved changes included)" } else { "" }
             ),
         ));
-        for (i, entry) in size.largest.iter().take(5).enumerate() {
-            summary = summary.child(widgets::text(
-                eid(format!("preflight-largest:{i}")),
-                format!("{} ({}): {}", entry.name, entry.section, format_bytes(entry.bytes)),
-            ));
-        }
+        summary = summary.child(super::largest::largest_files("preflight-largest", &size.largest[..size.largest.len().min(5)], size.total_bytes, cx));
         if !blockers.is_empty() {
             summary = summary.child(widgets::styled_text("preflight-blockers", "Publishing is blocked", {
                 let danger = cx.theme().danger;
                 move |d| d.font_weight(FontWeight::SEMIBOLD).text_color(danger)
             }));
             for (i, blocker) in blockers.iter().enumerate() {
-                summary =
-                    summary.child(widgets::text(eid(format!("preflight-blocker:{i}")), blocker.clone()));
+                summary = summary.child(widgets::callout(
+                    eid(format!("preflight-blocker:{i}")),
+                    widgets::Severity::Danger,
+                    blocker,
+                    None,
+                    cx,
+                ));
             }
         }
         for (i, warning) in preflight.warnings.iter().enumerate() {
-            summary = summary.child(widgets::text(eid(format!("preflight-warning:{i}")), warning.clone()));
+            summary = summary.child(widgets::callout(
+                eid(format!("preflight-warning:{i}")),
+                widgets::Severity::Warning,
+                warning,
+                None,
+                cx,
+            ));
         }
         let store = if security.store == "postgres" { "PostgreSQL" } else { "Embedded SQLite" };
         summary = summary.child(widgets::text("security-store", format!("Record store: {store}")));

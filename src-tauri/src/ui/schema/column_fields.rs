@@ -47,10 +47,10 @@ impl ColumnFields {
         let default = new_input(
             window,
             cx,
-            "Default value or expression",
+            "Default",
             &draft.default_expression,
         );
-        let check = new_input(window, cx, "Check, e.g. qty > 0", &draft.check);
+        let check = new_input(window, cx, "Check", &draft.check);
         let subscriptions = vec![
             on_change(cx, &name, |this, cx| {
                 this.draft.name = input_text(&this.name, cx);
@@ -142,7 +142,7 @@ impl Render for ColumnFields {
         let entity = cx.entity();
         let max = self.max_precision;
         h_flex()
-            .flex_wrap()
+            .w_full()
             .gap_2()
             .items_center()
             .when(self.name_editable, |el| {
@@ -206,12 +206,14 @@ impl Render for ColumnFields {
             }))
             .child(
                 div()
-                    .w(px(200.))
+                    .flex_1()
+                    .min_w(px(90.))
                     .child(text_input(&self.default, self.id("default"), &format!("{} default", self.label))),
             )
             .child(
                 div()
-                    .w(px(160.))
+                    .flex_1()
+                    .min_w(px(90.))
                     .child(text_input(&self.check, self.id("check"), &format!("{} check", self.label))),
             )
     }

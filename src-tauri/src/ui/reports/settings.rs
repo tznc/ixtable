@@ -179,7 +179,7 @@ impl ReportDesigner {
         let height = number_text(entry.band.height);
         let min = band_min_height(entry.band);
         let page_band = is_page_band(&key);
-        let mut s = section("band-properties", &format!("{} band", entry.label), true, window, cx);
+        let mut s = section("band-properties", &entry.label, true, window, cx);
         s = s.child(self.labeled("band-height", &format!("Band height (at least {})", number_text(min)), &height, "", window, cx));
         let k = key.clone();
         s = s.child(self.flag(

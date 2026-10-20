@@ -99,6 +99,8 @@ fn opens_an_archive_and_reports_an_invalid_one(cx: &mut TestAppContext) {
 
 #[gpui_kit::test]
 fn lists_recent_documents_and_opens_one(cx: &mut TestAppContext) {
+    // A crashed session from another test would put the recovery banner above the recents.
+    let _guard = crate::ui::persistence::tests::exclusive_recovery();
     let mut h = Harness::new_document(cx);
     let name = format!("recent-{}.ixt", h.label);
     let path = h.temp_path(&name);

@@ -461,12 +461,13 @@ impl Render for RelatedRecords {
             body.push(super::message(format!("related:{slug}:error"), self.error.clone(), true, cx).into_any_element());
         }
         if !self.message.is_empty() {
-            // Reserve the line's height so a confirmation never shifts the rows below it.
+            // The confirmation slides in; no space is reserved for it.
             body.push(
-                div()
-                    .min_h(px(20.))
-                    .child(super::message(format!("related:{slug}:message"), self.message.clone(), false, cx))
-                    .into_any_element(),
+                widgets::slide_in(
+                    format!("slide:related:{slug}:{}", self.message),
+                    super::message(format!("related:{slug}:message"), self.message.clone(), false, cx),
+                )
+                .into_any_element(),
             );
         }
         if self.allowed(Operation::Create, cx) && self.child_form.is_some() && self.editing.is_none() {
@@ -485,8 +486,10 @@ impl Render for RelatedRecords {
                 .border_color(theme.border)
                 .children(columns.iter().map(|column| {
                     let label = control_of(column).map_or_else(|| humanize(column), |c| c.label);
-                    div().flex_1().text_sm().font_weight(FontWeight::MEDIUM).child(label)
+                    div().flex_1().min_w_0().text_sm().font_weight(FontWeight::MEDIUM).child(label)
                 }))
+                // Same width as the row actions so headers line up with the cells.
+                .child(div().w(ACTIONS_WIDTH).flex_none())
                 .into_any_element(),
         );
         if let Some(rows) = &self.rows {
@@ -514,9 +517,9 @@ impl Render for RelatedRecords {
                             None => display_text(value),
                         }
                     };
-                    div().flex_1().text_sm().child(widgets::text(id, text))
+                    div().flex_1().min_w_0().text_sm().child(widgets::text(id, text))
                 });
-                let mut actions = h_flex().gap_1();
+                let mut actions = h_flex().gap_1().w(ACTIONS_WIDTH).flex_none().justify_end();
                 if self.allowed(Operation::Update, cx) && self.child_form.is_some() && self.schema.is_some() {
                     let record = record.clone();
                     let identity = rows.identities.get(index).cloned().unwrap_or_default();
@@ -525,7 +528,7 @@ impl Render for RelatedRecords {
                     actions = actions.child(
                         Button::new(SharedString::from(format!("related:{slug}:edit:{index}")))
                             .small()
-                            .ghost()
+                            .outline()
                             .label("Edit")
                             .on_click(cx.listener(move |this, _, window, cx| {
                                 if let Some(schema) = &schema {
@@ -619,6 +622,9 @@ impl Render for RelatedRecords {
         region(body)
     }
 }
+
+/// Width of the row-actions column (Edit and Delete), shared by the header and the rows.
+const ACTIONS_WIDTH: Pixels = px(150.);
 
 /// The related list of a control: a keyed entity that takes the latest props each render.
 pub fn related_list(props: RelatedProps, prefix: &str, window: &mut Window, cx: &mut App) -> AnyElement {

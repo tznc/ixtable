@@ -460,6 +460,7 @@ impl DesignStudio {
                 let empty = form.controls.is_empty();
                 v_flex()
                     .id("form-card")
+                    .min_w(px(CANVAS_MIN_WIDTH))
                     .gap_2()
                     .p_3()
                     .child(div().text_xs().text_color(muted).child(kicker))
@@ -533,6 +534,9 @@ impl DesignStudio {
     }
 }
 
+/// The canvas never gets narrower than this; the center column scrolls sideways instead.
+const CANVAS_MIN_WIDTH: f32 = 420.;
+
 impl Render for DesignStudio {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.wire(cx);
@@ -565,6 +569,7 @@ impl Render for DesignStudio {
             .min_w_0()
             .h_full()
             .overflow_y_scroll()
+            .overflow_x_scroll()
             .child(toolbar)
             .child(self.render_center(form.clone(), window, cx));
         let properties = self.render_properties_panel(form, window, cx);

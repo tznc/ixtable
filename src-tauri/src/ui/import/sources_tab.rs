@@ -3,7 +3,7 @@
 //! reports and dashboards as `files.<name>`.
 //!
 //! Test ids: `add-file-source`, `Source name` (input), `source-header` (checkbox),
-//! `source-preview`, `confirm-add-source`, `cancel-add-source`, `sources-error`,
+//! `source-file`, `source-preview`, `confirm-add-source`, `cancel-add-source`, `sources-error`,
 //! `sources-empty`, per source `source:<name>` (label "files.name"),
 //! `source-format:<name>`, `source-columns:<name>`, `source-rows:<name>`,
 //! `Remove <name>`.
@@ -189,6 +189,20 @@ impl FileSourcesTab {
         );
     }
 
+    fn confirm_remove(&mut self, source: &FileSource, cx: &mut Context<Self>) {
+        let ask = dialogs::confirm(
+            cx,
+            "Remove file source",
+            &format!("Remove files.{}? Queries, reports and dashboards that read it will stop working.", source.name),
+        );
+        let source = source.clone();
+        task::after(cx, ask, move |this, yes, cx| {
+            if yes {
+                this.remove(&source, cx);
+            }
+        });
+    }
+
     fn remove(&mut self, source: &FileSource, cx: &mut Context<Self>) {
         let id = source.id.clone();
         self.edit(&format!("Remove file source {}", source.name), cx, move |sources| {
@@ -238,8 +252,8 @@ impl Render for FileSourcesTab {
             let is_csv = pending.preview.format == FileFormat::Csv;
             let (path, options) = (pending.path.clone(), pending.options.clone());
             let summary = format!(
-                "{} rows \u{b7} {}",
-                crate::ui::export::names::thousands(pending.preview.total_rows),
+                "{} \u{b7} {}",
+                widgets::plural(pending.preview.total_rows as usize, "row"),
                 pending
                     .preview
                     .columns
@@ -248,6 +262,7 @@ impl Render for FileSourcesTab {
                     .collect::<Vec<_>>()
                     .join(", ")
             );
+            let file_name = path.rsplit(['/', '\\']).next().unwrap_or(&path).to_string();
             let reload = entity.clone();
             panel = panel.child(
                 v_flex()
@@ -257,6 +272,13 @@ impl Render for FileSourcesTab {
                     .border_color(border)
                     .rounded_md()
                     .child(div().font_weight(FontWeight::SEMIBOLD).child("New file source"))
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .items_center()
+                            .child("File")
+                            .child(div().text_sm().text_color(muted).child(widgets::text("source-file", file_name))),
+                    )
                     .child(
                         h_flex()
                             .gap_2()
@@ -302,6 +324,22 @@ impl Render for FileSourcesTab {
         if sources.is_empty() {
             panel = panel.child(widgets::text("sources-empty", "No file sources yet."));
         } else {
+            let head = |label: &'static str| div().text_sm().text_color(muted).font_weight(FontWeight::MEDIUM).child(label);
+            panel = panel.child(
+                h_flex()
+                    .id("sources-header")
+                    .gap_4()
+                    .items_center()
+                    .py_1()
+                    .border_b_1()
+                    .border_color(border)
+                    .child(head("Name").w(px(160.)))
+                    .child(head("Format").w(px(80.)))
+                    .child(head("Columns").flex_1())
+                    .child(head("Rows").w(px(80.)))
+                    .child(div().w(px(90.)))
+                    .test_support(),
+            );
             panel = panel.children(sources.iter().map(|source| {
                 let detail = self.details.iter().find(|d| d.id == source.id);
                 let name = source.name.clone();
@@ -329,12 +367,13 @@ impl Render for FileSourcesTab {
                     .child(div().w(px(80.)).child(widgets::text(SharedString::from(format!("source-rows:{name}")), rows)))
                     .child(
                         Button::new(SharedString::from(format!("Remove {name}")))
-                            .ghost()
+                            .danger()
+                            .outline()
                             .xsmall()
-                            .icon(IconName::Trash)
-                            .tooltip(format!("Remove {name}"))
+                            .label("Remove")
+                            .tooltip(format!("Remove files.{name}"))
                             .disabled(busy)
-                            .on_click(cx.listener(move |this, _, _, cx| this.remove(&removed, cx))),
+                            .on_click(cx.listener(move |this, _, _, cx| this.confirm_remove(&removed, cx))),
                     )
                     .test_support()
             }));

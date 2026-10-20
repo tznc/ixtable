@@ -45,7 +45,7 @@ fn migrations_problems_and_preflight() {
     let problem = h.label("after-problem:0");
     assert!(problem.contains("\"Item label\" is bound to items.label"), "{problem}");
     let health = h.label("history:0:health");
-    assert!(health.starts_with("Health passed: ") && health.contains("integrity_check: ok"), "{health}");
+    assert_eq!(health, "Integrity checks passed");
     h.capture(
         "migrations-01-problems-after",
         &[

@@ -137,3 +137,21 @@ fn adds_every_kind_of_component_with_its_properties_and_lists_the_issues(cx: &mu
     h.click("prop-delete");
     assert!(dashboard(&h).components.iter().all(|c| c.title != "KPI 1"));
 }
+
+#[test]
+fn palette_icons_are_bundled() {
+    use gpui_kit::AssetSource;
+    for kind in crate::page_engine::model::COMPONENT_KINDS {
+        let path = super::editor::component_icon(kind).path();
+        assert!(crate::ui::assets::AppAssets.load(&path).expect("load").is_some(), "{path} is not bundled");
+    }
+}
+
+#[test]
+fn record_navigation_icons_are_bundled() {
+    use gpui_kit::{AssetSource, assets::IconName};
+    for icon in [IconName::ChevronFirst, IconName::ChevronLast, IconName::ChevronLeft, IconName::ChevronRight] {
+        let path = icon.path();
+        assert!(crate::ui::assets::AppAssets.load(&path).expect("load").is_some(), "{path} is not bundled");
+    }
+}
