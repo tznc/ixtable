@@ -160,7 +160,7 @@ impl ReportDesigner {
                             .ghost()
                             .xsmall()
                             .start_label(None, label)
-                            .selected(entry.key == active)
+                            .selected_tint(entry.key == active, cx)
                             .on_click(cx.listener(move |this, _, _, cx| this.select_band(pick_key.clone(), cx))),
                     )
                     .child(

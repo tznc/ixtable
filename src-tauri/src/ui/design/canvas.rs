@@ -135,7 +135,7 @@ impl DesignStudio {
                             .ghost()
                             .small()
                             .label(tab.label.clone())
-                            .selected(active.as_deref() == Some(tab.id.as_str()))
+                            .selected_tint(active.as_deref() == Some(tab.id.as_str()), cx)
                             .on_click(move |_, _, cx| {
                                 let (tabs_id, tab_id) = (tabs_id.clone(), tab_id.clone());
                                 entity.update(cx, |this, cx| {

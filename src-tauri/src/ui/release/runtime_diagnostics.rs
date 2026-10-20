@@ -184,7 +184,7 @@ impl Render for RuntimeDiagnostics {
                         Button::new("diagnostics-tab-jobs")
                             .ghost()
                             .label("Background jobs")
-                            .selected(self.tab == DiagnosticsTab::Jobs)
+                            .selected_tint(self.tab == DiagnosticsTab::Jobs, cx)
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.tab = DiagnosticsTab::Jobs;
                                 cx.notify();
@@ -194,7 +194,7 @@ impl Render for RuntimeDiagnostics {
                         Button::new("diagnostics-tab-logs")
                             .ghost()
                             .label("Logs")
-                            .selected(self.tab == DiagnosticsTab::Logs)
+                            .selected_tint(self.tab == DiagnosticsTab::Logs, cx)
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.tab = DiagnosticsTab::Logs;
                                 cx.notify();

@@ -338,7 +338,7 @@ impl RunBody {
                     .small()
                     .w_full()
                     .start_label(None, item.label.clone())
-                    .selected(active == Some(item.id.as_str()))
+                    .selected_tint(active == Some(item.id.as_str()), cx)
                     .on_click(move |_, _, cx| {
                         if let Some(page) = page.clone() {
                             runtime.update(cx, |r, cx| r.navigate(page, cx));

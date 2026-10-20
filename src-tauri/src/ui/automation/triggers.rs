@@ -205,7 +205,7 @@ impl TriggersPanel {
                             .flex_1()
                             .min_w_0()
                             .start_label(None, name.to_string())
-                            .selected(selected.as_deref() == Some(id.as_str()))
+                            .selected_tint(selected.as_deref() == Some(id.as_str()), cx)
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.selected = Some(id.clone());
                                 cx.notify();

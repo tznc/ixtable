@@ -206,7 +206,7 @@ impl Render for LinkPanel {
                     row = row.child(
                         Button::new(eid(format!("link-org:{}", org.id)))
                             .label(org.name.clone())
-                            .selected(org.id == self.org_id)
+                            .selected_tint(org.id == self.org_id, cx)
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.org_id = id.clone();
                                 cx.notify();

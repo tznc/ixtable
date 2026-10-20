@@ -185,7 +185,7 @@ impl Render for RolesTab {
                     .ghost()
                     .small()
                     .start_label(None, if item.name.is_empty() { "Untitled role".to_string() } else { item.name.clone() })
-                    .selected(role.as_ref().is_some_and(|r| r.id == item.id))
+                    .selected_tint(role.as_ref().is_some_and(|r| r.id == item.id), cx)
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.selected = Some(id.clone());
                         cx.notify();

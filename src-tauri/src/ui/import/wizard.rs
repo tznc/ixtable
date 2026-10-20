@@ -400,7 +400,7 @@ impl Render for ImportWizard {
                             .outline()
                             .small()
                             .label("A new table")
-                            .selected(self.new_table)
+                            .selected_tint(self.new_table, cx)
                             .disabled(busy)
                             .on_click(move |_, _, cx| new_e.update(cx, |this, cx| {
                                 this.new_table = true;
@@ -412,7 +412,7 @@ impl Render for ImportWizard {
                             .outline()
                             .small()
                             .label("An existing table")
-                            .selected(!self.new_table)
+                            .selected_tint(!self.new_table, cx)
                             .disabled(busy || self.tables.is_empty())
                             .on_click(move |_, _, cx| existing_e.update(cx, |this, cx| {
                                 this.new_table = false;

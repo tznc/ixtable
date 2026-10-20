@@ -28,9 +28,9 @@ use crate::{
     },
 };
 use gpui_kit::assets::IconName;
-use crate::ui::widgets::{StartAligned as _, Type, TypeScale as _};
+use crate::ui::widgets::{SelectedTint as _, StartAligned as _, Type, TypeScale as _};
 use gpui_kit::component::{
-    ActiveTheme as _, Disableable as _, Icon, Selectable as _, Sizable as _,
+    ActiveTheme as _, Disableable as _, Icon, Sizable as _,
     button::{Button, ButtonVariants as _},
     h_flex,
     v_flex,
@@ -562,15 +562,7 @@ impl Shell {
             .items_center()
             .px_3()
             .py_2()
-            .child(
-                div()
-                    .px_2()
-                    .rounded_md()
-                    .bg(gpui_kit::white())
-                    .text_color(gpui_kit::black())
-                    .font_weight(FontWeight::BOLD)
-                    .child("ix"),
-            )
+            .child(img(crate::ui::assets::APP_ICON).size(px(28.)).flex_none())
             .child(
                 h_flex()
                     .gap_1()
@@ -599,7 +591,7 @@ impl Shell {
                                 .small()
                                 .icon(Icon::new(ModeId::App.icon()))
                                 .tooltip(ModeId::App.label())
-                                .selected(doc.mode == ModeId::App)
+                                .selected_tint(doc.mode == ModeId::App, cx)
                                 .disabled(busy)
                                 .on_click(cx.listener(|this, _, window, cx| {
                                     this.change_mode(ModeId::App, window, cx)
@@ -639,7 +631,7 @@ impl Shell {
                 .small()
                 .w_full()
                 .start_label(Some(Icon::new(mode.icon())), mode.label())
-                .selected(active)
+                .selected_tint(active, cx)
                 .disabled(busy)
                 .on_click(cx.listener(move |this, _, window, cx| this.change_mode(mode, window, cx)))
         }));

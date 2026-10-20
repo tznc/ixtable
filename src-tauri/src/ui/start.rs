@@ -291,15 +291,7 @@ impl Render for StartScreen {
                     .gap_2()
                     .p_4()
                     .items_center()
-                    .child(
-                        div()
-                            .px_2()
-                            .rounded_md()
-                            .bg(gpui_kit::white())
-                            .text_color(gpui_kit::black())
-                            .font_weight(FontWeight::BOLD)
-                            .child("ix"),
-                    )
+                    .child(img(crate::ui::assets::APP_ICON).size(px(40.)).flex_none())
                     .child(div().font_weight(FontWeight::BOLD).child("ixtable")),
             )
             .child(

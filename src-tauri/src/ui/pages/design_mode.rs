@@ -340,7 +340,7 @@ impl DesignMode {
                         Some(IconName::LayoutDashboard.into()),
                         if page.name.is_empty() { "Untitled page".to_string() } else { page.name.clone() },
                     )
-                    .selected(focus == Focus::Page && current.as_deref() == Some(page.id.as_str()))
+                    .selected_tint(focus == Focus::Page && current.as_deref() == Some(page.id.as_str()), cx)
                     .on_click(cx.listener(move |this, _, _, cx| this.open_page(&id, None, cx)))
             }))
             .when(config.pages.is_empty(), |el| {
@@ -353,7 +353,7 @@ impl DesignMode {
                     .ghost()
                     .small()
                     .start_label(Some(IconName::Menu.into()), "Navigation")
-                    .selected(focus == Focus::Navigation)
+                    .selected_tint(focus == Focus::Navigation, cx)
                     .on_click(cx.listener(|this, _, _, cx| this.show_navigation(cx))),
             )
             .child(heading("generate-heading", "Generate"))
@@ -403,7 +403,7 @@ impl DesignMode {
                             .ghost()
                             .small()
                             .start_label(Some(IconName::LayoutDashboard.into()), f.name.clone())
-                            .selected(focus == Focus::Form && open_form.as_deref() == Some(f.id.as_str()))
+                            .selected_tint(focus == Focus::Form && open_form.as_deref() == Some(f.id.as_str()), cx)
                             .on_click(cx.listener(move |this, _, _, cx| this.open_form(&id, None, cx)))
                     }))
                     .children(loose_reports.into_iter().map(|r| {
@@ -412,7 +412,7 @@ impl DesignMode {
                             .ghost()
                             .small()
                             .start_label(Some(IconName::FileText.into()), r.name.clone())
-                            .selected(focus == Focus::Report && open_report.as_deref() == Some(r.id.as_str()))
+                            .selected_tint(focus == Focus::Report && open_report.as_deref() == Some(r.id.as_str()), cx)
                             .on_click(cx.listener(move |this, _, _, cx| this.open_report(&id, None, cx)))
                     }))
             })

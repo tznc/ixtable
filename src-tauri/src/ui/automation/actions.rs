@@ -317,7 +317,7 @@ impl ActionsPanel {
                     .small()
                     .w_full()
                     .start_label(None, label.to_string())
-                    .selected(selected.as_deref() == Some(id.as_str()))
+                    .selected_tint(selected.as_deref() == Some(id.as_str()), cx)
                     .on_click(cx.listener(move |this, _, _, cx| this.select(&id, cx)))
             }))
             .when(actions.is_empty(), |el| {

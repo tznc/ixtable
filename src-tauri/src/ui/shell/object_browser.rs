@@ -8,10 +8,10 @@
 
 use super::{Selection, SelectionKind, Shell};
 use crate::manager::AppError;
-use crate::ui::widgets::{self, Type, TypeScale as _};
+use crate::ui::widgets::{self, SelectedTint as _, Type, TypeScale as _};
 use gpui_kit::assets::IconName;
 use gpui_kit::component::{
-    ActiveTheme as _, Icon, Selectable as _, Sizable as _,
+    ActiveTheme as _, Icon, Sizable as _,
     button::{Button, ButtonVariants as _},
     h_flex,
     input::{Input, InputEvent, InputState},
@@ -141,7 +141,7 @@ impl Render for ObjectBrowser {
                                     .xsmall()
                                     .icon(Icon::new(IconName::Plus))
                                     .tooltip(tip)
-                                    .selected(active.as_ref().is_some_and(|s| s.kind == kind && s.id.is_empty()))
+                                    .selected_tint(active.as_ref().is_some_and(|s| s.kind == kind && s.id.is_empty()), cx)
                                     .on_click(move |_, _, cx| {
                                         let selection = Selection {
                                             kind,
@@ -206,7 +206,7 @@ impl Render for ObjectBrowser {
                                 }),
                         )
                         .tooltip(full)
-                        .selected(selected)
+                        .selected_tint(selected, cx)
                         .on_click(move |_, _, cx| {
                             let selection = selection.clone();
                             entity.update(cx, |this, cx| this.choose(selection, cx));

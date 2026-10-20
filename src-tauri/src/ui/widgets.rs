@@ -425,7 +425,6 @@ pub fn tab_strip(
     on_select: impl Fn(&'static str, &mut Window, &mut App) + 'static,
     cx: &App,
 ) -> Stateful<Div> {
-    use gpui_kit::component::Selectable as _;
     let on_select = std::rc::Rc::new(on_select);
     h_flex()
         .id(id)
@@ -440,7 +439,7 @@ pub fn tab_strip(
                 .ghost()
                 .small()
                 .label(label)
-                .selected(key == selected)
+                .selected_tint(key == selected, cx)
                 .on_click(move |_, window, cx| on_select(key, window, cx))
         }))
 }
@@ -472,15 +471,21 @@ mod plural_tests {
 /// One tab button in the shared tab look: ghost, medium label, accent tint when selected.
 /// For tab rows whose keys are dynamic (form tabs); `tab_strip` covers fixed ones.
 pub fn tab_button(id: impl Into<ElementId>, label: impl Into<SharedString>, selected: bool, cx: &App) -> Button {
-    use gpui_kit::component::Selectable as _;
-    let accent = cx.theme().primary;
-    Button::new(id)
-        .ghost()
-        .small()
-        .label(label)
-        .selected(selected)
-        .font_weight(FontWeight::MEDIUM)
-        .when(selected, |b| b.bg(accent.opacity(0.12)).text_color(accent))
+    Button::new(id).ghost().small().label(label).font_weight(FontWeight::MEDIUM).selected_tint(selected, cx)
+}
+
+/// Selection in navigation, lists and tabs (design-language.md §4): an accent tint and a
+/// medium-weight label, so it never reads as hover or disabled. Also sets `selected`.
+pub trait SelectedTint: Sized {
+    fn selected_tint(self, selected: bool, cx: &App) -> Self;
+}
+
+impl SelectedTint for Button {
+    fn selected_tint(self, selected: bool, cx: &App) -> Self {
+        use gpui_kit::component::Selectable as _;
+        let tint = cx.theme().primary.opacity(0.18);
+        self.selected(selected).when(selected, |b| b.bg(tint).font_weight(FontWeight::MEDIUM))
+    }
 }
 
 /// A breadcrumb for drill-in navigation (nested record, form → control). `trail` crumbs are

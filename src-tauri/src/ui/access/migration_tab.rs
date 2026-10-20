@@ -147,7 +147,7 @@ impl AccessMigrationTab {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         forms::secondary(eid(id), label)
-            .selected(active)
+            .selected_tint(active, cx)
             .on_click(cx.listener(move |this, _, _, cx| {
                 set(&mut this.filter);
                 cx.notify();

@@ -52,15 +52,15 @@ Five steps, with weight used sparingly. Feature code sizes text only with `.ty(T
 | Text | `foreground` | Body, values |
 | Secondary text | `muted_foreground` | Labels, captions, placeholders |
 | Lines | `border` | Card borders, dividers, table rules |
-| Accent | `primary` (one hue, e.g. the brand teal) | Selection, focus ring, the one primary button, links |
+| Accent | `primary`: the app icon's teal `#0DB9B6`, with navy `#10171D` text on it (`ui/theme.rs`); links use a darker teal `#0A7C7A` | Selection, focus ring, the one primary button, links |
 | Success | `success` | Toasts, "Converted" and "Applied" badges |
 | Warning | `warning`, darkened for text to ≥ 4.5:1 | "Partly converted", "Pending", non-blocking issues |
 | Danger | `danger` | Errors, destructive buttons, "Not converted" |
 
 - Status colors appear as a **tinted background plus an icon plus text**, never as text color alone. Use 12% opacity for the fill and the full color for the icon and title, with body text staying `foreground`.
-- Selection (nav item, list row, tab) is an accent tint plus a medium-weight label. Today's mid-grey selected state is indistinguishable from hover and disabled.
+- Selection (nav item, list row, tab) is an accent tint plus a medium-weight label: `.selected_tint(selected, cx)` (`widgets::SelectedTint`), never a bare `.selected()`, whose grey reads as hover or disabled.
 - Disabled means 40% opacity of the enabled variant. Never use a separate grey fill, which reads as "pressed".
-- The brand mark stays on a white tile in every theme. There is no dark version.
+- The app icon (`assets::APP_ICON`, from `branding/app-icon.svg`) marks the Studio sidebar and the start screen. It stays on a white tile in every theme. There is no dark version.
 
 ## 5. Components
 
