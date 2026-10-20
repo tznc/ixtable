@@ -2,7 +2,7 @@
 //! shows it above every page (`shell::ribbon`), and the Run App window above the app
 //! (`runtime::run_mode`). It spans the content column only, never the sidebar.
 //!
-//! Test ids: `ribbon` (the band), `tab-<key>` (tabs, from `widgets::tab_strip`) and
+//! Test ids: `ribbon` (the band), `tab-<key>` (tabs) and
 //! `ribbon-group-<key>`, whose accessibility label is the group's name.
 
 use crate::ui::prelude::*;
@@ -21,26 +21,48 @@ pub fn ribbon(
         .w_full()
         .flex_none()
         .bg(theme.sidebar)
-        .child(
-            widgets::tab_strip("ribbon-tabs", tabs, selected, on_select, cx)
-                .items_center()
-                .border_b_0()
-                .child(div().flex_1())
-                .children(trailing),
-        )
+        .child(tab_row(tabs, selected, on_select, trailing))
         .child(
             h_flex()
                 .id("ribbon")
                 .w_full()
                 .items_stretch()
                 .px_2()
-                .pb_1()
+                .pb_0p5()
                 .border_b_1()
                 .border_color(theme.border)
                 .overflow_x_scroll()
                 .children(groups)
                 .test_support(),
         )
+}
+
+/// The tab row: compact tabs (`tab-<key>`, the ids `widgets::tab_strip` uses), then
+/// `trailing` at the far end.
+fn tab_row(
+    tabs: &[(&'static str, &'static str)],
+    selected: &str,
+    on_select: impl Fn(&'static str, &mut Window, &mut App) + 'static,
+    trailing: Option<AnyElement>,
+) -> impl IntoElement {
+    let on_select = std::rc::Rc::new(on_select);
+    h_flex()
+        .id("ribbon-tabs")
+        .items_center()
+        .gap_1()
+        .px_2()
+        .pt_0p5()
+        .children(tabs.iter().map(|&(key, label)| {
+            let on_select = on_select.clone();
+            Button::new(SharedString::from(format!("tab-{key}")))
+                .ghost()
+                .xsmall()
+                .label(label)
+                .selected(key == selected)
+                .on_click(move |_, window, cx| on_select(key, window, cx))
+        }))
+        .child(div().flex_1())
+        .children(trailing)
 }
 
 /// One labelled group of commands; a rule separates it from the next group.
@@ -56,7 +78,6 @@ pub fn group(
         .aria_label(SharedString::from(label.to_string()))
         .flex_none()
         .justify_between()
-        .gap_1()
         .px_2()
         .border_r_1()
         .border_color(theme.border)
