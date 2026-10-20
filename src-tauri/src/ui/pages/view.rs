@@ -6,7 +6,8 @@
 //! Ns (X of Y queries done)"), `dash-progress-bar`, `dash-cancel`, `dash-notice`,
 //! `dash-missing`, `dash-empty`; each component is `widget:<title>` (its title, or its kind
 //! when it has none) with the lines `widget-problem:<title>:visible|enabled` and
-//! `widget-disabled:<title>`. The bodies' ids are in `bodies.rs`.
+//! `widget-disabled:<title>`, and `widget-filter-text:<title>:<filter id>` (a chip such as
+//! "Status: open" for each filter applied to the component). The bodies' ids are in `bodies.rs`.
 
 use super::{
     data::{Loader, QueryRunner, QueryState},
@@ -47,6 +48,56 @@ use std::{
 };
 
 const DEBOUNCE_MS: u64 = 250;
+
+/// Text of a filter value in a chip; None when it is blank.
+fn chip_value(value: &Value) -> Option<String> {
+    match value {
+        Value::Null => None,
+        Value::String(s) => (!s.trim().is_empty()).then(|| s.clone()),
+        Value::Bool(b) => Some(if *b { "yes" } else { "no" }.to_string()),
+        other => Some(other.to_string()),
+    }
+}
+
+/// The filters in force on `component`, as "Name: value" chips: a KPI, chart or table whose
+/// query declares a filter's parameter, for each filter that is not blank.
+pub(super) fn filter_chips(
+    dashboard: &Page,
+    component: &PageComponent,
+    params: &Map<String, Value>,
+    queries: &[crate::archive::SavedQuery],
+) -> Vec<(String, String)> {
+    if !matches!(component.kind, ComponentKind::Kpi | ComponentKind::Chart | ComponentKind::Table) {
+        return vec![];
+    }
+    let Some(query) = component.query_id.as_ref().and_then(|id| queries.iter().find(|q| &q.id == id)) else {
+        return vec![];
+    };
+    let declared = |name: &str| query.parameters.iter().any(|p| p.name == name);
+    let mut chips = vec![];
+    for filter in dashboard.filters.iter().filter(|f| !f.param.is_empty()) {
+        let name = if filter.name.is_empty() { filter.param.clone() } else { filter.name.clone() };
+        let text = if filter.control == crate::pages::FilterControl::DateRange {
+            let get = |suffix: &str| {
+                let key = format!("{}{suffix}", filter.param);
+                params.get(&key).filter(|_| declared(&key)).and_then(chip_value)
+            };
+            match (get("From"), get("To")) {
+                (Some(a), Some(b)) => format!("{a} to {b}"),
+                (Some(a), None) => format!("from {a}"),
+                (None, Some(b)) => format!("until {b}"),
+                (None, None) => continue,
+            }
+        } else {
+            match params.get(&filter.param).filter(|_| declared(&filter.param)).and_then(chip_value) {
+                Some(v) => v,
+                None => continue,
+            }
+        };
+        chips.push((filter.id.clone(), format!("{name}: {text}")));
+    }
+    chips
+}
 
 /// Whether a component is on screen and enabled, and why a condition failed.
 #[derive(Debug, Clone, PartialEq)]
@@ -454,6 +505,7 @@ impl PageView {
         let min_height = rows * ROW_HEIGHT + (rows - 1.0) * dashboard.layout.row_gap as f32;
         let muted = theme.muted_foreground;
         let disabled = !enabled.value;
+        let chips = filter_chips(dashboard, component, params, &self.env.config(cx).saved_queries);
         v_flex()
             .id(SharedString::from(format!("widget:{name}")))
             .aria_label(name.clone())
@@ -471,6 +523,19 @@ impl PageView {
                 el.child(widgets::styled_text(format!("widget-title:{name}"), component.title.clone(), |d| {
                     d.text_sm().font_weight(FontWeight::SEMIBOLD)
                 }))
+            })
+            .when(!chips.is_empty(), |el| {
+                el.child(h_flex().gap_1().flex_wrap().children(chips.into_iter().map(|(id, text)| {
+                    div()
+                        .id(SharedString::from(format!("widget-filter:{name}:{id}")))
+                        .px_2()
+                        .rounded_full()
+                        .border_1()
+                        .border_color(theme.border)
+                        .text_xs()
+                        .text_color(muted)
+                        .child(widgets::text(format!("widget-filter-text:{name}:{id}"), text))
+                })))
             })
             .children(problems.into_iter().map(|(which, text)| {
                 widgets::callout(format!("widget-problem:{name}:{which}"), widgets::Severity::Danger, &text, None, cx)

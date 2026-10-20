@@ -150,7 +150,8 @@ impl Render for YamlTab {
                  configuration; Undo restores the previous one.",
             ))
             .child(
-                div().h(px(420.)).child(
+                // Fills the rest of the pane; the editor scrolls inside it.
+                div().flex_1().min_h(px(200.)).child(
                     Editor::new(&self.editor)
                         .h_full()
                         .aria_label("Configuration YAML"),

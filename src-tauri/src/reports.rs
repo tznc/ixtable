@@ -397,8 +397,9 @@ pub fn validate(config: &DocumentConfig) -> Vec<Issue> {
             if g.group_by.trim().is_empty() {
                 issues.push(err(&format!("group {} has no group-by expression", i + 1)));
             }
-            bands.push((format!("Group {} header", i + 1), &g.header));
-            bands.push((format!("Group {} footer", i + 1), &g.footer));
+            let name = crate::report_engine::model::group_label(g, i);
+            bands.push((format!("{name} header"), &g.header));
+            bands.push((format!("{name} footer"), &g.footer));
         }
         bands.push(("Detail".into(), &b.detail));
         bands.push((PAGE_FOOTER.into(), &b.page_footer));

@@ -4,7 +4,8 @@
 //!
 //! Test ids: `find-text`, `replace-text`, `find-scope` (options "All columns" and
 //! "Current column"), `find-whole`, `find-case`, `find-next`, `find-replace`,
-//! `find-replace-all`, `find-close`, `find-status`.
+//! `find-replace-all`, `find-close`, `find-status`, `find-count` ("2 of 3", "3 matches" or
+//! "No matches"), and the visible labels `find-label` and `replace-label`.
 
 use crate::ui::controls::{check, input_text, new_input, on_change, select, text_input};
 use super::{
@@ -63,6 +64,9 @@ pub struct FindPanel {
     whole_field: bool,
     status: String,
     busy: bool,
+    // Every matching cell as (table row, column), or None until counted.
+    matches: Option<Vec<(u64, usize)>>,
+    count_generation: u64,
     _subscriptions: Vec<Subscription>,
 }
 impl EventEmitter<FindEvent> for FindPanel {}
@@ -72,7 +76,10 @@ impl FindPanel {
         let find = new_input(window, cx, "", "");
         let replacement = new_input(window, cx, "", "");
         let subscriptions = vec![
-            on_change(cx, &find, |_, cx| cx.notify()),
+            on_change(cx, &find, |this, cx| {
+                this.refresh_count(cx);
+                cx.notify()
+            }),
             cx.subscribe(&find, |this, _, e: &InputEvent, cx| {
                 if matches!(e, InputEvent::PressEnter { .. }) && !this.options(cx).find.is_empty() {
                     this.find_next(cx);
@@ -89,6 +96,8 @@ impl FindPanel {
             whole_field: false,
             status: String::new(),
             busy: false,
+            matches: None,
+            count_generation: 0,
             _subscriptions: subscriptions,
         }
     }
@@ -120,6 +129,42 @@ impl FindPanel {
             editable,
             active: sheet.active,
         }
+    }
+
+    /// Counts the matching cells across the whole table in the background.
+    fn refresh_count(&mut self, cx: &mut Context<Self>) {
+        self.count_generation += 1;
+        let generation = self.count_generation;
+        let options = self.options(cx);
+        if options.find.is_empty() {
+            self.matches = None;
+            return;
+        }
+        let snap = self.snapshot(cx);
+        task::spawn_call(
+            cx,
+            move || collect_matches(&snap, &options),
+            move |this, result, cx| {
+                if this.count_generation == generation {
+                    this.matches = result.ok();
+                    cx.notify();
+                }
+            },
+        );
+    }
+
+    /// "2 of 3" while the active cell is a match, else the total.
+    fn count_text(&self, cx: &App) -> Option<String> {
+        let matches = self.matches.as_ref()?;
+        if matches.is_empty() {
+            return Some("No matches".into());
+        }
+        let sheet = self.sheet.read(cx);
+        let at = sheet.active.map(|a| (sheet.page.offset + a.row as u64, a.column));
+        Some(match at.and_then(|at| matches.iter().position(|m| *m == at)) {
+            Some(i) => format!("{} of {}", i + 1, matches.len()),
+            None => widgets::plural(matches.len(), "match"),
+        })
     }
 
     fn read_only(&self, cx: &App) -> bool {
@@ -210,6 +255,7 @@ impl FindPanel {
                     {
                         cx.emit(FindEvent::Found { offset: snap.page.offset, cell: next });
                     }
+                    this.refresh_count(cx);
                     this.end(None, cx);
                 }
                 Err(e) => {
@@ -258,6 +304,7 @@ impl FindPanel {
                                 let text = format!("Replaced {} in {records_text}.", widgets::plural(cells, "match"));
                                 let shell = this.sheet.read(cx).shell.clone();
                                 shell.update(cx, |shell, cx| shell.toast(Toast::success(text), cx));
+                                this.refresh_count(cx);
                                 this.end(None, cx);
                             }
                             Err(e) => this.end(Some(e.error), cx),
@@ -328,6 +375,29 @@ fn scan_for_match(snap: &Snapshot, options: &FindOptions) -> Result<Option<(u64,
     Ok(None)
 }
 
+/// Every matching cell of the table, row by row, capped so a huge table stays cheap.
+fn collect_matches(snap: &Snapshot, options: &FindOptions) -> Result<Vec<(u64, usize)>, AppError> {
+    const CAP: usize = 100_000;
+    let mut found = Vec::new();
+    let mut offset = 0;
+    while offset < snap.page.total {
+        let chunk = read_rows(snap, offset, SCAN_PAGE)?;
+        for (i, row) in chunk.rows.iter().enumerate() {
+            for &j in &snap.columns {
+                let field = snap.fields.get(j).and_then(Option::as_ref);
+                if cell_matches(&row[j], options, field) {
+                    found.push((offset + i as u64, j));
+                }
+            }
+        }
+        if found.len() >= CAP {
+            break;
+        }
+        offset += SCAN_PAGE;
+    }
+    Ok(found)
+}
+
 /// Every record with a matching editable cell, as update writes, and the cell count.
 fn collect_replacements(
     snap: &Snapshot,
@@ -375,6 +445,7 @@ impl Render for FindPanel {
         let panel = cx.entity();
         let theme = cx.theme();
         let (border, muted) = (theme.border, theme.muted_foreground);
+        let count = self.count_text(cx);
         let scope = match self.scope {
             Scope::All => "all",
             Scope::Column => "column",
@@ -385,6 +456,7 @@ impl Render for FindPanel {
                 let scope = if value == "column" { Scope::Column } else { Scope::All };
                 panel.update(cx, |this, cx| {
                     this.scope = scope;
+                    this.refresh_count(cx);
                     cx.notify();
                 });
             }
@@ -401,9 +473,28 @@ impl Render for FindPanel {
             .py_2()
             .border_b_1()
             .border_color(border)
-            .child(div().w(px(200.)).child(text_input(&self.find, "find-text", "Find")))
+            .child(
+                v_flex()
+                    .w(px(200.))
+                    .gap_1()
+                    .child(
+                        h_flex()
+                            .justify_between()
+                            .text_xs()
+                            .text_color(muted)
+                            .child(widgets::text("find-label", "Find"))
+                            .when_some(count, |el, text| el.child(widgets::text("find-count", text))),
+                    )
+                    .child(text_input(&self.find, "find-text", "Find")),
+            )
             .when(!read_only, |el| {
-                el.child(div().w(px(200.)).child(text_input(&self.replacement, "replace-text", "Replace with")))
+                el.child(
+                    v_flex()
+                        .w(px(200.))
+                        .gap_1()
+                        .child(div().text_xs().text_color(muted).child(widgets::text("replace-label", "Replace with")))
+                        .child(text_input(&self.replacement, "replace-text", "Replace with")),
+                )
             })
             .child(select(
                 "find-scope",
@@ -415,12 +506,14 @@ impl Render for FindPanel {
             .child(check("find-whole", "Whole field", self.whole_field, move |value, _, cx| {
                 toggle_whole.update(cx, |this, cx| {
                     this.whole_field = value;
+                    this.refresh_count(cx);
                     cx.notify();
                 })
             }))
             .child(check("find-case", "Match case", self.match_case, move |value, _, cx| {
                 toggle_case.update(cx, |this, cx| {
                     this.match_case = value;
+                    this.refresh_count(cx);
                     cx.notify();
                 })
             }))

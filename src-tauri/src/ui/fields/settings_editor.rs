@@ -26,6 +26,9 @@ use crate::ui::{
 use gpui_kit::component::input::{InputEvent, InputState, Textarea, TextareaState};
 use std::collections::HashMap;
 
+/// Placeholder for the input-mask box; neutral, since Plain fields are not phone numbers.
+pub const MASK_PLACEHOLDER: &str = "Optional input mask";
+
 fn blank(field: &FieldSettings) -> bool {
     field.format.as_deref().is_none_or(str::is_empty)
         && field.input_mask.as_deref().is_none_or(str::is_empty)
@@ -114,7 +117,7 @@ impl FieldSettingsEditor {
         let mut choices = HashMap::new();
         for column in columns.iter().filter(|c| editable(c)) {
             let field = field_settings_for(&shell.read(cx).config(cx).entities, Some(table), Some(&column.name)).cloned();
-            let mask = new_input(window, cx, "e.g. (000) 000-0000", field.as_ref().and_then(|f| f.input_mask.as_deref()).unwrap_or(""));
+            let mask = new_input(window, cx, MASK_PLACEHOLDER, field.as_ref().and_then(|f| f.input_mask.as_deref()).unwrap_or(""));
             let name = column.name.clone();
             subscriptions.push(cx.subscribe(&mask, move |this, state, e: &InputEvent, cx| {
                 if matches!(e, InputEvent::Change) {

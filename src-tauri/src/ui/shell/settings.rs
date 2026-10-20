@@ -154,6 +154,11 @@ impl AppSettings {
         self.view.as_ref().map(|(_, v)| v.clone())
     }
 
+    /// The key of the open tab.
+    pub fn selected(&self) -> &'static str {
+        self.active
+    }
+
     pub fn select(&mut self, key: &'static str, cx: &mut Context<Self>) {
         self.active = key;
         cx.notify();

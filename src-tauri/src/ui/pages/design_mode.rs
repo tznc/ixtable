@@ -9,7 +9,7 @@
 //!
 //! Test ids: `design-mode`, `design-sidebar`, `new-page`, `new-form`, `new-report`, `page-item-N`, `no-pages`,
 //! `design-navigation`, `generate-table`, `generate-form`, `generate-app`,
-//! `generate-error`, `loose-form:<id>`, `loose-report:<id>`,
+//! `generate-error`, `generate-app-empty`, `generate-app-hint`, `loose-form:<id>`, `loose-report:<id>`,
 //! `back-to-page`, `design-crumb`, `duplicate-form`, `delete-form`.
 
 use super::PagePanel;
@@ -252,6 +252,25 @@ impl DesignMode {
         let loose_forms: Vec<_> = config.design.forms.iter().filter(|f| !placed(ComponentKind::Form, &f.id)).cloned().collect();
         let loose_reports: Vec<_> = config.reports.iter().filter(|r| !placed(ComponentKind::Report, &r.id)).cloned().collect();
         let no_tables = table.is_none();
+        // "Generate app from tables" is offered at the top, in the empty state and in the
+        // Generate group; when no table exists it says why.
+        let generate_app_button = |id: &'static str, cx: &mut Context<Self>| {
+            Button::new(id)
+                .outline()
+                .small()
+                .icon(IconName::WandSparkles)
+                .label("Generate app from tables")
+                .tooltip(if no_tables { "Add a table first" } else { "Add forms and navigation for every table" })
+                .disabled(no_tables)
+                .on_click(cx.listener(|this, _, _, cx| this.generate(None, cx)))
+        };
+        let no_tables_hint = |id: &'static str, cx: &mut Context<Self>| {
+            let muted = cx.theme().muted_foreground;
+            widgets::styled_text(id, "Add a table first.", move |d| d.text_xs().text_color(muted))
+        };
+        let empty_generate = generate_app_button("generate-app-empty", cx);
+        let empty_hint = no_tables_hint("generate-app-empty-hint", cx);
+        let bottom_hint = no_tables_hint("generate-app-hint", cx);
         let open_form = self.forms.read(cx).form_id.clone();
         let open_report = self.reports.read(cx).selected.clone();
         v_flex()
@@ -316,7 +335,11 @@ impl DesignMode {
                     .selected(focus == Focus::Page && current.as_deref() == Some(page.id.as_str()))
                     .on_click(cx.listener(move |this, _, _, cx| this.open_page(&id, None, cx)))
             }))
-            .when(config.pages.is_empty(), |el| el.child(widgets::empty_state("no-pages", "No pages yet", "Add a page, or generate pages from a table.", cx)))
+            .when(config.pages.is_empty(), |el| {
+                el.child(widgets::empty_state("no-pages", "No pages yet", "Add a page, or generate pages from a table.", cx))
+                    .child(empty_generate)
+                    .when(no_tables, |el| el.child(empty_hint))
+            })
             .child(
                 Button::new("design-navigation")
                     .ghost()
@@ -360,6 +383,7 @@ impl DesignMode {
                     .disabled(no_tables)
                     .on_click(cx.listener(|this, _, _, cx| this.generate(None, cx))),
             )
+            .when(no_tables, |el| el.child(bottom_hint))
             .when_some(self.generate.error.as_ref(), |el, e| {
                 el.child(widgets::error_banner("generate-error", e, None, cx))
             })

@@ -406,12 +406,8 @@ impl Render for RunBody {
                 }
             }
         };
-        let kicker = format!("PROJECT / RUN APP · {}", config.name);
-        let header = if runtime_only {
-            widgets::titlebar("", &config.name, cx)
-        } else {
-            widgets::titlebar(&kicker, "Run App", cx)
-        };
+        // End users see the app's name, not Studio's "PROJECT / RUN APP" breadcrumb.
+        let header = widgets::titlebar("", &config.name, cx);
         v_flex()
             .size_full()
             .relative()
@@ -462,12 +458,13 @@ impl Render for RunBody {
                                         .child(div().text_sm().text_color(theme.muted_foreground).child(
                                             "This application has no pages yet. Generate a list and a form for each table to start.",
                                         ))
-                                        .child(
+                                        // A normal-size button, not a full-width bar.
+                                        .child(h_flex().child(
                                             Button::new("generate-app")
                                                 .primary()
                                                 .label("Generate app from tables")
                                                 .on_click(cx.listener(|this, _, _, cx| this.generate(cx))),
-                                        )
+                                        ))
                                         .test_support(),
                                 )
                             })

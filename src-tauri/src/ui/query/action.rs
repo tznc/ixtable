@@ -1,7 +1,8 @@
 //! Action queries: the query type and target table, and the Preview and Run buttons.
 //! Port of src/query/ActionQuery.tsx (docs/decisions/action-queries.md).
 //!
-//! Test ids: `query-type`, `target-table` (drop-downs), `preview-changes`, `run-action`.
+//! Test ids: `query-type`, `target-table` (drop-downs), `preview-changes`, `run-action`,
+//! `apply-action` (after a preview: "Apply to N rows").
 
 use super::{
     QueryMode,
@@ -11,7 +12,7 @@ use super::{
 };
 use crate::{
     archive::{ActionSpec, SavedQuery},
-    ui::{dialogs, prelude::*, task},
+    ui::{dialogs, prelude::*, task, widgets::plural},
 };
 
 impl QueryMode {
@@ -184,6 +185,7 @@ impl QueryMode {
         let start = move |this: &mut Self, window: &mut Window, cx: &mut Context<Self>| {
             this.action.busy = true;
             this.action.result = None;
+            this.action.preview_rows = None;
             task::spawn_call_in(
                 window,
                 cx,
@@ -195,6 +197,7 @@ impl QueryMode {
                             let text =
                                 describe_run(run.changed, run.removed, run.dry_run, &run.table, spec.kind);
                             this.action.result = Some((text, false));
+                            this.action.preview_rows = (run.dry_run && run.changed > 0).then_some(run.changed);
                             !dry_run
                         }
                         Err(e) => {
@@ -214,13 +217,15 @@ impl QueryMode {
         if dry_run {
             return start(self, window, cx);
         }
-        let message = format!(
-            "Run {name}? It changes rows in {} and cannot be undone.",
-            self.draft
-                .as_ref()
-                .and_then(|d| d.query.action.as_ref())
-                .map_or("", |a| a.table.as_str())
-        );
+        let table = self
+            .draft
+            .as_ref()
+            .and_then(|d| d.query.action.as_ref())
+            .map_or("", |a| a.table.as_str());
+        let message = match self.action.preview_rows {
+            Some(n) => format!("Run {name}? It changes {} in {table} and cannot be undone.", plural(n as usize, "row")),
+            None => format!("Run {name}? It changes rows in {table} and cannot be undone."),
+        };
         let answer = dialogs::confirm(cx, "Run action query", &message);
         task::after_in(window, cx, answer, move |this, ok, window, cx| {
             if ok {

@@ -141,10 +141,8 @@ fn sets_pagination_controls_in_the_designer_and_keeps_tables_out_of_page_bands(c
 
     // Page bands refuse tables and subreports.
     h.click("band-pageFooter");
-    assert_eq!(
-        h.label("table-hint"),
-        "Tables and subreports are not supported in page headers or footers."
-    );
+    // The note is a tooltip on the blocked buttons, so the toolbar never shifts.
+    assert!(!h.exists("table-hint"));
     h.click("add-table");
     h.click("add-subreport");
     assert!(report(&h).bands.page_footer.components.is_empty());

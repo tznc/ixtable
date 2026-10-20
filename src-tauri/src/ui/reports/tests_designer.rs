@@ -4,7 +4,7 @@
 
 use super::tests::tall_document;
 use super::test_support::{
-    add_component, add_query, choose, edit_store, id, last_component, new_report, open_reports, page_texts,
+    add_component, add_query, choose, edit_store, id, last_component, new_report, open_reports, page_texts, seed_orders,
     preview, report, validation_issues_for_reports, wait_for_page, wait_until,
 };
 use crate::data::DataValue;
@@ -237,4 +237,48 @@ fn collapses_page_setup_with_a_summary_and_drops_the_group_prefix_from_group_lab
     assert_eq!(h.label("report-groups"), "Groups");
     assert!(h.label("group-1").starts_with("Group 1"));
     assert!(!h.label("group-1").contains("record."), "group headings never show raw expressions");
+}
+
+#[test]
+fn canvas_text_names_the_field_instead_of_the_raw_expression() {
+    use super::extra::{bound_field, canvas_text, set};
+    use crate::report_engine::model::new_component;
+    assert_eq!(bound_field("record.amount").as_deref(), Some("amount"));
+    assert_eq!(bound_field("record.[Unit price]").as_deref(), Some("Unit price"));
+    assert_eq!(bound_field("record.amount + 1"), None);
+    let mut c = new_component("calculated", 500.0, (0.0, 0.0));
+    set(&mut c, "expression", json!(""));
+    assert_eq!(canvas_text(&c), "No value yet");
+    set(&mut c, "expression", json!("record.amount"));
+    assert_eq!(canvas_text(&c), "amount");
+    set(&mut c, "expression", json!("'Subtotal ' & format(sum(rows.amount), '#,##0.00')"));
+    assert_eq!(canvas_text(&c), "Expression: 'Subtotal ' & form…");
+}
+
+#[gpui_kit::test]
+fn one_value_picker_binds_a_field_or_reveals_a_custom_expression(cx: &mut TestAppContext) {
+    let mut h = tall_document(cx);
+    seed_orders(&mut h);
+    add_query(&mut h, "q-orders", "Orders", "SELECT * FROM orders ORDER BY id");
+    new_report(&mut h);
+    choose(&mut h, "report-dataset", "Query: Orders");
+    add_component(&mut h, "detail", "field");
+    wait_until(&mut h, "the value picker", |h| h.exists("prop-bound-field"));
+    assert!(!h.exists("prop-expression"), "the expression input stays hidden for a bound field");
+    choose(&mut h, "prop-bound-field", "amount");
+    assert_eq!(last_component(&h, |r| &r.bands.detail).extra["expression"], "record.amount");
+    assert!(!h.exists("prop-expression"));
+    choose(&mut h, "prop-bound-field", "Custom expression…");
+    assert!(h.exists("prop-expression"));
+    h.fill("prop-expression", "record.amount * 2");
+    assert_eq!(last_component(&h, |r| &r.bands.detail).extra["expression"], "record.amount * 2");
+
+    // A running sum is explained under the preview page.
+    choose(&mut h, "prop-running-sum", "Over all");
+    h.click("tab-preview");
+    wait_until(&mut h, "the running total caption", |h| h.exists("running-total-caption"));
+    assert_eq!(
+        h.label("running-total-caption"),
+        "Running total: Expression: record.amount * 2 (over all rows)"
+    );
 }

@@ -141,10 +141,11 @@ impl Render for ColumnFields {
             .collect();
         let entity = cx.entity();
         let max = self.max_precision;
+        let muted = cx.theme().muted_foreground;
         h_flex()
             .w_full()
             .gap_2()
-            .items_center()
+            .items_end()
             .when(self.name_editable, |el| {
                 el.child(
                     div()
@@ -176,14 +177,18 @@ impl Render for ColumnFields {
             ))
             .when(parts.base == "decimal", |el| {
                 el.child(
-                    div()
-                        .w(px(70.))
-                        .child(text_input(&self.precision, self.id("precision"), &format!("{} precision", self.label))),
+                    v_flex().w(px(70.)).gap_1().child(
+                        widgets::styled_text(self.id("precision-label"), "Precision".to_string(), |d| {
+                            d.text_sm().text_color(muted)
+                        }),
+                    ).child(text_input(&self.precision, self.id("precision"), &format!("{} precision", self.label))),
                 )
                 .child(
-                    div()
-                        .w(px(70.))
-                        .child(text_input(&self.scale, self.id("scale"), &format!("{} scale", self.label))),
+                    v_flex().w(px(70.)).gap_1().child(
+                        widgets::styled_text(self.id("scale-label"), "Scale".to_string(), |d| {
+                            d.text_sm().text_color(muted)
+                        }),
+                    ).child(text_input(&self.scale, self.id("scale"), &format!("{} scale", self.label))),
                 )
             })
             .child(check(self.id("required"), "Required", self.draft.required, {

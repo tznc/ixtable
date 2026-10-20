@@ -198,3 +198,47 @@ fn deleting_a_record_asks_first_and_removes_it(cx: &mut TestAppContext) {
     assert_eq!(h.dialogs.count("confirm"), 1);
     assert_eq!(h.read_page("orders").total, 2);
 }
+
+#[gpui_kit::test]
+fn find_shows_labels_and_a_match_counter(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    seed_orders(&mut h);
+    h.click("find");
+    assert_eq!(h.label("find-label"), "Find");
+    assert_eq!(h.label("replace-label"), "Replace with");
+    h.type_into("find-text", "ltd");
+    h.cx.run_until_parked();
+    assert_eq!(h.label("find-count"), "2 matches");
+    h.click("find-next");
+    h.cx.run_until_parked();
+    assert_eq!(h.label("find-count"), "1 of 2");
+    h.click("find-next");
+    assert_eq!(h.label("find-count"), "2 of 2");
+    h.type_into("find-text", "zzz");
+    h.cx.run_until_parked();
+    assert_eq!(h.label("find-count"), "No matches");
+}
+
+#[gpui_kit::test]
+fn clear_sort_appears_only_while_sorted(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    seed_orders(&mut h);
+    assert!(!h.exists("clear-sort"));
+    h.click("sort:name");
+    h.click("sort:name");
+    assert!(h.exists("clear-sort"));
+    assert_eq!(h.label("sort:name"), "name ↓");
+    h.click("clear-sort");
+    assert!(!h.exists("clear-sort"));
+    assert_eq!(h.label("sort:name"), "name");
+}
+
+#[gpui_kit::test]
+fn totals_are_right_aligned_and_pickers_stay_available(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    seed_orders(&mut h);
+    h.click("totals");
+    assert!(h.exists("Total for qty"));
+    choose(&mut h, "Total for qty", "Sum");
+    assert_eq!(h.label("total:qty"), "15");
+}

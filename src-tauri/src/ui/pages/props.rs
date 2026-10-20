@@ -194,7 +194,10 @@ impl PageEditor {
         let extra: Vec<String> = selected.iter().filter(|c| !all.contains(c)).cloned().collect();
         all.extend(extra);
         let hint = all.is_empty().then(|| widgets::text("prop-columns-hint", "Choose a query to list its columns."));
-        v_flex().gap_1().child(div().text_sm().font_weight(FontWeight::MEDIUM).child(legend.to_string())).children(hint).children(
+        let muted = cx.theme().muted_foreground;
+        let none_hint = (!all.is_empty() && id == "prop-column")
+            .then(|| widgets::styled_text("prop-columns-none", "None checked shows all", move |d| d.text_xs().text_color(muted)));
+        v_flex().gap_1().child(div().text_sm().font_weight(FontWeight::MEDIUM).child(legend.to_string())).children(none_hint).children(hint).children(
             all.iter().map(|column| {
                 let (selected_now, all_now, name) = (selected.to_vec(), all.clone(), column.clone());
                 let on = selected.contains(column);
@@ -648,14 +651,23 @@ impl PageEditor {
         }
         panel = panel.child(self.condition_properties(c, window, cx));
         let p = &c.placement;
-        panel = panel.child(widgets::styled_text(
-            "prop-hint",
-            format!(
-                "Column {}, row {}, {} × {}. Alt+Arrow resizes, Alt+Shift+Arrow moves.",
-                p.column, p.row, p.column_span, p.row_span
-            ),
-            move |d| d.text_xs().text_color(muted),
-        ));
+        panel = panel.child(
+            h_flex()
+                .items_center()
+                .justify_between()
+                .child(widgets::styled_text(
+                    "prop-hint",
+                    format!("Column {}, row {}, {} × {}", p.column, p.row, p.column_span, p.row_span),
+                    move |d| d.text_xs().text_color(muted),
+                ))
+                .child(
+                    Button::new("prop-shortcuts")
+                        .ghost()
+                        .xsmall()
+                        .icon(IconName::Info)
+                        .tooltip("Alt+Arrow resizes, Alt+Shift+Arrow moves."),
+                ),
+        );
         if let Some(region) = self.region_picker(dashboard, c, cx) {
             panel = panel.child(region);
         }

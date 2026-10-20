@@ -156,7 +156,7 @@ fn walks_report_bands_groups_and_table_columns() {
     report.bands.detail.components = vec![field];
     report.bands.groups = vec![ReportGroup {
         id: "g".into(),
-        group_by: "unknown.region".into(),
+        group_by: "record.[status".into(),
         header: band(vec![]),
         footer: band(vec![table]),
         ..Default::default()
@@ -166,7 +166,7 @@ fn walks_report_bands_groups_and_table_columns() {
     let issues = expression_issues(&config, &nothing);
     assert_eq!(
         fields(&issues),
-        vec!["Group 1 › Group by", "Group 1 footer › Table column \"Qty\"", "Detail › Field"]
+        vec!["Status group › Group by", "Status group footer › Table column \"Qty\"", "Detail › Field"]
     );
     assert_eq!(
         issues[1].target,

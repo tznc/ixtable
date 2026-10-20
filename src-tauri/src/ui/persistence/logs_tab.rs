@@ -149,22 +149,91 @@ fn log_row(i: usize, e: &LogEntry, cx: &App) -> impl IntoElement {
                 .font_family("monospace")
                 .text_xs()
                 .text_color(muted)
-                .child(e.timestamp.clone()),
+                .child(display_time(&e.timestamp)),
         )
         .child(
             div()
                 .w(px(56.))
                 .flex_none()
-                .child(status_badge(eid(format!("log:{i}:level")), &e.level, level_tone(&e.level), cx)),
+                .child(status_badge(eid(format!("log:{i}:level")), &e.level.to_ascii_lowercase(), level_tone(&e.level), cx)),
         )
         .child(div().w(px(96.)).flex_none().whitespace_nowrap().text_color(muted).child(e.area.clone()))
-        .child(div().flex_1().min_w_0().child(e.message.clone()))
+        .child(message_cell(i, &e.message))
         .test_support()
+}
+
+/// "2026-10-18T20:49:42.118Z" as "18 Oct 20:49:42"; anything else is shown as logged.
+pub fn display_time(timestamp: &str) -> String {
+    const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let parsed = (|| {
+        let (date, time) = timestamp.split_once('T')?;
+        let mut d = date.split('-');
+        let (_, month, day) = (d.next()?, d.next()?.parse::<usize>().ok()?, d.next()?.parse::<u32>().ok()?);
+        let month = MONTHS.get(month.checked_sub(1)?)?;
+        Some(format!("{day} {month} {}", time.get(..8)?))
+    })();
+    parsed.unwrap_or_else(|| timestamp.to_string())
+}
+
+fn is_uuid(token: &str) -> bool {
+    token.len() == 36
+        && token.split('-').map(str::len).eq([8, 4, 4, 4, 12])
+        && token.chars().all(|c| c == '-' || c.is_ascii_hexdigit())
+}
+
+/// Shortens identifiers and long paths so they never wrap mid-token: a UUID keeps its first
+/// eight characters and a path keeps its file name. None when nothing was shortened.
+pub fn shorten_message(message: &str) -> Option<String> {
+    let mut changed = false;
+    let words: Vec<String> = message
+        .split(' ')
+        .map(|word| {
+            let core = word.trim_matches(|c: char| "()[],.;:\"'".contains(c));
+            if is_uuid(core) {
+                changed = true;
+                word.replace(core, &format!("{}…", &core[..8]))
+            } else if core.len() > 24 && (core.starts_with('/') || core.contains(":\\")) {
+                let name = core.rsplit(['/', '\\']).next().unwrap_or(core);
+                changed = true;
+                word.replace(core, &format!("…/{name}"))
+            } else {
+                word.to_string()
+            }
+        })
+        .collect();
+    changed.then(|| words.join(" "))
+}
+
+/// The message, which alone may wrap; shortened tokens show the full text in a tooltip.
+fn message_cell(i: usize, message: &str) -> impl IntoElement {
+    let shown = shorten_message(message);
+    let cell = div().id(eid(format!("log:{i}:message"))).flex_1().min_w_0();
+    match shown {
+        Some(short) => {
+            let full = message.to_string();
+            cell.tooltip(move |window, cx| {
+                gpui_kit::component::tooltip::Tooltip::new(full.clone()).build(window, cx)
+            })
+            .child(short)
+        }
+        None => cell.child(message.to_string()),
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Tone, level_tone};
+    use super::{Tone, display_time, level_tone, shorten_message};
+
+    #[test]
+    fn formats_times_and_shortens_identifiers_and_paths() {
+        assert_eq!(display_time("2026-10-18T20:49:42.118Z"), "18 Oct 20:49:42");
+        assert_eq!(display_time("garbage"), "garbage");
+        let m = shorten_message("created checkpoint 7b53b210-51a7-403c-b32a-3c63bc38cd27 (manual)").unwrap();
+        assert_eq!(m, "created checkpoint 7b53b210… (manual)");
+        let m = shorten_message("saved /tmp/ixtable-test-state/ui-tests/crm.ixt (3 bytes)").unwrap();
+        assert_eq!(m, "saved …/crm.ixt (3 bytes)");
+        assert_eq!(shorten_message("up 001 applied"), None);
+    }
 
     #[test]
     fn tones_log_levels_case_insensitively() {

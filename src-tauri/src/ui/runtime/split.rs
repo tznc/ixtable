@@ -116,7 +116,11 @@ impl SplitView {
                     on_mode: Rc::new(move |next, id, cx| {
                         let _ = mode_to.update(cx, |t, cx| {
                             let next = if matches!(next, FormMode::Edit | FormMode::Create) { next } else { FormMode::Detail };
-                            let cursor = t.pane.as_ref().and_then(|p| p.cursor.clone());
+                            let was_create = t.pane.as_ref().is_some_and(|p| p.mode == FormMode::Create);
+                            let mut cursor = t.pane.as_ref().and_then(|p| p.cursor.clone());
+                            if cursor.is_none() && was_create && next == FormMode::Detail {
+                                cursor = Some(super::navbar::end_cursor(&t.form.id));
+                            }
                             t.open_pane(next, id, cursor, cx);
                         });
                     }),

@@ -43,7 +43,6 @@ impl ReportDesigner {
         let handle = self.handle(&c.id, cx);
         let (id, label) = (c.id.clone(), extra::canvas_label(c));
         let border_width = extra::style_num(c, "borderWidth");
-        let font = if c.kind == "table" { 9.0 } else { extra::style_num(c, "fontSize").unwrap_or(10.0) };
         let fill = extra::style_num(c, "fill");
         let bold = extra::style_flag(c, "bold");
         let align = extra::style_text(c, "align").unwrap_or_else(|| "left".into());
@@ -59,7 +58,7 @@ impl ReportDesigner {
                 })
                 .into_any_element()
             }
-            _ => div().child(extra::summary(c)).into_any_element(),
+            _ => div().text_xs().child(extra::canvas_text(c)).into_any_element(),
         };
         let this_id = id.clone();
         let (down_id, down_key, down_c) = (id.clone(), key.clone(), c.clone());
@@ -73,7 +72,6 @@ impl ReportDesigner {
             .w(px(c.w as f32))
             .h(px(c.h as f32))
             .overflow_hidden()
-            .text_size(px(font as f32))
             .when(bold, |d| d.font_weight(FontWeight::BOLD))
             .when(align == "center", |d| d.text_center())
             .when(align == "right", |d| d.text_right())

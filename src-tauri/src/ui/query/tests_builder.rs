@@ -184,6 +184,7 @@ fn switching_a_builder_query_to_sql_confirms_and_keeps_the_generated_sql(cx: &mu
     pick(&mut h, "source-table", "customers");
     click(&mut h, "col:c.name");
     click(&mut h, "tab-sql");
+    assert_eq!(h.label("switch-to-sql"), "Edit as SQL (one-way)");
     h.dialogs.queue_confirm(false);
     click(&mut h, "switch-to-sql");
     assert!(with_mode(&mut h, |q, _| q.model().is_some()), "declined: still a builder query");
@@ -254,4 +255,17 @@ fn the_query_picker_lists_read_queries_and_marks_a_missing_one(cx: &mut TestAppC
         all.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>(),
         ["Everyone", "Purge"]
     );
+}
+
+#[gpui_kit::test]
+fn a_new_query_with_nothing_chosen_has_nothing_to_edit_as_sql(cx: &mut TestAppContext) {
+    let mut h = open_query_mode(cx);
+    click(&mut h, "new-query");
+    click(&mut h, "tab-sql");
+    assert!(!exists(&mut h, "switch-to-sql"));
+    click(&mut h, "tab-builder");
+    pick(&mut h, "source-table", "customers");
+    click(&mut h, "col:c.name");
+    click(&mut h, "tab-sql");
+    assert!(exists(&mut h, "switch-to-sql"));
 }

@@ -97,6 +97,34 @@ pub fn control_grid(
     canvas.into_any_element()
 }
 
+/// Column headers for repeated rows: the form's grid with each input control's label in its cell.
+pub fn header_grid(form: &Form) -> AnyElement {
+    let layout = form.layout.clone();
+    let columns = layout.columns.len();
+    let mut canvas = GridCanvas::new("header-grid", layout);
+    for control in children_of(form, None, None) {
+        if !is_input_kind(control.kind) {
+            continue;
+        }
+        let text = if control.validation.required { format!("{} *", control.label) } else { control.label.clone() };
+        let view = widgets::styled_text(
+            SharedString::from(format!("header:{}", control.id)),
+            text,
+            |d| d.text_sm().font_weight(FontWeight::MEDIUM),
+        );
+        canvas = canvas.item(
+            GridItem::new(
+                SharedString::from(format!("header-item:{}", control.id)),
+                control.placement.clone(),
+                view.into_any_element(),
+            )
+            .label(control.label.clone())
+            .constraints(control_constraints(control.kind, columns)),
+        );
+    }
+    canvas.into_any_element()
+}
+
 fn named(prefix: &str, kind: &str, control: &Control) -> SharedString {
     let slug = widgets::slug(&control.label);
     format!("{prefix}{kind}:{}", if slug.is_empty() { control.id.clone() } else { slug }).into()
@@ -195,6 +223,7 @@ fn control_view(ctx: &BodyContext, control: &Control, window: &mut Window, cx: &
     let set_column = column.clone();
     let props = FieldProps {
         label: control.label.clone().into(),
+        hide_label: ctx.repeated,
         control: control.clone(),
         value,
         read_only,

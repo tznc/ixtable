@@ -398,17 +398,16 @@ impl Render for DatasourceTab {
             panel = panel.child(
                 v_flex()
                     .gap_2()
-                    .p_3()
-                    .rounded_md()
-                    .border_1()
-                    .border_color(danger)
-                    .child(div().text_color(danger).child(widgets::text(
+                    .child(widgets::callout(
                         "plaintext-warning",
-                        format!(
-                            "Severe security warning. With sslmode \u{201c}{}\u{201d} credentials and records can travel over the network unencrypted. The override is recorded in the application and shown before publishing.",
+                        widgets::Severity::Danger,
+                        "Severe security warning",
+                        Some(&format!(
+                            "With sslmode \u{201c}{}\u{201d}, credentials and records can travel over the network unencrypted. The override is recorded in the application and shown before publishing.",
                             self.draft.sslmode
-                        ),
-                    )))
+                        )),
+                        cx,
+                    ))
                     .child(check(
                         "accept-plaintext",
                         "I accept connecting without TLS for this datasource",

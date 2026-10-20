@@ -611,9 +611,10 @@ impl Render for RelatedRecords {
                 div()
                     .id(SharedString::from(format!("related:{slug}:form")))
                     .aria_label(format!("{name} record"))
-                    .p_2()
-                    .border_1()
-                    .border_color(theme.border)
+                    .ml_4()
+                    .pl_3()
+                    .border_l_2()
+                    .border_color(theme.primary)
                     .child(editor)
                     .test_support()
                     .into_any_element(),

@@ -155,3 +155,15 @@ fn record_navigation_icons_are_bundled() {
         assert!(crate::ui::assets::AppAssets.load(&path).expect("load").is_some(), "{path} is not bundled");
     }
 }
+
+#[gpui_kit::test]
+fn the_table_columns_checklist_says_none_checked_shows_all(cx: &mut TestAppContext) {
+    let mut h = tall_document(cx);
+    seed_sales(&mut h);
+    new_dashboard(&mut h);
+    h.click("add-table");
+    assert!(!h.exists("prop-columns-none"), "no columns to check yet");
+    pick_query(&mut h, SALES_BY_REGION);
+    wait_for_columns(&mut h, "the column hint", "prop-columns-none");
+    assert_eq!(h.label("prop-columns-none"), "None checked shows all");
+}

@@ -35,6 +35,11 @@ pub fn set_jobs_panel(builder: JobsPanelBuilder) {
     let _ = JOBS_PANEL.set(builder);
 }
 
+/// A long identifier as its first eight characters.
+fn short_id(id: &str) -> String {
+    if id.chars().count() > 12 { format!("{}…", id.chars().take(8).collect::<String>()) } else { id.to_string() }
+}
+
 /// Read-only list of background jobs.
 pub struct JobsList {
     label: String,
@@ -53,7 +58,7 @@ impl JobsList {
                     Ok(jobs) => {
                         this.jobs = Some(
                             jobs.iter()
-                                .map(|j| format!("{} {:?} {}", j.id, j.status, j.action_id))
+                                .map(|j| format!("{} · {} · {}", short_id(&j.id), format!("{:?}", j.status).to_lowercase(), short_id(&j.action_id)))
                                 .collect(),
                         )
                     }
@@ -197,7 +202,7 @@ impl Render for RuntimeDiagnostics {
                     ),
             )
             .child(body)
-            .footer(forms::secondary("diagnostics-close", "Close").on_click(close))
+            .footer(forms::primary("diagnostics-close", "Close").on_click(close))
             .on_escape(&self.focus, false, move |_, cx| {
                 entity.update(cx, |this, cx| {
                     this.open = false;

@@ -327,6 +327,7 @@ impl FormRenderer {
                 let (mode_to, close_to, nav_to, dirty_to) = (this.clone(), this.clone(), this.clone(), this.clone());
                 let carry_to = this.clone();
                 let (form_id, cursor) = (form.id.clone(), entry.cursor.clone());
+                let was_create = entry.mode == FormMode::Create;
                 let record = cx.new(|cx| {
                     RecordView::new(
                         RecordProps {
@@ -339,7 +340,11 @@ impl FormRenderer {
                             depth: self.props.depth,
                             params: params.clone(),
                             on_mode: Rc::new(move |mode, id, cx| {
-                                let entry = Entry { form_id: form_id.clone(), mode, record_id: id, cursor: cursor.clone() };
+                                // A saved new record opens at the end of the list (the bar clamps the index).
+                                let cursor = cursor.clone().or_else(|| {
+                                    (was_create && mode == FormMode::Detail).then(|| super::navbar::end_cursor(&form_id))
+                                });
+                                let entry = Entry { form_id: form_id.clone(), mode, record_id: id, cursor };
                                 let _ = mode_to.update(cx, |t, cx| t.replace(entry, cx));
                             }),
                             on_close: Rc::new(move |cx| {
