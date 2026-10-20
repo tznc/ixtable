@@ -718,25 +718,38 @@ impl Render for FieldView {
             },
         };
         let inline = kind == ControlKind::Boolean;
-        let label = if required && !props.read_only {
-            format!("{} *", props.label)
-        } else {
-            props.label.to_string()
-        };
+        // Required is the default; only optional fields are marked.
+        let optional = !required && !props.read_only && !inline;
+        let label = props.label.to_string();
         v_flex()
             .gap_1()
             .w_full()
             .when_some(tone, |el, color| el.border_l_2().border_color(color).pl_2())
             .when(!props.hide_label, |el| {
                 el.child(
-                    div()
-                        .id(SharedString::from(format!("{id}:label")))
-                        .aria_label(label.clone())
-                        .ty(Type::Body)
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(tone.unwrap_or(theme.muted_foreground))
-                        .child(label.clone())
-                        .test_support(),
+                    h_flex()
+                        .gap_1()
+                        .items_baseline()
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("{id}:label")))
+                                .aria_label(label.clone())
+                                .ty(Type::Body)
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(tone.unwrap_or(theme.muted_foreground))
+                                .child(label.clone())
+                                .test_support(),
+                        )
+                        .when(optional, |d| {
+                            d.child(widgets::styled_text(
+                                SharedString::from(format!("{id}:optional")),
+                                "Optional",
+                                {
+                                    let color = theme.muted_foreground;
+                                    move |d| d.ty(Type::Caption).text_color(color)
+                                },
+                            ))
+                        }),
                 )
             })
             .child(if inline { h_flex().child(input).into_any_element() } else { input })

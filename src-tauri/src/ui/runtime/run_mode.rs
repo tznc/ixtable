@@ -11,7 +11,7 @@
 //! or a role name),
 //! `rt-nav` ("Application navigation") with `nav:<item id>` buttons (selected = current
 //! page) and `nav-group:<item id>` labels, `rt-nav-empty`, `rt-page` ("Application page"),
-//! `rt-notice` / `rt-notice-error`, `rt-empty` ("Build your app") with `generate-app`,
+//! `rt-notice-error` (a problem; info and success messages are toasts, `notice`), `rt-empty` ("Build your app") with `generate-app`,
 //! `page-denied`, `page-placeholder`, `table-loading` / `table-error`.
 
 use super::{
@@ -30,7 +30,7 @@ use crate::forms::navigation::{PageKind, RuntimePage, can_open, page_for, solo_p
 use crate::forms::rbac::assigned_runtime_role;
 use crate::forms::registry::table_forms;
 use crate::forms::schema::{flatten_navigation, form_table};
-use crate::ui::{prelude::*, shell::Shell, store::StoreEvent};
+use crate::ui::{prelude::*, shell::Shell, store::StoreEvent, toast};
 use std::rc::Rc;
 
 /// Builds the view of a report or dashboard page; registered by the features that own them.
@@ -356,9 +356,9 @@ impl Render for RunBody {
         let config = self.env.config(cx).clone();
         let runtime_only = self.runtime_only(cx);
         let empty = !runtime_only && !has_pages(&config);
-        let (role_id, visit, notice) = {
+        let (role_id, visit, notice, toast) = {
             let r = self.runtime.read(cx);
-            (r.role_id(), r.visit(), r.notice.clone())
+            (r.role_id(), r.visit(), r.notice.clone(), r.toast.clone())
         };
         let page = self.current_page(cx);
         let navigation = visible_navigation(&config.design.navigation, &config, role_id.as_deref());
@@ -462,22 +462,20 @@ impl Render for RunBody {
                             .when(empty, |d| {
                                 d.child(
                                     v_flex()
-                                        .id("rt-empty")
-                                        .aria_label("Build your app")
-                                        .gap_2()
-                                        .p_4()
-                                        .child(widgets::styled_text("rt-empty-title", "Build your app", |d| d.ty(Type::Section)))
-                                        .child(div().ty(Type::Body).text_color(theme.muted_foreground).child(
+                                        .items_center()
+                                        .child(widgets::empty_state(
+                                            "rt-empty",
+                                            "Build your app",
                                             "This application has no pages yet. Generate a list and a form for each table to start.",
+                                            cx,
                                         ))
                                         // A normal-size button, not a full-width bar.
-                                        .child(h_flex().child(
+                                        .child(
                                             Button::new("generate-app")
                                                 .primary()
                                                 .label("Generate app from tables")
                                                 .on_click(cx.listener(|this, _, _, cx| this.generate(cx))),
-                                        ))
-                                        .test_support(),
+                                        ),
                                 )
                             })
                             .child(div().flex_1().min_h_0().child(body))
@@ -485,6 +483,10 @@ impl Render for RunBody {
                     ),
             )
             .child(self.popups.clone())
+            .when_some(toast, |el, toast| {
+                let runtime = self.runtime.clone();
+                el.child(toast::render(&toast, move |_, cx| runtime.update(cx, |r, cx| r.dismiss_toast(cx)), window, cx))
+            })
     }
 }
 

@@ -142,8 +142,8 @@ fn generates_crud_forms_validates_creates_edits_and_manages_related_records(cx: 
     assert_eq!(h.label("related:order-items:empty"), "No order items yet.");
     assert_eq!(h.read_page("order_items").total, 0);
 
-    assert_eq!(h.label("back-crumb"), "Back to Orders list");
-    h.click("back-crumb-button");
+    assert_eq!(h.label("back-crumb"), "Orders list");
+    h.click("back-crumb-0");
     wait(&mut h);
     assert!(h.exists("row:0"));
 }

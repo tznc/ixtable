@@ -35,7 +35,7 @@ use crate::ui::{
     fields::{datasheet::datasheet_text, datasheet::datasheet_value},
     prelude::*,
     schema::{
-        logical::{logical_of, show_value},
+        logical::{logical_of, parse_logical, show_value, LOGICAL_TYPES},
     },
     shell::Shell,
     store::StoreEvent,
@@ -952,7 +952,10 @@ impl Datasheet {
                             }),
                     ),
             )
-            .child(div().ty(Type::Caption).text_color(muted).child(logical_of(column)))
+            .child(div().ty(Type::Caption).text_color(muted).child(widgets::text(
+                SharedString::from(format!("head-type:{name}")),
+                type_label(column),
+            )))
             .test_support().into_any_element()
     }
 
@@ -1302,4 +1305,13 @@ impl Render for Datasheet {
                     }),
             )
     }
+}
+
+// The friendly type label the table designer shows, e.g. "Yes / No" for boolean.
+fn type_label(column: &crate::data::Column) -> String {
+    let base = parse_logical(Some(&logical_of(column))).base;
+    LOGICAL_TYPES
+        .iter()
+        .find(|(value, _)| *value == base)
+        .map_or(base, |(_, label)| (*label).to_string())
 }

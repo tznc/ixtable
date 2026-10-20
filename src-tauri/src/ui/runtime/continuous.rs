@@ -7,7 +7,7 @@
 //! new-record row is `crow:new`, "New record") and their fields carry the prefix `record-N:`
 //! (`record-1:field:name`); a row's buttons are `crow:<n>:save` ("Save" / "Add"),
 //! `crow:<n>:undo` and `crow:<n>:delete`; `crow:<n>:problem` shows its error. The view has
-//! `continuous-notice`, `continuous-error`, `continuous-empty`, `pager-status`, `prev-page`
+//! `continuous-notice` (errors, or any message without a `Runtime`; success is a toast), `continuous-error`, `continuous-empty`, `pager-status`, `prev-page`
 //! and `next-page`. (The web UI also saved a changed row when focus left it; here Save and
 //! Enter do.)
 
@@ -636,7 +636,11 @@ impl ContinuousView {
     }
 
     fn changed(&mut self, text: String, tone: NoticeTone, cx: &mut Context<Self>) {
-        if !text.is_empty() {
+        if tone == NoticeTone::Info && self.env.runtime.is_some() {
+            // Success is a toast, never a line under the title.
+            let env = self.env.clone();
+            cx.defer(move |cx| env.succeed(text, cx));
+        } else if !text.is_empty() {
             self.notice = Some((text, tone));
         }
         self.reload(cx);
@@ -691,7 +695,7 @@ impl Render for ContinuousView {
                     .gap_2()
                     // Labels once as column headers; rows carry none (inset to match a row's padding and border).
                     .when(!self.rows.is_empty() || self.new_row.is_some(), |d| {
-                        d.child(div().id("continuous-header").px(px(9.)).child(header_grid(&self.form)).test_support())
+                        d.child(div().id("continuous-header").px(px(9.)).child(header_grid(&self.form, cx)).test_support())
                     })
                     .children(self.rows.iter().map(|(_, row)| row.clone()))
                     .when(self.page.as_ref().is_some_and(|p| p.rows.is_empty()), |d| {

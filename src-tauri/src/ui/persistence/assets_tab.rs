@@ -381,9 +381,11 @@ impl Render for AssetsTab {
                         })),
                 )
                 .child(
-                    forms::danger("remove-unused-assets", "Remove unused assets")
-                        .disabled(busy)
-                        .on_click(cx.listener(|this, _, _, cx| this.cleanup(cx))),
+                    h_flex().child(
+                        forms::danger("remove-unused-assets", "Remove unused assets")
+                            .disabled(busy)
+                            .on_click(cx.listener(|this, _, _, cx| this.cleanup(cx))),
+                    ),
                 )
         };
         panel

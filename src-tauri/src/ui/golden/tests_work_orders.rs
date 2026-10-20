@@ -155,7 +155,7 @@ fn golden_work_orders_lifecycle_with_status_actions_sync_and_async_triggers_and_
             job_done(&mut h);
             j.check("new order", order(&label, "WO-1006"), json!([["open", 0, false, false]]));
             j.check("audit row written by the job", events(&label, "WO-1006"), json!([["created"]]));
-            h.click("back-crumb-button");
+            h.click("back-crumb-0");
             wait(&mut h);
             open_row(&mut h, "WO-1006");
         });
@@ -239,7 +239,7 @@ fn golden_work_orders_lifecycle_with_status_actions_sync_and_async_triggers_and_
             open_row(&mut h, "WO-1001");
             assert!(h.exists("edit"));
             j.check("delete hidden", h.exists("delete"), false);
-            h.click("back-crumb-button");
+            h.click("back-crumb-0");
             wait(&mut h);
             j.check("no create", h.exists("new-record"), false);
         });

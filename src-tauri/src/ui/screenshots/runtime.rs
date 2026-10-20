@@ -136,7 +136,7 @@ fn runtime_forms() {
     h.click("create");
     wait(&mut h);
     assert_eq!(h.label("related:order-items:cell:0:product"), "Stoneware mug");
-    assert_eq!(h.label("back-crumb"), "Back to Orders list");
+    assert_eq!(h.label("back-crumb"), "Orders list");
     h.capture(
         "runtime-03-master-detail",
         &[

@@ -144,9 +144,11 @@ impl Render for CheckpointsPanel {
                 cx,
             ))
             .child(
-                forms::secondary("create-checkpoint", "Create checkpoint")
-                    .disabled(self.busy)
-                    .on_click(cx.listener(|this, _, _, cx| this.create(cx))),
+                h_flex().child(
+                    forms::secondary("create-checkpoint", "Create checkpoint")
+                        .disabled(self.busy)
+                        .on_click(cx.listener(|this, _, _, cx| this.create(cx))),
+                ),
             );
         if let Some(e) = &self.error {
             card = card.child(widgets::error_banner("checkpoint-error", e, None, cx));

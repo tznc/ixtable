@@ -211,7 +211,7 @@ fn generates_selectors_and_related_lists_over_a_multi_column_foreign_key(cx: &mu
     h.click("row:0");
     wait(&mut h);
     assert_eq!(h.label("related:counts:empty"), "No counts yet.");
-    h.click("back-crumb-button");
+    h.click("back-crumb-0");
     wait(&mut h);
     h.click("row:1");
     wait(&mut h);

@@ -10,7 +10,7 @@
 //! Test ids: `design-mode`, `design-sidebar`, `new-page`, `new-form`, `new-report`, `page-item-N`, `no-pages`,
 //! `design-navigation`, `generate-table`, `generate-form`, `generate-app`,
 //! `generate-error`, `generate-app-empty`, `generate-app-hint`, `loose-form:<id>`, `loose-report:<id>`,
-//! `back-to-page`, `design-crumb`, `duplicate-form`, `delete-form`.
+//! `design-crumb` (path `design-crumb-path`, link `design-crumb-path-0`), `duplicate-form`, `delete-form`.
 
 use super::PagePanel;
 use crate::data::TableSchema;
@@ -429,11 +429,8 @@ impl DesignMode {
             .filter(|p| p.components.iter().any(|c| [c.form_id.as_ref(), c.report_id.as_ref()].contains(&open.as_ref())))
             .map(|p| p.name)
             .filter(|n| !n.is_empty());
-        let back = match page {
-            Some(name) => format!("Back to {name}"),
-            None => "Back to pages".to_string(),
-        };
-        let kind = if focus == Focus::Form { "Form" } else { "Report" };
+        let back = page.unwrap_or_else(|| "Pages".to_string());
+        let this = cx.entity();
         h_flex()
             .id("design-crumb")
             .gap_2()
@@ -442,15 +439,9 @@ impl DesignMode {
             .py_1()
             .border_b_1()
             .border_color(cx.theme().border)
-            .child(
-                Button::new("back-to-page")
-                    .ghost()
-                    .small()
-                    .icon(IconName::ArrowLeft)
-                    .label(back)
-                    .on_click(cx.listener(|this, _, _, cx| this.back_to_page(cx))),
-            )
-            .child(widgets::text("design-crumb-title", format!("{kind}: {name}")))
+            .child(widgets::breadcrumb("design-crumb-path", vec![back.into()], Some(name.into()), move |_, _, cx| {
+                this.update(cx, |this, cx| this.back_to_page(cx))
+            }))
             .when(focus == Focus::Form, |el| {
                 el.child(div().flex_1())
                     .child(

@@ -10,7 +10,7 @@
 //! `navigation.rs`.
 //!
 //! Test ids: `design-studio` (the studio, labelled "Form builder"), `properties` (labelled
-//! "Properties"), `properties-title` ("Control" or "Form"), `back-to-form`, the palette
+//! "Properties"), `properties-title` ("Control" or "Form"), `form-breadcrumb` (link `form-breadcrumb-0`), the palette
 //! buttons `add-<kind>` (`add-text`, `add-related-list`, `add-boolean`, ...), the view tabs
 //! `tab-form`, `tab-preview`, `preview-mode`, `form-hint`, `no-form`
 //! and `no-controls`.
@@ -538,15 +538,17 @@ impl DesignStudio {
                     if control.is_some() { "Control" } else { "Form" },
                     |d| d.font_weight(FontWeight::BOLD),
                 ))
-                .when(control.is_some(), |el| {
-                    el.child(
-                        Button::new("back-to-form")
-                            .link()
-                            .small()
-                            .label("Back to form properties")
-                            .on_click(cx.listener(|this, _, _, cx| this.select(None, cx))),
+                .children(control.as_ref().map(|c| {
+                    let name = if form.name.is_empty() { "Form".to_string() } else { form.name.clone() };
+                    let control_name = if c.label.is_empty() { "Control".to_string() } else { c.label.clone() };
+                    let this = cx.entity();
+                    widgets::breadcrumb(
+                        "form-breadcrumb",
+                        vec![name.into()],
+                        Some(control_name.into()),
+                        move |_, _, cx| this.update(cx, |this, cx| this.select(None, cx)),
                     )
-                });
+                }));
             panel = match control {
                 Some(control) => panel
                     .child(self.render_control_properties(&form, &control, window, cx))

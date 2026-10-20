@@ -454,11 +454,11 @@ impl Render for AcceptInvitation {
                         ),
                 );
         } else {
-            block = block.child(forms::link("invite-open", "Accept an invitation…").on_click(
-                cx.listener(|this, _, _, cx| {
+            block = block.child(h_flex().child(
+                forms::link("invite-open", "Accept an invitation…").on_click(cx.listener(|this, _, _, cx| {
                     this.open = true;
                     cx.notify();
-                }),
+                })),
             ));
         }
         if !self.notice.is_empty() {

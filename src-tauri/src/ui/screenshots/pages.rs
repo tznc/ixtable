@@ -280,7 +280,7 @@ fn pages_parameters_and_links() {
     h.capture(
         "pages-05-edit-form",
         &[
-            "The form designer shows Main form, with a 'Back to Main form' link above the canvas.",
+            "The form designer shows Main form, with a 'Pages › Main form' breadcrumb above the canvas.",
             "The Design sidebar stays on the left.",
         ],
     );

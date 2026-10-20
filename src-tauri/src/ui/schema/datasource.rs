@@ -311,7 +311,7 @@ impl Render for DatasourceTab {
         let border = cx.theme().border;
         let mut panel = v_flex()
             .gap_3()
-            .child(widgets::section_heading("tab-title", "Datasource"))
+            .child(widgets::section_heading("tab-title", "Data source"))
             .child(note(
                 "Records are written to this store and read through DuckDB. PostgreSQL hosting, backups, and availability are yours to provide.",
                 cx,
@@ -443,7 +443,7 @@ impl Render for DatasourceTab {
                 .child(
                     Button::new("save-datasource")
                         .primary()
-                        .label("Save datasource")
+                        .label("Save data source")
                         .disabled(busy || blocked)
                         .on_click(cx.listener(|this, _, window, cx| this.save(window, cx))),
                 ),

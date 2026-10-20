@@ -5,8 +5,9 @@
 //! Test ids: the region is `form:<title slug>` (labelled with the title: "New X", "Edit X"
 //! or X), `record-title`, `edit`, `delete`, `close` (embedded detail), `cancel`, `save`
 //! (Edit mode, "Save") and `create` (Create mode, "Create"), `record-loading`, the lines
-//! `status:error` / `status:info` (load and save problems) and `notice:error` /
-//! `notice:info` (the last action's message), and `form-errors` with `form-error:<n>`.
+//! `status:error` / `status:info` (load and save problems) and `notice:error` (the last
+//! action's problem; info and success messages are toasts, `notice:info` only without a
+//! `Runtime`), and `form-errors` with `form-error:<n>`.
 //! Whether Save/Create can be pressed is `can_save()`; Edit/Delete enabled is
 //! `can_edit()` / `can_delete()`.
 
@@ -361,7 +362,10 @@ impl RecordView {
     /// list an embedded form closes into, else on the page (an action navigated away).
     fn announce(&mut self, text: impl Into<String>, tone: NoticeTone, cx: &mut Context<Self>) {
         let text = text.into();
-        if !self.navigated && !self.props.embedded {
+        if tone == NoticeTone::Info && self.props.env.runtime.is_some() {
+            let env = self.props.env.clone();
+            later(cx, move |cx| env.notify(text, tone, cx));
+        } else if !self.navigated && !self.props.embedded {
             self.notice = Some(Notice { message: text, tone });
             cx.notify();
         } else if let Some(on_notify) = self.props.on_notify.clone() {
@@ -631,8 +635,11 @@ impl RecordView {
         let env = self.props.env.clone();
         env.records_changed(cx);
         let default_text = if creating { "Record created." } else { "Changes saved." };
-        let tone = if outcome.problem.is_some() { NoticeTone::Error } else { NoticeTone::Info };
-        self.announce(outcome.problem.clone().unwrap_or_else(|| default_text.into()), tone, cx);
+        match outcome.problem.clone() {
+            Some(problem) => self.announce(problem, NoticeTone::Error, cx),
+            None if self.props.env.runtime.is_some() => later(cx, move |cx| env.succeed(default_text, cx)),
+            None => self.announce(default_text, NoticeTone::Info, cx),
+        }
         let (saved, snapshot, next_id) = if creating {
             let id = record_id_for(&self.props.env.label, &schema, &outcome.record, &outcome.identity);
             (outcome.record.clone(), None, id)
@@ -708,7 +715,7 @@ impl RecordView {
                     Ok(()) => {
                         let env = this.props.env.clone();
                         env.records_changed(cx);
-                        env.notify("Record deleted.", NoticeTone::Info, cx);
+                        env.succeed("Record deleted.", cx);
                         let on_close = this.props.on_close.clone();
                         later(cx, move |cx| on_close(cx));
                     }
@@ -833,6 +840,7 @@ impl Render for RecordView {
         };
         let mode = self.props.mode;
         let embedded = self.props.embedded;
+        let nested = self.props.depth > 0;
         let submit_label = self.submit_label();
         let can_edit = self.can_edit(cx);
         let can_delete = self.can_delete(cx);
@@ -904,7 +912,9 @@ impl Render for RecordView {
                         }))
                         .child(
                             Button::new(if mode == FormMode::Create { "create" } else { "save" })
-                                .primary()
+                                // Only the outermost record's save is primary.
+                                .when(!nested, |b| b.primary())
+                                .when(nested, |b| b.outline())
                                 .label(submit_label.clone())
                                 .disabled(!self.can_save())
                                 .on_click(cx.listener(|this, _, _, cx| this.save(cx))),

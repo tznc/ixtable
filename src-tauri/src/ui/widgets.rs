@@ -483,6 +483,57 @@ pub fn tab_button(id: impl Into<ElementId>, label: impl Into<SharedString>, sele
         .when(selected, |b| b.bg(accent.opacity(0.12)).text_color(accent))
 }
 
+/// A breadcrumb for drill-in navigation (nested record, form → control). `trail` crumbs are
+/// link-style buttons (ids `<id>-<index>`) that call `on_click` with their index; `current`
+/// is the open item as plain text (id `<id>-current`). Without `current` the trail ends in a chevron.
+/// The container `id` carries the whole path as its label ("A › B").
+pub fn breadcrumb(
+    id: &'static str,
+    trail: Vec<SharedString>,
+    current: Option<SharedString>,
+    on_click: impl Fn(usize, &mut Window, &mut App) + 'static,
+) -> Breadcrumb {
+    Breadcrumb { id, trail, current, on_click: std::rc::Rc::new(on_click) }
+}
+
+#[derive(IntoElement)]
+pub struct Breadcrumb {
+    id: &'static str,
+    trail: Vec<SharedString>,
+    current: Option<SharedString>,
+    on_click: std::rc::Rc<dyn Fn(usize, &mut Window, &mut App)>,
+}
+
+impl RenderOnce for Breadcrumb {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let (id, muted, foreground) = (self.id, cx.theme().muted_foreground, cx.theme().foreground);
+        let label = self.trail.iter().chain(self.current.iter()).map(|c| c.as_ref()).collect::<Vec<_>>().join(" › ");
+        let last = self.trail.len().saturating_sub(1);
+        let has_current = self.current.is_some();
+        let mut row = h_flex().id(id).aria_label(label).gap_1().items_center();
+        for (index, crumb) in self.trail.into_iter().enumerate() {
+            let on_click = self.on_click.clone();
+            row = row.child(
+                Button::new(SharedString::from(format!("{id}-{index}")))
+                    .link()
+                    .small()
+                    .label(crumb)
+                    .text_color(muted)
+                    .on_click(move |_, window, cx| on_click(index, window, cx)),
+            );
+            if has_current || index < last {
+                row = row.child(div().ty(Type::Body).text_color(muted).child("›"));
+            }
+        }
+        if let Some(current) = self.current {
+            row = row.child(styled_text(SharedString::from(format!("{id}-current")), current, move |d| {
+                d.ty(Type::Body).font_weight(FontWeight::MEDIUM).text_color(foreground)
+            }));
+        }
+        row.test_support()
+    }
+}
+
 /// Slides `element` in: its height grows from 0 to its natural height (capped at 160 px)
 /// while it fades in, over 200 ms. `id` should change with the content so a new
 /// message re-animates.

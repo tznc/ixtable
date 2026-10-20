@@ -60,10 +60,12 @@ impl Render for AssetPreview {
             .unwrap_or_default();
         let name = self.asset.display_name.clone();
         let mut card = forms::card("asset-preview", &format!("Preview of {name}"), cx).child(
-            Button::new("close-preview")
-                .ghost()
-                .label("Close preview")
-                .on_click(cx.listener(|_, _, _, cx| cx.emit(PreviewEvent::Close))),
+            h_flex().child(
+                Button::new("close-preview")
+                    .ghost()
+                    .label("Close preview")
+                    .on_click(cx.listener(|_, _, _, cx| cx.emit(PreviewEvent::Close))),
+            ),
         );
         if !self.error.is_empty() {
             card = card.child(widgets::text("preview-error", self.error.clone()));

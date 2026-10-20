@@ -776,7 +776,7 @@ impl Render for DataMode {
                                 })),
                         )
                     })
-                    .child(div().font_weight(FontWeight::SEMIBOLD).child("Relationships"))
+                    .child(div().ty(Type::Section).child("Relationships"))
                     .child(div().ty(Type::Body).text_color(muted).child(widgets::text("relationship-title", title)))
                     .child(div().flex_1())
                     .child(

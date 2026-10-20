@@ -98,7 +98,7 @@ pub fn control_grid(
 }
 
 /// Column headers for repeated rows: the form's grid with each input control's label in its cell.
-pub fn header_grid(form: &Form) -> AnyElement {
+pub fn header_grid(form: &Form, cx: &App) -> AnyElement {
     let layout = form.layout.clone();
     let columns = layout.columns.len();
     let mut canvas = GridCanvas::new("header-grid", layout);
@@ -106,12 +106,20 @@ pub fn header_grid(form: &Form) -> AnyElement {
         if !is_input_kind(control.kind) {
             continue;
         }
-        let text = if control.validation.required { format!("{} *", control.label) } else { control.label.clone() };
-        let view = widgets::styled_text(
-            SharedString::from(format!("header:{}", control.id)),
-            text,
-            |d| d.ty(Type::Label),
-        );
+        let muted = cx.theme().muted_foreground;
+        let view = h_flex()
+            .gap_1()
+            .items_baseline()
+            .child(widgets::styled_text(
+                SharedString::from(format!("header:{}", control.id)),
+                control.label.clone(),
+                move |d| d.ty(Type::Label).text_color(muted),
+            ))
+            .when(!control.validation.required, |d| {
+                d.child(widgets::styled_text(SharedString::from(format!("header-optional:{}", control.id)), "Optional", move |d| {
+                    d.ty(Type::Caption).text_color(muted)
+                }))
+            });
         canvas = canvas.item(
             GridItem::new(
                 SharedString::from(format!("header-item:{}", control.id)),

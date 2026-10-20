@@ -140,7 +140,7 @@ Each is one function in a shared UI module. **New** marks components that don't 
 - Tabs: an underline style, with the selected tab in accent and semibold. Use the same component everywhere: Design/Preview, Design/View, settings and diagnostics.
 - Beyond 6 tabs, use a grouped left sub-nav. Settings does this (`shell/settings.rs` `GROUPS`: Data, App, Release, Diagnostics), with a count badge on Problems.
 - Ribbon (`ui::ribbon`): as in Access, a row of tabs over labelled command groups, at the top of the content column and never over the sidebar. Studio's tabs are Home, Create, External data and Database tools (`shell/ribbon.rs`); the Run App window has Home with Records and Run as. Commands are quiet buttons with an icon and a verb-free noun on Create ("Table", "Form"); the group name is a `Caption` under them. A page keeps its own toolbar for commands on what it shows (a datasheet's filter, a designer's properties); the ribbon holds the document-wide ones.
-- Breadcrumbs appear only for drill-in (nested records, form → control). They replace "Back to form properties" links.
+- Breadcrumbs appear only for drill-in (nested records, form → control). They replace "Back to form properties" links. The component is `widgets::breadcrumb`: earlier crumbs are link buttons (`<id>-<index>`), the last is the current item as plain text (`<id>-current`).
 
 ### Long-running work
 - Use a determinate progress bar with the current step ("Copying Orders: 12,000 of 80,000 rows") wherever the backend reports progress, and an indeterminate bar with a step name otherwise. Never use static "this may take a while" text.

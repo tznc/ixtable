@@ -98,7 +98,6 @@ pub struct AppSettings {
     shell: Entity<Shell>,
     active: &'static str,
     view: Option<(&'static str, AnyView)>,
-    runtime: String,
     /// (errors, all problems) for the Problems badge; None until the first check.
     problems: Option<(usize, usize)>,
     counting: bool,
@@ -107,18 +106,11 @@ pub struct AppSettings {
 
 impl AppSettings {
     pub fn new(shell: Entity<Shell>, _: &mut Window, cx: &mut Context<Self>) -> Self {
-        let info = crate::app_info();
-        let runtime = format!(
-            "{} · {} runtime",
-            info["name"].as_str().unwrap_or("ixtable"),
-            info["runtime"].as_str().unwrap_or("tauri")
-        );
         let subscriptions = vec![cx.observe(&shell, |_, _, cx| cx.notify())];
         Self {
             shell,
             active: "assets",
             view: None,
-            runtime,
             problems: None,
             counting: false,
             _subscriptions: subscriptions,
@@ -199,12 +191,7 @@ impl Render for AppSettings {
         v_flex()
             .size_full()
             .child(
-                widgets::titlebar("Project / Settings", "Application settings", cx).child(
-                    div()
-                        .ty(Type::Caption)
-                        .text_color(cx.theme().muted_foreground)
-                        .child(self.runtime.clone()),
-                ),
+                widgets::titlebar("Project / Settings", "Application settings", cx),
             )
             .child(
                 h_flex()

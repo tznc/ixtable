@@ -50,21 +50,21 @@ fn edits_adds_and_deletes_records_in_place_on_a_continuous_form(cx: &mut TestApp
     assert!(h.exists("crow:1:save"));
     h.click("crow:1:save");
     wait(&mut h);
-    assert_eq!(h.label("continuous-notice"), "Changes saved.");
+    assert_eq!(h.label("notice"), "Changes saved.");
     assert_eq!(titles(&h), ["Final plan", "Review budget"]);
 
     // Add through the new-record row.
     h.fill("record-new:field:title", "Ship release");
     h.click("crow:new:save");
     wait(&mut h);
-    assert_eq!(h.label("continuous-notice"), "Record created.");
+    assert_eq!(h.label("notice"), "Record created.");
     assert!(h.exists("crow:3"));
     assert_eq!(titles(&h), ["Final plan", "Review budget", "Ship release"]);
 
     h.dialogs.queue_confirm(true);
     h.click("crow:3:delete");
     wait(&mut h);
-    assert_eq!(h.label("continuous-notice"), "Record deleted.");
+    assert_eq!(h.label("notice"), "Record deleted.");
     assert_eq!(titles(&h), ["Final plan", "Review budget"]);
 }
 
@@ -236,7 +236,7 @@ fn opens_a_popup_form_from_an_action_and_uses_what_it_returns(cx: &mut TestAppCo
     h.click("button:use-this-task");
     wait(&mut h);
     assert!(!h.exists("popup:2"));
-    assert_eq!(h.label("notice:info"), "Picked WRITE DOCS");
+    assert_eq!(h.label("notice"), "Picked WRITE DOCS");
     assert_eq!(titles(&h), ["Alpha", "Write docs"]);
 }
 
@@ -262,7 +262,7 @@ fn a_dismissed_popup_returns_null_and_keeps_the_opener_usable(cx: &mut TestAppCo
     assert!(!h.exists("popup-close:1"));
     h.click("cancel");
     wait(&mut h);
-    assert_eq!(h.label("notice:info"), "Nothing added");
+    assert_eq!(h.label("notice"), "Nothing added");
     assert!(!h.exists("popup:1"));
     assert_eq!(titles(&h), ["Alpha"]);
 }
@@ -277,7 +277,7 @@ fn saves_a_continuous_row_when_save_is_pressed_and_keeps_edits_in_other_rows(cx:
     h.fill("record-new:field:title", "Hire help");
     h.click("crow:2:save");
     wait(&mut h);
-    assert_eq!(h.label("continuous-notice"), "Changes saved.");
+    assert_eq!(h.label("notice"), "Changes saved.");
     assert_eq!(titles(&h), ["Draft plan", "Approve budget"]);
     assert!(!h.exists("crow:2:save"));
     // The new-record row keeps what was typed in it.

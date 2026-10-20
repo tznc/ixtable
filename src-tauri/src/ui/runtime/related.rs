@@ -474,6 +474,7 @@ impl Render for RelatedRecords {
             body.push(
                 Button::new(SharedString::from(format!("related:{slug}:add")))
                     .small()
+                    .outline()
                     .label(format!("Add {}", widgets::singular(&lower)))
                     .on_click(cx.listener(|this, _, window, cx| this.edit(FormMode::Create, None, window, cx)))
                     .into_any_element(),
