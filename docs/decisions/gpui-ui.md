@@ -49,7 +49,7 @@ frontend remains, and Tauri hosts no webview.
   tauri-plugin-gpui rejects GPUI's `open_window`. Tests and screenshots open GPUI test
   windows. The Harness directs clicks to `Harness::window`; `focus_window` switches it.
 - **Run App window:** Studio runs the app in a window of its own
-  (`ui::runtime::window`), opened by the "Run App" split button in the sidebar. Its
+  (`ui::runtime::window`), opened by the "Run App" split button on the ribbon's Home tab. Its
   menu runs the app as the owner or as one of the document's roles. `ModeId::Run` is
   left only for runtime bundles, whose whole window is the app. The window shares
   the document's session (and window label) with Studio, so the previewed role is

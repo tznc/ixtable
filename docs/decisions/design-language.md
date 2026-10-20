@@ -139,6 +139,7 @@ Each is one function in a shared UI module. **New** marks components that don't 
 - Mode nav (sidebar): icon plus label. The selected item gets an accent tint and medium weight.
 - Tabs: an underline style, with the selected tab in accent and semibold. Use the same component everywhere: Design/Preview, Design/View, settings and diagnostics.
 - Beyond 6 tabs, use a grouped left sub-nav. Settings does this (`shell/settings.rs` `GROUPS`: Data, App, Release, Diagnostics), with a count badge on Problems.
+- Ribbon (`ui::ribbon`): as in Access, a row of tabs over labelled command groups, at the top of the content column and never over the sidebar. Studio's tabs are Home, Create, External data and Database tools (`shell/ribbon.rs`); the Run App window has Home with Records and Run as. Commands are quiet buttons with an icon and a verb-free noun on Create ("Table", "Form"); the group name is a `Caption` under them. A page keeps its own toolbar for commands on what it shows (a datasheet's filter, a designer's properties); the ribbon holds the document-wide ones.
 - Breadcrumbs appear only for drill-in (nested records, form → control). They replace "Back to form properties" links.
 
 ### Long-running work

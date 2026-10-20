@@ -527,7 +527,7 @@ impl DataMode {
 
     // ---- Dialogs ----------------------------------------------------------------------
 
-    fn open_relate(&mut self, window: &mut Window, drawn: Option<DrawnRelationship>, cx: &mut Context<Self>) {
+    pub fn open_relate(&mut self, window: &mut Window, drawn: Option<DrawnRelationship>, cx: &mut Context<Self>) {
         let selected = self.selected(cx);
         let child = if !selected.is_empty() && self.schemas.iter().any(|s| s.name == selected) {
             selected
@@ -551,7 +551,7 @@ impl DataMode {
         cx.notify();
     }
 
-    fn open_import(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub fn open_import(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let tables: Vec<TableSchema> = self.schemas.iter().filter(|s| s.object_type != "view").cloned().collect();
         let shell = self.shell.clone();
         let wizard = cx.new(|cx| ImportWizard::new(shell, tables, window, cx));

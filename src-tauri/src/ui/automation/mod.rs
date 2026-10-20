@@ -112,6 +112,21 @@ impl AutomationMode {
         }
     }
 
+    /// Adds an action or a trigger and opens it (the ribbon's Create commands).
+    pub fn create(&mut self, tab: AutomationTab, cx: &mut Context<Self>) {
+        match tab {
+            AutomationTab::Actions => {
+                self.tab = Tab::Actions;
+                self.actions.update(cx, |p, cx| p.add(cx));
+            }
+            AutomationTab::Triggers => {
+                self.tab = Tab::Triggers;
+                self.triggers.update(cx, |p, cx| p.add(cx));
+            }
+        }
+        cx.notify();
+    }
+
     fn select(&mut self, key: &str, cx: &mut Context<Self>) {
         self.tab = match key {
             "triggers" => Tab::Triggers,

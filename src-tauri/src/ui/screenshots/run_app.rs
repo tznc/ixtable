@@ -41,7 +41,7 @@ fn run_app() {
         "run-app-01-owner-window",
         &[
             "A separate window titled 'Run App' shows the app's navigation (Customers, Orders, Order items).",
-            "The header has a 'Run as' select reading 'Owner (default)'.",
+            "The window's ribbon has a Records group (Refresh) and a 'Run as' group whose select reads 'Owner (default)'.",
         ],
     );
 
@@ -52,7 +52,7 @@ fn run_app() {
     h.capture(
         "run-app-02-studio-role-menu",
         &[
-            "Studio's sidebar ends its mode list with a primary 'Run App' split button; 'Runtime' is no longer a mode.",
+            "The ribbon's Home tab has a Run group with a primary 'Run App' split button; 'Runtime' is not a mode.",
             "The button's menu, headed 'Run as', lists 'Owner (default)', 'Sales rep' and 'Auditor', with the owner checked.",
         ],
     );

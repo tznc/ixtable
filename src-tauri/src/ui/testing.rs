@@ -324,6 +324,10 @@ impl<'a, C: UiContext> Harness<'a, C> {
         if mode != ModeId::Run {
             self.click(mode.button_id());
         } else if !self.read_shell(|s, _| s.doc.runtime_only) {
+            // Run App is on the ribbon's Home tab.
+            if !self.exists("run-app-open") {
+                self.click("tab-home");
+            }
             self.click("run-app-open");
             let window = self.run_app_window().expect("Run App opened its window");
             self.focus_window(window);

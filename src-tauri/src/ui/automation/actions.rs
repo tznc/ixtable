@@ -207,7 +207,7 @@ impl ActionsPanel {
         );
     }
 
-    fn add(&mut self, cx: &mut Context<Self>) {
+    pub fn add(&mut self, cx: &mut Context<Self>) {
         let created = new_action(self.actions(cx).len() + 1);
         self.select(&created.id.clone(), cx);
         self.update_config("Add action", move |c| c.actions.push(created), cx);

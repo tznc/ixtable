@@ -54,7 +54,14 @@ A file source keeps a CSV, JSON, or Parquet file inside the project and reads it
 
 ## Ribbon commands
 
-The ribbon groups workspace actions by task. The View control switches between every mode, and Undo and Redo apply to design changes across the project. Record edits are not part of undo, because they are already saved in the database.
+The ribbon sits above every page, beside the sidebar, and groups commands by task on four tabs:
+
+- **Home**: Undo and Redo, Refresh and Find for records, and Run App with its Run as menu.
+- **Create**: a new table, query, form, page, report, action or trigger. The command opens the page that owns the new object.
+- **External data**: import records, file sources, and the Access migration report after an Access import.
+- **Database tools**: relationships, problems, roles, migrations and release.
+
+Undo and Redo apply to design changes across the document. Record edits are not part of undo, because they are already saved in the database.
 
 ## Next steps
 
