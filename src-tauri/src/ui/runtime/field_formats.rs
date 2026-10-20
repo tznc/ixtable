@@ -1,8 +1,4 @@
-//! The rich-text and attachment inputs of a `FieldView`.
-//!
-//! Rich text: the toolbar buttons are `<id>:format:<bold|italic|underline|bulleted-list|
-//! numbered-list>`, the markup box is `<id>` and the rendered preview `<id>:preview`. Read-only
-//! rich text is `<id>`, labelled with its plain text.
+//! The attachment input of a `FieldView` (rich text is in `field_richtext.rs`).
 //!
 //! Attachments: each file is `<id>:file:<slug of its name>` (labelled "name (size)") with
 //! `<id>:save:<slug>` and, when editable, `<id>:remove:<slug>`; `<id>:add` picks a file, and
@@ -10,22 +6,10 @@
 
 use super::FieldView;
 use crate::forms::field_values::{AttachmentRef, file_size};
-use crate::forms::fields::{attachments_value, parse_attachments, rich_text_plain, value_text};
-use crate::forms::richtext::sanitize_rich_text;
-use crate::forms::richtext_markup::{toggle_inline, toggle_list};
+use crate::forms::fields::{attachments_value, parse_attachments};
 use crate::record_attachments::{save_record_attachment, upload_record_attachment_file};
 use crate::ui::dialogs;
 use crate::ui::prelude::*;
-use gpui_kit::component::{input::Textarea, text::TextView};
-
-/// Toolbar buttons: key, tooltip, icon, and the inline marker (None for the list buttons).
-const FORMATS: [(&str, &str, IconName, Option<&str>); 5] = [
-    ("bold", "Bold", IconName::Bold, Some("**")),
-    ("italic", "Italic", IconName::Italic, Some("*")),
-    ("underline", "Underline", IconName::Underline, Some("++")),
-    ("bulleted-list", "Bulleted list", IconName::List, None),
-    ("numbered-list", "Numbered list", IconName::ListOrdered, None),
-];
 
 /// Distinct id slugs for file names (a repeated name gets its position appended).
 fn file_slugs(files: &[AttachmentRef]) -> Vec<String> {
@@ -41,87 +25,6 @@ fn file_slugs(files: &[AttachmentRef]) -> Vec<String> {
 }
 
 impl FieldView {
-    fn apply_format(&mut self, key: &str, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(area) = self.area.clone() else { return };
-        let (text, selection) = {
-            let state = area.read(cx);
-            (state.value().to_string(), state.selected_range())
-        };
-        let marker = FORMATS.iter().find(|f| f.0 == key).and_then(|f| f.3);
-        let edit = match (key, marker) {
-            (_, Some(marker)) => toggle_inline(&text, selection, marker),
-            ("numbered-list", None) => toggle_list(&text, selection, true),
-            _ => toggle_list(&text, selection, false),
-        };
-        area.update(cx, |s, cx| {
-            s.replace_all(edit.text, window, cx);
-            s.set_selected_range(edit.selection, cx);
-            s.focus(window, cx);
-        });
-    }
-
-    pub(super) fn render_rich_text(&mut self, id: &SharedString, cx: &mut Context<Self>) -> impl IntoElement {
-        let props = self.props().clone();
-        let theme = cx.theme().clone();
-        let html = if props.value.is_null() { String::new() } else { sanitize_rich_text(&value_text(&props.value)) };
-        if props.read_only {
-            return div()
-                .id(id.clone())
-                .aria_label(rich_text_plain(&props.value))
-                .w_full()
-                .ty(Type::Body)
-                .child(TextView::html(SharedString::from(format!("{id}:view")), html))
-                .test_support()
-                .into_any_element();
-        }
-        let Some(area) = self.area.clone() else { return div().into_any_element() };
-        let toolbar = h_flex()
-            .id(SharedString::from(format!("{id}:toolbar")))
-            .aria_label(format!("{} formatting", props.label))
-            .gap_0p5()
-            .children(FORMATS.iter().map(|(key, name, icon, _)| {
-                let key = *key;
-                Button::new(SharedString::from(format!("{id}:format:{key}")))
-                    .ghost()
-                    .xsmall()
-                    .icon(icon.clone())
-                    .tooltip(name.to_string())
-                    .on_click(cx.listener(move |this, _, window, cx| this.apply_format(key, window, cx)))
-            }));
-        v_flex()
-            .gap_1()
-            .w_full()
-            .child(toolbar)
-            .child(
-                div()
-                    .id(id.clone())
-                    .aria_label(props.label.clone())
-                    .h(px(84.))
-                    .w_full()
-                    .rounded_md()
-                    .border_1()
-                    .border_color(theme.border)
-                    .child(Textarea::new(&area).h(relative(1.)))
-                    .test_support(),
-            )
-            .when(!html.is_empty(), |el| {
-                el.child(
-                    div()
-                        .id(SharedString::from(format!("{id}:preview")))
-                        .aria_label(rich_text_plain(&props.value))
-                        .w_full()
-                        .px_2()
-                        .py_1()
-                        .rounded_md()
-                        .bg(theme.muted)
-                        .ty(Type::Body)
-                        .child(TextView::html(SharedString::from(format!("{id}:preview-text")), html))
-                        .test_support(),
-                )
-            })
-            .into_any_element()
-    }
-
     /// Where the control stores its files: the binding's table (older forms) or the form's.
     fn attachment_target(&self) -> Option<(String, String)> {
         let props = self.props();

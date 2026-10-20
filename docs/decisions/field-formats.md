@@ -47,26 +47,52 @@ plain text control bound to a formatted field to that kind, fills a text
 control's mask from the field when it has none, and fills a multi-select's
 choices. A mask set on the control wins.
 
-**Rich text is sanitized twice.** `sanitizeRichText` (`src/fields/richtext.ts`)
-keeps `p`, `br`, `div`, `b`, `strong`, `i`, `em`, `u`, `s`, `ul`, `ol`, `li`,
-`h1` to `h3`, `blockquote`, and `a` with an `http`, `https`, or `mailto` link.
-It drops every other attribute, and drops `script`, `style`, and embedded
-content with their text. The editor sanitizes what it emits, and the read-only
-view sanitizes again before rendering, because a value can also come from an
-import, an action, or another PostgreSQL client. Lists, the datasheet,
-reports, and the required check use `richTextPlain`.
+**Rich text is sanitized twice.** `sanitize_rich_text` (`forms/richtext.rs`)
+keeps the elements Markdown writes: `p`, `br`, `div`, `b`, `strong`, `i`, `em`,
+`u`, `s`, `del`, `code`, `pre`, `ul`, `ol` (with `start`), `li`, `h1` to `h6`,
+`blockquote`, `hr`, `table`, `thead`, `tbody`, `tr`, `th` and `td` (with
+`align`), a disabled `input type="checkbox"` for task lists, `a` with an `http`,
+`https`, or `mailto` link, and `img` with an `http`, `https`, or `attachment:`
+source plus `alt` and `title`. `code` keeps a `language-*` class. It drops every
+other attribute, and drops `script`, `style`, and embedded content with their
+text. The editor sanitizes what it emits, and every view sanitizes again before
+rendering, because a value can also come from an import, an action, or another
+PostgreSQL client. Lists, the datasheet, reports, and the required check use
+`rich_text_plain`.
 
-**The GPUI editor edits rich text as light markup.** GPUI has no
-content-editable box, so the form's rich-text control
-(`src-tauri/src/ui/runtime/field_formats.rs`) shows the stored HTML as
-Markdown-like text and renders the result in a preview under it.
-`forms/richtext_markup.rs` converts both ways: `**bold**`, `*italic*`,
-`++underline++`, `~~strike~~`, and `[text](url)` inside a line, and `- `, `1. `,
-`# ` to `### `, and `> ` at the start of a line. Every other line is a
-paragraph, and `\` keeps a marker character literal. The toolbar (bold, italic,
-underline, bulleted list, numbered list) edits the markup around the selection.
-The stored value is still the sanitized HTML subset, so other readers do not
-change. A read-only control renders the HTML.
+**The GPUI editor edits rich text as Markdown.** GPUI has no content-editable
+box, so the form's rich-text control (`ui/runtime/field_richtext.rs`) shows the
+stored HTML as Markdown and renders the result in a preview under it.
+`forms/richtext_markup.rs` converts both ways. Markdown to HTML parses
+CommonMark with the GitHub extensions (tables, task lists, `~~strike~~`, bare
+links) through the `markdown` crate, which gpui-kit's text view already builds.
+Footnotes and single-tilde strike are off. A single line break inside a
+paragraph stays a line break, as people expect in a text box. Underline has no
+Markdown syntax, so it is written `<u>…</u>`, which Markdown passes through as
+inline HTML. HTML to Markdown builds a tree from the sanitized HTML and writes
+it back, escaping text that would read as Markdown, so a stored value survives
+being opened and saved unchanged. The toolbar edits the Markdown around the
+selection (`forms/richtext_edit.rs`): bold, italic, underline, strike, code,
+heading, quote, bulleted, numbered and task lists, link, image, table, code
+block and divider. The stored value is still a sanitized HTML subset, so other
+readers do not change. Values saved by the earlier line-per-paragraph editor
+open as Markdown with a blank line between paragraphs.
+
+**Rich-text images reference the record's attachments.** Zn chose this over
+embedding images in the value (2026-10-20). An image is
+`![description](attachment:<file name>)`, matched by file id first, then by
+name, against the files of every attachment field of the same record. Pasting
+an image (or a copied image file), or the Image button, uploads it to the
+form's first attachment field, adds it to that field's value and inserts the
+link at the caret. A pasted image is named `pasted-image-<date>-<time>.png`. A
+form without an attachment field has no Image button, and a paste explains that
+one is needed. Web images (`http`, `https`) are allowed too. The preview loads
+attachment images through `read_record_attachment` and downloads web images
+itself (10 MB cap, image bytes only), because the embedded GPUI app has no HTTP
+client for its image loader. Both reach the text view as data URLs. Until an
+image has loaded, or when its file is gone, the view shows its description.
+Removing the file from the attachment field leaves a link that shows only its
+description.
 
 **The attachment control adds, saves, and removes files.** Add file uploads a
 picked file through `upload_record_attachment_file`. Save writes a copy through
@@ -134,3 +160,10 @@ imports, and other clients are not checked.
   the datasheet.
 - `tests/unit/datasheet-fields.test.ts`: masks and formats in datasheet
   edits, paste, and find.
+- `src-tauri/src/forms/richtext_markup_tests.rs`, `richtext_edit_tests.rs` and
+  the tests in `richtext_images.rs`: Markdown to HTML for every construct, safe
+  link and image targets, HTML to Markdown with escaping, round trips both ways,
+  toolbar edits, and attachment image lookup.
+- `src-tauri/src/ui/runtime/field_richtext_tests.rs`: toolbar blocks, a picked
+  and a pasted image stored in the attachment field and linked, the paste error
+  without an attachment field, and the preview loading a record's image.

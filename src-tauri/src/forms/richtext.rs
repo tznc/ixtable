@@ -1,43 +1,41 @@
-//! Rich-text fields store a small HTML subset (port of `src/fields/richtext.ts`).
-//! Everything is sanitized on the way in (editor output) and again before display,
-//! because a value can also arrive from an import, an action, or another
-//! PostgreSQL client. The scanner below reads tags and text without a DOM.
+//! Rich-text fields store a sanitized HTML subset (port of `src/fields/richtext.ts`), widened to
+//! everything Markdown writes: headings, quotes, lists and task lists, code, rules, tables,
+//! links and images (`docs/decisions/field-formats.md`). Everything is sanitized on the way in
+//! (editor output) and again before display, because a value can also arrive from an import, an
+//! action, or another PostgreSQL client. The scanner below reads tags and text without a DOM.
 
 const ALLOWED: &[&str] = &[
-    "p",
-    "br",
-    "div",
-    "b",
-    "strong",
-    "i",
-    "em",
-    "u",
-    "s",
-    "ul",
-    "ol",
-    "li",
-    "a",
-    "h1",
-    "h2",
-    "h3",
-    "blockquote",
+    "p", "br", "div", "b", "strong", "i", "em", "u", "s", "del", "code", "ul", "ol", "li", "a",
+    "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre", "hr", "img", "input", "table",
+    "thead", "tbody", "tr", "th", "td",
 ];
 /// Elements whose content is dropped with them, not kept as text.
 const DROPPED: &[&str] = &[
     "script", "style", "template", "iframe", "object", "embed", "noscript",
 ];
-const BLOCKS: &[&str] = &["p", "div", "li", "h1", "h2", "h3", "blockquote", "br"];
+const BLOCKS: &[&str] = &[
+    "p", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "br", "pre", "hr", "tr",
+];
 const VOID: &[&str] = &["br", "img", "hr", "input", "meta", "link", "wbr"];
+/// Image sources a value may use: web images and files of the record's attachment fields.
+pub const ATTACHMENT_SCHEME: &str = "attachment:";
 
 #[derive(Debug)]
 pub(super) enum Token {
     Text(String),
     Open {
         name: String,
-        href: Option<String>,
+        attrs: Vec<(String, String)>,
         self_closing: bool,
     },
     Close(String),
+}
+
+impl Token {
+    /// An attribute of an opening tag (names are lowercase).
+    pub(super) fn attr<'a>(attrs: &'a [(String, String)], name: &str) -> Option<&'a str> {
+        attrs.iter().find(|(n, _)| n == name).map(|(_, v)| v.as_str())
+    }
 }
 
 fn decode_entities(text: &str) -> String {
@@ -101,34 +99,42 @@ fn escape_attribute(text: &str) -> String {
     escape_text(text).replace('"', "&quot;")
 }
 
-/// The `href` attribute of a tag's source text (between the name and `>`).
-fn href_of(attributes: &str) -> Option<String> {
-    let lower = attributes.to_ascii_lowercase();
-    let mut from = 0;
-    while let Some(found) = lower[from..].find("href") {
-        let at = from + found;
-        from = at + 4;
-        let boundary = at == 0
-            || !lower.as_bytes()[at - 1].is_ascii_alphanumeric() && lower.as_bytes()[at - 1] != b'-';
-        if !boundary {
-            continue;
+/// The attributes in a tag's source text (between the name and `>`), names lowercased.
+fn attributes_of(source: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let mut rest = source;
+    loop {
+        rest = rest.trim_start_matches(|c: char| c.is_whitespace() || c == '/');
+        let name_len = rest
+            .find(|c: char| c.is_whitespace() || matches!(c, '=' | '/' | '>'))
+            .unwrap_or(rest.len());
+        if name_len == 0 {
+            break;
         }
-        let after = attributes[at + 4..].trim_start();
-        let Some(after) = after.strip_prefix('=') else {
-            continue;
-        };
-        let after = after.trim_start();
-        let value = match after.chars().next() {
-            Some(q @ ('"' | '\'')) => after[1..].split(q).next().unwrap_or("").to_string(),
-            _ => after
-                .split(|c: char| c.is_whitespace() || c == '>')
-                .next()
-                .unwrap_or("")
-                .to_string(),
-        };
-        return Some(decode_entities(&value));
+        let name = rest[..name_len].to_ascii_lowercase();
+        rest = rest[name_len..].trim_start();
+        let mut value = String::new();
+        if let Some(after) = rest.strip_prefix('=') {
+            let after = after.trim_start();
+            match after.chars().next() {
+                Some(q @ ('"' | '\'')) => {
+                    let body = &after[1..];
+                    let end = body.find(q).unwrap_or(body.len());
+                    value = body[..end].to_string();
+                    rest = body.get(end + 1..).unwrap_or("");
+                }
+                _ => {
+                    let end = after.find(|c: char| c.is_whitespace() || c == '>').unwrap_or(after.len());
+                    value = after[..end].to_string();
+                    rest = &after[end..];
+                }
+            }
+        }
+        if !out.iter().any(|(n, _): &(String, String)| *n == name) {
+            out.push((name, decode_entities(&value)));
+        }
     }
-    None
+    out
 }
 
 pub(super) fn tokens(html: &str) -> Vec<Token> {
@@ -182,7 +188,7 @@ pub(super) fn tokens(html: &str) -> Vec<Token> {
         } else {
             let attributes = &inner[name.len()..];
             out.push(Token::Open {
-                href: if name == "a" { href_of(attributes) } else { None },
+                attrs: attributes_of(attributes),
                 self_closing: attributes.trim_end().ends_with('/') || VOID.contains(&name.as_str()),
                 name,
             });
@@ -191,8 +197,84 @@ pub(super) fn tokens(html: &str) -> Vec<Token> {
     out
 }
 
-/// The allowed subset of `html`: formatting tags only, links limited to http(s) and mailto.
+fn safe_link(href: &str) -> bool {
+    let lower = href.to_ascii_lowercase();
+    lower.starts_with("http:") || lower.starts_with("https:") || lower.starts_with("mailto:")
+}
+
+fn safe_image(src: &str) -> bool {
+    let lower = src.to_ascii_lowercase();
+    lower.starts_with("http:") || lower.starts_with("https:") || lower.starts_with(ATTACHMENT_SCHEME)
+}
+
+/// The allowed attributes of an allowed element, as source text; None drops the element.
+fn kept_attributes(name: &str, attrs: &[(String, String)]) -> Option<String> {
+    let attr = |n: &str| Token::attr(attrs, n).map(str::trim).filter(|v| !v.is_empty());
+    let mut out = String::new();
+    let mut push = |n: &str, v: &str| out.push_str(&format!(" {n}=\"{}\"", escape_attribute(v)));
+    match name {
+        "a" => {
+            if let Some(href) = attr("href").filter(|h| safe_link(h)) {
+                push("href", href);
+                if let Some(title) = attr("title") {
+                    push("title", title);
+                }
+                push("rel", "noopener noreferrer");
+                push("target", "_blank");
+            }
+        }
+        "img" => {
+            push("src", attr("src").filter(|s| safe_image(s))?);
+            for n in ["alt", "title"] {
+                if let Some(v) = attr(n) {
+                    push(n, v);
+                }
+            }
+        }
+        "input" => {
+            if !attr("type").is_some_and(|t| t.eq_ignore_ascii_case("checkbox")) {
+                return None;
+            }
+            out.push_str(" type=\"checkbox\" disabled");
+            if Token::attr(attrs, "checked").is_some() {
+                out.push_str(" checked");
+            }
+        }
+        "th" | "td" => {
+            if let Some(align) = attr("align").map(str::to_ascii_lowercase) {
+                if matches!(align.as_str(), "left" | "center" | "right") {
+                    push("align", &align);
+                }
+            }
+        }
+        "ol" => {
+            if let Some(start) = attr("start").filter(|s| s.len() < 10 && s.bytes().all(|b| b.is_ascii_digit())) {
+                push("start", start);
+            }
+        }
+        "code" => {
+            let language = attr("class").and_then(|c| c.split_whitespace().find_map(|c| c.strip_prefix("language-")));
+            if let Some(language) = language.filter(|l| {
+                l.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '#' | '-' | '_' | '.'))
+            }) {
+                push("class", &format!("language-{language}"));
+            }
+        }
+        _ => {}
+    }
+    Some(out)
+}
+
+/// The allowed subset of `html`: formatting tags only, links limited to http(s) and mailto,
+/// images to http(s) and the record's attachments.
 pub fn sanitize_rich_text(html: &str) -> String {
+    sanitize_with(html, None)
+}
+
+/// Maps an allowed image source to the one to show; None shows the image's description instead.
+type ImageHook<'a> = &'a dyn Fn(&str) -> Option<String>;
+
+fn sanitize_with(html: &str, images: Option<ImageHook>) -> String {
     if html.is_empty() {
         return String::new();
     }
@@ -218,7 +300,7 @@ pub fn sanitize_rich_text(html: &str) -> String {
             Token::Text(text) => out.push_str(&escape_text(&text)),
             Token::Open {
                 name,
-                href,
+                attrs,
                 self_closing,
             } => {
                 if DROPPED.contains(&name.as_str()) {
@@ -230,21 +312,25 @@ pub fn sanitize_rich_text(html: &str) -> String {
                 if !ALLOWED.contains(&name.as_str()) {
                     continue;
                 }
-                out.push('<');
-                out.push_str(&name);
-                if name == "a" {
-                    let href = href.map(|h| h.trim().to_string()).unwrap_or_default();
-                    let lower = href.to_ascii_lowercase();
-                    if lower.starts_with("http:")
-                        || lower.starts_with("https:")
-                        || lower.starts_with("mailto:")
-                    {
-                        out.push_str(&format!(
-                            " href=\"{}\" rel=\"noopener noreferrer\" target=\"_blank\"",
-                            escape_attribute(&href)
-                        ));
+                let Some(mut kept) = kept_attributes(&name, &attrs) else {
+                    continue;
+                };
+                if let (Some(hook), "img") = (images, name.as_str()) {
+                    let src = Token::attr(&attrs, "src").map(str::trim).unwrap_or_default();
+                    match hook(src) {
+                        Some(shown) => {
+                            let old = format!(" src=\"{}\"", escape_attribute(src));
+                            kept = kept.replacen(&old, &format!(" src=\"{}\"", escape_attribute(&shown)), 1);
+                        }
+                        None => {
+                            out.push_str(&escape_text(Token::attr(&attrs, "alt").unwrap_or_default()));
+                            continue;
+                        }
                     }
                 }
+                out.push('<');
+                out.push_str(&name);
+                out.push_str(&kept);
                 out.push('>');
                 if !VOID.contains(&name.as_str()) && !self_closing {
                     stack.push(name);
@@ -264,6 +350,15 @@ pub fn sanitize_rich_text(html: &str) -> String {
         out.push_str(&format!("</{open}>"));
     }
     out
+}
+
+/// Sanitized HTML ready for the text view, which draws no form inputs: task-list boxes become
+/// ballot-box characters, and `image` gives each image's source to show (a data URL once the
+/// image is loaded) or None to show its description.
+pub fn rich_text_display(html: &str, image: &dyn Fn(&str) -> Option<String>) -> String {
+    sanitize_with(html, Some(image))
+        .replace("<input type=\"checkbox\" disabled checked>", "\u{2611} ")
+        .replace("<input type=\"checkbox\" disabled>", "\u{2610} ")
 }
 
 /// Plain text of a rich-text value, for lists, datasheets, reports, and validation.
@@ -292,7 +387,9 @@ pub fn rich_text_plain(html: Option<&str>) -> String {
         match token {
             Token::Text(t) => parts.push_str(&t),
             Token::Open {
-                name, self_closing, ..
+                name,
+                attrs,
+                self_closing,
             } => {
                 if DROPPED.contains(&name.as_str()) {
                     if !self_closing {
@@ -300,6 +397,10 @@ pub fn rich_text_plain(html: Option<&str>) -> String {
                     }
                 } else if BLOCKS.contains(&name.as_str()) && !parts.is_empty() {
                     parts.push('\n');
+                } else if matches!(name.as_str(), "td" | "th") && !parts.is_empty() && !parts.ends_with('\n') {
+                    parts.push(' ');
+                } else if name == "img" {
+                    parts.push_str(Token::attr(&attrs, "alt").unwrap_or_default());
                 }
             }
             Token::Close(_) => {}
