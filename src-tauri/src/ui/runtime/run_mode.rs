@@ -4,8 +4,11 @@
 //! forms built in memory), and reports and dashboards, which other features provide through
 //! `PageBuilders` (a placeholder shows until they register).
 //!
-//! Test ids: `mode-title` ("Run App"), `rt-role` ("Role: X", cloud-assigned role), the
-//! "Run as" role select `run-as` ("Owner (default)" or a role name),
+//! The window opens with a ribbon (`ui::ribbon`): Records (`rt-reload`) and the role group.
+//!
+//! Test ids: `mode-title` (the app's name, at the end of the ribbon's tab row), `rt-role`
+//! ("Role: X", cloud-assigned role), the "Run as" role select `run-as` ("Owner (default)"
+//! or a role name),
 //! `rt-nav` ("Application navigation") with `nav:<item id>` buttons (selected = current
 //! page) and `nav-group:<item id>` labels, `rt-nav-empty`, `rt-page` ("Application page"),
 //! `rt-notice` / `rt-notice-error`, `rt-empty` ("Build your app") with `generate-app`,
@@ -364,10 +367,14 @@ impl Render for RunBody {
         let nav = self.nav_items(&navigation, active.as_deref(), cx);
         let nav_empty = nav.is_empty();
 
-        let role_control: Option<AnyElement> = match (&assigned, runtime_only) {
-            (Some(assigned), _) => Some(
-                widgets::text("rt-role", format!("Role: {}", assigned.role.name)).into_any_element(),
-            ),
+        // The "Run as" picker previews a role in Studio; a cloud-assigned role is shown as is.
+        let role_group: Option<AnyElement> = match (&assigned, runtime_only) {
+            (Some(assigned), _) => Some(crate::ui::ribbon::group(
+                "role",
+                "Role",
+                [widgets::text("rt-role", format!("Role: {}", assigned.role.name)).into_any_element()],
+                cx,
+            )),
             (None, false) => {
                 let runtime = self.runtime.clone();
                 let picker = crate::ui::controls::select(
@@ -380,17 +387,20 @@ impl Render for RunBody {
                         runtime.update(cx, |r, cx| r.set_role_id(role, cx));
                     },
                 );
-                Some(
-                    h_flex()
-                        .gap_2()
-                        .items_center()
-                        .child(div().text_sm().child("Run as"))
-                        .child(picker)
-                        .into_any_element(),
-                )
+                Some(crate::ui::ribbon::group("run-as", "Run as", [div().w(px(200.)).child(picker).into_any_element()], cx))
             }
             (None, true) => None,
         };
+        let reload = {
+            let runtime = self.runtime.clone();
+            crate::ui::ribbon::command("rt-reload", IconName::RefreshCw, "Refresh")
+                .tooltip("Reload the page")
+                .on_click(move |_, _, cx| runtime.update(cx, |r, cx| r.reload(cx)))
+                .into_any_element()
+        };
+        let groups = std::iter::once(crate::ui::ribbon::group("records", "Records", [reload], cx))
+            .chain(role_group)
+            .collect();
 
         let body: AnyElement = match &page {
             Some(page) => {
@@ -406,12 +416,14 @@ impl Render for RunBody {
                 }
             }
         };
-        // End users see the app's name, not Studio's "PROJECT / RUN APP" breadcrumb.
-        let header = widgets::titlebar("", &config.name, cx);
+        // The ribbon's tab row ends with the app's name, not Studio's "PROJECT / RUN APP"
+        // breadcrumb.
+        let name = widgets::styled_text("mode-title", config.name.clone(), |d| d.px_3().text_sm().font_semibold());
+        let header = crate::ui::ribbon::ribbon(&[("home", "Home")], "home", |_, _, _| {}, Some(name.into_any_element()), groups, cx);
         v_flex()
             .size_full()
             .relative()
-            .child(header.child(div().children(role_control)))
+            .child(header)
             .child(
                 h_flex()
                     .flex_1()

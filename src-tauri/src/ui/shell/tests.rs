@@ -1,7 +1,7 @@
 //! Shell and document flows (port of tests/integration/shell.test.tsx and
 //! document.test.tsx). Imports are explicit: `gpui_kit::*` would shadow `#[test]`.
 
-use super::{ModeId, settings::AppSettings, yaml::YamlTab};
+use super::{ModeId, SelectionKind, settings::AppSettings, yaml::YamlTab};
 use crate::ui::testing::Harness;
 use gpui_kit::{Entity, TestAppContext};
 
@@ -275,4 +275,81 @@ fn empty_object_groups_say_so_and_offer_the_new_action(cx: &mut TestAppContext) 
     assert!(h.exists("new-table-empty"));
     h.click("new-query-empty");
     assert!(h.exists("new-query"));
+}
+
+#[gpui_kit::test]
+fn the_ribbon_spans_the_content_column_not_the_sidebar(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    for mode in [ModeId::Data, ModeId::Design, ModeId::Automation, ModeId::App] {
+        h.switch_mode(mode);
+        let ribbon = h.find("ribbon").bounds();
+        let save = h.find("save-project").bounds();
+        assert!(ribbon.origin.x > save.origin.x + save.size.width, "{mode:?}: right of the sidebar");
+        assert!(ribbon.origin.y < save.origin.y + save.size.height, "{mode:?}: at the top");
+        assert!(h.exists("ribbon-group-run"), "{mode:?}");
+    }
+    let (ribbon, run) = (h.find("ribbon").bounds(), h.find("run-app-open").bounds());
+    assert!(ribbon.contains(&run.center()), "Run App and its Run as menu are in the ribbon");
+    assert_eq!(h.label("ribbon-group-run"), "Run");
+}
+
+#[gpui_kit::test]
+fn ribbon_create_commands_open_the_owning_page(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    h.switch_mode(ModeId::App);
+    h.click("tab-create");
+    h.click("ribbon-new-table");
+    assert_eq!(h.mode(), ModeId::Data);
+    let kind = h.read_shell(|s, _| s.selection.as_ref().map(|s| s.kind));
+    assert_eq!(kind, Some(SelectionKind::NewTable));
+
+    let forms = h.config().design.forms.len();
+    h.click("ribbon-new-form");
+    assert_eq!(h.mode(), ModeId::Design);
+    assert_eq!(h.config().design.forms.len(), forms + 1);
+
+    let reports = h.config().reports.len();
+    h.click("ribbon-new-report");
+    assert_eq!(h.config().reports.len(), reports + 1);
+
+    h.click("ribbon-new-trigger");
+    assert_eq!(h.mode(), ModeId::Automation);
+    assert_eq!(h.config().triggers.len(), 1);
+    h.click("ribbon-new-action");
+    assert_eq!(h.config().actions.len(), 1);
+    assert_eq!(h.label("tab-create"), "Create", "the ribbon keeps its tab across pages");
+}
+
+#[gpui_kit::test]
+fn ribbon_tools_open_settings_tabs(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    h.click("tab-tools");
+    for (command, tab) in [("ribbon-problems", "problems"), ("ribbon-roles", "roles"), ("ribbon-migrations", "migrations")] {
+        h.click(command);
+        assert_eq!(h.mode(), ModeId::App);
+        let view = h.read_shell(|s, _| s.mode_view()).expect("settings view");
+        let settings: Entity<AppSettings> = view.downcast().expect("AppSettings");
+        assert_eq!(h.cx.read(|cx| settings.read(cx).selected()), tab);
+    }
+    h.click("tab-external");
+    h.click("ribbon-file-sources");
+    let view = h.read_shell(|s, _| s.mode_view()).expect("settings view");
+    let settings: Entity<AppSettings> = view.downcast().expect("AppSettings");
+    assert_eq!(h.cx.read(|cx| settings.read(cx).selected()), "files");
+    assert!(!h.exists("ribbon-access-migration"), "no Access import, no Access group");
+}
+
+#[gpui_kit::test]
+fn ribbon_undo_and_refresh(cx: &mut TestAppContext) {
+    let mut h = Harness::new_document(cx);
+    h.click("tab-create");
+    h.click("ribbon-new-action");
+    h.click("tab-home");
+    assert!(h.can_undo());
+    h.click("undo");
+    assert!(h.config().actions.is_empty());
+    h.click("redo");
+    assert_eq!(h.config().actions.len(), 1);
+    h.click("ribbon-refresh");
+    assert!(h.exists("ribbon-find"));
 }

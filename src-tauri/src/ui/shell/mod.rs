@@ -1,11 +1,12 @@
 //! The open-document frame: sidebar (save/close, mode switch, mode sidebar, save
-//! status), ribbon (view menu, undo/redo), banners and the active mode's workspace.
+//! status), ribbon (`ribbon.rs`), banners and the active mode's workspace.
 //! `Shell` is also the document-level state every mode reads (port of `ShellApi`).
 
 pub mod expression_issues;
 pub mod modes;
 pub mod object_browser;
 pub mod problems;
+pub mod ribbon;
 pub mod settings;
 pub mod yaml;
 #[cfg(test)]
@@ -32,7 +33,6 @@ use gpui_kit::component::{
     ActiveTheme as _, Disableable as _, Icon, Selectable as _, Sizable as _,
     button::{Button, ButtonVariants as _},
     h_flex,
-    menu::{DropdownMenu as _, PopupMenuItem},
     v_flex,
 };
 use gpui_kit::*;
@@ -162,6 +162,8 @@ pub struct Shell {
     /// the object browser can list it.
     pub unsaved_query: Option<(String, String)>,
     pub reveal: Option<RevealTarget>,
+    /// The selected ribbon tab (`ribbon::TABS` key).
+    pub ribbon_tab: &'static str,
     view: Option<(ModeId, AnyView, Option<AnyView>)>,
     focus: FocusHandle,
     /// Triggers, custom actions and the job worker of this document; dropped on close.
@@ -226,6 +228,7 @@ impl Shell {
             selection: None,
             unsaved_query: None,
             reveal: None,
+            ribbon_tab: "home",
             view: None,
             focus: cx.focus_handle(),
             _automation: crate::ui::automation::AutomationHost::new(label, cx),
@@ -640,15 +643,6 @@ impl Shell {
                 .disabled(busy)
                 .on_click(cx.listener(move |this, _, window, cx| this.change_mode(mode, window, cx)))
         }));
-        let run_app = div()
-            .px_2()
-            .pt_2()
-            .child(crate::ui::runtime::window::run_app_button(
-                cx.entity(),
-                &self.label,
-                self.config(cx),
-                busy,
-            ));
         let sidebar = self.view.as_ref().and_then(|(_, _, s)| s.clone());
         v_flex()
             .w(px(250.))
@@ -658,7 +652,7 @@ impl Shell {
             .border_color(theme.border)
             .bg(theme.sidebar)
             .child(brand)
-            .when(!self.doc.runtime_only, |el| el.child(label).child(mode_switch).child(run_app))
+            .when(!self.doc.runtime_only, |el| el.child(label).child(mode_switch))
             .child(
                 div()
                     .id("mode-sidebar")
@@ -734,67 +728,6 @@ impl Shell {
             .when(stuck, |el| {
                 el.child(div().child("Use Save As or reopen the file to continue."))
             })
-    }
-
-    fn render_ribbon(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let store = self.store.read(cx);
-        let undo_tip = store
-            .undo_label()
-            .map_or("Undo (Ctrl+Z)".to_string(), |l| format!("Undo {l} (Ctrl+Z)"));
-        let redo_tip = store
-            .redo_label()
-            .map_or("Redo (Ctrl+Shift+Z)".to_string(), |l| {
-                format!("Redo {l} (Ctrl+Shift+Z)")
-            });
-        let (can_undo, can_redo) = (store.can_undo(), store.can_redo());
-        let current = self.doc.mode;
-        let shell = cx.entity();
-        h_flex()
-            .gap_2()
-            .px_3()
-            .py_2()
-            .border_b_1()
-            .border_color(cx.theme().border)
-            .child(
-                Button::new("view-menu")
-                    .outline()
-                    .small()
-                    .label(format!("{} view", current.label()))
-                    .dropdown_menu(move |menu, _, _| {
-                        let mut menu = menu.label("Switch view");
-                        for mode in ModeId::STUDIO {
-                            let shell = shell.clone();
-                            menu = menu.item(
-                                PopupMenuItem::new(format!("{} view", mode.label()))
-                                    .checked(mode == current)
-                                    .on_click(move |_, window, cx| {
-                                        shell.update(cx, |s, cx| s.change_mode(mode, window, cx));
-                                    }),
-                            );
-                        }
-                        menu
-                    }),
-            )
-            .child(
-                Button::new("undo")
-                    .ghost()
-                    .small()
-                    .icon(Icon::new(IconName::Undo2))
-                    .label("Undo")
-                    .tooltip(undo_tip)
-                    .disabled(!can_undo)
-                    .on_click(cx.listener(|this, _, _, cx| this.undo(cx))),
-            )
-            .child(
-                Button::new("redo")
-                    .ghost()
-                    .small()
-                    .icon(Icon::new(IconName::Redo2))
-                    .label("Redo")
-                    .tooltip(redo_tip)
-                    .disabled(!can_redo)
-                    .on_click(cx.listener(|this, _, _, cx| this.redo(cx))),
-            )
     }
 }
 

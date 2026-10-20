@@ -29,6 +29,7 @@ pub mod prelude;
 pub mod query;
 pub mod release;
 pub mod reports;
+pub mod ribbon;
 pub mod runtime;
 pub mod schema;
 pub mod data;

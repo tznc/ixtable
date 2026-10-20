@@ -97,6 +97,24 @@ impl DesignMode {
         }
     }
 
+    pub fn new_page(&mut self, cx: &mut Context<Self>) {
+        self.pages.update(cx, |p, cx| p.create(cx));
+        self.focus = Focus::Page;
+        cx.notify();
+    }
+
+    /// A form on a page of its own, opened in the designer.
+    pub fn new_form(&mut self, cx: &mut Context<Self>) {
+        let id = self.forms.update(cx, |f, cx| f.create_form(cx));
+        self.open_form(&id, None, cx);
+    }
+
+    /// A report on a page of its own, opened in the designer.
+    pub fn new_report(&mut self, cx: &mut Context<Self>) {
+        let id = self.reports.update(cx, |r, cx| r.create(cx));
+        self.open_report(&id, None, cx);
+    }
+
     pub fn open_page(&mut self, id: &str, element: Option<String>, cx: &mut Context<Self>) {
         self.focus = Focus::Page;
         self.pages.update(cx, |p, cx| p.open(id, element, cx));
@@ -291,11 +309,7 @@ impl DesignMode {
                     .small()
                     .icon(IconName::Plus)
                     .label("New page")
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.pages.update(cx, |p, cx| p.create(cx));
-                        this.focus = Focus::Page;
-                        cx.notify();
-                    })),
+                    .on_click(cx.listener(|this, _, _, cx| this.new_page(cx))),
             )
             .child(
                 h_flex()
@@ -306,10 +320,7 @@ impl DesignMode {
                             .small()
                             .label("New form")
                             .tooltip("A form on a page of its own")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                let id = this.forms.update(cx, |f, cx| f.create_form(cx));
-                                this.open_form(&id, None, cx);
-                            })),
+                            .on_click(cx.listener(|this, _, _, cx| this.new_form(cx))),
                     )
                     .child(
                         Button::new("new-report")
@@ -317,10 +328,7 @@ impl DesignMode {
                             .small()
                             .label("New report")
                             .tooltip("A report on a page of its own")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                let id = this.reports.update(cx, |r, cx| r.create(cx));
-                                this.open_report(&id, None, cx);
-                            })),
+                            .on_click(cx.listener(|this, _, _, cx| this.new_report(cx))),
                     ),
             )
             .children(config.pages.iter().enumerate().map(|(i, page)| {

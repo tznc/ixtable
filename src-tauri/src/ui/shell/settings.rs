@@ -37,7 +37,7 @@ pub const GROUPS: &[(&str, &[(&str, &str)])] = &[
 ];
 
 /// Whether a tab applies to this document (the Access tab only after an Access import).
-fn visible(key: &str, shell: &Shell, cx: &App) -> bool {
+pub(super) fn visible(key: &str, shell: &Shell, cx: &App) -> bool {
     match key {
         "access" => shell
             .config(cx)

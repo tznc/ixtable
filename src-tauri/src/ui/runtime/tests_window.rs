@@ -42,6 +42,8 @@ fn run_app_opens_its_own_window_and_studio_keeps_its_mode(cx: &mut TestAppContex
     h.focus_window(run);
     assert_ne!(h.label("mode-title"), "Run App", "the Run App window is titled with the app name");
     assert_eq!(h.label("run-as"), OWNER);
+    assert!(h.exists_in("ribbon", "run-as"), "Run as is in the window's ribbon");
+    assert_eq!(h.label("ribbon-group-run-as"), "Run as");
     assert_eq!(role_in_force(&mut h), None);
 
     // Clicking Run App again brings the same window back.

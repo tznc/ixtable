@@ -129,7 +129,8 @@ installation pins the cloud key and stores the verified manifest in
 ### Runtime window
 
 A runtime-only window shows the application, not Studio. Its title is the
-application name. It has no ribbon (view switch, undo, redo), no mode switch,
+application name. Its ribbon has only Records (Refresh) and the role; it has no
+Studio commands (create, undo, redo), no mode switch,
 no Save buttons, no `PROJECT /` breadcrumb, and no "Preview as role" switch.
 A manual bundle runs with full access, because the document config has no
 default runtime role. A cloud installation runs as the role in its signed

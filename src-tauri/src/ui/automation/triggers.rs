@@ -132,7 +132,7 @@ impl TriggersPanel {
         );
     }
 
-    fn add(&mut self, cx: &mut Context<Self>) {
+    pub fn add(&mut self, cx: &mut Context<Self>) {
         let env = Env::read(self.shell.read(cx), cx);
         let config = self.shell.read(cx).config(cx);
         let created = Trigger {
