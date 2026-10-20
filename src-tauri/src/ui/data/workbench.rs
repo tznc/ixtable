@@ -776,7 +776,7 @@ impl Render for DataMode {
                                 })),
                         )
                     })
-                    .child(div().ty(Type::Section).child("Relationships"))
+                    .child(div().ty(Type::Label).child("Relationships"))
                     .child(div().ty(Type::Body).text_color(muted).child(widgets::text("relationship-title", title)))
                     .child(div().flex_1())
                     .child(
@@ -851,7 +851,7 @@ impl Render for DataMode {
                             .flex_wrap()
                             .child(
                                 div()
-                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .ty(Type::Title)
                                     .child(widgets::text("table-name", selected.clone())),
                             )
                             .when(read_only, |el| {
