@@ -98,10 +98,10 @@ impl Section {
                     }),
             )
             .child(widgets::styled_text(self.id.clone(), self.title, |d| {
-                d.text_base().font_weight(FontWeight::SEMIBOLD)
+                d.ty(Type::Section)
             }))
             .when_some(self.count, |row, n| {
-                row.child(div().text_sm().text_color(muted).child(n.to_string()))
+                row.child(div().ty(Type::Body).text_color(muted).child(n.to_string()))
             });
         v_flex()
             .id(ElementId::from(SharedString::from(format!("{}-section", self.id))))
@@ -115,7 +115,7 @@ impl Section {
                     col.child(widgets::styled_text(
                         SharedString::from(format!("{}-summary", self.id)),
                         summary,
-                        move |d| d.pl_6().text_sm().text_color(muted),
+                        move |d| d.pl_6().ty(Type::Body).text_color(muted),
                     ))
                 })
             })

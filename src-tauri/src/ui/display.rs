@@ -51,13 +51,12 @@ fn table(
         .pb_1()
         .border_b_1()
         .border_color(border)
-        .text_xs()
-        .font_weight(FontWeight::MEDIUM)
+        .ty(Type::Label)
         .text_color(muted)
         .children(headers.iter().enumerate().map(|(i, h)| cell(h.to_string(), i == 0)));
     v_flex()
         .id(id)
-        .text_sm()
+        .ty(Type::Body)
         .child(header)
         .children(rows.into_iter().map(|(row_id, label, cells)| {
             h_flex()
@@ -109,7 +108,7 @@ pub fn key_value(id: impl Into<ElementId>, rows: Vec<Kv>, cx: &App) -> Stateful<
     v_flex()
         .id(id)
         .gap_1()
-        .text_sm()
+        .ty(Type::Body)
         .children(rows.into_iter().map(|row| {
             let copy_id = SharedString::from(format!("{}-copy", row.id));
             let full = row.value.clone();
@@ -131,7 +130,7 @@ pub fn key_value(id: impl Into<ElementId>, rows: Vec<Kv>, cx: &App) -> Stateful<
                         .overflow_hidden()
                         .whitespace_nowrap()
                         .text_ellipsis()
-                        .when(row.mono, |d| d.font_family("monospace").text_xs())
+                        .when(row.mono, |d| d.font_family("monospace").ty(Type::Caption))
                         .child(widgets::text(row.id, row.value)),
                 )
                 .when(row.copy, |r| {
@@ -172,7 +171,7 @@ pub fn status_badge(id: impl Into<ElementId>, label: &str, tone: Tone, cx: &App)
         .flex_none()
         .px_2()
         .rounded_full()
-        .text_xs()
+        .ty(Type::Caption)
         .font_weight(FontWeight::MEDIUM)
         .bg(bg)
         .text_color(fg)

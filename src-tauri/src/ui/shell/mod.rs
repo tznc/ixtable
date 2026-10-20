@@ -28,7 +28,7 @@ use crate::{
     },
 };
 use gpui_kit::assets::IconName;
-use crate::ui::widgets::StartAligned as _;
+use crate::ui::widgets::{StartAligned as _, Type, TypeScale as _};
 use gpui_kit::component::{
     ActiveTheme as _, Disableable as _, Icon, Selectable as _, Sizable as _,
     button::{Button, ButtonVariants as _},
@@ -622,7 +622,7 @@ impl Shell {
             .gap_0p5()
             .child(
                 div()
-                    .text_xs()
+                    .ty(Type::Caption)
                     .text_color(theme.muted_foreground)
                     .child("DOCUMENT"),
             )
@@ -712,7 +712,7 @@ impl Shell {
             .gap_1()
             .border_t_1()
             .border_color(theme.border)
-            .text_xs()
+            .ty(Type::Caption)
             .child(widgets::text("save-status", text))
             .when(retry, |el| {
                 el.child(

@@ -277,7 +277,7 @@ impl Render for AssetsTab {
                     .pb_1()
                     .border_b_1()
                     .border_color(border)
-                    .text_xs()
+                    .ty(Type::Caption)
                     .font_weight(FontWeight::MEDIUM)
                     .text_color(muted)
                     .child(div().flex_1().child("Name"))
@@ -287,7 +287,7 @@ impl Render for AssetsTab {
                     .child(div().w(px(220.))),
             );
         }
-        let mut rows = v_flex().text_sm();
+        let mut rows = v_flex().ty(Type::Body);
         for asset in &assets {
             let name = asset.display_name.clone();
             let short_sum = asset.checksum.chars().take(12).collect::<String>();
@@ -321,7 +321,7 @@ impl Render for AssetsTab {
                     div()
                         .w(px(120.))
                         .font_family("monospace")
-                        .text_xs()
+                        .ty(Type::Caption)
                         .text_color(muted)
                         .child(format!("{short_sum}…")),
                 )
@@ -375,7 +375,7 @@ impl Render for AssetsTab {
                 ))
                 .child(
                     v_flex()
-                        .text_sm()
+                        .ty(Type::Body)
                         .children(names.iter().enumerate().map(|(i, n)| {
                             widgets::text(eid(format!("unused-asset:{i}")), n.to_string())
                         })),

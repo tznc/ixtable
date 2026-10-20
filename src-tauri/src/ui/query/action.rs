@@ -56,14 +56,14 @@ impl QueryMode {
                 h_flex()
                     .gap_2()
                     .items_center()
-                    .child(div().text_sm().child("Query type"))
+                    .child(div().ty(Type::Body).child("Query type"))
                     .child(kind_choice),
             )
             .children(target.map(|t| {
                 h_flex()
                     .gap_2()
                     .items_center()
-                    .child(div().text_sm().child("Target table"))
+                    .child(div().ty(Type::Body).child("Target table"))
                     .child(t)
             }))
     }

@@ -480,7 +480,7 @@ impl Render for FindPanel {
                     .child(
                         h_flex()
                             .justify_between()
-                            .text_xs()
+                            .ty(Type::Caption)
                             .text_color(muted)
                             .child(widgets::text("find-label", "Find"))
                             .when_some(count, |el, text| el.child(widgets::text("find-count", text))),
@@ -492,7 +492,7 @@ impl Render for FindPanel {
                     v_flex()
                         .w(px(200.))
                         .gap_1()
-                        .child(div().text_xs().text_color(muted).child(widgets::text("replace-label", "Replace with")))
+                        .child(div().ty(Type::Label).text_color(muted).child(widgets::text("replace-label", "Replace with")))
                         .child(text_input(&self.replacement, "replace-text", "Replace with")),
                 )
             })
@@ -554,7 +554,7 @@ impl Render for FindPanel {
             .when(!self.status.is_empty(), |el| {
                 el.child(
                     div()
-                        .text_sm()
+                        .ty(Type::Body)
                         .text_color(muted)
                         .child(widgets::text("find-status", self.status.clone())),
                 )

@@ -484,12 +484,12 @@ impl Render for ReportDesigner {
                         format!(
                             "Adding to: {active_label}. Click a band label to choose it. Drag components to move them and the corner handle to resize. With a component focused, arrow keys move it 1 pt (Shift: 10 pt), Alt+arrow keys resize it, and Delete removes it."
                         ),
-                        move |d| d.text_xs().text_color(muted),
+                        move |d| d.ty(Type::Caption).text_color(muted),
                     ))
                     .when(!problems.is_empty(), |el| {
                         el.child(v_flex().id("report-problems").children(problems.iter().enumerate().map(|(i, p)| {
                             widgets::styled_text(format!("report-problem-{}", i + 1), p.clone(), move |d| {
-                                d.text_sm().text_color(danger)
+                                d.ty(Type::Body).text_color(danger)
                             })
                         })))
                     })

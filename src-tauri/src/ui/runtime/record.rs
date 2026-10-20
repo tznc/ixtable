@@ -820,7 +820,7 @@ impl Render for RecordView {
         } else {
             widgets::styled_text("record-loading", "Loading record…", {
                 let color = theme.muted_foreground;
-                move |d| d.text_sm().text_color(color)
+                move |d| d.ty(Type::Body).text_color(color)
             })
             .into_any_element()
         };
@@ -853,7 +853,7 @@ impl Render for RecordView {
                     .justify_between()
                     .items_center()
                     .child(widgets::styled_text("record-title", title.clone(), move |d| {
-                        d.when(embedded, |d| d.text_lg()).when(!embedded, |d| d.text_xl()).font_weight(FontWeight::SEMIBOLD)
+                        d.when(embedded, |d| d.ty(Type::Section)).when(!embedded, |d| d.ty(Type::Title))
                     }))
                     .child(
                         h_flex()

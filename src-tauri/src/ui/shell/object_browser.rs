@@ -8,7 +8,7 @@
 
 use super::{Selection, SelectionKind, Shell};
 use crate::manager::AppError;
-use crate::ui::widgets;
+use crate::ui::widgets::{self, Type, TypeScale as _};
 use gpui_kit::assets::IconName;
 use gpui_kit::component::{
     ActiveTheme as _, Icon, Selectable as _, Sizable as _,
@@ -129,10 +129,10 @@ impl Render for ObjectBrowser {
                             widgets::styled_text(
                                 SharedString::from(format!("group-{}", title.to_lowercase())),
                                 title,
-                                |d| d.flex_1().text_xs().font_weight(FontWeight::SEMIBOLD),
+                                |d| d.flex_1().ty(Type::Caption).font_weight(FontWeight::SEMIBOLD),
                             ),
                         )
-                        .child(div().text_xs().text_color(muted).child(count.to_string()))
+                        .child(div().ty(Type::Caption).text_color(muted).child(count.to_string()))
                         .when_some(add, |el, (id, tip, kind)| {
                             let entity = entity.clone();
                             el.child(
@@ -199,7 +199,7 @@ impl Render for ObjectBrowser {
                                             .px_1()
                                             .rounded_sm()
                                             .bg(muted.opacity(0.15))
-                                            .text_xs()
+                                            .ty(Type::Caption)
                                             .text_color(muted)
                                             .child(tag),
                                     )
@@ -213,7 +213,7 @@ impl Render for ObjectBrowser {
                         }))
                 }))
                 .when(empty, |el| {
-                    el.child(div().px_2().text_xs().text_color(muted).child("No matches"))
+                    el.child(div().px_2().ty(Type::Caption).text_color(muted).child("No matches"))
                 })
                 .when(items_empty && needle.is_empty(), |el| {
                     let hint = match add {
@@ -227,7 +227,7 @@ impl Render for ObjectBrowser {
                             .child(widgets::styled_text(
                                 SharedString::from(format!("empty-{}", title.to_lowercase())),
                                 hint,
-                                move |d| d.text_xs().text_color(muted),
+                                move |d| d.ty(Type::Caption).text_color(muted),
                             ))
                             .when_some(add, |el, (id, tip, kind)| {
                                 let entity = entity.clone();
@@ -254,8 +254,8 @@ impl Render for ObjectBrowser {
                 h_flex()
                     .justify_between()
                     .px_1()
-                    .child(div().text_xs().text_color(muted).child("OBJECTS"))
-                    .when(loading, |el| el.child(widgets::styled_text("objects-loading", "Loading…", |d| d.text_xs()))),
+                    .child(div().ty(Type::Caption).text_color(muted).child("OBJECTS"))
+                    .when(loading, |el| el.child(widgets::styled_text("objects-loading", "Loading…", |d| d.ty(Type::Caption)))),
             )
             .child(Input::new(&self.search).id("object-search").aria_label("Search database objects"))
             .when_some(error, |el, e| {

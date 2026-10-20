@@ -154,9 +154,9 @@ impl Render for NewTableColumns {
         let key_entity = entity.clone();
         v_flex()
             .gap_2()
-            .child(div().text_sm().text_color(muted).child("Import \u{b7} File column \u{b7} Field name \u{b7} Type"))
+            .child(div().ty(Type::Body).text_color(muted).child("Import \u{b7} File column \u{b7} Field name \u{b7} Type"))
             .children(rows)
-            .child(div().text_sm().text_color(muted).child("Primary key"))
+            .child(div().ty(Type::Body).text_color(muted).child("Primary key"))
             .child(select("Import primary key", &self.primary_key, keys, "New id column (numbered automatically)", move |value, _, cx| {
                 let value = value.to_string();
                 key_entity.update(cx, |this, cx| this.set_primary_key(&value, cx));
@@ -222,7 +222,7 @@ impl Render for FieldMappingEditor {
         }));
         v_flex()
             .gap_1()
-            .child(div().text_sm().text_color(muted).child("File column \u{b7} Detected type \u{b7} Field"))
+            .child(div().ty(Type::Body).text_color(muted).child("File column \u{b7} Detected type \u{b7} Field"))
             .children(self.columns.iter().map(|(name, logical)| {
                 let current = self
                     .mapping

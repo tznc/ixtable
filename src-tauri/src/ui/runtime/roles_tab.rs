@@ -171,7 +171,7 @@ impl Render for RolesTab {
             .gap_3()
             .child(widgets::styled_text("rbac-note", RBAC_LIMITATION, {
                 let color = theme.muted_foreground;
-                move |d| d.text_sm().text_color(color)
+                move |d| d.ty(Type::Body).text_color(color)
             }))
             .children(self.error.clone().map(|e| {
                 widgets::error_banner("roles-error", &e, None, cx)
@@ -194,7 +194,7 @@ impl Render for RolesTab {
             .child(Button::new("add-role").small().icon(IconName::Plus).label("New role").on_click(
                 cx.listener(|this, _, _, cx| this.add_role(cx)),
             ))
-            .child(div().text_xs().text_color(theme.muted_foreground).child("The developer always has full access."));
+            .child(div().ty(Type::Caption).text_color(theme.muted_foreground).child("The developer always has full access."));
         let editor: AnyElement = match role {
             None => widgets::empty_state(
                 "no-roles",
@@ -236,11 +236,11 @@ impl Render for RolesTab {
                     h_flex()
                         .gap_3()
                         .items_center()
-                        .child(div().w(px(260.)).text_sm().child(format!("{} {}", row.kind, row.name)))
+                        .child(div().w(px(260.)).ty(Type::Body).child(format!("{} {}", row.kind, row.name)))
                         .children(cells.map(|c| div().w(FLAG_WIDTH).flex_none().child(c)))
                 }));
-                let header = h_flex().gap_3().child(div().w(px(260.)).text_sm().child("Object")).children(
-                    FLAGS.iter().map(|name| div().w(FLAG_WIDTH).flex_none().whitespace_nowrap().text_xs().child(capitalized(name))),
+                let header = h_flex().gap_3().child(div().w(px(260.)).ty(Type::Body).child("Object")).children(
+                    FLAGS.iter().map(|name| div().w(FLAG_WIDTH).flex_none().whitespace_nowrap().ty(Type::Caption).child(capitalized(name))),
                 );
                 let nav: Vec<&NavigationItem> = flatten_navigation(&config.design.navigation);
                 let navigation = v_flex().gap_0p5().items_start().children(nav.iter().map(|item| {
@@ -314,7 +314,7 @@ impl Render for RolesTab {
                         )
                     }))
                     .child(widgets::section_heading("objects-heading", "Objects"))
-                    .child(div().w_full().min_w_0().text_sm().text_color(theme.muted_foreground).child(
+                    .child(div().w_full().min_w_0().ty(Type::Body).text_color(theme.muted_foreground).child(
                         "Form permissions govern records changed through that form. Table permissions govern table pages and actions that write to the table. Reading a form, report, or dashboard also lets the role read the saved queries it shows.",
                     ))
                     .child(header)

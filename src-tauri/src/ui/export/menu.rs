@@ -146,7 +146,7 @@ impl Render for ExportMenu {
                 menu
             }))
             .when(!self.error.is_empty(), |el| {
-                el.child(div().text_sm().text_color(danger).child(widgets::text("export-error", self.error.clone())))
+                el.child(div().ty(Type::Body).text_color(danger).child(widgets::text("export-error", self.error.clone())))
             })
     }
 }

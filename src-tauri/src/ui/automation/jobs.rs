@@ -232,7 +232,7 @@ impl JobsPanel {
         let (cancel_id, retry_id) = (id.clone(), id.clone());
         let active = job.status == "queued" || job.status == "running";
         let finished = job.status == "failed" || job.status == "cancelled";
-        let cell = |w: f32| div().w(px(w)).text_sm();
+        let cell = |w: f32| div().w(px(w)).ty(Type::Body);
         v_flex()
             .gap_1()
             .child(
@@ -248,7 +248,7 @@ impl JobsPanel {
                         format!("{} / {}", job.attempts, job.max_attempts),
                     )))
                     .child(cell(80.).child(widgets::text(format!("{row}-next"), next)))
-                    .child(div().flex_1().min_w_0().text_sm().child(widgets::text(
+                    .child(div().flex_1().min_w_0().ty(Type::Body).child(widgets::text(
                         format!("{row}-error"),
                         friendly_error(&job.last_error.clone().unwrap_or_default()),
                     )))
@@ -288,7 +288,7 @@ impl JobsPanel {
             return widgets::empty_state(id, "No attempts yet", "The job has not started.", cx).into_any_element();
         }
         let muted = cx.theme().muted_foreground;
-        let cell = |w: f32| div().w(px(w)).flex_none().text_sm();
+        let cell = |w: f32| div().w(px(w)).flex_none().ty(Type::Body);
         v_flex()
             .id(SharedString::from(id))
             .gap_1()
@@ -296,13 +296,13 @@ impl JobsPanel {
             .child(
                 h_flex()
                     .gap_2()
-                    .text_xs()
+                    .ty(Type::Caption)
                     .font_weight(FontWeight::MEDIUM)
                     .text_color(muted)
                     .child(cell(70.).child("Attempt"))
                     .child(cell(100.).child("Result"))
                     .child(cell(160.).child("Started"))
-                    .child(div().flex_1().text_sm().child("Error")),
+                    .child(div().flex_1().ty(Type::Body).child("Error")),
             )
             .children(attempts.iter().enumerate().map(|(m, a)| {
                 let (result, tone) = match a.ok {
@@ -324,7 +324,7 @@ impl JobsPanel {
                                 format!("{at}-started"),
                                 local_time(&a.started_at, "%Y-%m-%d %H:%M:%S"),
                             )))
-                            .child(div().flex_1().min_w_0().text_sm().child(widgets::text(
+                            .child(div().flex_1().min_w_0().ty(Type::Body).child(widgets::text(
                                 format!("{at}-error"),
                                 friendly_error(&a.error.clone().unwrap_or_default()),
                             ))),
@@ -374,7 +374,7 @@ impl Render for JobsPanel {
                             .on_click(cx.listener(|this, _, _, cx| this.load(cx))),
                     ),
             )
-            .child(div().text_sm().child(
+            .child(div().ty(Type::Body).child(
                 "The job queue runs only while ixtable is open. Jobs left running when it closed are retried.",
             ))
             .when_some(self.error.clone(), |el, e| el.child(widgets::error_banner("jobs-error", &e, None, cx)))
@@ -390,7 +390,7 @@ impl Render for JobsPanel {
                         .pb_1()
                         .border_b_1()
                         .border_color(cx.theme().border)
-                        .text_xs()
+                        .ty(Type::Caption)
                         .font_weight(FontWeight::MEDIUM)
                         .text_color(muted)
                         .child(cell(140.).child("Trigger"))

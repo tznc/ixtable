@@ -1,0 +1,16 @@
+id: type-scale-not-raw-text-size
+language: rust
+severity: error
+message: >
+  Size text with the type scale, `.ty(Type::Title|Section|Body|Label|Caption)`
+  (or `Type::Display` for metric values), not raw text_xs()..text_3xl() calls
+  (docs/decisions/design-language.md §2).
+files:
+  - "src-tauri/src/ui/**/*.rs"
+ignores:
+  - "src-tauri/src/ui/widgets.rs"
+rule:
+  pattern: $RECV.$SIZE()
+constraints:
+  SIZE:
+    regex: ^text_(xs|sm|base|lg|xl|2xl|3xl)$

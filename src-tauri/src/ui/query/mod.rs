@@ -269,7 +269,7 @@ impl QueryMode {
     pub(crate) fn error_line(&self, id: &'static str, message: &str, cx: &App) -> AnyElement {
         let danger = cx.theme().danger;
         widgets::styled_text(id, message.to_string(), move |d| {
-            d.text_sm().text_color(danger).py_1()
+            d.ty(Type::Body).text_color(danger).py_1()
         })
         .into_any_element()
     }
@@ -737,7 +737,7 @@ pub(crate) fn panel(id: &'static str, title: &'static str, cx: &App) -> Div {
         .child(widgets::styled_text(
             SharedString::from(format!("{id}-heading")),
             title,
-            |d| d.text_sm().font_weight(FontWeight::SEMIBOLD),
+            |d| d.ty(Type::Section),
         ))
 }
 

@@ -333,7 +333,7 @@ impl Render for CreateTableForm {
                     .into_any_element()
             })
             .collect();
-        let summary = |text: String| div().text_sm().child(text);
+        let summary = |text: String| div().ty(Type::Body).child(text);
         let body = v_flex()
             .id("create-table-body")
             .size_full()
@@ -349,7 +349,7 @@ impl Render for CreateTableForm {
             .child(
                 v_flex()
                     .gap_1()
-                    .child(div().text_sm().text_color(muted).child("Table name"))
+                    .child(div().ty(Type::Label).text_color(muted).child("Table name"))
                     .child(div().w(px(280.)).child(text_input(&self.name, "Table name", "Table name"))),
             )
             .child(
@@ -376,7 +376,7 @@ impl Render for CreateTableForm {
                         h_flex()
                             .gap_2()
                             .items_center()
-                            .text_sm()
+                            .ty(Type::Body)
                             .child(format!(
                                 "({}) → {} ({}) · update {} · delete {}",
                                 f.columns.join(", "),

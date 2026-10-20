@@ -184,7 +184,7 @@ impl AutomationMode {
             )
             .when(open, |el| {
                 el.children(self.issues.iter().enumerate().map(|(i, issue)| {
-                    widgets::styled_text(format!("issue-{}", i + 1), issue.message.clone(), |d| d.text_sm())
+                    widgets::styled_text(format!("issue-{}", i + 1), issue.message.clone(), |d| d.ty(Type::Body))
                 }))
             })
     }

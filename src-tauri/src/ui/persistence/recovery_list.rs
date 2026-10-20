@@ -192,7 +192,7 @@ impl Render for RecoveryList {
                         d.font_weight(FontWeight::SEMIBOLD)
                     })),
             )
-            .child(div().text_sm().child(
+            .child(div().ty(Type::Body).child(
                 "ixtable closed before these changes were saved. Recover them to save them back \
                  into their document, or discard them.",
             ));
@@ -213,7 +213,7 @@ impl Render for RecoveryList {
                             .child(widgets::styled_text(
                                 eid(format!("recover-edited:{name}")),
                                 format!("Last edited {}{saved}", relative_time(&r.updated_at, now)),
-                                move |d| d.text_sm().text_color(muted),
+                                move |d| d.ty(Type::Body).text_color(muted),
                             )),
                     )
                     .child(

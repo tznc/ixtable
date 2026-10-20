@@ -86,7 +86,7 @@ pub fn group(
             div()
                 .w_full()
                 .text_center()
-                .text_xs()
+                .ty(Type::Caption)
                 .text_color(theme.muted_foreground)
                 .child(label.to_string()),
         )

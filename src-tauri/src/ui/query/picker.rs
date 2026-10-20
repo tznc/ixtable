@@ -146,7 +146,7 @@ impl Render for QueryPicker {
         h_flex()
             .gap_2()
             .items_center()
-            .child(div().text_sm().child(self.label.clone()))
+            .child(div().ty(Type::Body).child(self.label.clone()))
             .child(choice)
     }
 }

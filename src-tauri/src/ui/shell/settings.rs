@@ -13,6 +13,7 @@ use gpui_kit::component::{
     button::{Button, ButtonVariants as _},
     h_flex, v_flex,
 };
+use crate::ui::widgets::{Type, TypeScale as _};
 use gpui_kit::*;
 use gpui_kit::prelude::FluentBuilder as _;
 
@@ -200,7 +201,7 @@ impl Render for AppSettings {
             .child(
                 widgets::titlebar("Project / Settings", "Application settings", cx).child(
                     div()
-                        .text_xs()
+                        .ty(Type::Caption)
                         .text_color(cx.theme().muted_foreground)
                         .child(self.runtime.clone()),
                 ),
@@ -253,7 +254,7 @@ impl AppSettings {
                     .child(
                         div()
                             .px_2()
-                            .text_xs()
+                            .ty(Type::Caption)
                             .font_weight(FontWeight::MEDIUM)
                             .text_color(muted)
                             .child(*heading),

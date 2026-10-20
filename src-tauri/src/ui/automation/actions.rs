@@ -407,7 +407,7 @@ impl ActionsPanel {
             .border_color(cx.theme().border)
             .rounded_md()
             .child(widgets::section_heading("test-run-heading", "Test run"))
-            .child(div().text_sm().child("Runs the action against the document's data. Record changes are real."))
+            .child(div().ty(Type::Body).child("Runs the action against the document's data. Record changes are real."))
             .child(text_field("test-sample", "Sample record (JSON)", &state, cx))
             .when_some(self.problem.clone(), |el, p| {
                 el.child(widgets::callout("test-problem", widgets::Severity::Danger, &p, None, cx))
@@ -442,7 +442,7 @@ pub fn friendly_error(message: &str) -> String {
 pub fn step_log(id: &str, steps: &[StepLog], cx: &App) -> Stateful<Div> {
     use crate::ui::display::Tone as BadgeTone;
     let muted = cx.theme().muted_foreground;
-    let cell = |w: f32| div().w(px(w)).flex_none().text_sm();
+    let cell = |w: f32| div().w(px(w)).flex_none().ty(Type::Body);
     v_flex()
         .id(SharedString::from(id.to_string()))
         .gap_0p5()
@@ -450,7 +450,7 @@ pub fn step_log(id: &str, steps: &[StepLog], cx: &App) -> Stateful<Div> {
             el.child(
                 h_flex()
                     .gap_2()
-                    .text_xs()
+                    .ty(Type::Caption)
                     .font_weight(FontWeight::MEDIUM)
                     .text_color(muted)
                     .child(cell(60.).child("Step"))
@@ -478,7 +478,7 @@ pub fn step_log(id: &str, steps: &[StepLog], cx: &App) -> Stateful<Div> {
                         .flex_none()
                         .gap_2()
                         .items_center()
-                        .text_sm()
+                        .ty(Type::Body)
                         .child(status_badge(format!("{row}-result"), result, tone, cx))
                         .when(!error.is_empty(), |el| el.child(widgets::text(format!("{row}-error"), error))),
                 )

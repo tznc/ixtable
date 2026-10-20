@@ -7,7 +7,7 @@
 //! scroll area `<id>-body`, the backdrop `<id>-backdrop` (modal only), and the close
 //! button `<id>-dismiss` (only when the dialog has an escape handler).
 
-use crate::ui::widgets;
+use crate::ui::widgets::{self, Type, TypeScale as _};
 use gpui_kit::component::{
     ActiveTheme as _, Disableable as _, IconName, Sizable as _,
     button::{Button, ButtonVariants as _},
@@ -111,7 +111,7 @@ impl RenderOnce for Dialog {
             .pt_4()
             .pb_2()
             .child(widgets::styled_text(id, self.title.to_string(), |d| {
-                d.font_weight(FontWeight::SEMIBOLD).text_lg()
+                d.ty(Type::Section)
             }))
             .when_some(close, |row, (busy, f)| {
                 row.child(

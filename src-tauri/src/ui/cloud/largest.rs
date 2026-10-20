@@ -25,7 +25,7 @@ pub fn largest_files(id: &str, entries: &[SizeEntry], total_bytes: u64, cx: &App
     v_flex()
         .gap_1()
         .child(widgets::styled_text(eid(format!("{id}-heading")), "Largest files".to_string(), |d| {
-            d.text_sm().font_weight(FontWeight::MEDIUM)
+            d.ty(Type::Label)
         }))
         .when(!rows.is_empty(), |col| col.child(display::text_table(eid(id.to_string()), &["File", "Section", "Size"], rows, cx)))
 }

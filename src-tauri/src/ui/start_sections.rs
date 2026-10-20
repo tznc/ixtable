@@ -15,7 +15,7 @@ use super::{
     release::bundle_flow::{Act, BundleEvent, BundleFlow},
     start::StartScreen,
 };
-use super::widgets::{self, StartAligned as _};
+use super::widgets::{self, StartAligned as _, Type, TypeScale as _};
 use gpui_kit::assets::IconName;
 use gpui_kit::component::{
     ActiveTheme as _, Disableable as _, Icon, Sizable as _,
@@ -93,7 +93,7 @@ pub fn import_card(screen: &Entity<StartScreen>, busy: bool, cx: &mut App) -> An
                     d.font_weight(FontWeight::SEMIBOLD)
                 }))
                 .child(
-                    div().text_sm().text_color(muted).child(
+                    div().ty(Type::Body).text_color(muted).child(
                         "Convert an Access file into a new document, with its tables, forms, \
                          reports and queries.",
                     ),

@@ -117,7 +117,7 @@ impl Render for AssetPreview {
                             widgets::styled_text(
                                 eid(format!("preview-section:{i}")),
                                 s.text.clone(),
-                                |d| d.font_family("monospace").text_sm(),
+                                |d| d.font_family("monospace").ty(Type::Body),
                             ),
                         ),
                     ),

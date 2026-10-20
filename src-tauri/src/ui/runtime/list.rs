@@ -486,7 +486,7 @@ impl Render for ListView {
                 .child(widgets::styled_text(
                     SharedString::from(format!("sort-dir:{slug}")),
                     direction,
-                    |d| d.text_xs().text_color(gpui_kit::transparent_black()),
+                    |d| d.ty(Type::Caption).text_color(gpui_kit::transparent_black()),
                 ))
                 .test_support()
         }));
@@ -511,7 +511,7 @@ impl Render for ListView {
                     let content: AnyElement = if booleans[slot] {
                         match boolean_value(record.get(column).unwrap_or(&Value::Null)) {
                             Some(on) => widgets::styled_text(cell_id.clone(), if on { "Yes" } else { "No" }, move |d| {
-                                d.text_sm().when_some(color, |d, c| d.text_color(c))
+                                d.ty(Type::Body).when_some(color, |d, c| d.text_color(c))
                             })
                             .into_any_element(),
                             None => div().id(cell_id.clone()).into_any_element(),
@@ -519,7 +519,7 @@ impl Render for ListView {
                     } else {
                         let text = self.cell_text(record, column, cx);
                         widgets::styled_text(cell_id.clone(), text, move |d| {
-                            d.text_sm().when_some(color, |d, c| d.text_color(c))
+                            d.ty(Type::Body).when_some(color, |d, c| d.text_color(c))
                         })
                         .into_any_element()
                     };
@@ -584,7 +584,7 @@ impl Render for ListView {
                 h_flex()
                     .justify_between()
                     .items_center()
-                    .child(widgets::styled_text("list-title", name.clone(), |d| d.text_xl().font_weight(FontWeight::SEMIBOLD)))
+                    .child(widgets::styled_text("list-title", name.clone(), |d| d.ty(Type::Title)))
                     .child(
                         h_flex()
                             .gap_2()

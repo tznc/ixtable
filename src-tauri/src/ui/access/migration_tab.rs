@@ -297,7 +297,7 @@ impl Render for AccessMigrationTab {
                     d.font_weight(FontWeight::MEDIUM)
                 }))
                 .child(widgets::styled_text(eid(format!("item-kind:{key}")), item.kind.clone(), move |d| {
-                    d.text_xs().text_color(muted)
+                    d.ty(Type::Caption).text_color(muted)
                 }))
                 .child(status_badge(eid(format!("item-status:{key}")), item.status.label(), item.status.tone(), cx))
                 .child(div().flex_1());
@@ -326,7 +326,7 @@ impl Render for AccessMigrationTab {
             let mut row = v_flex().gap_1().px_2().py_1p5().border_b_1().border_color(border.opacity(0.5)).child(head);
             for (i, note) in item.notes.iter().enumerate() {
                 row = row.child(widgets::styled_text(eid(format!("item-note:{key}:{i}")), note.clone(), move |d| {
-                    d.text_sm().text_color(muted)
+                    d.ty(Type::Body).text_color(muted)
                 }));
             }
             tab = tab.child(row);

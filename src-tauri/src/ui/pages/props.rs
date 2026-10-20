@@ -196,8 +196,8 @@ impl PageEditor {
         let hint = all.is_empty().then(|| widgets::text("prop-columns-hint", "Choose a query to list its columns."));
         let muted = cx.theme().muted_foreground;
         let none_hint = (!all.is_empty() && id == "prop-column")
-            .then(|| widgets::styled_text("prop-columns-none", "None checked shows all", move |d| d.text_xs().text_color(muted)));
-        v_flex().gap_1().child(div().text_sm().font_weight(FontWeight::MEDIUM).child(legend.to_string())).children(none_hint).children(hint).children(
+            .then(|| widgets::styled_text("prop-columns-none", "None checked shows all", move |d| d.ty(Type::Caption).text_color(muted)));
+        v_flex().gap_1().child(div().ty(Type::Label).child(legend.to_string())).children(none_hint).children(hint).children(
             all.iter().map(|column| {
                 let (selected_now, all_now, name) = (selected.to_vec(), all.clone(), column.clone());
                 let on = selected.contains(column);
@@ -393,7 +393,7 @@ impl PageEditor {
                     .on_click(cx.listener(|this, _, _, cx| this.select(None, cx))),
             )
             .child(widgets::styled_text("component-properties-heading", format!("{} properties", kind_label(c.kind)), |d| {
-                d.text_base().font_weight(FontWeight::SEMIBOLD)
+                d.ty(Type::Section)
             }))
             .child(self.text_field("prop-title", "Title", &c.title, "", false, window, cx));
         if uses_query {
@@ -435,7 +435,7 @@ impl PageEditor {
                             .border_1()
                             .border_color(theme.border)
                             .rounded_md()
-                            .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child("Comparison"))
+                            .child(div().ty(Type::Section).child("Comparison"))
                             .child(self.column_select("prop-comparison-field", "Comparison field", comparison_field.as_deref(), |this, v, cx| {
                                 this.change("Edit component", move |c| {
                                     let has_expression = c.comparison.as_ref().is_some_and(|k| k.expression.is_some());
@@ -658,7 +658,7 @@ impl PageEditor {
                 .child(widgets::styled_text(
                     "prop-hint",
                     format!("Column {}, row {}, {} × {}", p.column, p.row, p.column_span, p.row_span),
-                    move |d| d.text_xs().text_color(muted),
+                    move |d| d.ty(Type::Caption).text_color(muted),
                 ))
                 .child(
                     Button::new("prop-shortcuts")

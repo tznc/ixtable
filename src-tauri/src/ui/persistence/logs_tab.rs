@@ -113,7 +113,7 @@ impl Render for LogsTab {
             Some(entries) => {
                 // Newest first.
                 let rows = entries.iter().rev().enumerate().map(|(i, e)| log_row(i, e, cx));
-                panel = panel.child(v_flex().text_sm().children(rows));
+                panel = panel.child(v_flex().ty(Type::Body).children(rows));
             }
             None => {}
         }
@@ -147,7 +147,7 @@ fn log_row(i: usize, e: &LogEntry, cx: &App) -> impl IntoElement {
                 .flex_none()
                 .whitespace_nowrap()
                 .font_family("monospace")
-                .text_xs()
+                .ty(Type::Caption)
                 .text_color(muted)
                 .child(display_time(&e.timestamp)),
         )

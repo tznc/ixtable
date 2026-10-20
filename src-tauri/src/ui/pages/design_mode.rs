@@ -256,7 +256,7 @@ impl DesignMode {
         let border = theme.border;
         let current = self.pages.read(cx).current(cx).map(|p| p.id);
         let heading = |id: &'static str, text: &'static str| {
-            div().pt_2().child(widgets::styled_text(id, text, |d| d.text_base().font_weight(FontWeight::SEMIBOLD)))
+            div().pt_2().child(widgets::styled_text(id, text, |d| d.ty(Type::Section)))
         };
         let tables: Vec<String> =
             self.shell.read(cx).objects.iter().filter(|o| o.object_type == "table").map(|o| o.name.clone()).collect();
@@ -284,7 +284,7 @@ impl DesignMode {
         };
         let no_tables_hint = |id: &'static str, cx: &mut Context<Self>| {
             let muted = cx.theme().muted_foreground;
-            widgets::styled_text(id, "Add a table first.", move |d| d.text_xs().text_color(muted))
+            widgets::styled_text(id, "Add a table first.", move |d| d.ty(Type::Caption).text_color(muted))
         };
         let empty_generate = generate_app_button("generate-app-empty", cx);
         let empty_hint = no_tables_hint("generate-app-empty-hint", cx);

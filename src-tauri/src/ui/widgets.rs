@@ -50,6 +50,41 @@ impl StartAligned for Button {
     }
 }
 
+/// The type scale (design-language.md §2). Feature code sizes text only through
+/// `.ty(Type::..)`; raw `text_xs()`..`text_3xl()` calls are linted outside this file.
+/// `ty` sets size and weight; color stays with the caller (`Label` and `Caption` take
+/// `muted_foreground` unless they carry a status color).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Type {
+    /// A dashboard metric value or the start-screen wordmark.
+    Display,
+    /// The mode or page title, one per view.
+    Title,
+    /// Card, dialog and panel-section titles.
+    Section,
+    /// Content, inputs and table cells.
+    Body,
+    /// Field labels, column headers and nav items.
+    Label,
+    /// Hints, counts, timestamps and help.
+    Caption,
+}
+
+pub trait TypeScale: Styled + Sized {
+    fn ty(self, ty: Type) -> Self {
+        match ty {
+            Type::Display => self.text_3xl().font_weight(FontWeight::SEMIBOLD),
+            Type::Title => self.text_xl().font_weight(FontWeight::SEMIBOLD),
+            Type::Section => self.text_base().font_weight(FontWeight::SEMIBOLD),
+            Type::Body => self.text_sm(),
+            Type::Label => self.text_sm().font_weight(FontWeight::MEDIUM),
+            Type::Caption => self.text_xs(),
+        }
+    }
+}
+
+impl<T: Styled> TypeScale for T {}
+
 /// The theme color a table cell or field takes for its tone (None for a custom tone).
 pub fn tone_color(tone: &crate::design::Tone, cx: &App) -> Option<Hsla> {
     use crate::design::Tone;
@@ -101,12 +136,12 @@ pub fn titlebar(kicker: &str, title: &str, cx: &App) -> Div {
                 .gap_0p5()
                 .child(
                     div()
-                        .text_xs()
+                        .ty(Type::Caption)
                         .text_color(theme.muted_foreground)
                         .child(kicker.to_uppercase()),
                 )
                 .child(styled_text("mode-title", title.to_string(), |d| {
-                    d.text_xl().font_weight(FontWeight::SEMIBOLD)
+                    d.ty(Type::Title)
                 })),
         )
 }
@@ -169,7 +204,7 @@ pub fn callout(
                 .flex_1()
                 .min_w_0()
                 .gap_0p5()
-                .text_sm()
+                .ty(Type::Body)
                 .child(styled_text(id.clone(), title.to_string(), |d| {
                     d.font_weight(FontWeight::SEMIBOLD).text_color(theme.foreground)
                 }))
@@ -242,7 +277,7 @@ pub fn error_callout(
                 .flex_1()
                 .min_w_0()
                 .gap_0p5()
-                .text_sm()
+                .ty(Type::Body)
                 .child(styled_text(
                     SharedString::from(format!("{id}-headline")),
                     headline.to_string(),
@@ -254,7 +289,7 @@ pub fn error_callout(
                     col.child(styled_text(
                         SharedString::from(format!("{id}-code")),
                         format!("Error code {}", error.code),
-                        |d| d.text_xs().text_color(theme.muted_foreground),
+                        |d| d.ty(Type::Caption).text_color(theme.muted_foreground),
                     ))
                 }),
         )
@@ -275,7 +310,7 @@ pub fn progress_line(label: &str, cx: &App) -> Div {
     div()
         .px_3()
         .py_1()
-        .text_sm()
+        .ty(Type::Body)
         .text_color(cx.theme().muted_foreground)
         .child(text("progress", label.to_string()))
 }
@@ -290,10 +325,10 @@ pub fn empty_state(id: impl Into<ElementId>, title: &str, body: &str, cx: &App) 
         .justify_center()
         .gap_1()
         .p_8()
-        .child(div().font_weight(FontWeight::SEMIBOLD).child(title.to_string()))
+        .child(div().ty(Type::Section).child(title.to_string()))
         .child(
             div()
-                .text_sm()
+                .ty(Type::Body)
                 .text_color(theme.muted_foreground)
                 .child(body.to_string()),
         )
@@ -306,8 +341,7 @@ pub fn field(label: &str, control: impl IntoElement, cx: &App) -> Div {
         .gap_1()
         .child(
             div()
-                .text_sm()
-                .font_weight(FontWeight::MEDIUM)
+                .ty(Type::Label)
                 .text_color(cx.theme().muted_foreground)
                 .child(label.to_string()),
         )
@@ -316,7 +350,7 @@ pub fn field(label: &str, control: impl IntoElement, cx: &App) -> Div {
 
 /// A section heading inside a panel.
 pub fn section_heading(id: impl Into<ElementId>, title: &str) -> impl IntoElement {
-    styled_text(id, title.to_string(), |d| d.text_lg().font_weight(FontWeight::SEMIBOLD))
+    styled_text(id, title.to_string(), |d| d.ty(Type::Section))
 }
 
 /// A count with its noun, grouped and pluralized: "1 table", "1,204 records". Nouns
@@ -366,6 +400,19 @@ mod tests {
     fn slug_kebab_cases_labels() {
         assert_eq!(super::slug("Save project as"), "save-project-as");
         assert_eq!(super::slug("  Re-check!  "), "re-check");
+    }
+
+    #[test]
+    fn type_scale_maps_steps_to_sizes_and_weights() {
+        use super::{Type, TypeScale as _};
+        use gpui_kit::{FontWeight, Styled as _, div};
+        let text = |mut d: gpui_kit::Div| format!("{:?}", d.style().text);
+        assert_eq!(text(div().ty(Type::Title)), text(div().text_xl().font_weight(FontWeight::SEMIBOLD)));
+        assert_eq!(text(div().ty(Type::Section)), text(div().text_base().font_weight(FontWeight::SEMIBOLD)));
+        assert_eq!(text(div().ty(Type::Body)), text(div().text_sm()));
+        assert_eq!(text(div().ty(Type::Label)), text(div().text_sm().font_weight(FontWeight::MEDIUM)));
+        assert_eq!(text(div().ty(Type::Caption)), text(div().text_xs()));
+        assert_ne!(text(div().ty(Type::Display)), text(div().ty(Type::Title)));
     }
 }
 

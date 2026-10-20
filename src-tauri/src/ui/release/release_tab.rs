@@ -224,7 +224,7 @@ impl Render for ReleaseTab {
             } else {
                 (error.to_string(), theme.danger)
             };
-            widgets::styled_text(id, text, move |d| d.text_xs().text_color(color))
+            widgets::styled_text(id, text, move |d| d.ty(Type::Caption).text_color(color))
         };
         let mut panel = v_flex()
             .gap_3()

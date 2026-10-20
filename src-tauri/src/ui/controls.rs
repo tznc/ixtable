@@ -228,7 +228,7 @@ pub fn expr_field(
             el.child(widgets::styled_text(
                 SharedString::from(format!("{id}-problem")),
                 p,
-                move |d| d.text_xs().text_color(danger),
+                move |d| d.ty(Type::Caption).text_color(danger),
             ))
         })
 }
@@ -257,8 +257,7 @@ pub fn section(title: &str, cx: &App) -> Stateful<Div> {
         .border_color(cx.theme().border)
         .child(
             div()
-                .text_base()
-                .font_weight(FontWeight::SEMIBOLD)
+                .ty(Type::Section)
                 .child(title.to_string()),
         )
 }
@@ -272,13 +271,13 @@ pub fn error_line(id: impl Into<ElementId>, message: &str, cx: &App) -> impl Int
         .rounded_md()
         .bg(theme.danger.opacity(0.12))
         .text_color(theme.danger)
-        .text_sm()
+        .ty(Type::Body)
         .child(crate::ui::widgets::text(id, message.to_string()))
 }
 
 /// A muted note line.
 pub fn note(text: impl IntoElement, cx: &App) -> Div {
-    div().text_sm().text_color(cx.theme().muted_foreground).child(text)
+    div().ty(Type::Body).text_color(cx.theme().muted_foreground).child(text)
 }
 
 /// (value, label) pairs where each value is its own label.

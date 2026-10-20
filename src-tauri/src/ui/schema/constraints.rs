@@ -92,7 +92,7 @@ impl Render for ColumnPicker {
         let muted = cx.theme().muted_foreground;
         v_flex()
             .gap_1()
-            .child(div().text_sm().text_color(muted).child(self.label.clone()))
+            .child(div().ty(Type::Label).text_color(muted).child(self.label.clone()))
             .child(
                 h_flex()
                     .flex_wrap()
@@ -116,7 +116,7 @@ impl Render for ColumnPicker {
                             .when(on && self.selected.len() > 1, |el| {
                                 el.child(
                                     div()
-                                        .text_xs()
+                                        .ty(Type::Caption)
                                         .text_color(muted)
                                         .child(format!("#{}", order.unwrap_or(0) + 1)),
                                 )
@@ -246,7 +246,7 @@ impl Render for ForeignKeyEditor {
         let labelled = |label: &str, control: AnyElement| {
             v_flex()
                 .gap_1()
-                .child(div().text_sm().text_color(muted).child(label.to_string()))
+                .child(div().ty(Type::Label).text_color(muted).child(label.to_string()))
                 .child(control)
         };
         v_flex()
@@ -526,7 +526,7 @@ impl Render for IndexEditor {
                     .child(div().w(px(240.)).child(text_input(&self.name, "Index name", "Index name")))
                     .child(
                         div()
-                            .text_xs()
+                            .ty(Type::Caption)
                             .text_color(cx.theme().muted_foreground)
                             .child(format!("Default: {suggested}")),
                     ),

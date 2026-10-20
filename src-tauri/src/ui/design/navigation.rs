@@ -115,7 +115,7 @@ impl DesignStudio {
             .gap_2()
             .p_3()
             .child(widgets::section_heading("navigation-title", "Navigation"))
-            .child(div().text_xs().text_color(muted).child("Groups nest navigation items. Roles can hide items in Settings › Roles."))
+            .child(div().ty(Type::Caption).text_color(muted).child("Groups nest navigation items. Roles can hide items in Settings › Roles."))
             .child(items)
             .child(
                 h_flex()
@@ -353,7 +353,7 @@ fn page_links(config: &crate::archive::DocumentConfig, cx: &App) -> impl IntoEle
         .gap_1()
         .pt_3()
         .child(widgets::section_heading("page-links-title", "Page links"))
-        .child(div().text_xs().text_color(muted).child(
+        .child(div().ty(Type::Caption).text_color(muted).child(
             "How users move between pages. Buttons set their target page in the page designer; actions use an Open page step.",
         ))
         .when(!links.is_empty(), |el| {

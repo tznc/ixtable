@@ -21,7 +21,7 @@ use crate::{
 };
 use gpui_kit::assets::IconName;
 use gpui_kit::component::{ActiveTheme as _, Icon, Sizable as _, h_flex, v_flex};
-use crate::ui::widgets::Severity as Sev;
+use crate::ui::widgets::{Severity as Sev, Type, TypeScale as _};
 use gpui_kit::*;
 use gpui_kit::prelude::FluentBuilder as _;
 
@@ -244,7 +244,7 @@ impl ProblemsTab {
             .when(indent, |r| r.pl_6())
             .border_b_1()
             .border_color(border.opacity(0.5))
-            .text_sm()
+            .ty(Type::Body)
             .child(severity_cell(("problem-severity", ix), problem.is_error(), cx))
             .child(div().w(px(OBJECT_W)).flex_none().child(widgets::text(("problem-object", ix), object_label(kind, &name))))
             .child(div().flex_1().min_w_0().child(widgets::text(("problem", ix), text)));
@@ -329,7 +329,7 @@ impl Render for ProblemsTab {
                             .py_1()
                             .border_b_1()
                             .border_color(border.opacity(0.5))
-                            .text_sm()
+                            .ty(Type::Body)
                             .cursor_pointer()
                             .child(severity_cell(("problem-group-severity", first), error, cx))
                             .child(div().flex_1().min_w_0().child(widgets::text(("problem-group-title", first), group.title.clone())))
@@ -405,7 +405,7 @@ impl Render for ProblemsTab {
                         .pb_1()
                         .border_b_1()
                         .border_color(border)
-                        .text_xs()
+                        .ty(Type::Caption)
                         .font_weight(FontWeight::MEDIUM)
                         .text_color(muted)
                         .child(header("Severity").w(px(SEVERITY_W)).flex_none())

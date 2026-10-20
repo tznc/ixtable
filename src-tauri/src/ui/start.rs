@@ -12,7 +12,7 @@ use crate::{
     ui::{dialogs, task, toast::{self, Toast}, widgets},
 };
 use gpui_kit::assets::IconName;
-use crate::ui::widgets::StartAligned as _;
+use crate::ui::widgets::{StartAligned as _, Type, TypeScale as _};
 use gpui_kit::component::{
     ActiveTheme as _, Disableable as _, Icon,
     button::{Button, ButtonVariants as _},
@@ -112,10 +112,10 @@ fn list_row(
                     .text_left()
                     .child(div().font_weight(FontWeight::SEMIBOLD).child(title))
                     // Buttons don't wrap by default; the description wraps up to `lines` lines.
-                    .child(div().w_full().whitespace_normal().text_sm().text_color(muted).line_clamp(lines).child(detail)),
+                    .child(div().w_full().whitespace_normal().ty(Type::Body).text_color(muted).line_clamp(lines).child(detail)),
             )
             .when_some(trailing, |row, note| {
-                row.child(div().text_sm().text_color(muted).flex_none().child(note))
+                row.child(div().ty(Type::Body).text_color(muted).flex_none().child(note))
             }),
     )
 }
@@ -311,11 +311,11 @@ impl Render for StartScreen {
                     .py_4()
                     .gap_3()
                     .child(self.recovery.clone())
-                    .child(div().text_xs().text_color(muted).child("DOCUMENT DATABASE"))
+                    .child(div().ty(Type::Caption).text_color(muted).child("DOCUMENT DATABASE"))
                     .child(widgets::styled_text(
                         "start-heading",
                         "Your data, in one portable file.",
-                        |d| d.text_3xl().font_weight(FontWeight::BOLD),
+                        |d| d.ty(Type::Display).font_weight(FontWeight::BOLD),
                     ))
                     .child(div().text_color(muted).child(
                         "Create or open an ixtable document. Every database, setting, and \

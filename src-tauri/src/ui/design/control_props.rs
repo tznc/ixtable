@@ -216,7 +216,7 @@ impl DesignStudio {
                 window,
                 cx,
             ))
-            .child(div().text_xs().text_color(muted).child(control_kind_label(kind)));
+            .child(div().ty(Type::Caption).text_color(muted).child(control_kind_label(kind)));
 
         if kind == ControlKind::Label {
             panel = panel.child(self.text_field(
@@ -303,7 +303,7 @@ impl DesignStudio {
                 .child(h_flex().gap_2().child(column_span).child(row_span));
         }
         panel = panel.child(exact.render(cx)).when(in_region, |el| {
-            el.child(div().text_xs().text_color(muted).child("Placed in a region; choose None to set column and row."))
+            el.child(div().ty(Type::Caption).text_color(muted).child("Placed in a region; choose None to set column and row."))
         });
         if let Some(region) = self.region_picker(&grid, control, cx) {
             panel = panel.child(region);
@@ -541,11 +541,11 @@ impl DesignStudio {
             let mask = control.input_mask.clone().unwrap_or_default();
             let issue = (!mask.is_empty()).then(|| mask_issue(&mask)).flatten();
             let hint = (!mask.is_empty()).then(|| match issue {
-                Some(issue) => widgets::styled_text("prop-mask-error", issue, move |d| d.text_xs().text_color(danger)).into_any_element(),
+                Some(issue) => widgets::styled_text("prop-mask-error", issue, move |d| d.ty(Type::Caption).text_color(danger)).into_any_element(),
                 None => widgets::styled_text(
                     "prop-mask-hint",
                     format!("Entry looks like {}", mask_template(&parse_mask(&mask))),
-                    move |d| d.text_xs().text_color(muted),
+                    move |d| d.ty(Type::Caption).text_color(muted),
                 )
                 .into_any_element(),
             });

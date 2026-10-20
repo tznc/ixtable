@@ -561,7 +561,7 @@ impl FieldView {
             list = list.child(widgets::styled_text(
                 SharedString::from(format!("{id}:choice-error")),
                 format!("Choice filter: {error}"),
-                |d| d.text_sm().text_color(gpui_kit::red()),
+                |d| d.ty(Type::Body).text_color(gpui_kit::red()),
             ));
         }
         list
@@ -585,7 +585,7 @@ impl FieldView {
             return v_flex()
                 .child(
                     widgets::styled_text(id.clone(), if shown == "—" { String::new() } else { shown }, |d| {
-                        d.px_3().py_1().rounded_md().border_1().text_sm()
+                        d.px_3().py_1().rounded_md().border_1().ty(Type::Body)
                     }),
                 )
                 .into_any_element();
@@ -732,7 +732,7 @@ impl Render for FieldView {
                     div()
                         .id(SharedString::from(format!("{id}:label")))
                         .aria_label(label.clone())
-                        .text_sm()
+                        .ty(Type::Body)
                         .font_weight(FontWeight::MEDIUM)
                         .text_color(tone.unwrap_or(theme.muted_foreground))
                         .child(label.clone())
@@ -744,7 +744,7 @@ impl Render for FieldView {
                 el.child(widgets::styled_text(
                     SharedString::from(format!("{id}:error")),
                     error,
-                    |d| d.text_sm().text_color(theme.danger),
+                    |d| d.ty(Type::Body).text_color(theme.danger),
                 ))
             })
     }

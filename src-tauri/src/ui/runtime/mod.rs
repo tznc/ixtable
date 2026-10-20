@@ -351,7 +351,7 @@ pub fn message(
         return widgets::callout(id, widgets::Severity::Danger, &text, None, cx).into_any_element();
     }
     let muted = cx.theme().muted_foreground;
-    widgets::styled_text(id, text, move |d| d.text_sm().text_color(muted)).into_any_element()
+    widgets::styled_text(id, text, move |d| d.ty(Type::Body).text_color(muted)).into_any_element()
 }
 
 /// What every runtime view needs: the window label, the config store, the document bus and,

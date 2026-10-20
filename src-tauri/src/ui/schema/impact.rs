@@ -99,11 +99,11 @@ fn fact(id: &'static str, label: &str, value: String, cx: &App) -> Div {
         .child(
             div()
                 .w(px(180.))
-                .text_sm()
+                .ty(Type::Body)
                 .text_color(cx.theme().muted_foreground)
                 .child(label.to_string()),
         )
-        .child(div().flex_1().min_w_0().text_sm().child(widgets::text(id, value)))
+        .child(div().flex_1().min_w_0().ty(Type::Body).child(widgets::text(id, value)))
 }
 
 impl Render for ImpactDialog {
@@ -143,7 +143,7 @@ impl Render for ImpactDialog {
                 h_flex()
                     .gap_2()
                     .items_center()
-                    .child(div().text_sm().child(widgets::text(
+                    .child(div().ty(Type::Body).child(widgets::text(
                         SharedString::from(format!("impact-op:{i}")),
                         op.summary.clone(),
                     )))
@@ -239,7 +239,7 @@ impl Render for ImpactDialog {
                         .rounded_md()
                         .bg(cx.theme().muted)
                         .font_family("monospace")
-                        .text_xs()
+                        .ty(Type::Caption)
                         .child(widgets::text("impact-sql", sql)),
                 )
             })

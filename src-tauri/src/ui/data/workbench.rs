@@ -777,7 +777,7 @@ impl Render for DataMode {
                         )
                     })
                     .child(div().font_weight(FontWeight::SEMIBOLD).child("Relationships"))
-                    .child(div().text_sm().text_color(muted).child(widgets::text("relationship-title", title)))
+                    .child(div().ty(Type::Body).text_color(muted).child(widgets::text("relationship-title", title)))
                     .child(div().flex_1())
                     .child(
                         Button::new("import-records")
@@ -818,7 +818,7 @@ impl Render for DataMode {
                 v_flex()
                     .size_full()
                     // Fixed-height slot so the designer does not jump when the notice comes and goes.
-                    .child(div().h(px(24.)).flex_none().px_4().text_sm().text_color(muted).when(!self.schemas_fresh, |el| {
+                    .child(div().h(px(24.)).flex_none().px_4().ty(Type::Body).text_color(muted).when(!self.schemas_fresh, |el| {
                         el.child(widgets::text("design-refreshing", "Refreshing schema…"))
                     }))
                     .child(div().flex_1().min_h_0().child(designer))
@@ -855,9 +855,9 @@ impl Render for DataMode {
                                     .child(widgets::text("table-name", selected.clone())),
                             )
                             .when(read_only, |el| {
-                                el.child(div().text_sm().text_color(muted).child(widgets::text("read-only-badge", "Read-only view")))
+                                el.child(div().ty(Type::Body).text_color(muted).child(widgets::text("read-only-badge", "Read-only view")))
                             })
-                            .child(div().text_sm().text_color(muted).child(widgets::text(
+                            .child(div().ty(Type::Body).text_color(muted).child(widgets::text(
                                 "record-count",
                                 record_count_text(page_total, self.unfiltered_total),
                             )))
@@ -907,7 +907,7 @@ impl Render for DataMode {
                             .py_1()
                             .border_t_1()
                             .border_color(border)
-                            .child(div().text_sm().child(widgets::text("footer-range", range)))
+                            .child(div().ty(Type::Body).child(widgets::text("footer-range", range)))
                             .child(
                                 h_flex()
                                     .gap_1()

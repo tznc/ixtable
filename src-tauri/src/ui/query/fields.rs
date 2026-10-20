@@ -99,7 +99,7 @@ impl QueryMode {
                     .child(widgets::styled_text(
                         SharedString::from(format!("columns-of:{}", s.alias)),
                         format!("{} ({})", s.table, s.alias),
-                        |d| d.text_xs().font_weight(FontWeight::SEMIBOLD),
+                        |d| d.ty(Type::Caption).font_weight(FontWeight::SEMIBOLD),
                     ))
                     .children(boxes),
             );

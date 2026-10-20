@@ -86,7 +86,7 @@ fn row(id: String, cells: &[String], cx: &App) -> AnyElement {
         .py_1()
         .border_b_1()
         .border_color(border)
-        .text_sm()
+        .ty(Type::Body)
         .child(widgets::text(SharedString::from(id), label))
         .into_any_element()
 }

@@ -65,7 +65,7 @@ impl PageView {
                 v_flex()
                     .gap_1()
                     .child(widgets::styled_text(format!("kpi-value:{name}"), kpi.text.clone(), |d| {
-                        d.text_3xl().font_weight(FontWeight::SEMIBOLD)
+                        d.ty(Type::Display)
                     }))
                     .children(kpi.comparison.map(|c| {
                         let up = c.delta.unwrap_or(0.0) >= 0.0;
@@ -80,7 +80,7 @@ impl PageView {
                             Some(_) => danger,
                         };
                         widgets::styled_text(format!("kpi-compare:{name}"), format!("{arrow}{} vs {}", c.text, c.label), move |d| {
-                            d.text_sm().text_color(color)
+                            d.ty(Type::Body).text_color(color)
                         })
                     }))
                     .into_any_element()
@@ -132,14 +132,14 @@ impl PageView {
             .collect();
         let header = h_flex().border_b_1().border_color(border).children(slice.columns.iter().enumerate().map(|(c, column)| {
             widgets::styled_text(format!("col:{name}:{c}"), column.clone(), { let w = widths[c]; move |d| {
-                d.flex_none().w(px(w)).px_2().py_1().text_sm().font_weight(FontWeight::SEMIBOLD).whitespace_nowrap().truncate()
+                d.flex_none().w(px(w)).px_2().py_1().ty(Type::Label).whitespace_nowrap().truncate()
             } })
         }));
         let rows = slice.rows.iter().enumerate().map(|(r, row)| {
             h_flex().border_b_1().border_color(border).children(row.iter().enumerate().map(|(c, text)| {
                 let color = slice.tones[r][c].as_ref().and_then(|t| widgets::tone_color(t, cx));
                 widgets::styled_text(format!("cell:{name}:{r}:{c}"), text.clone(), { let w = widths[c]; move |d| {
-                    d.flex_none().w(px(w)).px_2().py_1().text_sm().whitespace_nowrap().truncate().when_some(color, |d, color| d.text_color(color))
+                    d.flex_none().w(px(w)).px_2().py_1().ty(Type::Body).whitespace_nowrap().truncate().when_some(color, |d, color| d.text_color(color))
                 } })
             }))
         });
@@ -205,7 +205,7 @@ impl PageView {
         v_flex()
             .gap_2()
             .children(text_paragraphs(component.text.as_deref().unwrap_or("")).into_iter().enumerate().map(|(i, p)| {
-                widgets::styled_text(format!("text:{name}:{i}"), p, |d| d.text_sm())
+                widgets::styled_text(format!("text:{name}:{i}"), p, |d| d.ty(Type::Body))
             }))
             .into_any_element()
     }
@@ -224,7 +224,7 @@ impl PageView {
                 .id(SharedString::from(format!("filter:{label}")))
                 .aria_label(label.clone())
                 .gap_1()
-                .child(div().text_sm().font_weight(FontWeight::MEDIUM).child(label.clone()))
+                .child(div().ty(Type::Label).child(label.clone()))
                 .child(
                     h_flex()
                         .gap_2()

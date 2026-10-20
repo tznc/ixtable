@@ -58,12 +58,12 @@ impl PageEditor {
     pub(super) fn render_parameters(&mut self, page: &Page, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let theme = cx.theme();
         let (border, muted) = (theme.border, theme.muted_foreground);
-        let mut panel = v_flex().gap_2().child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child("Parameters"));
+        let mut panel = v_flex().gap_2().child(div().ty(Type::Section).child("Parameters"));
         if page.parameters.is_empty() {
             panel = panel.child(widgets::styled_text(
                 "page-params-hint",
                 "Values this page receives when a button or menu item opens it. Components can use them by name.",
-                move |d| d.text_xs().text_color(muted),
+                move |d| d.ty(Type::Caption).text_color(muted),
             ));
         }
         for (i, param) in page.parameters.iter().enumerate() {

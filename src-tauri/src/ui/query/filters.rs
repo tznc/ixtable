@@ -213,7 +213,7 @@ impl QueryMode {
                 h_flex()
                     .gap_2()
                     .items_center()
-                    .child(div().text_sm().child("Match"))
+                    .child(div().ty(Type::Body).child("Match"))
                     .child(combinator)
                     .children(remove_group),
             )

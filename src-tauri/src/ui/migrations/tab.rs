@@ -330,7 +330,7 @@ impl MigrationsTab {
             if open {
                 entry = entry.child(widgets::styled_text(key(":health-details"), log.health.join(", "), {
                     let muted = cx.theme().muted_foreground;
-                    move |d| d.text_sm().text_color(muted)
+                    move |d| d.ty(Type::Body).text_color(muted)
                 }));
             }
         }
@@ -401,14 +401,14 @@ impl Render for MigrationsTab {
             tab = tab.child(issue_line(eid(format!("migration-issue:{n}")), issue, cx));
         }
         let muted = cx.theme().muted_foreground;
-        let mut table = v_flex().gap_1().text_sm().when(!declared.is_empty(), |t| {
+        let mut table = v_flex().gap_1().ty(Type::Body).when(!declared.is_empty(), |t| {
             t.child(
                 h_flex()
                     .gap_3()
                     .pb_1()
                     .border_b_1()
                     .border_color(cx.theme().border)
-                    .text_xs()
+                    .ty(Type::Caption)
                     .font_weight(FontWeight::MEDIUM)
                     .text_color(muted)
                     .child(div().w(px(40.)).child("Order"))

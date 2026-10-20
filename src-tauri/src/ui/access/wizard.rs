@@ -241,7 +241,7 @@ impl AccessImportWizard {
         v_flex()
             .gap_1()
             .child(widgets::styled_text("access-busy", line, |d| {
-                d.text_sm().text_color(theme.muted_foreground)
+                d.ty(Type::Body).text_color(theme.muted_foreground)
             }))
             .child(Progress::new("access-progress").value(value).loading(value == 0.))
     }
@@ -260,7 +260,7 @@ impl Render for AccessImportWizard {
                 panel = panel.child(widgets::styled_text(
                     "access-intro",
                     "Creates a new ixtable document from a Microsoft Access database (.accdb, .mdb) or template (.accdt). Your Access file is not changed.",
-                    |d| d.text_sm().text_color(theme.muted_foreground),
+                    |d| d.ty(Type::Body).text_color(theme.muted_foreground),
                 ));
             }
             let (choose, shown) = if self.path.is_empty() {
@@ -273,7 +273,7 @@ impl Render for AccessImportWizard {
                     .gap_3()
                     .items_center()
                     .child(choose.disabled(busy).on_click(cx.listener(|this, _, _, cx| this.choose(cx))))
-                    .child(widgets::styled_text("access-file", shown, |d| d.text_sm())),
+                    .child(widgets::styled_text("access-file", shown, |d| d.ty(Type::Body))),
             );
         }
         if let (Some(inventory), None) = (self.inventory.clone(), &self.result) {

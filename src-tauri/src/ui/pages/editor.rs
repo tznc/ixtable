@@ -325,10 +325,10 @@ impl PageEditor {
                 v_flex()
                     .min_w_0()
                     .child(div().min_w_0().truncate().font_weight(FontWeight::SEMIBOLD).child(title))
-                    .child(div().min_w_0().truncate().text_xs().text_color(muted).child(kind_label(c.kind))),
+                    .child(div().min_w_0().truncate().ty(Type::Caption).text_color(muted).child(kind_label(c.kind))),
             )
             .child(widgets::styled_text(format!("card-summary:{}", c.id), self.summary(c, dashboard, cx), move |d| {
-                d.min_w_0().truncate().text_xs().text_color(muted)
+                d.min_w_0().truncate().ty(Type::Caption).text_color(muted)
             }))
             .into_any_element()
     }
@@ -344,7 +344,7 @@ impl PageEditor {
             .p_3()
             .border_r_1()
             .border_color(theme.border)
-            .child(widgets::styled_text("components-heading", "Components", |d| d.text_base().font_weight(FontWeight::SEMIBOLD)))
+            .child(widgets::styled_text("components-heading", "Components", |d| d.ty(Type::Section)))
             .children(COMPONENT_KINDS.into_iter().map(|kind| {
                 let label = if kind == ComponentKind::Kpi { "Add KPI".to_string() } else { format!("Add {}", kind_label(kind).to_lowercase()) };
                 let label = if kind == ComponentKind::Button { "Add button".to_string() } else { label };

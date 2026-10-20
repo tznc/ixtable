@@ -17,5 +17,5 @@ pub fn section(id: impl Into<ElementId>, legend: &str, cx: &App) -> Stateful<Div
         .border_1()
         .border_color(theme.border)
         .rounded_md()
-        .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child(legend.to_string()))
+        .child(div().ty(Type::Section).child(legend.to_string()))
 }

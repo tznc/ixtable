@@ -68,7 +68,7 @@ pub fn update_details(
                                 .border_1()
                                 .border_color(border)
                                 .bg(muted)
-                                .child(widgets::styled_text(eid(sql_id), sql, |d| d.font_family("monospace").text_sm()))
+                                .child(widgets::styled_text(eid(sql_id), sql, |d| d.font_family("monospace").ty(Type::Body)))
                                 .into_any_element()
                         },
                         cx,

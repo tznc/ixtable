@@ -791,7 +791,7 @@ impl Datasheet {
                                 .child(widgets::styled_text(
                                     SharedString::from(format!("filter-chip:{i}")),
                                     label.clone(),
-                                    |d| d.text_sm(),
+                                    |d| d.ty(Type::Body),
                                 ))
                                 .child(
                                     Button::new(SharedString::from(format!("remove-filter:{i}")))
@@ -816,7 +816,7 @@ impl Datasheet {
                 )
             })
             .child(div().flex_1())
-            .child(div().text_xs().text_color(muted).child(widgets::plural(self.visible().len(), "column")))
+            .child(div().ty(Type::Caption).text_color(muted).child(widgets::plural(self.visible().len(), "column")))
     }
 
     fn show_columns(&mut self, names: &[String], cx: &mut Context<Self>) {
@@ -952,7 +952,7 @@ impl Datasheet {
                             }),
                     ),
             )
-            .child(div().text_xs().text_color(muted).child(logical_of(column)))
+            .child(div().ty(Type::Caption).text_color(muted).child(logical_of(column)))
             .test_support().into_any_element()
     }
 
@@ -1074,7 +1074,7 @@ impl Datasheet {
             )
             .when_some(value, |el, text| {
                 el.child(widgets::styled_text(SharedString::from(format!("total:{name}")), text, |d| {
-                    d.text_sm().flex_1().text_right()
+                    d.ty(Type::Body).flex_1().text_right()
                 }))
             })
             .into_any_element()

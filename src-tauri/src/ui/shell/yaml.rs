@@ -13,6 +13,7 @@ use gpui_kit::component::{
     input::{Editor, EditorState, InputEvent},
     v_flex,
 };
+use crate::ui::widgets::{Type, TypeScale as _};
 use gpui_kit::*;
 use gpui_kit::prelude::FluentBuilder as _;
 
@@ -145,7 +146,7 @@ impl Render for YamlTab {
             .gap_3()
             .size_full()
             .child(widgets::section_heading("yaml-heading", "Configuration YAML"))
-            .child(div().text_sm().child(
+            .child(div().ty(Type::Body).child(
                 "Every definition in this application as YAML. Applying replaces the whole \
                  configuration; Undo restores the previous one.",
             ))

@@ -110,7 +110,7 @@ pub fn render(
         .shadow_lg()
         .occlude()
         .child(div().text_color(color).child(Icon::new(toast.severity.icon()).small()))
-        .child(div().flex_1().min_w_0().text_sm().child(widgets::text("notice", toast.text.clone())))
+        .child(div().flex_1().min_w_0().ty(Type::Body).child(widgets::text("notice", toast.text.clone())))
         .when_some(toast.action.clone(), |row, (label, run)| {
             row.child(
                 Button::new("notice-action")

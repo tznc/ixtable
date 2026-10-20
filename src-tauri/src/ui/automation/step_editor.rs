@@ -253,7 +253,7 @@ impl StepEditor {
         let me = cx.entity();
         let rows = map_rows(step, field);
         let mut body = v_flex().gap_2().p_2().border_1().border_color(cx.theme().border).rounded_md();
-        body = body.child(div().text_sm().font_weight(FontWeight::MEDIUM).child(label.to_string()));
+        body = body.child(div().ty(Type::Label).child(label.to_string()));
         for (index, (column, expr)) in rows.iter().enumerate() {
             let n = index + 1;
             let row_id = format!("{item}-{field}-{n}");

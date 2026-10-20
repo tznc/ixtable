@@ -125,7 +125,7 @@ impl QueryMode {
                 h_flex()
                     .gap_2()
                     .items_center()
-                    .child(div().w(px(110.)).text_sm().child(format!("${name}")))
+                    .child(div().w(px(110.)).ty(Type::Body).child(format!("${name}")))
                     .child(kind)
                     .child(div().w(px(160.)).child(default))
                     .child(
@@ -285,11 +285,11 @@ impl QueryMode {
                     .child(
                         v_flex()
                             .w(px(110.))
-                            .child(div().text_sm().child(label))
+                            .child(div().ty(Type::Body).child(label))
                             .child(widgets::styled_text(
                                 SharedString::from(format!("param-hint:{name}")),
                                 p.logical_type.clone(),
-                                |d| d.text_xs().opacity(0.7),
+                                |d| d.ty(Type::Caption).opacity(0.7),
                             )),
                     )
                     .child(control),

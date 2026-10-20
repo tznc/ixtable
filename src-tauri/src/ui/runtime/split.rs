@@ -207,7 +207,7 @@ impl Render for SplitView {
                 .into_any_element(),
             None => widgets::styled_text("split-hint", "Choose a record to see it here.", {
                 let color = theme.muted_foreground;
-                move |d| d.text_sm().text_color(color).p_4()
+                move |d| d.ty(Type::Body).text_color(color).p_4()
             })
             .into_any_element(),
         };

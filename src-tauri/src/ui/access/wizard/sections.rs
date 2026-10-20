@@ -78,7 +78,7 @@ impl AccessImportWizard {
                         .rounded_md()
                         .border_1()
                         .border_color(theme.border)
-                        .text_sm()
+                        .ty(Type::Body)
                         .child(div().font_weight(FontWeight::SEMIBOLD).child(n.to_string()))
                         .child(div().text_color(theme.muted_foreground).child(word)),
                 )
@@ -228,7 +228,7 @@ impl AccessImportWizard {
                             .child(widgets::styled_text(
                                 eid(format!("attention:{key}")),
                                 format!("{} ({})", item.name, item.kind),
-                                |d| d.font_weight(FontWeight::SEMIBOLD).text_sm(),
+                                |d| d.font_weight(FontWeight::SEMIBOLD).ty(Type::Body),
                             ))
                             .child(status_badge(
                                 eid(format!("attention-status:{key}")),
@@ -241,7 +241,7 @@ impl AccessImportWizard {
                         entry = entry.child(widgets::styled_text(
                             eid(format!("attention-note:{key}:{i}")),
                             note.clone(),
-                            |d| d.pl_3().text_sm().text_color(theme.muted_foreground),
+                            |d| d.pl_3().ty(Type::Body).text_color(theme.muted_foreground),
                         ));
                     }
                     list = list.child(entry);
@@ -256,12 +256,12 @@ impl AccessImportWizard {
             .child(widgets::styled_text(
                 "access-note-about-settings",
                 "Settings › Access migration keeps this report, with links, review marks and export.",
-                |d| d.text_sm().text_color(theme.muted_foreground),
+                |d| d.ty(Type::Body).text_color(theme.muted_foreground),
             ))
             .child(widgets::styled_text(
                 "access-unsaved",
                 "The new document is not saved yet. Save it from the sidebar to keep it.",
-                |d| d.text_sm().text_color(theme.muted_foreground),
+                |d| d.ty(Type::Body).text_color(theme.muted_foreground),
             ))
     }
 }

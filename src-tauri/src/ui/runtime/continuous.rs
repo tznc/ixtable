@@ -671,7 +671,7 @@ impl Render for ContinuousView {
             .gap_2()
             .p_4()
             .child(widgets::styled_text("list-title", self.form.name.clone(), |d| {
-                d.text_xl().font_weight(FontWeight::SEMIBOLD)
+                d.ty(Type::Title)
             }))
             .when(!self.error.is_empty(), |d| d.child(super::message("continuous-error", self.error.clone(), true, cx)))
             // The status line slides in; no space is reserved for it.

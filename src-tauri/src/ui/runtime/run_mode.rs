@@ -77,7 +77,7 @@ impl Render for Placeholder {
             .gap_2()
             .p_4()
             .children(self.back.as_ref().map(back_crumb))
-            .child(widgets::styled_text("page-placeholder", self.text.clone(), move |d| d.text_sm().text_color(color)))
+            .child(widgets::styled_text("page-placeholder", self.text.clone(), move |d| d.ty(Type::Body).text_color(color)))
     }
 }
 
@@ -326,7 +326,7 @@ impl RunBody {
                         .child(widgets::styled_text(
                             SharedString::from(format!("nav-group:{}", item.id)),
                             item.label.clone(),
-                            |d| d.text_xs().font_weight(FontWeight::SEMIBOLD).px_2().pt_2(),
+                            |d| d.ty(Type::Caption).font_weight(FontWeight::SEMIBOLD).px_2().pt_2(),
                         ))
                         .child(v_flex().pl_2().children(self.nav_items(&item.children, active, cx)))
                         .into_any_element();
@@ -418,7 +418,7 @@ impl Render for RunBody {
         };
         // The ribbon's tab row ends with the app's name, not Studio's "PROJECT / RUN APP"
         // breadcrumb.
-        let name = widgets::styled_text("mode-title", config.name.clone(), |d| d.px_3().text_sm().font_semibold());
+        let name = widgets::styled_text("mode-title", config.name.clone(), |d| d.px_3().ty(Type::Body).font_semibold());
         let header = crate::ui::ribbon::ribbon(&[("home", "Home")], "home", |_, _, _| {}, Some(name.into_any_element()), groups, cx);
         v_flex()
             .size_full()
@@ -442,7 +442,7 @@ impl Render for RunBody {
                             .when(nav_empty, |d| {
                                 d.child(widgets::styled_text("rt-nav-empty", "Nothing to show for this role.", {
                                     let color = theme.muted_foreground;
-                                    move |d| d.text_sm().text_color(color)
+                                    move |d| d.ty(Type::Body).text_color(color)
                                 }))
                             })
                             .test_support(),
@@ -466,8 +466,8 @@ impl Render for RunBody {
                                         .aria_label("Build your app")
                                         .gap_2()
                                         .p_4()
-                                        .child(widgets::styled_text("rt-empty-title", "Build your app", |d| d.text_base().font_semibold()))
-                                        .child(div().text_sm().text_color(theme.muted_foreground).child(
+                                        .child(widgets::styled_text("rt-empty-title", "Build your app", |d| d.ty(Type::Section)))
+                                        .child(div().ty(Type::Body).text_color(theme.muted_foreground).child(
                                             "This application has no pages yet. Generate a list and a form for each table to start.",
                                         ))
                                         // A normal-size button, not a full-width bar.

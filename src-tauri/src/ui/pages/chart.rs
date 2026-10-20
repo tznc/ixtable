@@ -64,7 +64,7 @@ pub fn chart_body(figure: &Figure, cx: &App) -> AnyElement {
     let muted = theme.muted_foreground;
     if let Body::Empty(text) = &figure.body {
         return widgets::styled_text(format!("chart-empty:{name}"), text.clone(), move |d| {
-            d.text_sm().text_color(muted)
+            d.ty(Type::Body).text_color(muted)
         })
         .into_any_element();
     }
@@ -76,11 +76,11 @@ pub fn chart_body(figure: &Figure, cx: &App) -> AnyElement {
             v_flex()
                 .gap_1()
                 .child(widgets::styled_text(format!("chart-big:{name}"), summary.big.clone(), |d| {
-                    d.text_3xl().font_weight(FontWeight::SEMIBOLD)
+                    d.ty(Type::Display)
                 }))
                 .children(summary.delta.as_ref().map(|(_, text)| {
                     widgets::styled_text(format!("chart-delta:{name}"), text.clone(), move |d| {
-                        d.text_sm().text_color(if up { success } else { danger })
+                        d.ty(Type::Body).text_color(if up { success } else { danger })
                     })
                 }))
                 .child(chart_element(&sparkline(summary), &format!("chart-{name}"), 1.0))
@@ -94,7 +94,7 @@ pub fn chart_body(figure: &Figure, cx: &App) -> AnyElement {
             .gap_1()
             .items_center()
             .child(div().size(px(10.)).rounded_sm().bg(color))
-            .child(widgets::styled_text(format!("chart-legend:{name}:{i}"), entry.name.clone(), |d| d.text_xs()))
+            .child(widgets::styled_text(format!("chart-legend:{name}:{i}"), entry.name.clone(), |d| d.ty(Type::Caption)))
     }));
     let table = v_flex()
         .id(SharedString::from(format!("chart-data:{name}")))

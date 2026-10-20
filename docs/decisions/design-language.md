@@ -21,7 +21,7 @@ exist, use the closest existing helper rather than a one-off style.
 
 ## 2. Type scale
 
-Five steps, with weight used sparingly. *(planned)* Map the gpui sizes once in `widgets.rs` (`Type::{Title, Section, Body, Label, Caption}`), then ban raw `text_*` calls in feature code with an ast-grep rule.
+Five steps, with weight used sparingly. Feature code sizes text only with `.ty(Type::X)` (`widgets::{Type, TypeScale}`, in the prelude), which sets size and weight; color stays with the caller. Raw `text_xs()`..`text_3xl()` calls are banned outside `widgets.rs` by an ast-grep rule. `Type::Display` (`text_3xl` semibold) is reserved for dashboard metric values and the start-screen wordmark. Zoom-scaled canvases and user-set report fonts keep `text_size(px(..))`.
 
 | Step | Use | Size / weight |
 |---|---|---|
@@ -160,6 +160,8 @@ Each is one function in a shared UI module. **New** marks components that don't 
 
 ## 7. Enforcement
 
+- `test/ast-grep/rules/type-scale-not-raw-text-size.yml` fails a raw
+  `text_xs()`..`text_3xl()` call in `src-tauri/src/ui/` outside `widgets.rs`.
 - `test/ast-grep/rules/destructive-buttons-use-danger.yml` fails a delete, remove,
   drop, reset or roll-back action built with `forms::primary` or
   `forms::secondary`.

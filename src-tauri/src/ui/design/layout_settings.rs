@@ -111,8 +111,8 @@ impl DesignStudio {
         });
         let c = Ctx { p: prefix.to_string(), layout: layout.clone(), apply };
         let muted = cx.theme().muted_foreground;
-        let heading = |text: &str| div().text_xs().text_color(muted).child(text.to_string());
-        let hint = |text: &str| div().text_xs().text_color(muted).child(text.to_string());
+        let heading = |text: &str| div().ty(Type::Caption).text_color(muted).child(text.to_string());
+        let hint = |text: &str| div().ty(Type::Caption).text_color(muted).child(text.to_string());
 
         let refs: Vec<GridItemRef> = items.iter().map(|(r, _)| r.clone()).collect();
         let issues = if items.is_empty() { vec![] } else { validate_layout(layout, &refs, "form", "", "control") };
@@ -171,7 +171,7 @@ impl DesignStudio {
                             };
                             let color = if issue.severity == Severity::Error { danger } else { warning };
                             widgets::styled_text(SharedString::from(format!("{prefix}-issue-{}", i + 1)), text, move |d| {
-                                d.text_xs().text_color(color)
+                                d.ty(Type::Caption).text_color(color)
                             })
                         }),
                     ),

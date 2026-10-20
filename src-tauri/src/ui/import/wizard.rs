@@ -272,7 +272,7 @@ impl ImportWizard {
 }
 
 fn badge_text(text: impl IntoElement, cx: &App) -> Div {
-    div().text_sm().text_color(cx.theme().muted_foreground).child(text)
+    div().ty(Type::Body).text_color(cx.theme().muted_foreground).child(text)
 }
 
 impl Render for ImportWizard {

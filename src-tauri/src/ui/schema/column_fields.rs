@@ -179,14 +179,14 @@ impl Render for ColumnFields {
                 el.child(
                     v_flex().w(px(70.)).gap_1().child(
                         widgets::styled_text(self.id("precision-label"), "Precision".to_string(), |d| {
-                            d.text_sm().text_color(muted)
+                            d.ty(Type::Body).text_color(muted)
                         }),
                     ).child(text_input(&self.precision, self.id("precision"), &format!("{} precision", self.label))),
                 )
                 .child(
                     v_flex().w(px(70.)).gap_1().child(
                         widgets::styled_text(self.id("scale-label"), "Scale".to_string(), |d| {
-                            d.text_sm().text_color(muted)
+                            d.ty(Type::Body).text_color(muted)
                         }),
                     ).child(text_input(&self.scale, self.id("scale"), &format!("{} scale", self.label))),
                 )
