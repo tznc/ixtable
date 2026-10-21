@@ -52,7 +52,7 @@ Five steps, with weight used sparingly. Feature code sizes text only with `.ty(T
 | Text | `foreground` | Body, values |
 | Secondary text | `muted_foreground` | Labels, captions, placeholders |
 | Lines | `border` | Card borders, dividers, table rules |
-| Accent | `primary`: the app icon's teal `#0DB9B6`, with navy `#10171D` text on it (`ui/theme.rs`); links use a darker teal `#0A7C7A` | Selection, focus ring, the one primary button, links |
+| Accent | `primary`: the app icon's teal `#0DB9B6`, with white text on it (`ui/theme.rs`); links use a darker teal `#0A7C7A` | Selection, focus ring, the one primary button, links |
 | Success | `success` | Toasts, "Converted" and "Applied" badges |
 | Warning | `warning`, darkened for text to ≥ 4.5:1 | "Partly converted", "Pending", non-blocking issues |
 | Danger | `danger` | Errors, destructive buttons, "Not converted" |
