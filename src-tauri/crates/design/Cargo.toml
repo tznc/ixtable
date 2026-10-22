@@ -1,0 +1,24 @@
+[package]
+name = "ixtable-design"
+version = "0.1.0"
+description = "ixtable's design system: gpui-bootstrap re-themed, plus the app's own components."
+license = "MIT"
+edition = "2024"
+publish = false
+
+[dependencies]
+# Bump in lockstep with gpui-bootstrap and the app's gpui-kit pin.
+gpui-kit = "=0.7.3"
+gpui-bootstrap = { git = "https://github.com/Ziinc/gpui-bootstrap", rev = "ffa67cfe69fd25d9cee5723d9cbef3af3be8f646" }
+# Rendered previews in rustdoc (`--features styleguide`).
+gpui-styleguidist = { git = "https://github.com/Ziinc/gpui-styleguidist", rev = "7af7f20d75ae7e2cf576873d42fbcc505c10eabe", default-features = false, features = ["macros"], optional = true }
+
+[features]
+styleguide = ["dep:gpui-styleguidist", "gpui-bootstrap/styleguide"]
+
+[dev-dependencies]
+gpui-kit = { version = "=0.7.3", features = ["test-support"] }
+gpui-styleguidist = { git = "https://github.com/Ziinc/gpui-styleguidist", rev = "7af7f20d75ae7e2cf576873d42fbcc505c10eabe", features = ["gallery", "render"] }
+
+[[example]]
+name = "styleguide"
