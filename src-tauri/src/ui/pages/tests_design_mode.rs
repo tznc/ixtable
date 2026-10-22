@@ -48,10 +48,10 @@ fn edits_a_pages_form_in_the_form_designer_and_comes_back(cx: &mut TestAppContex
     h.click("edit-form");
     assert_eq!(focus(&mut h), Focus::Form);
     assert_eq!(h.label("design-studio"), "Form builder");
-    assert_eq!(h.label("design-crumb-title"), "Form: Main form");
+    assert_eq!(h.label("design-crumb-path-current"), "Main form");
     h.click("add-text");
     assert_eq!(h.config().design.forms[0].controls.len(), 1);
-    h.click("back-to-page");
+    h.click("design-crumb-path-0");
     assert_eq!(focus(&mut h), Focus::Page);
     assert_eq!(h.label("mode-title"), "Main form");
 }
@@ -70,10 +70,10 @@ fn a_new_form_component_creates_its_form(cx: &mut TestAppContext) {
     let block = page.components.iter().find(|c| c.kind == ComponentKind::Form).expect("form component");
     assert_eq!(block.form_id.as_deref(), Some(form.id.as_str()));
     assert_eq!(focus(&mut h), Focus::Form);
-    assert_eq!(h.label("design-crumb-title"), "Form: Page 1 form");
+    assert_eq!(h.label("design-crumb-path-current"), "Page 1 form");
     // The form is on Page 1, so it gets no page of its own.
     assert_eq!(config.pages.len(), 2);
-    h.click("back-to-page");
+    h.click("design-crumb-path-0");
     assert_eq!(h.label("mode-title"), "Page 1");
 }
 
@@ -86,9 +86,9 @@ fn a_report_component_opens_the_report_designer(cx: &mut TestAppContext) {
     let report = h.config().reports.into_iter().next().expect("a report");
     assert_eq!(report.name, "Page 1 report");
     assert_eq!(focus(&mut h), Focus::Report);
-    assert_eq!(h.label("design-crumb-title"), "Report: Page 1 report");
+    assert_eq!(h.label("design-crumb-path-current"), "Page 1 report");
     assert!(h.try_label("report-name").is_some());
-    h.click("back-to-page");
+    h.click("design-crumb-path-0");
     assert_eq!(focus(&mut h), Focus::Page);
     let block = &dashboard(&h).components[0];
     assert_eq!(block.report_id.as_deref(), Some(report.id.as_str()));
@@ -226,7 +226,7 @@ fn a_form_not_on_a_page_does_not_name_another_page_in_the_back_link(cx: &mut Tes
     h.click("loose-form:loose");
     assert_eq!(focus(&mut h), Focus::Form);
     // The page that is selected does not show this form, so the back link goes to the pages.
-    assert_eq!(h.label("back-to-page"), "Back to pages");
+    assert_eq!(h.label("design-crumb-path-0"), "Pages");
 }
 
 #[gpui_kit::test]

@@ -426,7 +426,7 @@ impl Render for RelatedRecords {
         let hint = |text: String| {
             vec![widgets::styled_text(SharedString::from(format!("related:{slug}:hint")), text, {
                 let color = theme.muted_foreground;
-                move |d| d.text_sm().text_color(color)
+                move |d| d.ty(Type::Body).text_color(color)
             })
             .into_any_element()]
         };
@@ -474,6 +474,7 @@ impl Render for RelatedRecords {
             body.push(
                 Button::new(SharedString::from(format!("related:{slug}:add")))
                     .small()
+                    .outline()
                     .label(format!("Add {}", widgets::singular(&lower)))
                     .on_click(cx.listener(|this, _, window, cx| this.edit(FormMode::Create, None, window, cx)))
                     .into_any_element(),
@@ -486,7 +487,7 @@ impl Render for RelatedRecords {
                 .border_color(theme.border)
                 .children(columns.iter().map(|column| {
                     let label = control_of(column).map_or_else(|| humanize(column), |c| c.label);
-                    div().flex_1().min_w_0().text_sm().font_weight(FontWeight::MEDIUM).child(label)
+                    div().flex_1().min_w_0().ty(Type::Label).child(label)
                 }))
                 // Same width as the row actions so headers line up with the cells.
                 .child(div().w(ACTIONS_WIDTH).flex_none())
@@ -517,7 +518,7 @@ impl Render for RelatedRecords {
                             None => display_text(value),
                         }
                     };
-                    div().flex_1().min_w_0().text_sm().child(widgets::text(id, text))
+                    div().flex_1().min_w_0().ty(Type::Body).child(widgets::text(id, text))
                 });
                 let mut actions = h_flex().gap_1().w(ACTIONS_WIDTH).flex_none().justify_end();
                 if self.allowed(Operation::Update, cx) && self.child_form.is_some() && self.schema.is_some() {
@@ -566,7 +567,7 @@ impl Render for RelatedRecords {
                         format!("No {lower} yet."),
                         {
                             let color = theme.muted_foreground;
-                            move |d| d.text_sm().text_color(color)
+                            move |d| d.ty(Type::Body).text_color(color)
                         },
                     )
                     .into_any_element(),

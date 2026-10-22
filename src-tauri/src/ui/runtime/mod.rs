@@ -5,7 +5,7 @@
 //!
 //! Test ids: `rt-nav` ("Application navigation"), `rt-page` ("Application page"),
 //! `nav:<item id>` (navigation buttons, selected = current page), `run-as` (the "Run as"
-//! role select), `rt-notice`, `back-crumb` ("Back to X"),
+//! role select), `rt-notice`, `back-crumb` (breadcrumb),
 //! `list:<form name>` (a list region), `row:<n>` (list rows, "Open X"), `form:<title>`
 //! (a record view region), and `field:<label>` inputs (see `field.rs`).
 
@@ -58,7 +58,7 @@ use crate::forms::actions::{NavigationTarget, NoticeTone};
 use crate::forms::navigation::{RuntimePage, page_title, start_page};
 use crate::forms::rbac::{self, find_role};
 use crate::ui::{events::DocBus, store::ConfigStore};
-use crate::ui::prelude::*;
+use crate::ui::{prelude::*, toast::{self, Toast}};
 use serde_json::{Map, Value, json};
 use std::sync::{Arc, Mutex, mpsc::Sender};
 
@@ -98,6 +98,8 @@ pub struct Runtime {
     /// Studio is in front, since both windows share the document's session.
     enforced: bool,
     pub notice: Option<Notice>,
+    /// Transient success and info messages; the run body shows them top-right.
+    pub toast: Option<Toast>,
     state: Arc<Mutex<Map<String, Value>>>,
     pub popups: Vec<Popup>,
     next_popup: u64,
@@ -113,6 +115,7 @@ impl Runtime {
             preview_role: None,
             enforced: true,
             notice: None,
+            toast: None,
             state: Arc::default(),
             popups: vec![],
             next_popup: 1,
@@ -243,9 +246,24 @@ impl Runtime {
         self.changed(cx);
     }
 
+    /// Errors stay on the page; info messages are toasts.
     pub fn notify(&mut self, message: impl Into<String>, tone: NoticeTone, cx: &mut Context<Self>) {
-        self.notice = Some(Notice { message: message.into(), tone });
-        self.changed(cx);
+        match tone {
+            NoticeTone::Error => {
+                self.notice = Some(Notice { message: message.into(), tone });
+                self.changed(cx);
+            }
+            NoticeTone::Info => self.show_toast(Toast::info(message), cx),
+        }
+    }
+
+    pub fn show_toast(&mut self, toast: Toast, cx: &mut Context<Self>) {
+        toast::show(self, |s| &mut s.toast, toast, cx);
+    }
+
+    pub fn dismiss_toast(&mut self, cx: &mut Context<Self>) {
+        self.toast = None;
+        cx.notify();
     }
 
     pub fn clear_notice(&mut self, cx: &mut Context<Self>) {
@@ -351,7 +369,7 @@ pub fn message(
         return widgets::callout(id, widgets::Severity::Danger, &text, None, cx).into_any_element();
     }
     let muted = cx.theme().muted_foreground;
-    widgets::styled_text(id, text, move |d| d.text_sm().text_color(muted)).into_any_element()
+    widgets::styled_text(id, text, move |d| d.ty(Type::Body).text_color(muted)).into_any_element()
 }
 
 /// What every runtime view needs: the window label, the config store, the document bus and,
@@ -408,6 +426,14 @@ impl RuntimeEnv {
         if let Some(runtime) = &self.runtime {
             let message = message.into();
             runtime.update(cx, |r, cx| r.notify(message, tone, cx));
+        }
+    }
+
+    /// A completed action, such as "Record created.", as a success toast (Run mode only).
+    pub fn succeed(&self, message: impl Into<String>, cx: &mut App) {
+        if let Some(runtime) = &self.runtime {
+            let message = message.into();
+            runtime.update(cx, |r, cx| r.show_toast(Toast::success(message), cx));
         }
     }
 

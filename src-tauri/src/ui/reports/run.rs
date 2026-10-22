@@ -148,7 +148,7 @@ impl Render for ParameterPrompt {
                     .border_color(border)
                     .bg(background)
                     .child(widgets::section_heading("params-title", &self.report_name))
-                    .child(div().text_sm().child("Enter the values to run this report with."))
+                    .child(div().ty(Type::Body).child("Enter the values to run this report with."))
                     .children(rows)
                     .when(!self.error.is_empty(), |el| {
                         el.child(widgets::styled_text("params-error", self.error.clone(), move |d| {

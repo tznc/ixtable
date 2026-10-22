@@ -73,7 +73,7 @@ fn edits_tracks_alignment_and_regions_and_hides_enabled_when_on_static_controls(
     add(&mut h, "section");
     assert!(h.exists("prop-enabled-when"));
 
-    h.click("back-to-form");
+    h.click("form-breadcrumb-0");
     // The section the user opened stays open after the panel comes back.
     assert!(!h.exists("grid-settings-summary"));
     h.type_into("grid-region-1-column-span", "0");
@@ -91,7 +91,7 @@ fn renames_and_removes_a_region_a_control_uses_and_keeps_the_document_saveable(c
     choose(&mut h, "prop-region", "region1");
     assert_eq!(placement(&h, ControlKind::Label).region.as_deref(), Some("region1"));
 
-    h.click("back-to-form");
+    h.click("form-breadcrumb-0");
     h.fill("grid-region-1-name", "");
     h.press("enter");
     assert_eq!(h.label("grid-region-1-name-error"), "Area name is required.");

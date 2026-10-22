@@ -119,7 +119,7 @@ impl QueryMode {
                 .gap_2()
                 .items_center()
                 .child(kind)
-                .child(div().text_sm().child(format!("{} AS {}", source.table, source.alias)))
+                .child(div().ty(Type::Body).child(format!("{} AS {}", source.table, source.alias)))
                 .child(
                     Button::new(SharedString::from(format!("join-remove:{alias}")))
                         .ghost()
@@ -185,7 +185,7 @@ impl QueryMode {
                     h_flex()
                         .gap_2()
                         .items_center()
-                        .child(div().w(px(36.)).text_sm().child(if i == 0 { "on" } else { "and" }))
+                        .child(div().w(px(36.)).ty(Type::Body).child(if i == 0 { "on" } else { "and" }))
                         .child(left)
                         .child("=")
                         .child(right)
@@ -215,7 +215,7 @@ impl QueryMode {
                     widgets::styled_text(
                         SharedString::from(format!("join-duplicate:{alias}:{later}")),
                         format!("Condition {later} repeats condition {first}. Remove one."),
-                        move |d| d.text_sm().text_color(warning).pl_6(),
+                        move |d| d.ty(Type::Body).text_color(warning).pl_6(),
                     )
                     .into_any_element(),
                 );
@@ -302,14 +302,14 @@ impl QueryMode {
                 h_flex()
                     .gap_2()
                     .items_center()
-                    .child(div().w(px(40.)).text_sm().child("From"))
+                    .child(div().w(px(40.)).ty(Type::Body).child("From"))
                     .child(source_choice)
-                    .children(base.as_ref().map(|b| div().text_sm().child(format!("AS {}", b.alias)))),
+                    .children(base.as_ref().map(|b| div().ty(Type::Body).child(format!("AS {}", b.alias)))),
             )
             .children(joins)
             .when(!suggestions_empty(&self.schemas, model), |el| {
                 el.child(widgets::styled_text("suggested-joins", "Suggested joins", |d| {
-                    d.text_xs()
+                    d.ty(Type::Caption)
                 }))
             })
             .child(h_flex().gap_2().flex_wrap().children(suggest))

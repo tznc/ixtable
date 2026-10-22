@@ -140,7 +140,7 @@ impl ReportDesigner {
         };
         v_flex()
             .gap_2()
-            .child(div().text_xs().text_color(muted).child("PROPERTIES"))
+            .child(div().ty(Type::Caption).text_color(muted).child("PROPERTIES"))
             .child(body)
     }
 

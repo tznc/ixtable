@@ -36,7 +36,7 @@ impl DesignStudio {
         let muted = cx.theme().muted_foreground;
         let mut group = self.group("styles", "Conditional styles", cx);
         if rules.is_empty() {
-            group = group.child(div().text_xs().text_color(muted).child("The first rule whose condition holds applies."));
+            group = group.child(div().ty(Type::Caption).text_color(muted).child("The first rule whose condition holds applies."));
         }
         let last = rules.len().saturating_sub(1);
         for (index, rule) in rules.iter().enumerate() {

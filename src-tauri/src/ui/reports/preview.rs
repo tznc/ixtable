@@ -325,7 +325,7 @@ impl ReportPreview {
                     .disabled(!ready || index == 0)
                     .on_click(cx.listener(move |this, _, _, cx| this.go(index.saturating_sub(1), cx))),
             )
-            .child(widgets::styled_text("page-status", status, move |d| d.text_xs().text_color(muted)))
+            .child(widgets::styled_text("page-status", status, move |d| d.ty(Type::Caption).text_color(muted)))
             .child(
                 Button::new("next-page")
                     .ghost()
@@ -335,7 +335,7 @@ impl ReportPreview {
                     .disabled(!ready || index + 1 >= total)
                     .on_click(cx.listener(move |this, _, _, cx| this.go(index + 1, cx))),
             )
-            .child(div().text_xs().text_color(muted).child("Zoom"))
+            .child(div().ty(Type::Caption).text_color(muted).child("Zoom"))
             .child(choice(
                 "zoom",
                 &self.zoom.to_string(),
@@ -459,14 +459,14 @@ impl ReportPreview {
             notes = notes.child(widgets::styled_text(
                 "running-total-caption",
                 format!("Running total: {}", sums.join(", ")),
-                move |d| d.text_xs().text_color(muted),
+                move |d| d.ty(Type::Caption).text_color(muted),
             ));
         }
         if rules {
             notes = notes.child(widgets::styled_text(
                 "conditional-format-caption",
                 "Bold or shaded values follow a conditional formatting rule.",
-                move |d| d.text_xs().text_color(muted),
+                move |d| d.ty(Type::Caption).text_color(muted),
             ));
         }
         Some(notes.into_any_element())
@@ -504,7 +504,7 @@ impl ReportPreview {
                 .when(self.diagnostics_open, |el| {
                     el.children(loaded.doc.diagnostics.iter().enumerate().map(|(i, d)| {
                         widgets::styled_text(format!("diagnostic-{}", i + 1), d.message.clone(), move |d| {
-                            d.text_sm().text_color(warning)
+                            d.ty(Type::Body).text_color(warning)
                         })
                     }))
                 })

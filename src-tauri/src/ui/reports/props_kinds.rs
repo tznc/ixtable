@@ -249,7 +249,7 @@ impl ReportDesigner {
             .child(widgets::styled_text(
                 "subreport-hint",
                 "Subreport rows print when each child field equals the parent field of this band's row. Without links, every row prints.",
-                |d| d.text_xs(),
+                |d| d.ty(Type::Caption),
             ));
         for (i, link) in extra::objects(c, "links").into_iter().enumerate() {
             let n = i + 1;

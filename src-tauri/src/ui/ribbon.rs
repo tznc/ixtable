@@ -21,7 +21,7 @@ pub fn ribbon(
         .w_full()
         .flex_none()
         .bg(theme.sidebar)
-        .child(tab_row(tabs, selected, on_select, trailing))
+        .child(tab_row(tabs, selected, on_select, trailing, cx))
         .child(
             h_flex()
                 .id("ribbon")
@@ -44,6 +44,7 @@ fn tab_row(
     selected: &str,
     on_select: impl Fn(&'static str, &mut Window, &mut App) + 'static,
     trailing: Option<AnyElement>,
+    cx: &App,
 ) -> impl IntoElement {
     let on_select = std::rc::Rc::new(on_select);
     h_flex()
@@ -58,7 +59,7 @@ fn tab_row(
                 .ghost()
                 .xsmall()
                 .label(label)
-                .selected(key == selected)
+                .selected_tint(key == selected, cx)
                 .on_click(move |_, window, cx| on_select(key, window, cx))
         }))
         .child(div().flex_1())
@@ -86,7 +87,7 @@ pub fn group(
             div()
                 .w_full()
                 .text_center()
-                .text_xs()
+                .ty(Type::Caption)
                 .text_color(theme.muted_foreground)
                 .child(label.to_string()),
         )

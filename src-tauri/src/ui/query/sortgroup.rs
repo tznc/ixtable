@@ -86,7 +86,7 @@ impl QueryMode {
                 .child(widgets::styled_text(
                     SharedString::from(format!("group-by-source:{k}")),
                     if *extra { "Added here" } else { "From Fields" },
-                    |d| d.text_xs().opacity(0.7),
+                    |d| d.ty(Type::Caption).opacity(0.7),
                 ))
                 .when(*extra, |row| {
                     let k = k.clone();
@@ -280,7 +280,7 @@ impl QueryMode {
                                 }
                             })),
                     )
-                    .child(div().text_sm().child("Limit"))
+                    .child(div().ty(Type::Body).child("Limit"))
                     .child(div().w(px(120.)).child(limit_input)),
             );
         crate::ui::section::section("query-sort", "Sort and limit", open, window, cx)

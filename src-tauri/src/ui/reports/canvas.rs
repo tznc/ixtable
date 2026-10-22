@@ -58,7 +58,7 @@ impl ReportDesigner {
                 })
                 .into_any_element()
             }
-            _ => div().text_xs().child(extra::canvas_text(c)).into_any_element(),
+            _ => div().ty(Type::Caption).child(extra::canvas_text(c)).into_any_element(),
         };
         let this_id = id.clone();
         let (down_id, down_key, down_c) = (id.clone(), key.clone(), c.clone());
@@ -160,7 +160,7 @@ impl ReportDesigner {
                             .ghost()
                             .xsmall()
                             .start_label(None, label)
-                            .selected(entry.key == active)
+                            .selected_tint(entry.key == active, cx)
                             .on_click(cx.listener(move |this, _, _, cx| this.select_band(pick_key.clone(), cx))),
                     )
                     .child(

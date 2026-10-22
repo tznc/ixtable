@@ -59,9 +59,6 @@ pub fn manager() -> Result<&'static DocumentManager, AppError> {
     Ok(MANAGER.get().unwrap())
 }
 
-pub fn app_info() -> Value {
-    serde_json::json!({"name":"ixtable","runtime":"tauri"})
-}
 pub fn new_document(window_label: String) -> Result<SessionState, AppError> {
     manager()?.new_session(&window_label)
 }

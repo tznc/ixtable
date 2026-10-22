@@ -136,7 +136,7 @@ fn runtime_forms() {
     h.click("create");
     wait(&mut h);
     assert_eq!(h.label("related:order-items:cell:0:product"), "Stoneware mug");
-    assert_eq!(h.label("back-crumb"), "Back to Orders list");
+    assert_eq!(h.label("back-crumb"), "Orders list");
     h.capture(
         "runtime-03-master-detail",
         &[
@@ -303,13 +303,13 @@ fn runtime_form_views() {
     );
     h.click("crow:2:save");
     wait(&mut h);
-    assert_eq!(h.label("continuous-notice"), "Changes saved.");
+    assert_eq!(h.label("notice"), "Changes saved.");
     assert!(!h.exists("crow:2:save"));
     assert!(h.exists("crow:new:save"));
     h.capture(
         "form-views-02-continuous-saved",
         &[
-            "A 'Changes saved.' status shows above the rows.",
+            "A 'Changes saved.' toast shows at the top right.",
             "Record 2 shows 'Sign supplier contract' without Save or Undo buttons.",
             "The new-record row still holds 'Book delivery van' with its Add button.",
         ],
@@ -405,10 +405,10 @@ fn runtime_popup_form() {
     h.click_in("popup:1", "create");
     wait(&mut h);
     assert!(!h.exists("popup:1"));
-    assert_eq!(h.label("notice:info"), "Added Call the landlord for Ben");
+    assert_eq!(h.label("notice"), "Added Call the landlord for Ben");
     h.capture(
         "form-views-06-popup-result",
-        &["The dialog is gone and the Planner page shows 'Added Call the landlord for Ben'."],
+        &["The dialog is gone and a toast at the top right says 'Added Call the landlord for Ben'."],
     );
 }
 

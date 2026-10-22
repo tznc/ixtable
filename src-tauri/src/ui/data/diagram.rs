@@ -366,6 +366,12 @@ impl RelationshipBrowser {
         self.view
     }
 
+    /// Shifts the view without a mouse, so a test can start off-centre.
+    #[cfg(test)]
+    pub fn pan_by(&mut self, dx: f32, dy: f32) {
+        self.view.pan = (self.view.pan.0 + dx, self.view.pan.1 + dy);
+    }
+
     #[cfg(test)]
     pub fn visible(&self) -> Option<Rect> {
         Some(self.view.visible(self.frame_size()?))

@@ -174,7 +174,7 @@ impl Render for RuntimeBar {
             .gap_2()
             .p_3()
             .child(widgets::styled_text("runtime-bundle", "RUNTIME BUNDLE", |d| {
-                d.text_xs().text_color(cx.theme().muted_foreground)
+                d.ty(Type::Caption).text_color(cx.theme().muted_foreground)
             }))
             .child(widgets::styled_text(
                 "runtime-name",

@@ -265,7 +265,7 @@ impl RenderOnce for GridCanvas {
                         .border_dashed()
                         .border_color(theme.border)
                         .rounded_sm()
-                        .text_xs()
+                        .ty(Type::Caption)
                         .text_color(theme.muted_foreground)
                         .child(region.region.name.clone()),
                 );

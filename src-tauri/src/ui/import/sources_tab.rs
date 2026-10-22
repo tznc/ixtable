@@ -235,7 +235,7 @@ impl Render for FileSourcesTab {
         let mut panel = v_flex()
             .gap_3()
             .child(widgets::section_heading("tab-title", "File sources"))
-            .child(div().text_sm().text_color(muted).child(
+            .child(div().ty(Type::Body).text_color(muted).child(
                 "CSV, JSON, and Parquet files stored inside this application and read like tables. Query them as files.<name> in saved queries, reports, and dashboards. They are read-only; to edit the rows, import the file into a table instead.",
             ))
             .child(
@@ -277,7 +277,7 @@ impl Render for FileSourcesTab {
                             .gap_2()
                             .items_center()
                             .child("File")
-                            .child(div().text_sm().text_color(muted).child(widgets::text("source-file", file_name))),
+                            .child(div().ty(Type::Body).text_color(muted).child(widgets::text("source-file", file_name))),
                     )
                     .child(
                         h_flex()
@@ -296,7 +296,7 @@ impl Render for FileSourcesTab {
                             });
                         }))
                     })
-                    .child(div().text_sm().text_color(muted).child(widgets::text("source-preview", summary)))
+                    .child(div().ty(Type::Body).text_color(muted).child(widgets::text("source-preview", summary)))
                     .child(
                         h_flex()
                             .gap_2()
@@ -324,7 +324,7 @@ impl Render for FileSourcesTab {
         if sources.is_empty() {
             panel = panel.child(widgets::text("sources-empty", "No file sources yet."));
         } else {
-            let head = |label: &'static str| div().text_sm().text_color(muted).font_weight(FontWeight::MEDIUM).child(label);
+            let head = |label: &'static str| div().ty(Type::Label).text_color(muted).child(label);
             panel = panel.child(
                 h_flex()
                     .id("sources-header")

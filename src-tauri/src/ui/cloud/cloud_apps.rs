@@ -292,7 +292,7 @@ impl Render for CloudApps {
                                     .child(widgets::styled_text(
                                         eid(format!("cloud-app-detail:{app_id}")),
                                         detail,
-                                        move |d| d.text_sm().text_color(muted),
+                                        move |d| d.ty(Type::Body).text_color(muted),
                                     )),
                             )
                             .child(

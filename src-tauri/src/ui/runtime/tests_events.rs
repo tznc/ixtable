@@ -64,10 +64,10 @@ fn runs_on_load_on_current_before_update_and_after_update_actions(cx: &mut TestA
     h.click(orders);
     wait(&mut h);
     // No message, no reserved line; the message slides in once an action posts it.
-    assert!(!h.exists("notice:info"));
+    assert!(!h.exists("notice"));
     h.click("row:0");
     wait(&mut h);
-    assert_eq!(h.label("notice:info"), "Hello Developer");
+    assert_eq!(h.label("notice"), "Hello Developer");
     assert_eq!(messages(&h), [DataValue::Text("current 1".into())]);
 
     // Entering edit mode stays on the same record, so on current does not run again.
@@ -128,7 +128,7 @@ fn runs_declarative_form_events_through_the_automation_runner(cx: &mut TestAppCo
     wait(&mut h);
     h.click("row:0");
     wait(&mut h);
-    assert_eq!(h.label("notice:info"), "Hello Developer");
+    assert_eq!(h.label("notice"), "Hello Developer");
     assert_eq!(messages(&h), [DataValue::Text("current 1".into())]);
 
     h.click("edit");

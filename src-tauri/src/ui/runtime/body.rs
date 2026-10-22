@@ -98,7 +98,7 @@ pub fn control_grid(
 }
 
 /// Column headers for repeated rows: the form's grid with each input control's label in its cell.
-pub fn header_grid(form: &Form) -> AnyElement {
+pub fn header_grid(form: &Form, cx: &App) -> AnyElement {
     let layout = form.layout.clone();
     let columns = layout.columns.len();
     let mut canvas = GridCanvas::new("header-grid", layout);
@@ -106,12 +106,20 @@ pub fn header_grid(form: &Form) -> AnyElement {
         if !is_input_kind(control.kind) {
             continue;
         }
-        let text = if control.validation.required { format!("{} *", control.label) } else { control.label.clone() };
-        let view = widgets::styled_text(
-            SharedString::from(format!("header:{}", control.id)),
-            text,
-            |d| d.text_sm().font_weight(FontWeight::MEDIUM),
-        );
+        let muted = cx.theme().muted_foreground;
+        let view = h_flex()
+            .gap_1()
+            .items_baseline()
+            .child(widgets::styled_text(
+                SharedString::from(format!("header:{}", control.id)),
+                control.label.clone(),
+                move |d| d.ty(Type::Label).text_color(muted),
+            ))
+            .when(!control.validation.required, |d| {
+                d.child(widgets::styled_text(SharedString::from(format!("header-optional:{}", control.id)), "Optional", move |d| {
+                    d.ty(Type::Caption).text_color(muted)
+                }))
+            });
         canvas = canvas.item(
             GridItem::new(
                 SharedString::from(format!("header-item:{}", control.id)),
@@ -136,7 +144,7 @@ fn control_view(ctx: &BodyContext, control: &Control, window: &mut Window, cx: &
     match control.kind {
         ControlKind::Label => {
             let text = control.text.clone().filter(|t| !t.is_empty()).unwrap_or_else(|| control.label.clone());
-            return widgets::styled_text(named(&ctx.prefix, "label", control), text, |d| d.text_sm())
+            return widgets::styled_text(named(&ctx.prefix, "label", control), text, |d| d.ty(Type::Body))
                 .into_any_element();
         }
         ControlKind::Section => {
@@ -148,7 +156,7 @@ fn control_view(ctx: &BodyContext, control: &Control, window: &mut Window, cx: &
                 .rounded_md()
                 .border_1()
                 .border_color(cx.theme().border)
-                .child(div().font_weight(FontWeight::SEMIBOLD).text_sm().child(control.label.clone()))
+                .child(div().ty(Type::Section).child(control.label.clone()))
                 .child(control_grid(ctx, Some(control), None, window, cx))
                 .test_support()
                 .into_any_element();
@@ -269,9 +277,9 @@ pub fn computed_value(
     let shown = if error.is_some() { "—".to_string() } else { formatted(value, control.format.as_deref()) };
     v_flex()
         .gap_1()
-        .child(div().text_sm().font_weight(FontWeight::MEDIUM).text_color(theme.muted_foreground).child(control.label.clone()))
+        .child(div().ty(Type::Label).text_color(theme.muted_foreground).child(control.label.clone()))
         .child(widgets::styled_text(named(&ctx.prefix, "computed", control), shown, move |d| {
-            d.text_sm().when_some(color, |d, c| d.text_color(c))
+            d.ty(Type::Body).when_some(color, |d, c| d.text_color(c))
         }))
         .into_any_element()
 }
@@ -412,7 +420,7 @@ fn image_view(ctx: &BodyContext, control: &Control, window: &mut Window, cx: &mu
                 .rounded_md()
                 .border_1()
                 .border_color(theme.border)
-                .text_sm()
+                .ty(Type::Body)
                 .text_color(theme.muted_foreground)
                 .child(status.clone())
                 .into_any_element(),
@@ -420,9 +428,9 @@ fn image_view(ctx: &BodyContext, control: &Control, window: &mut Window, cx: &mu
         .child(widgets::styled_text(
             SharedString::from(format!("{}:state", named(&ctx.prefix, "image", control))),
             status,
-            |d| d.text_xs(),
+            |d| d.ty(Type::Caption),
         ))
-        .child(div().text_xs().text_color(theme.muted_foreground).child(control.label.clone()))
+        .child(div().ty(Type::Caption).text_color(theme.muted_foreground).child(control.label.clone()))
         .test_support()
         .into_any_element()
 }

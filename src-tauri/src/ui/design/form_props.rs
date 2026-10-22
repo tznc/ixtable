@@ -193,7 +193,7 @@ impl DesignStudio {
                         .child(div().flex_1().min_w_0().child(widgets::styled_text(
                             SharedString::from(format!("orphan-{name}")),
                             format!("${name} is no longer a parameter of this query."),
-                            move |d| d.text_xs().text_color(danger),
+                            move |d| d.ty(Type::Caption).text_color(danger),
                         )))
                         .child(
                             Button::new(SharedString::from(format!("remove-binding:{name}")))

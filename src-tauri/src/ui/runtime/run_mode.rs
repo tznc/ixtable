@@ -11,7 +11,7 @@
 //! or a role name),
 //! `rt-nav` ("Application navigation") with `nav:<item id>` buttons (selected = current
 //! page) and `nav-group:<item id>` labels, `rt-nav-empty`, `rt-page` ("Application page"),
-//! `rt-notice` / `rt-notice-error`, `rt-empty` ("Build your app") with `generate-app`,
+//! `rt-notice-error` (a problem; info and success messages are toasts, `notice`), `rt-empty` ("Build your app") with `generate-app`,
 //! `page-denied`, `page-placeholder`, `table-loading` / `table-error`.
 
 use super::{
@@ -30,7 +30,7 @@ use crate::forms::navigation::{PageKind, RuntimePage, can_open, page_for, solo_p
 use crate::forms::rbac::assigned_runtime_role;
 use crate::forms::registry::table_forms;
 use crate::forms::schema::{flatten_navigation, form_table};
-use crate::ui::{prelude::*, shell::Shell, store::StoreEvent};
+use crate::ui::{prelude::*, shell::Shell, store::StoreEvent, toast};
 use std::rc::Rc;
 
 /// Builds the view of a report or dashboard page; registered by the features that own them.
@@ -77,7 +77,7 @@ impl Render for Placeholder {
             .gap_2()
             .p_4()
             .children(self.back.as_ref().map(back_crumb))
-            .child(widgets::styled_text("page-placeholder", self.text.clone(), move |d| d.text_sm().text_color(color)))
+            .child(widgets::styled_text("page-placeholder", self.text.clone(), move |d| d.ty(Type::Body).text_color(color)))
     }
 }
 
@@ -326,7 +326,7 @@ impl RunBody {
                         .child(widgets::styled_text(
                             SharedString::from(format!("nav-group:{}", item.id)),
                             item.label.clone(),
-                            |d| d.text_xs().font_weight(FontWeight::SEMIBOLD).px_2().pt_2(),
+                            |d| d.ty(Type::Caption).font_weight(FontWeight::SEMIBOLD).px_2().pt_2(),
                         ))
                         .child(v_flex().pl_2().children(self.nav_items(&item.children, active, cx)))
                         .into_any_element();
@@ -338,7 +338,7 @@ impl RunBody {
                     .small()
                     .w_full()
                     .start_label(None, item.label.clone())
-                    .selected(active == Some(item.id.as_str()))
+                    .selected_tint(active == Some(item.id.as_str()), cx)
                     .on_click(move |_, _, cx| {
                         if let Some(page) = page.clone() {
                             runtime.update(cx, |r, cx| r.navigate(page, cx));
@@ -356,9 +356,9 @@ impl Render for RunBody {
         let config = self.env.config(cx).clone();
         let runtime_only = self.runtime_only(cx);
         let empty = !runtime_only && !has_pages(&config);
-        let (role_id, visit, notice) = {
+        let (role_id, visit, notice, toast) = {
             let r = self.runtime.read(cx);
-            (r.role_id(), r.visit(), r.notice.clone())
+            (r.role_id(), r.visit(), r.notice.clone(), r.toast.clone())
         };
         let page = self.current_page(cx);
         let navigation = visible_navigation(&config.design.navigation, &config, role_id.as_deref());
@@ -418,7 +418,7 @@ impl Render for RunBody {
         };
         // The ribbon's tab row ends with the app's name, not Studio's "PROJECT / RUN APP"
         // breadcrumb.
-        let name = widgets::styled_text("mode-title", config.name.clone(), |d| d.px_3().text_sm().font_semibold());
+        let name = widgets::styled_text("mode-title", config.name.clone(), |d| d.px_3().ty(Type::Body).font_semibold());
         let header = crate::ui::ribbon::ribbon(&[("home", "Home")], "home", |_, _, _| {}, Some(name.into_any_element()), groups, cx);
         v_flex()
             .size_full()
@@ -442,7 +442,7 @@ impl Render for RunBody {
                             .when(nav_empty, |d| {
                                 d.child(widgets::styled_text("rt-nav-empty", "Nothing to show for this role.", {
                                     let color = theme.muted_foreground;
-                                    move |d| d.text_sm().text_color(color)
+                                    move |d| d.ty(Type::Body).text_color(color)
                                 }))
                             })
                             .test_support(),
@@ -462,22 +462,20 @@ impl Render for RunBody {
                             .when(empty, |d| {
                                 d.child(
                                     v_flex()
-                                        .id("rt-empty")
-                                        .aria_label("Build your app")
-                                        .gap_2()
-                                        .p_4()
-                                        .child(widgets::styled_text("rt-empty-title", "Build your app", |d| d.text_base().font_semibold()))
-                                        .child(div().text_sm().text_color(theme.muted_foreground).child(
+                                        .items_center()
+                                        .child(widgets::empty_state(
+                                            "rt-empty",
+                                            "Build your app",
                                             "This application has no pages yet. Generate a list and a form for each table to start.",
+                                            cx,
                                         ))
                                         // A normal-size button, not a full-width bar.
-                                        .child(h_flex().child(
+                                        .child(
                                             Button::new("generate-app")
                                                 .primary()
                                                 .label("Generate app from tables")
                                                 .on_click(cx.listener(|this, _, _, cx| this.generate(cx))),
-                                        ))
-                                        .test_support(),
+                                        ),
                                 )
                             })
                             .child(div().flex_1().min_h_0().child(body))
@@ -485,6 +483,10 @@ impl Render for RunBody {
                     ),
             )
             .child(self.popups.clone())
+            .when_some(toast, |el, toast| {
+                let runtime = self.runtime.clone();
+                el.child(toast::render(&toast, move |_, cx| runtime.update(cx, |r, cx| r.dismiss_toast(cx)), window, cx))
+            })
     }
 }
 

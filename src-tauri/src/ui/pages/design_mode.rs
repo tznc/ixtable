@@ -10,7 +10,7 @@
 //! Test ids: `design-mode`, `design-sidebar`, `new-page`, `new-form`, `new-report`, `page-item-N`, `no-pages`,
 //! `design-navigation`, `generate-table`, `generate-form`, `generate-app`,
 //! `generate-error`, `generate-app-empty`, `generate-app-hint`, `loose-form:<id>`, `loose-report:<id>`,
-//! `back-to-page`, `design-crumb`, `duplicate-form`, `delete-form`.
+//! `design-crumb` (path `design-crumb-path`, link `design-crumb-path-0`), `duplicate-form`, `delete-form`.
 
 use super::PagePanel;
 use crate::data::TableSchema;
@@ -256,7 +256,7 @@ impl DesignMode {
         let border = theme.border;
         let current = self.pages.read(cx).current(cx).map(|p| p.id);
         let heading = |id: &'static str, text: &'static str| {
-            div().pt_2().child(widgets::styled_text(id, text, |d| d.text_base().font_weight(FontWeight::SEMIBOLD)))
+            div().pt_2().child(widgets::styled_text(id, text, |d| d.ty(Type::Section)))
         };
         let tables: Vec<String> =
             self.shell.read(cx).objects.iter().filter(|o| o.object_type == "table").map(|o| o.name.clone()).collect();
@@ -284,7 +284,7 @@ impl DesignMode {
         };
         let no_tables_hint = |id: &'static str, cx: &mut Context<Self>| {
             let muted = cx.theme().muted_foreground;
-            widgets::styled_text(id, "Add a table first.", move |d| d.text_xs().text_color(muted))
+            widgets::styled_text(id, "Add a table first.", move |d| d.ty(Type::Caption).text_color(muted))
         };
         let empty_generate = generate_app_button("generate-app-empty", cx);
         let empty_hint = no_tables_hint("generate-app-empty-hint", cx);
@@ -340,7 +340,7 @@ impl DesignMode {
                         Some(IconName::LayoutDashboard.into()),
                         if page.name.is_empty() { "Untitled page".to_string() } else { page.name.clone() },
                     )
-                    .selected(focus == Focus::Page && current.as_deref() == Some(page.id.as_str()))
+                    .selected_tint(focus == Focus::Page && current.as_deref() == Some(page.id.as_str()), cx)
                     .on_click(cx.listener(move |this, _, _, cx| this.open_page(&id, None, cx)))
             }))
             .when(config.pages.is_empty(), |el| {
@@ -353,7 +353,7 @@ impl DesignMode {
                     .ghost()
                     .small()
                     .start_label(Some(IconName::Menu.into()), "Navigation")
-                    .selected(focus == Focus::Navigation)
+                    .selected_tint(focus == Focus::Navigation, cx)
                     .on_click(cx.listener(|this, _, _, cx| this.show_navigation(cx))),
             )
             .child(heading("generate-heading", "Generate"))
@@ -403,7 +403,7 @@ impl DesignMode {
                             .ghost()
                             .small()
                             .start_label(Some(IconName::LayoutDashboard.into()), f.name.clone())
-                            .selected(focus == Focus::Form && open_form.as_deref() == Some(f.id.as_str()))
+                            .selected_tint(focus == Focus::Form && open_form.as_deref() == Some(f.id.as_str()), cx)
                             .on_click(cx.listener(move |this, _, _, cx| this.open_form(&id, None, cx)))
                     }))
                     .children(loose_reports.into_iter().map(|r| {
@@ -412,7 +412,7 @@ impl DesignMode {
                             .ghost()
                             .small()
                             .start_label(Some(IconName::FileText.into()), r.name.clone())
-                            .selected(focus == Focus::Report && open_report.as_deref() == Some(r.id.as_str()))
+                            .selected_tint(focus == Focus::Report && open_report.as_deref() == Some(r.id.as_str()), cx)
                             .on_click(cx.listener(move |this, _, _, cx| this.open_report(&id, None, cx)))
                     }))
             })
@@ -429,11 +429,8 @@ impl DesignMode {
             .filter(|p| p.components.iter().any(|c| [c.form_id.as_ref(), c.report_id.as_ref()].contains(&open.as_ref())))
             .map(|p| p.name)
             .filter(|n| !n.is_empty());
-        let back = match page {
-            Some(name) => format!("Back to {name}"),
-            None => "Back to pages".to_string(),
-        };
-        let kind = if focus == Focus::Form { "Form" } else { "Report" };
+        let back = page.unwrap_or_else(|| "Pages".to_string());
+        let this = cx.entity();
         h_flex()
             .id("design-crumb")
             .gap_2()
@@ -442,15 +439,9 @@ impl DesignMode {
             .py_1()
             .border_b_1()
             .border_color(cx.theme().border)
-            .child(
-                Button::new("back-to-page")
-                    .ghost()
-                    .small()
-                    .icon(IconName::ArrowLeft)
-                    .label(back)
-                    .on_click(cx.listener(|this, _, _, cx| this.back_to_page(cx))),
-            )
-            .child(widgets::text("design-crumb-title", format!("{kind}: {name}")))
+            .child(widgets::breadcrumb("design-crumb-path", vec![back.into()], Some(name.into()), move |_, _, cx| {
+                this.update(cx, |this, cx| this.back_to_page(cx))
+            }))
             .when(focus == Focus::Form, |el| {
                 el.child(div().flex_1())
                     .child(

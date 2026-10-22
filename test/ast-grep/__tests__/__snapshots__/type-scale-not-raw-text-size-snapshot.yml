@@ -1,0 +1,16 @@
+id: type-scale-not-raw-text-size
+snapshots:
+  ? |
+    fn view() { div().text_xl().font_weight(FontWeight::SEMIBOLD); }
+  : labels:
+    - source: div().text_xl()
+      style: primary
+      start: 12
+      end: 27
+  ? |
+    fn view() { div().text_xs().text_color(muted); }
+  : labels:
+    - source: div().text_xs()
+      style: primary
+      start: 12
+      end: 27

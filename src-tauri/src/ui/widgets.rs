@@ -50,6 +50,41 @@ impl StartAligned for Button {
     }
 }
 
+/// The type scale (design-language.md §2). Feature code sizes text only through
+/// `.ty(Type::..)`; raw `text_xs()`..`text_3xl()` calls are linted outside this file.
+/// `ty` sets size and weight; color stays with the caller (`Label` and `Caption` take
+/// `muted_foreground` unless they carry a status color).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Type {
+    /// A dashboard metric value or the start-screen wordmark.
+    Display,
+    /// The mode or page title, one per view.
+    Title,
+    /// Card, dialog and panel-section titles.
+    Section,
+    /// Content, inputs and table cells.
+    Body,
+    /// Field labels, column headers and nav items.
+    Label,
+    /// Hints, counts, timestamps and help.
+    Caption,
+}
+
+pub trait TypeScale: Styled + Sized {
+    fn ty(self, ty: Type) -> Self {
+        match ty {
+            Type::Display => self.text_3xl().font_weight(FontWeight::SEMIBOLD),
+            Type::Title => self.text_xl().font_weight(FontWeight::SEMIBOLD),
+            Type::Section => self.text_base().font_weight(FontWeight::SEMIBOLD),
+            Type::Body => self.text_sm(),
+            Type::Label => self.text_sm().font_weight(FontWeight::MEDIUM),
+            Type::Caption => self.text_xs(),
+        }
+    }
+}
+
+impl<T: Styled> TypeScale for T {}
+
 /// The theme color a table cell or field takes for its tone (None for a custom tone).
 pub fn tone_color(tone: &crate::design::Tone, cx: &App) -> Option<Hsla> {
     use crate::design::Tone;
@@ -101,12 +136,12 @@ pub fn titlebar(kicker: &str, title: &str, cx: &App) -> Div {
                 .gap_0p5()
                 .child(
                     div()
-                        .text_xs()
+                        .ty(Type::Caption)
                         .text_color(theme.muted_foreground)
                         .child(kicker.to_uppercase()),
                 )
                 .child(styled_text("mode-title", title.to_string(), |d| {
-                    d.text_xl().font_weight(FontWeight::SEMIBOLD)
+                    d.ty(Type::Title)
                 })),
         )
 }
@@ -169,7 +204,7 @@ pub fn callout(
                 .flex_1()
                 .min_w_0()
                 .gap_0p5()
-                .text_sm()
+                .ty(Type::Body)
                 .child(styled_text(id.clone(), title.to_string(), |d| {
                     d.font_weight(FontWeight::SEMIBOLD).text_color(theme.foreground)
                 }))
@@ -242,7 +277,7 @@ pub fn error_callout(
                 .flex_1()
                 .min_w_0()
                 .gap_0p5()
-                .text_sm()
+                .ty(Type::Body)
                 .child(styled_text(
                     SharedString::from(format!("{id}-headline")),
                     headline.to_string(),
@@ -254,7 +289,7 @@ pub fn error_callout(
                     col.child(styled_text(
                         SharedString::from(format!("{id}-code")),
                         format!("Error code {}", error.code),
-                        |d| d.text_xs().text_color(theme.muted_foreground),
+                        |d| d.ty(Type::Caption).text_color(theme.muted_foreground),
                     ))
                 }),
         )
@@ -275,7 +310,7 @@ pub fn progress_line(label: &str, cx: &App) -> Div {
     div()
         .px_3()
         .py_1()
-        .text_sm()
+        .ty(Type::Body)
         .text_color(cx.theme().muted_foreground)
         .child(text("progress", label.to_string()))
 }
@@ -290,10 +325,10 @@ pub fn empty_state(id: impl Into<ElementId>, title: &str, body: &str, cx: &App) 
         .justify_center()
         .gap_1()
         .p_8()
-        .child(div().font_weight(FontWeight::SEMIBOLD).child(title.to_string()))
+        .child(div().ty(Type::Section).child(title.to_string()))
         .child(
             div()
-                .text_sm()
+                .ty(Type::Body)
                 .text_color(theme.muted_foreground)
                 .child(body.to_string()),
         )
@@ -306,8 +341,7 @@ pub fn field(label: &str, control: impl IntoElement, cx: &App) -> Div {
         .gap_1()
         .child(
             div()
-                .text_sm()
-                .font_weight(FontWeight::MEDIUM)
+                .ty(Type::Label)
                 .text_color(cx.theme().muted_foreground)
                 .child(label.to_string()),
         )
@@ -316,7 +350,7 @@ pub fn field(label: &str, control: impl IntoElement, cx: &App) -> Div {
 
 /// A section heading inside a panel.
 pub fn section_heading(id: impl Into<ElementId>, title: &str) -> impl IntoElement {
-    styled_text(id, title.to_string(), |d| d.text_lg().font_weight(FontWeight::SEMIBOLD))
+    styled_text(id, title.to_string(), |d| d.ty(Type::Section))
 }
 
 /// A count with its noun, grouped and pluralized: "1 table", "1,204 records". Nouns
@@ -367,6 +401,19 @@ mod tests {
         assert_eq!(super::slug("Save project as"), "save-project-as");
         assert_eq!(super::slug("  Re-check!  "), "re-check");
     }
+
+    #[test]
+    fn type_scale_maps_steps_to_sizes_and_weights() {
+        use super::{Type, TypeScale as _};
+        use gpui_kit::{FontWeight, Styled as _, div};
+        let text = |mut d: gpui_kit::Div| format!("{:?}", d.style().text);
+        assert_eq!(text(div().ty(Type::Title)), text(div().text_xl().font_weight(FontWeight::SEMIBOLD)));
+        assert_eq!(text(div().ty(Type::Section)), text(div().text_base().font_weight(FontWeight::SEMIBOLD)));
+        assert_eq!(text(div().ty(Type::Body)), text(div().text_sm()));
+        assert_eq!(text(div().ty(Type::Label)), text(div().text_sm().font_weight(FontWeight::MEDIUM)));
+        assert_eq!(text(div().ty(Type::Caption)), text(div().text_xs()));
+        assert_ne!(text(div().ty(Type::Display)), text(div().ty(Type::Title)));
+    }
 }
 
 /// A tab strip of gpui-kit buttons. Each tab is a button with id `tab-<key>` (testable
@@ -378,7 +425,6 @@ pub fn tab_strip(
     on_select: impl Fn(&'static str, &mut Window, &mut App) + 'static,
     cx: &App,
 ) -> Stateful<Div> {
-    use gpui_kit::component::Selectable as _;
     let on_select = std::rc::Rc::new(on_select);
     h_flex()
         .id(id)
@@ -393,7 +439,7 @@ pub fn tab_strip(
                 .ghost()
                 .small()
                 .label(label)
-                .selected(key == selected)
+                .selected_tint(key == selected, cx)
                 .on_click(move |_, window, cx| on_select(key, window, cx))
         }))
 }
@@ -425,15 +471,72 @@ mod plural_tests {
 /// One tab button in the shared tab look: ghost, medium label, accent tint when selected.
 /// For tab rows whose keys are dynamic (form tabs); `tab_strip` covers fixed ones.
 pub fn tab_button(id: impl Into<ElementId>, label: impl Into<SharedString>, selected: bool, cx: &App) -> Button {
-    use gpui_kit::component::Selectable as _;
-    let accent = cx.theme().primary;
-    Button::new(id)
-        .ghost()
-        .small()
-        .label(label)
-        .selected(selected)
-        .font_weight(FontWeight::MEDIUM)
-        .when(selected, |b| b.bg(accent.opacity(0.12)).text_color(accent))
+    Button::new(id).ghost().small().label(label).font_weight(FontWeight::MEDIUM).selected_tint(selected, cx)
+}
+
+/// Selection in navigation, lists and tabs (design-language.md §4): an accent tint and a
+/// medium-weight label, so it never reads as hover or disabled. Also sets `selected`.
+pub trait SelectedTint: Sized {
+    fn selected_tint(self, selected: bool, cx: &App) -> Self;
+}
+
+impl SelectedTint for Button {
+    fn selected_tint(self, selected: bool, cx: &App) -> Self {
+        use gpui_kit::component::Selectable as _;
+        let tint = cx.theme().primary.opacity(0.18);
+        self.selected(selected).when(selected, |b| b.bg(tint).font_weight(FontWeight::MEDIUM))
+    }
+}
+
+/// A breadcrumb for drill-in navigation (nested record, form → control). `trail` crumbs are
+/// link-style buttons (ids `<id>-<index>`) that call `on_click` with their index; `current`
+/// is the open item as plain text (id `<id>-current`). Without `current` the trail ends in a chevron.
+/// The container `id` carries the whole path as its label ("A › B").
+pub fn breadcrumb(
+    id: &'static str,
+    trail: Vec<SharedString>,
+    current: Option<SharedString>,
+    on_click: impl Fn(usize, &mut Window, &mut App) + 'static,
+) -> Breadcrumb {
+    Breadcrumb { id, trail, current, on_click: std::rc::Rc::new(on_click) }
+}
+
+#[derive(IntoElement)]
+pub struct Breadcrumb {
+    id: &'static str,
+    trail: Vec<SharedString>,
+    current: Option<SharedString>,
+    on_click: std::rc::Rc<dyn Fn(usize, &mut Window, &mut App)>,
+}
+
+impl RenderOnce for Breadcrumb {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let (id, muted, foreground) = (self.id, cx.theme().muted_foreground, cx.theme().foreground);
+        let label = self.trail.iter().chain(self.current.iter()).map(|c| c.as_ref()).collect::<Vec<_>>().join(" › ");
+        let last = self.trail.len().saturating_sub(1);
+        let has_current = self.current.is_some();
+        let mut row = h_flex().id(id).aria_label(label).gap_1().items_center();
+        for (index, crumb) in self.trail.into_iter().enumerate() {
+            let on_click = self.on_click.clone();
+            row = row.child(
+                Button::new(SharedString::from(format!("{id}-{index}")))
+                    .link()
+                    .small()
+                    .label(crumb)
+                    .text_color(muted)
+                    .on_click(move |_, window, cx| on_click(index, window, cx)),
+            );
+            if has_current || index < last {
+                row = row.child(div().ty(Type::Body).text_color(muted).child("›"));
+            }
+        }
+        if let Some(current) = self.current {
+            row = row.child(styled_text(SharedString::from(format!("{id}-current")), current, move |d| {
+                d.ty(Type::Body).font_weight(FontWeight::MEDIUM).text_color(foreground)
+            }));
+        }
+        row.test_support()
+    }
 }
 
 /// Slides `element` in: its height grows from 0 to its natural height (capped at 160 px)

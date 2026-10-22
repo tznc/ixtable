@@ -1,5 +1,5 @@
-//! The one back affordance of a runtime page (port of `BackCrumb.tsx`): "Back to <where you
-//! came from>". Test id `back-crumb`, labelled "Back to X".
+//! The one back affordance of a runtime page (port of `BackCrumb.tsx`): breadcrumb of
+//! where you came from. Test id `back-crumb`, labelled with the previous place; its link is `back-crumb-0`.
 
 use crate::ui::prelude::*;
 use std::rc::Rc;
@@ -17,21 +17,8 @@ impl BackLink {
     }
 }
 
-/// The crumb button for `back`.
+/// The breadcrumb for `back`: the previous place as a link (`back-crumb-0`) and a chevron.
 pub fn back_crumb(back: &BackLink) -> impl IntoElement {
     let on_back = back.on_back.clone();
-    let label = format!("Back to {}", back.label);
-    div()
-        .id("back-crumb")
-        .aria_label(label.clone())
-        .self_start()
-        .child(
-            Button::new("back-crumb-button")
-                .ghost()
-                .small()
-                .icon(IconName::ArrowLeft)
-                .label(back.label.clone())
-                .on_click(move |_, _, cx| on_back(cx)),
-        )
-        .test_support()
+    widgets::breadcrumb("back-crumb", vec![back.label.clone().into()], None, move |_, _, cx| on_back(cx))
 }

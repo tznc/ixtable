@@ -10,7 +10,7 @@
 //! `navigation.rs`.
 //!
 //! Test ids: `design-studio` (the studio, labelled "Form builder"), `properties` (labelled
-//! "Properties"), `properties-title` ("Control" or "Form"), `back-to-form`, the palette
+//! "Properties"), `properties-title` ("Control" or "Form"), `form-breadcrumb` (link `form-breadcrumb-0`), the palette
 //! buttons `add-<kind>` (`add-text`, `add-related-list`, `add-boolean`, ...), the view tabs
 //! `tab-form`, `tab-preview`, `preview-mode`, `form-hint`, `no-form`
 //! and `no-controls`.
@@ -360,7 +360,7 @@ impl DesignStudio {
             .id("palette")
             .aria_label("Components")
             .gap_1()
-            .child(widgets::styled_text("components-heading", "Components", |d| d.text_base().font_weight(FontWeight::SEMIBOLD)))
+            .child(widgets::styled_text("components-heading", "Components", |d| d.ty(Type::Section)))
             .children(CONTROL_KINDS.into_iter().map(|kind| {
                 Button::new(SharedString::from(format!("add-{}", kind_id(kind))))
                     .outline()
@@ -465,13 +465,13 @@ impl DesignStudio {
                     .min_w(px(CANVAS_MIN_WIDTH))
                     .gap_2()
                     .p_3()
-                    .child(div().text_xs().text_color(muted).child(kicker))
+                    .child(div().ty(Type::Caption).text_color(muted).child(kicker))
                     .child(
                         h_flex()
                             .items_center()
                             .justify_between()
                             .child(widgets::styled_text("form-title", form.name.clone(), |d| {
-                                d.text_xl().font_weight(FontWeight::SEMIBOLD)
+                                d.ty(Type::Title)
                             }))
                             .child(
                                 Button::new("form-shortcuts")
@@ -492,7 +492,7 @@ impl DesignStudio {
                             widgets::styled_text(
                                 "form-hint",
                                 "Enter selects a control, Alt+Arrow resizes, Alt+Shift+Arrow moves.",
-                                move |d| d.text_sm().text_color(muted),
+                                move |d| d.ty(Type::Body).text_color(muted),
                             ),
                         ))
                     })
@@ -529,7 +529,7 @@ impl DesignStudio {
             .border_l_1()
             .border_color(cx.theme().border)
             .overflow_y_scroll()
-            .child(widgets::styled_text("properties-heading", "Properties", |d| d.text_base().font_weight(FontWeight::SEMIBOLD)));
+            .child(widgets::styled_text("properties-heading", "Properties", |d| d.ty(Type::Section)));
         if let Some(form) = form {
             let control = self.selected_control(cx);
             panel = panel
@@ -538,15 +538,17 @@ impl DesignStudio {
                     if control.is_some() { "Control" } else { "Form" },
                     |d| d.font_weight(FontWeight::BOLD),
                 ))
-                .when(control.is_some(), |el| {
-                    el.child(
-                        Button::new("back-to-form")
-                            .link()
-                            .small()
-                            .label("Back to form properties")
-                            .on_click(cx.listener(|this, _, _, cx| this.select(None, cx))),
+                .children(control.as_ref().map(|c| {
+                    let name = if form.name.is_empty() { "Form".to_string() } else { form.name.clone() };
+                    let control_name = if c.label.is_empty() { "Control".to_string() } else { c.label.clone() };
+                    let this = cx.entity();
+                    widgets::breadcrumb(
+                        "form-breadcrumb",
+                        vec![name.into()],
+                        Some(control_name.into()),
+                        move |_, _, cx| this.update(cx, |this, cx| this.select(None, cx)),
                     )
-                });
+                }));
             panel = match control {
                 Some(control) => panel
                     .child(self.render_control_properties(&form, &control, window, cx))

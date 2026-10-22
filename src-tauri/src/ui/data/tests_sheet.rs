@@ -121,6 +121,8 @@ fn hides_shows_freezes_and_unfreezes_columns(cx: &mut TestAppContext) {
     assert!(h.exists("cell:0:2"), "region is back");
 
     choose(&mut h, "Column options for name", "Freeze through this column");
+    assert_eq!(h.label("head-type:name"), "Text");
+    assert_eq!(h.label("head-type:qty"), "Integer");
     assert!(h.label("head:name").contains("frozen"));
     assert!(!h.label("head:qty").contains("frozen"));
     h.click("unfreeze-columns");

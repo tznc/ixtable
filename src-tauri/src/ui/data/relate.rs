@@ -248,7 +248,7 @@ impl Render for RelateDialog {
             .child(
                 v_flex()
                     .gap_1()
-                    .child(div().text_sm().text_color(cx.theme().muted_foreground).child("Referencing table"))
+                    .child(div().ty(Type::Label).text_color(cx.theme().muted_foreground).child("Referencing table"))
                     .child(select("Referencing table", &self.child, options, "Choose a table", {
                         move |value, _, cx| {
                             let value = value.to_string();

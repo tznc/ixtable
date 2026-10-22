@@ -40,6 +40,7 @@ pub mod start_sections;
 pub mod store;
 pub mod task;
 pub mod section;
+pub mod theme;
 pub mod toast;
 pub mod widgets;
 pub mod windows;
@@ -59,6 +60,7 @@ pub const MAIN_WINDOW: &str = "main";
 /// App-wide setup: gpui-kit, key bindings and the dialog provider.
 pub fn init(dialogs: Arc<dyn dialogs::DialogProvider>, cx: &mut App) {
     gpui_kit::init(cx);
+    theme::apply(cx);
     shell::bind_keys(cx);
     cx.set_global(dialogs::Dialogs(dialogs));
     pages::register(cx);

@@ -70,11 +70,11 @@ impl DesignStudio {
             let shown = match self.asset_preview(&current, cx) {
                 Preview::Ready(image) => img(image.clone()).max_h(px(160.)).into_any_element(),
                 Preview::Loading => widgets::styled_text("image-preview-state", "Loading image…", move |d| {
-                    d.text_xs().text_color(muted)
+                    d.ty(Type::Caption).text_color(muted)
                 })
                 .into_any_element(),
                 Preview::Failed => widgets::styled_text("image-preview-state", "Image unavailable", move |d| {
-                    d.text_xs().text_color(muted)
+                    d.ty(Type::Caption).text_color(muted)
                 })
                 .into_any_element(),
             };
@@ -95,7 +95,7 @@ impl DesignStudio {
                 el.child(widgets::styled_text(
                     "asset-hint",
                     "Add image assets in App settings to use them here.",
-                    move |d| d.text_xs().text_color(muted),
+                    move |d| d.ty(Type::Caption).text_color(muted),
                 ))
             })
             .children(preview)

@@ -413,6 +413,20 @@ impl ListView {
             .collect()
     }
 
+    /// Right-aligned columns: stored numbers, except keys that show a looked-up name.
+    fn numeric_columns(&self, columns: &[String]) -> Vec<bool> {
+        use crate::data::LogicalType;
+        columns
+            .iter()
+            .map(|column| {
+                let col = self.schema.as_ref().and_then(|s| s.columns.iter().find(|c| &c.name == column));
+                col.is_some_and(|c| {
+                    matches!(c.logical_type, LogicalType::Integer | LogicalType::Real | LogicalType::Decimal { .. })
+                }) && !self.lookups.iter().any(|(c, _)| c == column)
+            })
+            .collect()
+    }
+
     fn cell_text(&self, record: &RecordValues, column: &str, cx: &App) -> String {
         if let Some(text) = label_for(&self.lookups, &self.labels, column, record) {
             return text;
@@ -446,6 +460,9 @@ impl Render for ListView {
         let form = self.props.form.clone();
         let columns = self.columns();
         let booleans = self.boolean_columns(&columns, cx);
+        let numeric = self.numeric_columns(&columns);
+        let muted = cx.theme().muted_foreground;
+        let foreground = cx.theme().foreground;
         let theme = cx.theme().clone();
         let effective = if self.search_column.is_empty() {
             columns.first().cloned().unwrap_or_default()
@@ -460,7 +477,8 @@ impl Render for ListView {
             None => "Loading…".to_string(),
         };
 
-        let header = h_flex().gap_2().border_b_1().border_color(theme.border).children(columns.iter().map(|column| {
+        let header = h_flex().gap_2().border_b_1().border_color(theme.border).children(columns.iter().enumerate().map(|(slot, column)| {
+            let right = numeric[slot];
             let sort = self.sorts.iter().find(|s| &s.column == column).cloned();
             let slug = slug_of(column);
             let label = self.label_of(column, cx);
@@ -470,24 +488,34 @@ impl Render for ListView {
                 None => "none",
             };
             let target = column.clone();
+            let direction_hint = widgets::styled_text(
+                SharedString::from(format!("sort-dir:{slug}")),
+                direction,
+                |d| d.ty(Type::Caption).text_color(gpui_kit::transparent_black()),
+            );
+            // Plain label text (not a padded button), so the header lines up with the cells below.
+            let title = div()
+                .id(SharedString::from(format!("sort:{slug}")))
+                .aria_label(label.clone())
+                .ty(Type::Label)
+                .text_color(if sort.is_some() { foreground } else { muted })
+                .cursor_pointer()
+                .child(label.clone())
+                .on_click(cx.listener(move |this, _, _, cx| this.toggle_sort(&target, cx)))
+                .test_support();
             h_flex()
                 .id(SharedString::from(format!("col:{slug}")))
-                .aria_label(label.clone())
+                .aria_label(label)
                 .flex_1()
                 .min_w_0()
-                .child(
-                    Button::new(SharedString::from(format!("sort:{slug}")))
-                        .ghost()
-                        .small()
-                        .label(label)
-                        .selected(sort.is_some())
-                        .on_click(cx.listener(move |this, _, _, cx| this.toggle_sort(&target, cx))),
-                )
-                .child(widgets::styled_text(
-                    SharedString::from(format!("sort-dir:{slug}")),
-                    direction,
-                    |d| d.text_xs().text_color(gpui_kit::transparent_black()),
-                ))
+                .py_1()
+                .gap_1()
+                .when(right, |d| d.justify_end())
+                .children(if right {
+                    [direction_hint.into_any_element(), title.into_any_element()]
+                } else {
+                    [title.into_any_element(), direction_hint.into_any_element()]
+                })
                 .test_support()
         }));
 
@@ -511,7 +539,7 @@ impl Render for ListView {
                     let content: AnyElement = if booleans[slot] {
                         match boolean_value(record.get(column).unwrap_or(&Value::Null)) {
                             Some(on) => widgets::styled_text(cell_id.clone(), if on { "Yes" } else { "No" }, move |d| {
-                                d.text_sm().when_some(color, |d, c| d.text_color(c))
+                                d.ty(Type::Body).when_some(color, |d, c| d.text_color(c))
                             })
                             .into_any_element(),
                             None => div().id(cell_id.clone()).into_any_element(),
@@ -519,13 +547,14 @@ impl Render for ListView {
                     } else {
                         let text = self.cell_text(record, column, cx);
                         widgets::styled_text(cell_id.clone(), text, move |d| {
-                            d.text_sm().when_some(color, |d, c| d.text_color(c))
+                            d.ty(Type::Body).when_some(color, |d, c| d.text_color(c))
                         })
                         .into_any_element()
                     };
                     div()
                         .flex_1()
                         .min_w_0()
+                        .when(numeric[slot], |d| d.flex().justify_end())
                         .child(content)
                         .children(tone_id.map(|(id, name)| widgets::text(id, name)))
                 });
@@ -584,7 +613,7 @@ impl Render for ListView {
                 h_flex()
                     .justify_between()
                     .items_center()
-                    .child(widgets::styled_text("list-title", name.clone(), |d| d.text_xl().font_weight(FontWeight::SEMIBOLD)))
+                    .child(widgets::styled_text("list-title", name.clone(), |d| d.ty(Type::Title)))
                     .child(
                         h_flex()
                             .gap_2()

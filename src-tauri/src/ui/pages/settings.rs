@@ -113,7 +113,7 @@ impl PageEditor {
         v_flex()
             .id("dash-settings")
             .gap_3()
-            .child(widgets::styled_text("page-settings-heading", "Page settings", |d| d.text_base().font_weight(FontWeight::SEMIBOLD)))
+            .child(widgets::styled_text("page-settings-heading", "Page settings", |d| d.ty(Type::Section)))
             .child(parameters)
             .child(filters)
             .child(

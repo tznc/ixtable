@@ -4,7 +4,7 @@
 //! Test ids: a text input is found by the id it is built with (`Input::id`), a
 //! checkbox by its id, and a card or dialog by its id (its label is its title).
 
-use crate::ui::widgets;
+use crate::ui::widgets::{self, Type, TypeScale as _};
 use gpui_kit::component::{
     ActiveTheme as _,
     button::{Button, ButtonVariants as _},
@@ -118,7 +118,7 @@ pub fn check(
 /// The heading of a card or dialog: observed text, so tests read it by `id`.
 fn heading(id: &'static str, title: &str) -> impl IntoElement {
     widgets::styled_text(id, title.to_string(), |d| {
-        d.font_weight(FontWeight::SEMIBOLD).text_lg()
+        d.ty(Type::Section)
     })
 }
 
@@ -164,7 +164,7 @@ pub fn link(id: impl Into<ElementId>, label: &str) -> Button {
 /// Muted explanatory text.
 pub fn muted(text: impl Into<SharedString>, cx: &App) -> Div {
     div()
-        .text_sm()
+        .ty(Type::Body)
         .text_color(cx.theme().muted_foreground)
         .child(text.into())
 }

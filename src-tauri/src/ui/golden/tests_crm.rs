@@ -186,7 +186,7 @@ fn golden_crm_runtime_crud_with_master_detail_validation_trigger_action_roles_co
         });
 
         journey.step("Duplicate company name surfaces the unique constraint", |j| {
-            h.click("back-crumb-button");
+            h.click("back-crumb-0");
             wait(&mut h);
             h.click("new-record");
             wait(&mut h);

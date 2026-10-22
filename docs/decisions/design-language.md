@@ -21,7 +21,7 @@ exist, use the closest existing helper rather than a one-off style.
 
 ## 2. Type scale
 
-Five steps, with weight used sparingly. *(planned)* Map the gpui sizes once in `widgets.rs` (`Type::{Title, Section, Body, Label, Caption}`), then ban raw `text_*` calls in feature code with an ast-grep rule.
+Five steps, with weight used sparingly. Feature code sizes text only with `.ty(Type::X)` (`widgets::{Type, TypeScale}`, in the prelude), which sets size and weight; color stays with the caller. Raw `text_xs()`..`text_3xl()` calls are banned outside `widgets.rs` by an ast-grep rule. `Type::Display` (`text_3xl` semibold) is reserved for dashboard metric values and the start-screen wordmark. Zoom-scaled canvases and user-set report fonts keep `text_size(px(..))`.
 
 | Step | Use | Size / weight |
 |---|---|---|
@@ -52,15 +52,15 @@ Five steps, with weight used sparingly. *(planned)* Map the gpui sizes once in `
 | Text | `foreground` | Body, values |
 | Secondary text | `muted_foreground` | Labels, captions, placeholders |
 | Lines | `border` | Card borders, dividers, table rules |
-| Accent | `primary` (one hue, e.g. the brand teal) | Selection, focus ring, the one primary button, links |
+| Accent | `primary`: the app icon's teal `#0DB9B6`, with white text on it (`ui/theme.rs`); links use a darker teal `#0A7C7A` | Selection, focus ring, the one primary button, links |
 | Success | `success` | Toasts, "Converted" and "Applied" badges |
 | Warning | `warning`, darkened for text to ≥ 4.5:1 | "Partly converted", "Pending", non-blocking issues |
 | Danger | `danger` | Errors, destructive buttons, "Not converted" |
 
 - Status colors appear as a **tinted background plus an icon plus text**, never as text color alone. Use 12% opacity for the fill and the full color for the icon and title, with body text staying `foreground`.
-- Selection (nav item, list row, tab) is an accent tint plus a medium-weight label. Today's mid-grey selected state is indistinguishable from hover and disabled.
+- Selection (nav item, list row, tab) is an accent tint plus a medium-weight label: `.selected_tint(selected, cx)` (`widgets::SelectedTint`), never a bare `.selected()`, whose grey reads as hover or disabled.
 - Disabled means 40% opacity of the enabled variant. Never use a separate grey fill, which reads as "pressed".
-- The brand mark stays on a white tile in every theme. There is no dark version.
+- The app icon (`assets::APP_ICON`, from `branding/app-icon.svg`) marks the Studio sidebar and the start screen. It stays on a white tile in every theme. There is no dark version.
 
 ## 5. Components
 
@@ -140,7 +140,7 @@ Each is one function in a shared UI module. **New** marks components that don't 
 - Tabs: an underline style, with the selected tab in accent and semibold. Use the same component everywhere: Design/Preview, Design/View, settings and diagnostics.
 - Beyond 6 tabs, use a grouped left sub-nav. Settings does this (`shell/settings.rs` `GROUPS`: Data, App, Release, Diagnostics), with a count badge on Problems.
 - Ribbon (`ui::ribbon`): as in Access, a row of tabs over labelled command groups, at the top of the content column and never over the sidebar. Studio's tabs are Home, Create, External data and Database tools (`shell/ribbon.rs`); the Run App window has Home with Records and Run as. Commands are quiet buttons with an icon and a verb-free noun on Create ("Table", "Form"); the group name is a `Caption` under them. A page keeps its own toolbar for commands on what it shows (a datasheet's filter, a designer's properties); the ribbon holds the document-wide ones.
-- Breadcrumbs appear only for drill-in (nested records, form → control). They replace "Back to form properties" links.
+- Breadcrumbs appear only for drill-in (nested records, form → control). They replace "Back to form properties" links. The component is `widgets::breadcrumb`: earlier crumbs are link buttons (`<id>-<index>`), the last is the current item as plain text (`<id>-current`).
 
 ### Long-running work
 - Use a determinate progress bar with the current step ("Copying Orders: 12,000 of 80,000 rows") wherever the backend reports progress, and an indeterminate bar with a step name otherwise. Never use static "this may take a while" text.
@@ -160,6 +160,8 @@ Each is one function in a shared UI module. **New** marks components that don't 
 
 ## 7. Enforcement
 
+- `test/ast-grep/rules/type-scale-not-raw-text-size.yml` fails a raw
+  `text_xs()`..`text_3xl()` call in `src-tauri/src/ui/` outside `widgets.rs`.
 - `test/ast-grep/rules/destructive-buttons-use-danger.yml` fails a delete, remove,
   drop, reset or roll-back action built with `forms::primary` or
   `forms::secondary`.

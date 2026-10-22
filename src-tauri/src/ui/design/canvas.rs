@@ -108,7 +108,7 @@ impl DesignStudio {
         let header = v_flex()
             .min_w_0()
             .child(div().min_w_0().truncate().font_weight(FontWeight::BOLD).child(control.label.clone()))
-            .child(div().min_w_0().truncate().text_xs().text_color(muted).child(kind));
+            .child(div().min_w_0().truncate().ty(Type::Caption).text_color(muted).child(kind));
         let card = v_flex().min_w_0().overflow_hidden().gap_1().p_2().rounded_md().border_1().border_color(border).child(header);
         let stop = |_: &MouseDownEvent, _: &mut Window, cx: &mut App| cx.stop_propagation();
         match control.kind {
@@ -135,7 +135,7 @@ impl DesignStudio {
                             .ghost()
                             .small()
                             .label(tab.label.clone())
-                            .selected(active.as_deref() == Some(tab.id.as_str()))
+                            .selected_tint(active.as_deref() == Some(tab.id.as_str()), cx)
                             .on_click(move |_, _, cx| {
                                 let (tabs_id, tab_id) = (tabs_id.clone(), tab_id.clone());
                                 entity.update(cx, |this, cx| {
@@ -151,7 +151,7 @@ impl DesignStudio {
                 });
                 card.child(strip).children(body).into_any_element()
             }
-            _ => card.child(div().min_w_0().truncate().text_xs().text_color(muted).child(summary(control))).into_any_element(),
+            _ => card.child(div().min_w_0().truncate().ty(Type::Caption).text_color(muted).child(summary(control))).into_any_element(),
         }
     }
 }

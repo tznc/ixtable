@@ -156,7 +156,7 @@ fn nests_controls_in_sections_and_tab_groups_with_their_own_grid(cx: &mut TestAp
     assert_eq!(control(&h, ControlKind::Text).expect("text").parent.map(|p| p.id), Some(section.id.clone()));
 
     // A tab group shows its pages; each page has its own grid.
-    h.click("back-to-form");
+    h.click("form-breadcrumb-0");
     h.click("add-tabs");
     let tabs = control(&h, ControlKind::Tabs).expect("tabs");
     assert_eq!(tabs.tabs.len(), 2, "a tab group starts with two pages");

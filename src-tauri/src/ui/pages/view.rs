@@ -521,7 +521,7 @@ impl PageView {
             .bg(theme.background)
             .when(show_title, |el| {
                 el.child(widgets::styled_text(format!("widget-title:{name}"), component.title.clone(), |d| {
-                    d.text_sm().font_weight(FontWeight::SEMIBOLD)
+                    d.ty(Type::Section)
                 }))
             })
             .when(!chips.is_empty(), |el| {
@@ -532,7 +532,7 @@ impl PageView {
                         .rounded_full()
                         .border_1()
                         .border_color(theme.border)
-                        .text_xs()
+                        .ty(Type::Caption)
                         .text_color(muted)
                         .child(widgets::text(format!("widget-filter-text:{name}:{id}"), text))
                 })))
@@ -542,7 +542,7 @@ impl PageView {
             }))
             .when(disabled && enabled.error.is_none(), |el| {
                 el.child(widgets::styled_text(format!("widget-disabled:{name}"), "Not available right now.", move |d| {
-                    d.text_sm().text_color(muted)
+                    d.ty(Type::Body).text_color(muted)
                 }))
             })
             .children(body.map(|body| {

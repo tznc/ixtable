@@ -157,7 +157,7 @@ fn shows_stored_rich_text_as_markup_while_editing(cx: &mut TestAppContext) {
     let changes: Changes = Default::default();
     let rich = control(ControlKind::RichText);
     let value = json!("<p>Plan</p><ul><li><u>one</u></li><li>two</li></ul>");
-    let (mut h, field) = host(cx, props(&rich, value, false, &changes));
+    let (h, field) = host(cx, props(&rich, value, false, &changes));
     let shown = h.cx.read(|cx| field.read(cx).area.as_ref().expect("a text area").read(cx).value().to_string());
     assert_eq!(shown, "Plan\n- ++one++\n- two");
     assert!(changes.borrow().is_empty(), "showing a value must not change it");
@@ -419,4 +419,23 @@ fn writes_every_key_column_of_a_filtered_multi_column_choice(cx: &mut TestAppCon
     wait(&mut h);
     let last = keys.borrow().last().cloned();
     assert_eq!(last, Some(vec![("product_id".to_string(), json!(1)), ("loc".to_string(), json!(2))]));
+}
+
+#[gpui_kit::test]
+fn does_not_star_required_fields(cx: &mut TestAppContext) {
+    let changes: Changes = Default::default();
+    let mut required = control(ControlKind::Text);
+    required.validation.required = true;
+    let (mut h, _) = host(cx, props(&required, json!(""), false, &changes));
+    assert_eq!(h.label("field:field:label"), "Field");
+    assert!(!h.exists("field:field:optional"));
+}
+
+#[gpui_kit::test]
+fn marks_optional_fields_with_a_caption(cx: &mut TestAppContext) {
+    let changes: Changes = Default::default();
+    let optional = control(ControlKind::Text);
+    let (mut h, _) = host(cx, props(&optional, json!(""), false, &changes));
+    assert_eq!(h.label("field:field:label"), "Field");
+    assert_eq!(h.label("field:field:optional"), "Optional");
 }

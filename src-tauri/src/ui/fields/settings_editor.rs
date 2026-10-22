@@ -293,7 +293,7 @@ impl Render for FieldSettingsEditor {
                                             muted,
                                         ),
                                     };
-                                    el.child(div().text_xs().text_color(color).child(widgets::text(
+                                    el.child(div().ty(Type::Caption).text_color(color).child(widgets::text(
                                         SharedString::from(format!("{name} mask-hint")),
                                         text,
                                     )))
@@ -305,7 +305,7 @@ impl Render for FieldSettingsEditor {
                         el.child(
                             v_flex()
                                 .gap_1()
-                                .child(div().text_sm().text_color(muted).child("Choices (one per line)"))
+                                .child(div().ty(Type::Label).text_color(muted).child("Choices (one per line)"))
                                 .child(
                                     div()
                                         .id(SharedString::from(format!("{name} choices")))
@@ -320,8 +320,8 @@ impl Render for FieldSettingsEditor {
         v_flex()
             .id("Field settings")
             .gap_2()
-            .child(div().text_base().font_weight(FontWeight::SEMIBOLD).child("Field settings"))
-            .child(div().text_sm().text_color(muted).child(
+            .child(div().ty(Type::Section).child("Field settings"))
+            .child(div().ty(Type::Body).text_color(muted).child(
                 "How text and JSON columns are entered and shown in forms, the datasheet, and reports. These apply at once and do not change the column.",
             ))
             .when(columns.is_empty(), |el| {
@@ -329,7 +329,7 @@ impl Render for FieldSettingsEditor {
             })
             .children(rows)
             .when(!self.error.is_empty(), |el| {
-                el.child(div().text_sm().text_color(danger).child(widgets::text("field-settings-error", self.error.clone())))
+                el.child(div().ty(Type::Body).text_color(danger).child(widgets::text("field-settings-error", self.error.clone())))
             })
             .when(has_attachments, |el| {
                 el.child(
@@ -345,7 +345,7 @@ impl Render for FieldSettingsEditor {
                                 .label("Remove unused files")
                                 .on_click(cx.listener(|this, _, _, cx| this.cleanup(cx))),
                         )
-                        .child(div().text_sm().text_color(muted).child(widgets::text(
+                        .child(div().ty(Type::Body).text_color(muted).child(widgets::text(
                             "attachment-status",
                             if self.notice.is_empty() {
                                 "Deletes stored files that no record refers to and that are over an hour old."

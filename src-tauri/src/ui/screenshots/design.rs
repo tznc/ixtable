@@ -220,7 +220,7 @@ fn design_grid_tracks_and_regions() {
         ],
     );
 
-    h.click("back-to-form");
+    h.click("form-breadcrumb-0");
     h.fill("grid-region-1-name", "");
     h.press("enter");
     assert_eq!(h.label("grid-region-1-name-error"), "Area name is required.");

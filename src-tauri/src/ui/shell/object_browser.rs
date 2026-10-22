@@ -8,10 +8,10 @@
 
 use super::{Selection, SelectionKind, Shell};
 use crate::manager::AppError;
-use crate::ui::widgets;
+use crate::ui::widgets::{self, SelectedTint as _, Type, TypeScale as _};
 use gpui_kit::assets::IconName;
 use gpui_kit::component::{
-    ActiveTheme as _, Icon, Selectable as _, Sizable as _,
+    ActiveTheme as _, Icon, Sizable as _,
     button::{Button, ButtonVariants as _},
     h_flex,
     input::{Input, InputEvent, InputState},
@@ -129,10 +129,10 @@ impl Render for ObjectBrowser {
                             widgets::styled_text(
                                 SharedString::from(format!("group-{}", title.to_lowercase())),
                                 title,
-                                |d| d.flex_1().text_xs().font_weight(FontWeight::SEMIBOLD),
+                                |d| d.flex_1().ty(Type::Caption).font_weight(FontWeight::SEMIBOLD),
                             ),
                         )
-                        .child(div().text_xs().text_color(muted).child(count.to_string()))
+                        .child(div().ty(Type::Caption).text_color(muted).child(count.to_string()))
                         .when_some(add, |el, (id, tip, kind)| {
                             let entity = entity.clone();
                             el.child(
@@ -141,7 +141,7 @@ impl Render for ObjectBrowser {
                                     .xsmall()
                                     .icon(Icon::new(IconName::Plus))
                                     .tooltip(tip)
-                                    .selected(active.as_ref().is_some_and(|s| s.kind == kind && s.id.is_empty()))
+                                    .selected_tint(active.as_ref().is_some_and(|s| s.kind == kind && s.id.is_empty()), cx)
                                     .on_click(move |_, _, cx| {
                                         let selection = Selection {
                                             kind,
@@ -199,21 +199,21 @@ impl Render for ObjectBrowser {
                                             .px_1()
                                             .rounded_sm()
                                             .bg(muted.opacity(0.15))
-                                            .text_xs()
+                                            .ty(Type::Caption)
                                             .text_color(muted)
                                             .child(tag),
                                     )
                                 }),
                         )
                         .tooltip(full)
-                        .selected(selected)
+                        .selected_tint(selected, cx)
                         .on_click(move |_, _, cx| {
                             let selection = selection.clone();
                             entity.update(cx, |this, cx| this.choose(selection, cx));
                         }))
                 }))
                 .when(empty, |el| {
-                    el.child(div().px_2().text_xs().text_color(muted).child("No matches"))
+                    el.child(div().px_2().ty(Type::Caption).text_color(muted).child("No matches"))
                 })
                 .when(items_empty && needle.is_empty(), |el| {
                     let hint = match add {
@@ -227,7 +227,7 @@ impl Render for ObjectBrowser {
                             .child(widgets::styled_text(
                                 SharedString::from(format!("empty-{}", title.to_lowercase())),
                                 hint,
-                                move |d| d.text_xs().text_color(muted),
+                                move |d| d.ty(Type::Caption).text_color(muted),
                             ))
                             .when_some(add, |el, (id, tip, kind)| {
                                 let entity = entity.clone();
@@ -254,8 +254,8 @@ impl Render for ObjectBrowser {
                 h_flex()
                     .justify_between()
                     .px_1()
-                    .child(div().text_xs().text_color(muted).child("OBJECTS"))
-                    .when(loading, |el| el.child(widgets::styled_text("objects-loading", "Loading…", |d| d.text_xs()))),
+                    .child(div().ty(Type::Caption).text_color(muted).child("OBJECTS"))
+                    .when(loading, |el| el.child(widgets::styled_text("objects-loading", "Loading…", |d| d.ty(Type::Caption)))),
             )
             .child(Input::new(&self.search).id("object-search").aria_label("Search database objects"))
             .when_some(error, |el, e| {

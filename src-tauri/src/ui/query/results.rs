@@ -85,7 +85,7 @@ impl ResultTable {
                                     .flex_none()
                                     .px_2()
                                     .py_1()
-                                    .text_sm()
+                                    .ty(Type::Body)
                                     .overflow_hidden()
                                     .whitespace_nowrap()
                             },
@@ -122,7 +122,7 @@ impl Render for ResultTable {
                         .flex_none()
                         .px_2()
                         .py_1()
-                        .text_sm()
+                        .ty(Type::Body)
                         .font_weight(FontWeight::SEMIBOLD)
                 })
             }));

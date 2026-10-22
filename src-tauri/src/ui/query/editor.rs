@@ -140,10 +140,10 @@ impl QueryMode {
             .items_center()
             .child(div().flex_1().min_w_0().child(name_input))
             .child(widgets::styled_text("query-mode-badge", badge, |d| {
-                d.text_xs().font_weight(FontWeight::SEMIBOLD).px_2()
+                d.ty(Type::Caption).font_weight(FontWeight::SEMIBOLD).px_2()
             }))
             .when(dirty, |el| {
-                el.child(widgets::styled_text("query-unsaved", "Unsaved changes", |d| d.text_xs()))
+                el.child(widgets::styled_text("query-unsaved", "Unsaved changes", |d| d.ty(Type::Caption)))
             })
             .child(run_button)
             .child(

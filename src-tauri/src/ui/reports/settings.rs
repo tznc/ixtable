@@ -346,7 +346,7 @@ impl ReportDesigner {
                     item = item.child(widgets::styled_text(
                         format!("group-{n}-newpage-hint"),
                         "Always on while group page numbers restart.",
-                        move |d| d.text_xs().text_color(muted),
+                        move |d| d.ty(Type::Caption).text_color(muted),
                     ));
                 }
             }

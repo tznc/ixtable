@@ -1,0 +1,11 @@
+id: type-scale-not-raw-text-size
+valid:
+  - |
+    fn view() { div().ty(Type::Caption).text_color(muted); }
+  - |
+    fn view() { div().text_size(px(12. * zoom)); }
+invalid:
+  - |
+    fn view() { div().text_xs().text_color(muted); }
+  - |
+    fn view() { div().text_xl().font_weight(FontWeight::SEMIBOLD); }

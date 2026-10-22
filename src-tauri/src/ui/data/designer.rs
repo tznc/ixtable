@@ -631,12 +631,11 @@ impl Render for TableSchemaDesigner {
                     .gap_1()
                     .child(
                         div()
-                            .text_xl()
-                            .font_weight(FontWeight::SEMIBOLD)
+                            .ty(Type::Title)
                             .child(widgets::text("design-heading", format!("Design {}", schema.name))),
                     )
                     .child(
-                        div().text_sm().text_color(muted).child(widgets::text(
+                        div().ty(Type::Body).text_color(muted).child(widgets::text(
                             "designer-store",
                             format!(
                                 "{} Changes are staged, previewed, and applied together in one transaction.",
@@ -770,7 +769,7 @@ impl Render for TableSchemaDesigner {
                     .flex_wrap()
                     .items_center()
                     .gap_3()
-                    .child(div().text_sm().child(format!(
+                    .child(div().ty(Type::Body).child(format!(
                         "({}) \u{2192} {} ({}) \u{b7} update {} \u{b7} delete {}",
                         key.from_columns.join(", "),
                         key.target_table,
@@ -811,7 +810,7 @@ impl Render for TableSchemaDesigner {
                 h_flex()
                     .items_center()
                     .gap_2()
-                    .child(div().text_sm().child(format!("Unique ({})", columns.join(", "))))
+                    .child(div().ty(Type::Body).child(format!("Unique ({})", columns.join(", "))))
                     .child(
                         Button::new(SharedString::from(format!("remove-unique:{id}")))
                             .outline()
@@ -833,7 +832,7 @@ impl Render for TableSchemaDesigner {
                 h_flex()
                     .items_center()
                     .gap_2()
-                    .child(div().text_sm().child(format!("Check ({expression})")))
+                    .child(div().ty(Type::Body).child(format!("Check ({expression})")))
                     .child(
                         Button::new(SharedString::from(format!("remove-check:{expression}")))
                             .outline()
@@ -869,7 +868,7 @@ impl Render for TableSchemaDesigner {
                 h_flex()
                     .items_center()
                     .gap_2()
-                    .child(div().text_sm().child(format!(
+                    .child(div().ty(Type::Body).child(format!(
                         "{} {} ({})",
                         if index.unique { "Unique index" } else { "Index" },
                         index.name,
@@ -909,7 +908,7 @@ impl Render for TableSchemaDesigner {
                 h_flex()
                     .items_center()
                     .gap_2()
-                    .child(div().text_sm().child(widgets::text(SharedString::from(format!("pending-op:{i}")), summary)))
+                    .child(div().ty(Type::Body).child(widgets::text(SharedString::from(format!("pending-op:{i}")), summary)))
                     .child(crate::ui::display::status_badge(SharedString::from(format!("pending-mode:{i}")), mode, crate::ui::display::Tone::Neutral, cx))
                     .when(planned.is_some_and(|p| p.destructive), |el| {
                         el.child(crate::ui::display::status_badge(SharedString::from(format!("pending-destructive:{i}")), "Destructive", crate::ui::display::Tone::Danger, cx))
@@ -931,7 +930,7 @@ impl Render for TableSchemaDesigner {
             .collect();
         let pending_section = section("Pending changes", cx)
             .when(self.pending.is_empty(), |el| {
-                el.child(div().text_sm().text_color(muted).child(widgets::text("pending-empty", "No staged changes.")))
+                el.child(div().ty(Type::Body).text_color(muted).child(widgets::text("pending-empty", "No staged changes.")))
             })
             .children(pending_items)
             .when(!self.plan_error.is_empty(), |el| el.child(error_line("plan-error", &self.plan_error, cx)))

@@ -101,10 +101,10 @@ impl PageEditor {
     pub(super) fn render_filters(&mut self, dashboard: &Page, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let theme = cx.theme();
         let (border, muted) = (theme.border, theme.muted_foreground);
-        let mut panel = v_flex().gap_2().child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child("Filters"));
+        let mut panel = v_flex().gap_2().child(div().ty(Type::Section).child("Filters"));
         if dashboard.filters.is_empty() {
             panel = panel.child(widgets::styled_text("filters-hint", "A filter sends its value to every query that has a parameter with the same name.", move |d| {
-                d.text_xs().text_color(muted)
+                d.ty(Type::Caption).text_color(muted)
             }));
         }
         for filter in &dashboard.filters {
@@ -148,7 +148,7 @@ impl PageEditor {
                 .border_1()
                 .border_color(border)
                 .rounded_md()
-                .child(div().text_sm().font_weight(FontWeight::MEDIUM).child(name.clone()))
+                .child(div().ty(Type::Label).child(name.clone()))
                 .child(widgets::field("Filter name", input(&name_input, format!("filter-name:{fid}"), "Filter name", false), cx))
                 .child(widgets::field("Parameter", input(&param_input, format!("filter-param:{fid}"), "Parameter", true), cx))
                 .child(control)

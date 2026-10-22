@@ -92,6 +92,8 @@ fn the_minimap_recentres_the_view(cx: &mut TestAppContext) {
     assert!(h.exists("minimap"));
     h.click("zoom-in");
     h.click("zoom-in");
+    // Off-centre, so recentring on the minimap's middle always moves the view.
+    h.cx.update(|cx| d.update(cx, |d, _| d.pan_by(240.0, 160.0)));
     let before = h.cx.read(|cx| d.read(cx).view());
     h.click("minimap");
     let after = h.cx.read(|cx| d.read(cx).view());

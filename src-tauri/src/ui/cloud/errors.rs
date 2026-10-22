@@ -209,7 +209,7 @@ pub fn cloud_error_notice(id: impl Into<ElementId>, error: &CloudError, cx: &App
         .border_1()
         .border_color(color.opacity(0.35))
         .bg(color.opacity(0.08))
-        .text_sm()
+        .ty(Type::Body)
         .child(div().pt_0p5().text_color(color).child(Icon::new(IconName::CircleX).small()))
         .child(
             v_flex()
@@ -223,7 +223,7 @@ pub fn cloud_error_notice(id: impl Into<ElementId>, error: &CloudError, cx: &App
                     "details",
                     || {
                         widgets::styled_text(eid(details_id.clone()), details, |d| {
-                            d.text_xs().text_color(theme.muted_foreground)
+                            d.ty(Type::Caption).text_color(theme.muted_foreground)
                         })
                         .into_any_element()
                     },

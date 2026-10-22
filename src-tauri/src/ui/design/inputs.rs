@@ -266,7 +266,7 @@ impl<V: 'static> Drafts<V> {
                     el.child(widgets::styled_text(
                         SharedString::from(format!("{id}-error")),
                         problem,
-                        move |d| d.text_xs().text_color(danger),
+                        move |d| d.ty(Type::Caption).text_color(danger),
                     ))
                 }),
             cx,

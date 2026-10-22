@@ -43,7 +43,7 @@ fn record_pages_have_one_back_link_and_yes_no_cells(cx: &mut TestAppContext) {
     open_page(&mut h, "Work orders");
     open_row(&mut h, "WO-1001");
 
-    assert_eq!(h.label("back-crumb"), "Back to Work orders");
+    assert_eq!(h.label("back-crumb"), "Work orders");
     assert!(h.exists("edit"));
     assert!(h.exists("delete"));
 
@@ -53,7 +53,7 @@ fn record_pages_have_one_back_link_and_yes_no_cells(cx: &mut TestAppContext) {
     assert_eq!(done, ["Yes", "Yes", "No", "No"]);
 
     // Back returns to the list and the link goes away.
-    h.click("back-crumb-button");
+    h.click("back-crumb-0");
     wait(&mut h);
     assert!(h.exists("row:0"));
     assert!(!h.exists("back-crumb"));
@@ -118,7 +118,7 @@ fn opens_the_clicked_record_when_its_schema_reloads_after_a_database_change(
 
     // A database change drops the cached schema while the user goes back and opens another.
     h.database_changed();
-    h.click("back-crumb-button");
+    h.click("back-crumb-0");
     open_row(&mut h, "WO-1002");
     wait(&mut h);
     assert!(!h.exists("status:error"));

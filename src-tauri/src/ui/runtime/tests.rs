@@ -184,7 +184,7 @@ fn offers_to_generate_the_app_from_a_runtime_with_no_pages(cx: &mut TestAppConte
     customers(&mut h);
     h.switch_mode(ModeId::Run);
     assert!(h.exists("rt-empty"));
-    assert_eq!(h.label("rt-empty-title"), "Build your app");
+    assert_eq!(h.label("rt-empty"), "Build your app");
     h.click("generate-app");
     wait(&mut h);
     let id = nav(&mut h, "Customers");

@@ -69,7 +69,7 @@ impl FieldView {
                 .id(id.clone())
                 .aria_label(rich_text_plain(&props.value))
                 .w_full()
-                .text_sm()
+                .ty(Type::Body)
                 .child(TextView::html(SharedString::from(format!("{id}:view")), html))
                 .test_support()
                 .into_any_element();
@@ -114,7 +114,7 @@ impl FieldView {
                         .py_1()
                         .rounded_md()
                         .bg(theme.muted)
-                        .text_sm()
+                        .ty(Type::Body)
                         .child(TextView::html(SharedString::from(format!("{id}:preview-text")), html))
                         .test_support(),
                 )
@@ -216,7 +216,7 @@ impl FieldView {
                 .child(widgets::styled_text(
                     SharedString::from(format!("{id}:file:{slug}")),
                     format!("{} ({})", file.name, file_size(file.size)),
-                    |d| d.text_sm(),
+                    |d| d.ty(Type::Body),
                 ))
                 .child(
                     Button::new(SharedString::from(format!("{id}:save:{slug}")))
@@ -243,7 +243,7 @@ impl FieldView {
             .aria_label(format!("{} files", props.label))
             .gap_0p5()
             .children(rows)
-            .when(empty, |el| el.child(div().text_sm().text_color(theme.muted_foreground).child("No files")))
+            .when(empty, |el| el.child(div().ty(Type::Body).text_color(theme.muted_foreground).child("No files")))
             .when(editable, |el| {
                 el.child(
                     h_flex().child(
@@ -261,7 +261,7 @@ impl FieldView {
                 el.child(widgets::styled_text(
                     SharedString::from(format!("{id}:files-error")),
                     error,
-                    |d| d.text_sm().text_color(theme.danger),
+                    |d| d.ty(Type::Body).text_color(theme.danger),
                 ))
             })
             .test_support()

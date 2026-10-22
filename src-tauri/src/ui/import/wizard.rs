@@ -272,7 +272,7 @@ impl ImportWizard {
 }
 
 fn badge_text(text: impl IntoElement, cx: &App) -> Div {
-    div().text_sm().text_color(cx.theme().muted_foreground).child(text)
+    div().ty(Type::Body).text_color(cx.theme().muted_foreground).child(text)
 }
 
 impl Render for ImportWizard {
@@ -400,7 +400,7 @@ impl Render for ImportWizard {
                             .outline()
                             .small()
                             .label("A new table")
-                            .selected(self.new_table)
+                            .selected_tint(self.new_table, cx)
                             .disabled(busy)
                             .on_click(move |_, _, cx| new_e.update(cx, |this, cx| {
                                 this.new_table = true;
@@ -412,7 +412,7 @@ impl Render for ImportWizard {
                             .outline()
                             .small()
                             .label("An existing table")
-                            .selected(!self.new_table)
+                            .selected_tint(!self.new_table, cx)
                             .disabled(busy || self.tables.is_empty())
                             .on_click(move |_, _, cx| existing_e.update(cx, |this, cx| {
                                 this.new_table = false;
