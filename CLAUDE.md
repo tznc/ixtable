@@ -21,6 +21,7 @@ There is no root `package.json`; `scripts/*.mjs` run on plain Node.
 |---|---|
 | All Rust tests, including headless UI and golden tests | `cd src-tauri && cargo test --lib [filter]` |
 | Compile check | `cd src-tauri && cargo check --lib --tests` |
+| Design system tests / styleguide | `cd src-tauri && cargo test -p ixtable-design` / `cargo run -p ixtable-design --example styleguide [-- render]` (run from `crates/design`, see `docs/decisions/design-system.md`) |
 | Screenshots | `cd src-tauri && cargo screenshot [flow]` (see `.claude/skills/app-qa/SKILL.md`) |
 | Lint | `npx --yes --package @ast-grep/cli@0.38.7 ast-grep scan --warning` and `node scripts/ci/unused-pub-rust.mjs` |
 | Release-script tests / gates | `node --test "scripts/tests/*.test.mjs"` / `node scripts/ci/release-gates.mjs` |
