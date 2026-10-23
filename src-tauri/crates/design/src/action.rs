@@ -1,12 +1,17 @@
 //! `ActionButton`: the one button. Its emphasis says how much the action matters,
 //! and a disabled action always says why.
 
-use gpui_bootstrap::{ActiveTheme as _, Size, Variant, button::Button};
+use gpui_bootstrap::{
+    ActiveTheme as _, ButtonColors, Size, Theme, Variant, button::Button, theme::mix,
+};
 use gpui_kit::prelude::*;
 use gpui_kit::{
-    App, ClickEvent, ElementId, IntoElement, RenderOnce, SharedString, Window, base::v_flex, div,
+    AnyElement, App, ClickEvent, ElementId, Hsla, IntoElement, RenderOnce, SharedString, Window,
+    base::{self, StyledExt as _, v_flex},
+    div, relative, transparent_black,
 };
 
+use crate::theme::{TEXT_CONTRAST, readable};
 use crate::typography::{Type, TypeScale as _};
 
 /// How loudly an action asks to be pressed.
@@ -25,6 +30,43 @@ pub enum Emphasis {
     Danger,
 }
 
+/// How a secondary or danger button is drawn. Only [`ButtonLook::Subtle`]
+/// ships; the others are in the styleguide so the choice can be compared.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ButtonLook {
+    /// Hairline border in the divider color, body text, a light fill on hover.
+    #[default]
+    Subtle,
+    /// No border; a light grey fill.
+    Soft,
+    /// Bootstrap's outline at half strength, body text.
+    Faint,
+    /// Hairline border with a small drop shadow, like a native push button.
+    Raised,
+    /// Bootstrap's outline: a full-strength grey border and grey text.
+    Outline,
+}
+
+impl ButtonLook {
+    pub const ALL: [ButtonLook; 5] = [
+        ButtonLook::Subtle,
+        ButtonLook::Soft,
+        ButtonLook::Faint,
+        ButtonLook::Raised,
+        ButtonLook::Outline,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            ButtonLook::Subtle => "subtle",
+            ButtonLook::Soft => "soft",
+            ButtonLook::Faint => "faint",
+            ButtonLook::Raised => "raised",
+            ButtonLook::Outline => "outline",
+        }
+    }
+}
+
 type Handler = std::rc::Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 
 /// A labelled button. Labels are a verb plus an object ("Create table"),
@@ -40,6 +82,7 @@ pub struct ActionButton {
     emphasis: Emphasis,
     confirm: bool,
     small: bool,
+    look: ButtonLook,
     disabled_reason: Option<SharedString>,
     on_click: Option<Handler>,
 }
@@ -52,6 +95,7 @@ impl ActionButton {
             emphasis: Emphasis::Secondary,
             confirm: false,
             small: false,
+            look: ButtonLook::Subtle,
             disabled_reason: None,
             on_click: None,
         }
@@ -82,6 +126,12 @@ impl ActionButton {
 
     pub fn small(mut self) -> Self {
         self.small = true;
+        self
+    }
+
+    /// Draws a secondary or danger button another way; see [`ButtonLook`].
+    pub fn look(mut self, look: ButtonLook) -> Self {
+        self.look = look;
         self
     }
 
@@ -119,31 +169,170 @@ impl ActionButton {
         self
     }
 
-    fn button(&self) -> Button {
+    fn size(&self) -> Size {
+        if self.small {
+            Size::Small
+        } else {
+            Size::Medium
+        }
+    }
+
+    /// Primary, quiet and the filled confirm are Bootstrap's own buttons.
+    fn bootstrap(&self) -> Option<Button> {
         let button = Button::new(self.id.clone()).label(self.label.clone());
-        let button = match self.emphasis {
-            Emphasis::Primary => button.variant(Variant::Primary),
-            Emphasis::Secondary => button.variant(Variant::Secondary).outline(),
-            Emphasis::Quiet => button.link(),
-            Emphasis::Danger if self.confirm => button.variant(Variant::Danger),
-            Emphasis::Danger => button.variant(Variant::Danger).outline(),
+        let button = match (self.emphasis, self.look) {
+            (Emphasis::Primary, _) => button.variant(Variant::Primary),
+            (Emphasis::Quiet, _) => button.link(),
+            (Emphasis::Danger, _) if self.confirm => button.variant(Variant::Danger),
+            (Emphasis::Secondary, ButtonLook::Outline) => {
+                button.variant(Variant::Secondary).outline()
+            }
+            (Emphasis::Danger, ButtonLook::Outline) => button.variant(Variant::Danger).outline(),
+            _ => return None,
         };
-        button
-            .with_size(if self.small {
-                Size::Small
-            } else {
-                Size::Medium
+        Some(
+            button
+                .with_size(self.size())
+                .disabled(self.disabled_reason.is_some()),
+        )
+    }
+
+    /// Secondary and danger in the chosen [`ButtonLook`]. The label is body
+    /// text (or a readable red), never Bootstrap's mid-grey.
+    fn drawn(&self, window: &mut Window, cx: &mut App) -> AnyElement {
+        let theme = cx.theme();
+        let colors = look_colors(theme, self.look, self.emphasis == Emphasis::Danger);
+        let focus = window
+            .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
+            .read(cx)
+            .clone();
+        let focused = focus.is_focused(window);
+        let theme = cx.theme();
+        let control = theme.controls.get(self.size());
+        let radius = theme
+            .controls
+            .button_radius
+            .unwrap_or(theme.radius.for_size(self.size()));
+        let disabled = self.disabled_reason.is_some();
+        let on_click = self.on_click.clone().filter(|_| !disabled);
+        base::Button::new(self.id.clone())
+            .track_focus(&focus)
+            .disabled(disabled)
+            .h_flex()
+            .flex_shrink_0()
+            .px(control.padding_x)
+            .py(control.padding_y)
+            .min_h(control.min_height)
+            .text_size(theme.typography.for_size(self.size()))
+            .line_height(relative(theme.typography.line_height))
+            .border(theme.border_width)
+            .border_color(colors.border)
+            .rounded(radius)
+            .bg(colors.bg)
+            .text_color(colors.color)
+            .when(self.look == ButtonLook::Raised, |this| {
+                this.shadow(vec![theme.shadow_sm()])
             })
-            .disabled(self.disabled_reason.is_some())
+            .when(!disabled, |this| {
+                this.hover(move |style| {
+                    style
+                        .bg(colors.hover_bg)
+                        .border_color(colors.hover_border)
+                        .text_color(colors.hover_color)
+                })
+                .active(move |style| {
+                    style
+                        .bg(colors.active_bg)
+                        .border_color(colors.active_border)
+                        .text_color(colors.active_color)
+                })
+            })
+            .when(disabled, |this| this.opacity(theme.disabled_opacity))
+            .when(focused, |this| {
+                this.shadow(vec![theme.focus_ring(colors.focus_ring)])
+            })
+            .when_some(on_click, |this, handler| {
+                this.on_click(move |event, window, cx| handler(event, window, cx))
+            })
+            .child(self.label.clone())
+            .into_any_element()
+    }
+}
+
+/// The colors of a secondary (or, with `danger`, a danger) button drawn in
+/// `look`. Text always reaches 4.5:1 on the button's own fill.
+pub(crate) fn look_colors(theme: &Theme, look: ButtonLook, danger: bool) -> ButtonColors {
+    let colors = &theme.colors;
+    let tone = |strength: f32| -> Hsla {
+        if danger {
+            colors.danger.opacity(strength)
+        } else {
+            colors.secondary.opacity(strength)
+        }
+    };
+    let (bg, border, hover_bg, active_bg) = match look {
+        ButtonLook::Subtle | ButtonLook::Raised => (
+            colors.body_bg,
+            if danger {
+                tone(0.5)
+            } else {
+                colors.border_color
+            },
+            colors.tertiary_bg,
+            colors.secondary_bg,
+        ),
+        ButtonLook::Soft => (
+            colors.tertiary_bg,
+            transparent_black(),
+            colors.secondary_bg,
+            colors.secondary_bg,
+        ),
+        ButtonLook::Faint => (transparent_black(), tone(0.45), tone(0.08), tone(0.16)),
+        ButtonLook::Outline => (transparent_black(), tone(1.), tone(1.), tone(1.)),
+    };
+    // Danger text is the theme's red, adjusted to 4.5:1 on every fill the button takes.
+    let text = if danger {
+        [bg, hover_bg, active_bg]
+            .into_iter()
+            .fold(colors.danger, |text, fill| {
+                let fill = mix(fill.opacity(1.), colors.body_bg, fill.a);
+                readable(text, fill, TEXT_CONTRAST, colors.body_color)
+            })
+    } else {
+        colors.body_color
+    };
+    let border_hover = if look == ButtonLook::Soft {
+        border
+    } else if danger {
+        tone(0.8)
+    } else {
+        colors.secondary.opacity(0.6)
+    };
+    ButtonColors {
+        bg,
+        border,
+        color: text,
+        hover_bg,
+        hover_border: border_hover,
+        hover_color: text,
+        active_bg,
+        active_border: border_hover,
+        active_color: text,
+        focus_ring: theme.focus_ring_color(),
     }
 }
 
 impl RenderOnce for ActionButton {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let mut button = self.button();
-        if let (Some(handler), None) = (self.on_click.clone(), &self.disabled_reason) {
-            button = button.on_click(move |event, window, cx| handler(event, window, cx));
-        }
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let button = match self.bootstrap() {
+            Some(mut button) => {
+                if let (Some(handler), None) = (self.on_click.clone(), &self.disabled_reason) {
+                    button = button.on_click(move |event, window, cx| handler(event, window, cx));
+                }
+                button.into_any_element()
+            }
+            None => self.drawn(window, cx),
+        };
         let muted = cx.theme().colors.secondary_color;
         let id = self.id;
         v_flex().items_start().gap_1().child(button).when_some(

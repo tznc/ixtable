@@ -14,6 +14,9 @@ use gpui_kit::{
 
 use crate::typography::{Type, TypeScale as _};
 
+/// The sidebar's width. Toasts fit inside it.
+pub const SIDEBAR_WIDTH: f32 = 220.;
+
 type Handler = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 
 pub struct SidebarItem {
@@ -191,7 +194,7 @@ impl RenderOnce for Sidebar {
         });
         v_flex()
             .id(self.id)
-            .w(px(220.))
+            .w(px(SIDEBAR_WIDTH))
             .h_full()
             .flex_none()
             .gap(theme.spacing(3))

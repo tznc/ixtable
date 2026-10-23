@@ -1,7 +1,7 @@
 //! `Callout`: an inline message about this screen. Lead with the answer in
 //! the title, then one or two sentences, then at most one action.
 
-use gpui_bootstrap::alert::Alert;
+use gpui_bootstrap::{ActiveTheme as _, alert::Alert};
 use gpui_kit::prelude::*;
 use gpui_kit::{
     AnyElement, App, ElementId, IntoElement, RenderOnce, SharedString, Window, base::v_flex, div,
@@ -55,33 +55,43 @@ impl Callout {
 }
 
 impl RenderOnce for Callout {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let id = self.id.clone();
-        Alert::new(self.id).variant(self.tone.variant()).child(
-            v_flex()
-                .gap_1()
-                .child(
-                    div()
-                        .id((id.clone(), "title"))
-                        .ty(Type::Label)
-                        .font_weight(gpui_kit::FontWeight::SEMIBOLD)
-                        .child(self.title),
-                )
-                .when_some(self.body, |this, body| {
-                    this.child(div().id((id.clone(), "body")).ty(Type::Body).child(body))
-                })
-                .when_some(self.details, |this, details| {
-                    this.child(
+        let colors = &cx.theme().colors;
+        // Neutral uses the lightest page fill, not Bootstrap's grey tint.
+        let neutral = (colors.tertiary_bg, colors.border_color, colors.body_color);
+        Alert::new(self.id)
+            .variant(self.tone.variant())
+            .when(self.tone == Tone::Neutral, |this| {
+                this.bg(neutral.0)
+                    .border_color(neutral.1)
+                    .text_color(neutral.2)
+            })
+            .child(
+                v_flex()
+                    .gap_1()
+                    .child(
                         div()
-                            .id((id, "details"))
-                            .ty(Type::Caption)
-                            .opacity(0.8)
-                            .child(details),
+                            .id((id.clone(), "title"))
+                            .ty(Type::Label)
+                            .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                            .child(self.title),
                     )
-                })
-                .when_some(self.action, |this, action| {
-                    this.child(div().pt_1().child(action))
-                }),
-        )
+                    .when_some(self.body, |this, body| {
+                        this.child(div().id((id.clone(), "body")).ty(Type::Body).child(body))
+                    })
+                    .when_some(self.details, |this, details| {
+                        this.child(
+                            div()
+                                .id((id, "details"))
+                                .ty(Type::Caption)
+                                .opacity(0.8)
+                                .child(details),
+                        )
+                    })
+                    .when_some(self.action, |this, action| {
+                        this.child(div().pt_1().child(action))
+                    }),
+            )
     }
 }

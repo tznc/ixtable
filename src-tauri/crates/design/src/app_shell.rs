@@ -50,7 +50,8 @@ impl AppShell {
         self
     }
 
-    /// Toasts stack top right over the content, never over the ribbon.
+    /// Toasts stack bottom left, over the foot of the sidebar and within its
+    /// width, so they never cover the content being worked on.
     pub fn toast(mut self, toast: impl IntoElement) -> Self {
         self.toasts.push(toast.into_any_element());
         self
@@ -68,6 +69,7 @@ impl RenderOnce for AppShell {
         let theme = cx.theme();
         h_flex()
             .id(self.id)
+            .relative()
             .size_full()
             .items_start()
             .bg(theme.colors.body_bg)
@@ -81,29 +83,26 @@ impl RenderOnce for AppShell {
                     .h_full()
                     .children(self.ribbon)
                     .child(
-                        div()
-                            .relative()
-                            .flex_1()
-                            .min_h_0()
-                            .child(
-                                v_flex()
-                                    .size_full()
-                                    .gap(theme.spacing(3))
-                                    .p(theme.spacing(4))
-                                    .children(self.header)
-                                    .children(self.children),
-                            )
-                            .when(!self.toasts.is_empty(), |this| {
-                                this.child(
-                                    v_flex()
-                                        .absolute()
-                                        .top(theme.spacing(3))
-                                        .right(theme.spacing(3))
-                                        .gap(theme.spacing(2))
-                                        .children(self.toasts),
-                                )
-                            }),
+                        div().relative().flex_1().min_h_0().child(
+                            v_flex()
+                                .size_full()
+                                .gap(theme.spacing(3))
+                                .p(theme.spacing(4))
+                                .children(self.header)
+                                .children(self.children),
+                        ),
                     ),
             )
+            .when(!self.toasts.is_empty(), |this| {
+                // Newest last, nearest the corner.
+                this.child(
+                    v_flex()
+                        .absolute()
+                        .bottom(theme.spacing(3))
+                        .left(theme.spacing(3))
+                        .gap(theme.spacing(2))
+                        .children(self.toasts),
+                )
+            })
     }
 }

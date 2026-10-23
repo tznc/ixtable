@@ -30,6 +30,9 @@ pub mod theme;
 pub mod toast;
 pub mod typography;
 
+#[cfg(test)]
+mod contrast_audit;
+
 pub use typography::{Tone, Type};
 
 pub use gpui_bootstrap::{ActiveTheme, ColorMode, Platform, Theme, Variant};
@@ -37,7 +40,7 @@ pub use theme::{DESKTOP, change_mode, init, native};
 
 /// Every component, the type scale and the theme.
 pub mod prelude {
-    pub use crate::action::{ActionButton, Emphasis};
+    pub use crate::action::{ActionButton, ButtonLook, Emphasis};
     pub use crate::app_shell::AppShell;
     pub use crate::callout::Callout;
     pub use crate::data_table::{Align, Column, DataTable};
@@ -51,7 +54,7 @@ pub mod prelude {
     pub use crate::section::Section;
     pub use crate::sidebar::{Sidebar, SidebarGroup, SidebarItem};
     pub use crate::status_badge::StatusBadge;
-    pub use crate::tabs::Tabs;
+    pub use crate::tabs::{TabStyle, Tabs};
     pub use crate::toast::Toast;
     pub use crate::typography::{Tone, Type, TypeScale as _};
     pub use gpui_bootstrap::prelude::*;

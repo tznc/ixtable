@@ -107,6 +107,7 @@ fn styleguide() -> Styleguide {
         .open_window(|options, frame, cx| Ok(gpui_kit::open_window(options, cx, frame)?.0))
         .themes(themes(), apply_theme)
         .background(|cx| cx.theme().colors.body_bg)
+        .foreground(|cx| cx.theme().colors.body_color)
         .variant_limit(8)
         .describe(
             "Typography",
@@ -130,7 +131,7 @@ fn styleguide() -> Styleguide {
         )
         .describe(
             "Toast",
-            "The result of an action, top right, gone in a few seconds. Past tense, names the \
+            "The result of an action, bottom left over the sidebar, gone in a few seconds. Past tense, names the \
              thing: \"Saved Orders\".",
         )
         .describe(
@@ -158,7 +159,8 @@ fn styleguide() -> Styleguide {
         )
         .describe(
             "Tabs",
-            "Views of the same thing. Underlined, never button-shaped.",
+            "Views of the same thing. Inactive tabs are muted text, never links or buttons; the \
+             accent marks the active one.",
         )
         .examples(foundations())
         .examples(actions())
@@ -254,6 +256,26 @@ fn actions() -> Vec<gpui_styleguidist::Example> {
         .component("ActionButton")
         .title("One primary per surface")
         .description("A form footer, a danger confirm, and a row action."),
+        example!("action/looks", |_, _, _| {
+            v_flex().gap_3().children(ButtonLook::ALL.map(|look| {
+                h_flex()
+                    .gap_2()
+                    .items_center()
+                    .child(div().w(px(64.)).ty(Type::Caption).child(look.name()))
+                    .child(ActionButton::new(("cancel", look as usize), "Cancel").look(look))
+                    .child(
+                        ActionButton::new(("import", look as usize), "Import records…").look(look),
+                    )
+                    .child(ActionButton::danger(("delete", look as usize), "Delete").look(look))
+                    .child(ActionButton::primary(("save", look as usize), "Save"))
+            }))
+        })
+        .component("ActionButton")
+        .title("Secondary looks")
+        .description(
+            "Options for the secondary and danger border. Subtle ships; outline is the old \
+             Bootstrap look.",
+        ),
         example!("page-header/playground", |knobs, _, _| {
             div().w(px(640.)).child(
                 PageHeader::new("header", "Orders")
@@ -275,14 +297,72 @@ fn actions() -> Vec<gpui_styleguidist::Example> {
         .component("PageHeader")
         .title("Playground"),
         example!("tabs/basic", |knobs, _, _| {
-            Tabs::new("tabs", ["Records", "Fields", "Relationships"]).active(knobs.pick(
-                "active",
-                &[("records", 0), ("fields", 1), ("relationships", 2)],
-                "records",
-            ))
+            let style = knobs.pick(
+                "style",
+                &[
+                    ("underline", TabStyle::Underline),
+                    ("pills", TabStyle::Pills),
+                    ("segmented", TabStyle::Segmented),
+                ],
+                "underline",
+            );
+            let counts = knobs.bool("counts", false);
+            Tabs::new("tabs", ["Records", "Fields", "Relationships"])
+                .style(style)
+                .when(knobs.bool("vertical", false), |this| this.vertical())
+                .when(counts, |this| this.counts([Some(830), Some(14), None]))
+                .active(knobs.pick(
+                    "active",
+                    &[("records", 0), ("fields", 1), ("relationships", 2)],
+                    "records",
+                ))
         })
         .component("Tabs")
-        .title("Tabs"),
+        .title("Playground"),
+        example!("tabs/styles", |_, _, _| {
+            v_flex()
+                .gap_4()
+                .child(Tabs::new("page", ["Records", "Fields", "Relationships"]))
+                .child(
+                    Tabs::new("filter", ["All", "Open", "Shipped", "Late"])
+                        .style(TabStyle::Pills)
+                        .counts([Some(830), Some(12), Some(815), Some(3)])
+                        .active(1),
+                )
+                .child(Tabs::new("mode", ["Design", "Preview"]).style(TabStyle::Segmented))
+        })
+        .component("Tabs")
+        .title("Styles")
+        .description(
+            "Underline for a page's views, pills for filters (with counts), segmented for two to \
+             four modes of one panel.",
+        ),
+        example!("tabs/vertical", |_, _, _| {
+            h_flex()
+                .gap_6()
+                .items_start()
+                .child(
+                    div().w(px(200.)).child(
+                        Tabs::new(
+                            "settings",
+                            ["General", "Appearance", "Users and roles", "Backups"],
+                        )
+                        .vertical()
+                        .active(1),
+                    ),
+                )
+                .child(
+                    div().w(px(200.)).child(
+                        Tabs::new("queues", ["Inbox", "Assigned to me", "Done"])
+                            .style(TabStyle::Pills)
+                            .vertical()
+                            .counts([Some(24), Some(5), None]),
+                    ),
+                )
+        })
+        .component("Tabs")
+        .title("Vertical")
+        .description("Settings sections and long lists of views stack down the left."),
     ]
 }
 

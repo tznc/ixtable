@@ -3,8 +3,8 @@
 //! one shared type scale. The "friendly grid" character (gridlines, a tinted
 //! header row, rounded status pills) lives in the components.
 
-use gpui_bootstrap::{ColorMode, Platform, Theme};
-use gpui_kit::{App, Hsla, px, rgb};
+use gpui_bootstrap::{ColorMode, Platform, Theme, theme::mix};
+use gpui_kit::{App, FontWeight, Hsla, Rgba, px, rgb};
 
 /// The app icon's teal (`branding/README.md`). Primary buttons, focus rings
 /// and selection use it, always with white text.
@@ -45,8 +45,40 @@ pub fn theme(platform: Platform, mode: ColorMode) -> Theme {
     type_.font_size_base = px(14.);
     type_.font_size_sm = px(12.);
     type_.font_size_lg = px(16.);
-    type_.headings = [px(30.), px(24.), px(20.), px(16.), px(14.), px(12.)];
+    // h5 is Bootstrap's dialog and card title: `Type::Title`, so a dialog
+    // reads as one. Headings share the type scale's semibold.
+    type_.headings = [px(30.), px(24.), px(20.), px(16.), px(20.), px(12.)];
+    type_.headings_font_weight = FontWeight::SEMIBOLD;
     theme
+}
+
+/// WCAG body text: 4.5:1.
+pub const TEXT_CONTRAST: f32 = 4.5;
+
+/// The WCAG contrast ratio between two colors, 1 to 21.
+pub fn contrast_ratio(a: Hsla, b: Hsla) -> f32 {
+    fn luminance(color: Hsla) -> f32 {
+        let rgba: Rgba = color.into();
+        let channel = |c: f32| {
+            if c <= 0.03928 {
+                c / 12.92
+            } else {
+                ((c + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * channel(rgba.r) + 0.7152 * channel(rgba.g) + 0.0722 * channel(rgba.b)
+    }
+    let (a, b) = (luminance(a), luminance(b));
+    (a.max(b) + 0.05) / (a.min(b) + 0.05)
+}
+
+/// `color` as text on `bg`: unchanged when it reaches `min`, otherwise mixed
+/// toward `toward` (usually the body text) in small steps until it does.
+pub fn readable(color: Hsla, bg: Hsla, min: f32, toward: Hsla) -> Hsla {
+    (0..=10)
+        .map(|step| mix(toward, color, step as f32 / 10.))
+        .find(|candidate| contrast_ratio(*candidate, bg) >= min)
+        .unwrap_or(toward)
 }
 
 /// The theme for the OS this binary runs on.
@@ -103,6 +135,17 @@ mod tests {
                 assert_eq!(theme.contrast(warning), theme.colors.black, "{platform:?}");
             }
         });
+    }
+
+    #[test]
+    fn dialog_titles_use_the_title_role() {
+        use crate::typography::Type;
+        for platform in DESKTOP {
+            let theme = theme(platform, ColorMode::Light);
+            // Bootstrap's modal title is h5.
+            assert_eq!(theme.typography.headings[4], px(Type::Title.size()));
+            assert_eq!(theme.typography.headings_font_weight, Type::Title.weight());
+        }
     }
 
     #[gpui_kit::test]

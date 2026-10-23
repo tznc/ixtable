@@ -1,5 +1,5 @@
-//! `Toast`: the result of an action, top right, gone after a few seconds.
-//! The application places and times it; this is how it looks.
+//! `Toast`: the result of an action, bottom left over the sidebar, gone after
+//! a few seconds. `AppShell` places it; the application times it.
 
 use gpui_bootstrap::{ActiveTheme as _, close_button::CloseButton};
 use gpui_kit::prelude::*;
@@ -9,7 +9,11 @@ use gpui_kit::{
     div, px,
 };
 
+use crate::sidebar::SIDEBAR_WIDTH;
 use crate::typography::{Tone, Type, TypeScale as _};
+
+/// A toast's width: the sidebar's, less a 12px margin each side.
+pub const TOAST_WIDTH: f32 = SIDEBAR_WIDTH - 24.;
 
 type Dismiss = std::rc::Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 
@@ -59,7 +63,7 @@ impl RenderOnce for Toast {
         let id = self.id.clone();
         h_flex()
             .id(self.id)
-            .w(px(340.))
+            .w(px(TOAST_WIDTH))
             .items_start()
             .gap(theme.spacing(2))
             .p(theme.spacing(3) * 0.75)

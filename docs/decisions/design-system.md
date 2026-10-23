@@ -37,8 +37,9 @@ Each rule is enforced by a component's API, so it doesn't rely on reviewers.
 | Lead with the answer | `Callout` and `Toast` take a title first. Technical text goes in `details`, never the title |
 | Empty is a state, not a blank | `DataTable::empty(EmptyState)` names what goes there and the one action that fills it |
 | Required is normal | `Field` marks only the exceptions as "Optional"; errors replace the hint and say how to fix the value |
-| Nothing jumps | `Toast` is drawn top right by the shell; `Section` collapses in place; inline messages slide in (`widgets::slide_in`) |
-| Tabs are not buttons or links | `Tabs` underline the active tab in teal; inactive tabs are muted body text |
+| Nothing jumps | `Toast` is drawn bottom left by the shell, over the foot of the sidebar and within its width (Zn, 2026-10-23); `Section` collapses in place; inline messages slide in (`widgets::slide_in`) |
+| Tabs are not buttons or links | `Tabs` mark the active tab with the teal (underline, pill tint or a raised segment); inactive tabs are muted body text |
+| Everything reads | Every text color a component draws reaches 4.5:1 on its fill in all six themes (`contrast_audit.rs`), except white on the teal primary |
 | No raw sizes | `Type` has six roles (`.ty(Type::Title)`); the crate never calls `text_sm` and friends |
 
 ## Tokens
@@ -54,7 +55,11 @@ runs on. The theme then sets:
 - **Links:** `#0A7C7A` on light (4.5:1) and `#5FD8D5` on dark.
 - **Dark:** brand navy `#10171D` is Bootstrap's `dark`.
 - **Type:** 14px base, 12px small and 16px large, on every platform. Headings are
-  30/24/20/16/14/12, which matches `Type`. The font family stays the platform's own.
+  30/24/20/16/20/12 and semibold, which matches `Type`: h5 is Bootstrap's dialog and
+  card title, so it is `Type::Title`. The font family stays the platform's own.
+- **Readable color:** `theme::readable(color, bg, 4.5, toward)` darkens (or, on dark,
+  lightens) a tone only as far as 4.5:1 needs. The field error and danger buttons use
+  it, so they stay red instead of Bootstrap's brown "emphasis" color.
 - **Info tone:** this uses primary (teal), not Bootstrap's cyan, so the app has one
   cool accent.
 
@@ -65,23 +70,23 @@ resets link colors.
 
 | Component | Built on | Job |
 |---|---|---|
-| `ActionButton` (+ `Emphasis`) | `Button` | Any labelled action: Primary, Secondary (outline), Quiet (link), Danger (outline, filled only with `.confirm()`) |
+| `ActionButton` (+ `Emphasis`, `ButtonLook`) | `Button` | Any labelled action: Primary, Secondary (hairline border, body text), Quiet (link), Danger (red hairline, filled only with `.confirm()`). `ButtonLook` (subtle, soft, faint, raised, outline) is the secondary look; subtle ships, the others are in the guide for comparison |
 | `PageHeader` | `Breadcrumb` slot | Screen title, state sentence, actions |
-| `Callout` | `Alert` | Inline message about this screen |
-| `Toast` | `CloseButton` | The result of an action (the shell places and times it) |
+| `Callout` | `Alert` | Inline message about this screen. Neutral sits on the lightest page fill, not Bootstrap's grey tint |
+| `Toast` | `CloseButton` | The result of an action, `TOAST_WIDTH` wide so it fits the sidebar (the shell places it, the app times it) |
 | `StatusBadge` | `Badge` (subtle, pill) | A state in one or two words |
 | `Field` | none | Label, Optional, control, hint or error |
 | `Section` | none | Titled, optionally collapsible group with a closed-state summary |
 | `KeyValue` | none | Facts about one thing |
 | `DataTable` (+ `Column`, `Align`) | none | Read-only record list with selection, footer count, and empty state |
 | `EmptyState` | none | What goes here and how to add the first one |
-| `Tabs` | none | Views of the same thing |
+| `Tabs` (+ `TabStyle`) | none | Views of the same thing. Underline for a page's views, pills for filters (with `.counts`), segmented for two to four modes; `.vertical()` for settings sections |
 
 Composites put the building blocks together into whole regions of the screen:
 
 | Composite | Job |
 |---|---|
-| `AppShell` | Sidebar + Ribbon + PageHeader + content, with toasts top right. Passes the trunk test on any screen |
+| `AppShell` | Sidebar + Ribbon + PageHeader + content, with toasts bottom left over the sidebar. Passes the trunk test on any screen |
 | `Ribbon` (+ `RibbonGroup`, `RibbonCommand`) | Tabs over labelled command groups. Run App is the one primary. A disabled command shows why in its tooltip |
 | `Sidebar` (+ `SidebarGroup`, `SidebarItem`) | Objects by kind with counts. The open object is tinted. Each group ends with "New …" |
 | `Dialog` (+ `DialogSize`) | One decision: Cancel plus exactly one primary, or a filled danger confirm |

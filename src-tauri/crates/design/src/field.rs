@@ -9,6 +9,7 @@ use gpui_kit::{
     div,
 };
 
+use crate::theme::{TEXT_CONTRAST, readable};
 use crate::typography::{Type, TypeScale as _};
 
 #[cfg_attr(feature = "styleguide", gpui_styleguidist::preview("field/states"))]
@@ -63,7 +64,14 @@ impl RenderOnce for Field {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = cx.theme();
         let muted = theme.colors.secondary_color;
-        let danger = theme.variant(gpui_bootstrap::Variant::Danger).text_emphasis;
+        // The theme's red, darkened only as far as 4.5:1 needs (Bootstrap's emphasis is brown).
+        let colors = &theme.colors;
+        let danger = readable(
+            colors.danger,
+            colors.body_bg,
+            TEXT_CONTRAST,
+            colors.body_color,
+        );
         let id = self.id.clone();
         let message = match (self.error, self.hint) {
             (Some(error), _) => Some(("error", error, danger)),
@@ -99,6 +107,9 @@ impl RenderOnce for Field {
                     div()
                         .id((id, kind))
                         .ty(Type::Caption)
+                        .when(kind == "error", |this| {
+                            this.font_weight(gpui_kit::FontWeight::MEDIUM)
+                        })
                         .text_color(color)
                         .child(text),
                 )
