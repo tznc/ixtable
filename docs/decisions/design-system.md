@@ -1,7 +1,9 @@
 # Design system
 
-Status: accepted (2026-10-22). The visual direction (density, surfaces, corners) is
-pending Zn's pick from eight options; the structure below doesn't depend on it.
+Status: accepted (2026-10-22). Visual direction (Zn, 2026-10-23): **friendly grid on a
+native base**. Each OS keeps its own look, and the grid character (gridlines, a tinted
+header row, rounded status pills) comes from the components. The Krug walkthrough of every
+component lives in the design system doc shared in the project.
 
 `design-language.md` says what ixtable screens should look and sound like. This record
 covers how that is codified: the `ixtable-design` crate, its components, and the
@@ -40,16 +42,18 @@ Each rule is enforced by a component's API, so it doesn't rely on reviewers.
 
 ## Tokens
 
-`ixtable_design::theme::theme(mode)` starts from Bootstrap 5.3 (`Platform::Web`) and sets:
+`ixtable_design::theme::theme(platform, mode)` starts from gpui-bootstrap's platform theme
+(macOS, Windows/Fluent, or Linux/libadwaita). That theme supplies the system font, corner
+radii, control sizes, and status and surface colors. `native(mode)` picks the OS the app
+runs on. The theme then sets:
 
 - **Accent:** primary `#0DB9B6` (app icon teal) with white text. White on teal is
   2.4:1, below WCAG AA. Zn chose it for the brand anyway, so `min_contrast_ratio` is
   2.2. Warning and info fills stay below that threshold and keep dark text (tested).
 - **Links:** `#0A7C7A` on light (4.5:1) and `#5FD8D5` on dark.
-- **Dark:** brand navy `#10171D` is Bootstrap's `dark`; the dark surfaces are navy-tinted.
-- **Type:** 14px base, 12px small, 16px large, 1.45 line height. Headings are
-  30/24/20/16/14/12, which matches `Type`.
-- **Controls:** medium padding is 5×12px, a little denser than Bootstrap's.
+- **Dark:** brand navy `#10171D` is Bootstrap's `dark`.
+- **Type:** 14px base, 12px small and 16px large, on every platform. Headings are
+  30/24/20/16/14/12, which matches `Type`. The font family stays the platform's own.
 - **Info tone:** this uses primary (teal), not Bootstrap's cyan, so the app has one
   cool accent.
 
@@ -72,6 +76,20 @@ resets link colors.
 | `EmptyState` | none | What goes here and how to add the first one |
 | `Tabs` | `Nav` underline | Views of the same thing |
 
+Composites put the building blocks together into whole regions of the screen:
+
+| Composite | Job |
+|---|---|
+| `AppShell` | Sidebar + Ribbon + PageHeader + content, with toasts top right. Passes the trunk test on any screen |
+| `Ribbon` (+ `RibbonGroup`, `RibbonCommand`) | Tabs over labelled command groups. Run App is the one primary. A disabled command shows why in its tooltip |
+| `Sidebar` (+ `SidebarGroup`, `SidebarItem`) | Objects by kind with counts. The open object is tinted. Each group ends with "New …" |
+| `Dialog` (+ `DialogSize`) | One decision: Cancel plus exactly one primary, or a filled danger confirm |
+| `RecordForm` | One column of `Field`s and one Save. A failed save shows a count callout |
+
+`PageHeader`, `Ribbon`, `Dialog` and `RecordForm` take the primary action in its own slot
+(`.primary(...)`). A primary passed to `.action(...)` is shown as secondary, so a surface
+can't end up with two primaries.
+
 Element ids follow the app rule: the id you pass, plus fixed suffixes for parts that
 tests read (`<id>-title`, `<id>-reason`, `<id>-error`, `<id>-row-<n>`).
 
@@ -89,15 +107,17 @@ From `src-tauri/`:
 | Re-render snapshots after a deliberate change | `cd crates/design && cargo run -p ixtable-design --example styleguide -- render` |
 | Check snapshots (CI) | `cd crates/design && cargo run -p ixtable-design --example styleguide -- check` |
 
-Rendering needs a Vulkan driver (`mesa-vulkan-drivers` on Linux; CI installs it).
+Snapshots cover every desktop platform in light and dark (`macos-light` through
+`linux-dark`), so 6 themes for each example. CI renders on Linux, so the platform font falls
+back to the CI font there, while colors, radii and sizes match each platform. Rendering
+needs a Vulkan driver (`mesa-vulkan-drivers` on Linux; CI installs it).
 
 ## Rollout
 
 1. This change adds the crate, the styleguide, and the CI check. The app doesn't depend
    on the crate yet, so screens are unchanged.
-2. The next change applies the chosen direction's tokens, adds `ixtable-design` to the
-   app, and replaces `ui::theme::apply` with `ixtable_design::init`. That moves
-   gpui-kit's theme onto the Bootstrap tokens.
+2. The next change adds `ixtable-design` to the app and replaces `ui::theme::apply` with
+   `ixtable_design::init`. That moves gpui-kit's theme onto the native platform tokens.
 3. After that, screens migrate one area per PR, in this order: runtime, data, design,
    automation, settings and cloud. Each PR replaces `widgets::callout`,
    `display::data_table`, `forms::primary` and the like with the components, and works
@@ -106,6 +126,5 @@ Rendering needs a Vulkan driver (`mesa-vulkan-drivers` on Linux; CI installs it)
 
 ## Gaps (add a component before a screen needs a one-off)
 
-- `Dialog`: a thin layer over `Modal` with a sticky footer and the one-primary rule.
-- Ribbon and sidebar navigation.
+- Inactive `Tabs` use Bootstrap's link color. Consider body color so tabs don't read as links.
 - Datasheet (stays an app widget; it is an editable grid, not a `DataTable`).

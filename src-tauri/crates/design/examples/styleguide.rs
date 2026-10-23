@@ -4,25 +4,48 @@
 //! - `-- render` re-renders the committed snapshots under `styleguide/`;
 //!   `-- check` compares against them (CI).
 
+use gpui_kit::assets::IconName;
+use gpui_kit::base::DialogHandle;
 use gpui_kit::{
     base::{h_flex, v_flex},
     prelude::FluentBuilder as _,
     *,
 };
 use gpui_styleguidist::{Styleguide, example};
-use ixtable_design::{ColorMode, prelude::*};
+use ixtable_design::{ColorMode, Platform, prelude::*};
 
 fn main() {
     gpui_styleguidist::main(styleguide());
 }
 
+/// Theme names, `<platform>-<mode>`: every desktop platform in light and dark.
+fn themes() -> Vec<String> {
+    ixtable_design::DESKTOP
+        .iter()
+        .flat_map(|platform| ["light", "dark"].map(|mode| format!("{}-{mode}", slug(*platform))))
+        .collect()
+}
+
+fn slug(platform: Platform) -> &'static str {
+    match platform {
+        Platform::MacOS => "macos",
+        Platform::Windows => "windows",
+        _ => "linux",
+    }
+}
+
 fn apply_theme(name: &str, cx: &mut App) {
-    let mode = if name == "dark" {
+    let (platform, mode) = name.rsplit_once('-').unwrap_or((name, "light"));
+    let platform = ixtable_design::DESKTOP
+        .into_iter()
+        .find(|candidate| slug(*candidate) == platform)
+        .unwrap_or(Platform::Linux);
+    let mode = if mode == "dark" {
         ColorMode::Dark
     } else {
         ColorMode::Light
     };
-    ixtable_design::change_mode(mode, cx);
+    ixtable_design::theme::theme(platform, mode).apply(cx);
 }
 
 const TONES: &[(&str, Tone)] = &[
@@ -38,7 +61,7 @@ fn styleguide() -> Styleguide {
         .assets(gpui_kit::assets::Assets)
         .setup(ixtable_design::init)
         .open_window(|options, frame, cx| Ok(gpui_kit::open_window(options, cx, frame)?.0))
-        .themes(vec!["light".to_string(), "dark".to_string()], apply_theme)
+        .themes(themes(), apply_theme)
         .background(|cx| cx.theme().colors.body_bg)
         .variant_limit(8)
         .describe(
@@ -96,7 +119,34 @@ fn styleguide() -> Styleguide {
         .examples(foundations())
         .examples(actions())
         .examples(feedback())
+        .describe(
+            "AppShell",
+            "The frame every screen sits in. Sidebar, Ribbon and PageHeader together pass \
+             Krug's trunk test: which document, which page, its sections, my options, where I am.",
+        )
+        .describe(
+            "Ribbon",
+            "Tabs over labelled command groups, the same on every page. Commands are short verbs \
+             under a noun group label; a disabled command says why in its tooltip; Run App is \
+             the one primary.",
+        )
+        .describe(
+            "Sidebar",
+            "The document's objects by kind, with counts. The open object is tinted; each group \
+             ends with the way to add one.",
+        )
+        .describe(
+            "Dialog",
+            "One decision. The title asks the question; the footer holds Cancel and exactly one \
+             primary, or a filled danger confirm.",
+        )
+        .describe(
+            "RecordForm",
+            "One column of fields and one Save. After a failed save, a callout counts the \
+             problems and each field shows its own fix.",
+        )
         .examples(content())
+        .examples(composites())
 }
 
 fn foundations() -> Vec<gpui_styleguidist::Example> {
@@ -368,5 +418,239 @@ fn content() -> Vec<gpui_styleguidist::Example> {
         })
         .component("EmptyState")
         .title("Playground"),
+    ]
+}
+
+fn sample_sidebar(selected: &'static str) -> Sidebar {
+    Sidebar::new("sidebar", "Northwind")
+        .mark(div().size(px(18.)).rounded_md().bg(gpui_kit::rgb(0x0DB9B6)))
+        .group(
+            SidebarGroup::new("tables", "Tables")
+                .item(SidebarItem::new("customers", "Customers").count(91))
+                .item(SidebarItem::new("orders", "Orders").count(830))
+                .item(SidebarItem::new("products", "Products").count(77))
+                .add("New table…", |_, _, _| {}),
+        )
+        .group(
+            SidebarGroup::new("queries", "Queries")
+                .item(SidebarItem::new("late-orders", "Late orders").count(3))
+                .add("New query…", |_, _, _| {}),
+        )
+        .group(
+            SidebarGroup::new("pages", "Pages")
+                .item(SidebarItem::new("order-entry", "Order entry"))
+                .item(SidebarItem::new("sales-report", "Sales by month"))
+                .add("New page…", |_, _, _| {}),
+        )
+        .selected(selected)
+}
+
+fn sample_ribbon(tab: usize) -> Ribbon {
+    let ribbon = Ribbon::new(
+        "ribbon",
+        ["Home", "Create", "External data", "Database tools"],
+    )
+    .active(tab)
+    .primary(ActionButton::new("run-app", "Run App"));
+    match tab {
+        1 => ribbon
+            .group(
+                RibbonGroup::new("tables", "Tables")
+                    .command(RibbonCommand::new("new-table", IconName::Plus, "Table"))
+                    .command(RibbonCommand::new("new-query", IconName::Search, "Query")),
+            )
+            .group(
+                RibbonGroup::new("pages", "Pages")
+                    .command(RibbonCommand::new(
+                        "new-form",
+                        IconName::LayoutDashboard,
+                        "Form",
+                    ))
+                    .command(RibbonCommand::new(
+                        "new-report",
+                        IconName::ChartPie,
+                        "Report",
+                    )),
+            ),
+        _ => ribbon
+            .group(
+                RibbonGroup::new("undo", "Undo")
+                    .command(RibbonCommand::new("undo", IconName::Undo2, "Undo"))
+                    .command(
+                        RibbonCommand::new("redo", IconName::Redo2, "Redo")
+                            .disabled_because("Nothing to redo"),
+                    ),
+            )
+            .group(
+                RibbonGroup::new("records", "Records")
+                    .command(RibbonCommand::new(
+                        "refresh",
+                        IconName::RefreshCw,
+                        "Refresh",
+                    ))
+                    .command(RibbonCommand::new("find", IconName::Search, "Find")),
+            ),
+    }
+}
+
+fn orders_table() -> DataTable {
+    let columns = [
+        Column::new("Order").width(70.),
+        Column::new("Customer"),
+        Column::new("Status").width(150.),
+        Column::number("Total").width(100.),
+    ];
+    let rows: [(&str, &str, Tone, &str, &str); 4] = [
+        (
+            "10248",
+            "Vins et alcools Chevalier",
+            Tone::Warning,
+            "Waiting to ship",
+            "$440.00",
+        ),
+        (
+            "10249",
+            "Toms Spezialitäten",
+            Tone::Success,
+            "Shipped",
+            "$1,863.40",
+        ),
+        (
+            "10250",
+            "Hanari Carnes",
+            Tone::Warning,
+            "Waiting to ship",
+            "$1,552.60",
+        ),
+        (
+            "10251",
+            "Victuailles en stock",
+            Tone::Neutral,
+            "Draft",
+            "$654.06",
+        ),
+    ];
+    rows.into_iter().fold(
+        DataTable::new("orders", columns)
+            .selected(Some(1))
+            .footer("4 of 830 orders"),
+        |table, (order, customer, tone, status, total)| {
+            table.row([
+                order.into_any_element(),
+                customer.into_any_element(),
+                StatusBadge::new(tone, status).into_any_element(),
+                total.into_any_element(),
+            ])
+        },
+    )
+}
+
+/// An open [`Dialog`] over a page.
+struct DialogDemo {
+    handle: DialogHandle,
+    destructive: bool,
+}
+
+impl Render for DialogDemo {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let dialog = if self.destructive {
+            Dialog::new(&self.handle, "Delete the Orders table?")
+                .size(DialogSize::Small)
+                .cancel_label("Keep table")
+                .primary(ActionButton::danger("delete", "Delete table"))
+                .child("830 records and 2 relationships go with it. You can undo this until you close the document.")
+        } else {
+            Dialog::new(&self.handle, "New relationship")
+                .primary(ActionButton::new("create", "Create relationship"))
+                .child(
+                    Field::new("from", "Each order belongs to")
+                        .control(fake_input("Customers"))
+                        .hint("Orders.customer_id links to Customers.id"),
+                )
+        };
+        div().size_full().child(dialog)
+    }
+}
+
+fn fake_input(value: &'static str) -> impl IntoElement {
+    div()
+        .w(px(300.))
+        .px_2()
+        .py_1()
+        .border_1()
+        .rounded_md()
+        .border_color(gpui_kit::rgb(0xC9CED4))
+        .child(value)
+}
+
+fn composites() -> Vec<gpui_styleguidist::Example> {
+    vec![
+        example!("ribbon/studio", |knobs, _, _| {
+            div().w(px(820.)).child(sample_ribbon(knobs.pick(
+                "tab",
+                &[("home", 0), ("create", 1)],
+                "home",
+            )))
+        })
+        .component("Ribbon")
+        .title("Studio ribbon"),
+        example!("sidebar/document", |knobs, _, _| {
+            div().h(px(440.)).child(sample_sidebar(knobs.pick(
+                "selected",
+                &[("orders", "orders"), ("late-orders", "late-orders")],
+                "orders",
+            )))
+        })
+        .component("Sidebar")
+        .title("Document objects"),
+        example!(view "dialog/confirm", |knobs, _, cx| {
+            cx.new(|_| DialogDemo {
+                handle: DialogHandle::new(true),
+                destructive: knobs.pick("kind", &[("delete", true), ("form", false)], "delete"),
+            })
+        })
+        .component("Dialog")
+        .title("Confirm and form")
+        .size(720., 380.),
+        example!("record-form/order", |knobs, _, _| {
+            let failed = knobs.bool("failed save", false);
+            RecordForm::new("order-form")
+                .problems(if failed { 1 } else { 0 })
+                .field(Field::new("customer", "Customer").control(fake_input("Hanari Carnes")))
+                .field(
+                    Field::new("ship-date", "Ship date")
+                        .control(fake_input(if failed { "next tuesday" } else { "2026-10-28" }))
+                        .hint("The day the order leaves the warehouse.")
+                        .error(failed.then_some("Enter a date like 2026-10-22")),
+                )
+                .field(
+                    Field::new("notes", "Notes")
+                        .optional()
+                        .control(fake_input("")),
+                )
+                .primary(ActionButton::new("save", "Save order"))
+                .action(ActionButton::quiet("discard", "Discard changes"))
+        })
+        .component("RecordForm")
+        .title("Order form"),
+        example!("app-shell/studio", |knobs, _, _| {
+            AppShell::new("shell")
+                .sidebar(sample_sidebar("orders"))
+                .ribbon(sample_ribbon(0))
+                .header(
+                    PageHeader::new("header", "Orders")
+                        .description("830 orders. 3 are waiting to ship.")
+                        .action(ActionButton::new("import", "Import records…"))
+                        .primary(ActionButton::new("new", "New order")),
+                )
+                .child(orders_table())
+                .when(knobs.bool("toast", true), |this| {
+                    this.toast(Toast::new("saved", Tone::Success, "Saved Orders"))
+                })
+        })
+        .component("AppShell")
+        .title("Studio: Orders")
+        .description("The trunk test: document (sidebar title), page (Title), sections (ribbon tabs and sidebar groups), options (ribbon and header actions), you are here (tinted sidebar item, underlined tab).")
+        .size(1180., 560.),
     ]
 }

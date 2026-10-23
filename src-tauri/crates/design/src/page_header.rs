@@ -9,7 +9,10 @@ use gpui_kit::{
     div,
 };
 
-use crate::typography::{Type, TypeScale as _};
+use crate::{
+    action::{ActionButton, Emphasis},
+    typography::{Type, TypeScale as _},
+};
 
 #[cfg_attr(
     feature = "styleguide",
@@ -21,7 +24,8 @@ pub struct PageHeader {
     title: SharedString,
     description: Option<SharedString>,
     breadcrumb: Option<AnyElement>,
-    actions: Vec<AnyElement>,
+    actions: Vec<ActionButton>,
+    primary: Option<ActionButton>,
 }
 
 impl PageHeader {
@@ -32,6 +36,7 @@ impl PageHeader {
             description: None,
             breadcrumb: None,
             actions: Vec::new(),
+            primary: None,
         }
     }
 
@@ -47,9 +52,15 @@ impl PageHeader {
         self
     }
 
-    /// Actions, right-aligned. Put the primary last.
-    pub fn action(mut self, action: impl IntoElement) -> Self {
-        self.actions.push(action.into_any_element());
+    /// A secondary action. A primary passed here is shown as secondary.
+    pub fn action(mut self, action: ActionButton) -> Self {
+        self.actions.push(action.not_primary());
+        self
+    }
+
+    /// The screen's one primary action, shown last on the right.
+    pub fn primary(mut self, action: ActionButton) -> Self {
+        self.primary = Some(action.emphasis(Emphasis::Primary));
         self
     }
 }
@@ -73,7 +84,12 @@ impl RenderOnce for PageHeader {
                             .ty(Type::Title)
                             .child(self.title),
                     )
-                    .child(h_flex().gap(theme.spacing(2)).children(self.actions)),
+                    .child(
+                        h_flex()
+                            .gap(theme.spacing(2))
+                            .children(self.actions)
+                            .children(self.primary),
+                    ),
             )
             .when_some(self.description, |this, description| {
                 this.child(

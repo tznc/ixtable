@@ -125,8 +125,16 @@ impl DataTable {
     }
 }
 
-fn cell(column: &Column) -> gpui_kit::Div {
+fn cell(
+    column: &Column,
+    (pad_x, pad_y): (gpui_kit::Pixels, gpui_kit::Pixels),
+    rule: gpui_kit::Hsla,
+    last: bool,
+) -> gpui_kit::Div {
     div()
+        .px(pad_x)
+        .py(pad_y)
+        .when(!last, |this| this.border_r_1().border_color(rule))
         .min_w_0()
         .overflow_hidden()
         .flex()
@@ -142,7 +150,7 @@ impl RenderOnce for DataTable {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = cx.theme();
         let colors = &theme.colors;
-        let (pad_x, pad_y) = (theme.spacing(3) * 0.75, theme.spacing(2));
+        let (pad_x, pad_y) = (theme.spacing(3) * 0.625, theme.spacing(2) * 0.75);
         let id = self.id;
         if self.rows.is_empty()
             && let Some(empty) = self.empty
@@ -151,29 +159,32 @@ impl RenderOnce for DataTable {
         }
         // A light wash of the accent: the selected row stays readable.
         let selected_bg = colors.primary.opacity(0.12);
+        // Friendly grid: a tinted header row and a rule between every cell.
+        let rule = colors.border_color;
+        let last = self.columns.len().saturating_sub(1);
         let header = h_flex()
             .id((id.clone(), "header"))
-            .gap(pad_x)
-            .px(pad_x)
-            .py(pad_y)
+            .items_stretch()
+            .bg(colors.tertiary_bg)
             .border_b(theme.border_width)
-            .border_color(colors.border_color)
-            .children(self.columns.iter().map(|column| {
-                cell(column)
+            .border_color(rule)
+            .children(self.columns.iter().enumerate().map(|(index, column)| {
+                cell(column, (pad_x, pad_y), rule, index == last)
                     .ty(Type::Label)
-                    .text_color(colors.secondary_color)
+                    .text_color(colors.emphasis_color)
                     .child(column.label.clone())
             }));
         let columns = Rc::new(self.columns);
+        let row_count = self.rows.len();
         let rows = self.rows.into_iter().enumerate().map(|(index, cells)| {
             let columns = columns.clone();
             h_flex()
                 .id((id.clone(), SharedString::from(format!("row-{index}"))))
-                .gap(pad_x)
-                .px(pad_x)
-                .py(pad_y)
-                .border_b(theme.border_width)
-                .border_color(colors.border_color.opacity(0.6))
+                .items_stretch()
+                .when(index + 1 < row_count, |this| {
+                    this.border_b(theme.border_width)
+                        .border_color(rule.opacity(0.7))
+                })
                 .ty(Type::Body)
                 .when(self.selected == Some(index), |this| this.bg(selected_bg))
                 .when_some(self.on_select.clone(), |this, select| {
@@ -181,22 +192,26 @@ impl RenderOnce for DataTable {
                         .hover(|style| style.bg(colors.tertiary_bg))
                         .on_click(move |event, window, cx| select(index, event, window, cx))
                 })
-                .children(
-                    cells
-                        .into_iter()
-                        .zip(columns.iter())
-                        .map(|(content, column)| cell(column).child(content)),
-                )
+                .children(cells.into_iter().zip(columns.iter()).enumerate().map(
+                    |(i, (content, column))| {
+                        cell(column, (pad_x, pad_y), rule.opacity(0.7), i == last).child(content)
+                    },
+                ))
         });
+        let table = v_flex()
+            .border(theme.border_width)
+            .border_color(rule)
+            .rounded(theme.radius.base)
+            .overflow_hidden()
+            .child(header)
+            .children(rows);
         v_flex()
             .id(id.clone())
-            .child(header)
-            .children(rows)
+            .child(table)
             .when_some(self.footer, |this, footer| {
                 this.child(
                     div()
                         .id((id, "footer"))
-                        .px(pad_x)
                         .pt(pad_y)
                         .ty(Type::Caption)
                         .text_color(colors.secondary_color)

@@ -1,5 +1,7 @@
-//! The ixtable theme: Bootstrap's tokens with the app icon's teal as the
-//! accent, a 14px base for dense business screens, and calm surfaces.
+//! The ixtable theme: each OS's native look (gpui-bootstrap's platform
+//! palettes, corners and controls) with the app icon's teal as the accent and
+//! one shared type scale. The "friendly grid" character (gridlines, a tinted
+//! header row, rounded status pills) lives in the components.
 
 use gpui_bootstrap::{ColorMode, Platform, Theme};
 use gpui_kit::{App, Hsla, px, rgb};
@@ -10,58 +12,64 @@ pub const TEAL: u32 = 0x0DB9B6;
 /// Link text: the teal darkened to 4.5:1 on white.
 pub const LINK: u32 = 0x0A7C7A;
 const LINK_HOVER: u32 = 0x086664;
-/// Link text on the dark surface.
+/// Link text on dark surfaces.
 const LINK_DARK: u32 = 0x5FD8D5;
+const LINK_DARK_HOVER: u32 = 0x8FE6E3;
 /// The brand navy, Bootstrap's `dark`.
 pub const NAVY: u32 = 0x10171D;
+
+/// The desktop platforms ixtable ships on, in styleguide order.
+pub const DESKTOP: [Platform; 3] = [Platform::MacOS, Platform::Windows, Platform::Linux];
 
 fn hex(value: u32) -> Hsla {
     rgb(value).into()
 }
 
-/// The ixtable theme for `mode`.
-pub fn theme(mode: ColorMode) -> Theme {
-    let mut theme = Theme::platform(Platform::Web, mode);
+/// The ixtable theme for `platform` in `mode`.
+pub fn theme(platform: Platform, mode: ColorMode) -> Theme {
+    let mut theme = Theme::platform(platform, mode);
     let colors = &mut theme.colors;
     colors.primary = hex(TEAL);
     colors.dark = hex(NAVY);
     (colors.link_color, colors.link_hover_color) = match mode {
         ColorMode::Light => (hex(LINK), hex(LINK_HOVER)),
-        ColorMode::Dark => (hex(LINK_DARK), hex(0x8FE6E3)),
+        ColorMode::Dark => (hex(LINK_DARK), hex(LINK_DARK_HOVER)),
     };
-    if mode == ColorMode::Dark {
-        colors.body_bg = hex(0x151C22);
-        colors.secondary_bg = hex(0x1D262E);
-        colors.tertiary_bg = hex(0x192128);
-    }
     // White on the teal is 2.4:1. Zn chose white text for the brand accent
     // (design-language.md §4), so the threshold sits just under it. Warning
     // and info fills stay below it and keep dark text.
     theme.min_contrast_ratio = 2.2;
+    // One type scale on every platform, so `Type` and Bootstrap's controls
+    // agree; the font family stays the platform's own.
     let type_ = &mut theme.typography;
     type_.font_size_base = px(14.);
     type_.font_size_sm = px(12.);
     type_.font_size_lg = px(16.);
-    type_.line_height = 1.45;
     type_.headings = [px(30.), px(24.), px(20.), px(16.), px(14.), px(12.)];
-    // Controls are a touch tighter than Bootstrap's: forms and toolbars are dense.
-    theme.controls.medium.padding_y = px(5.);
-    theme.controls.medium.padding_x = px(12.);
     theme
 }
 
-/// Installs gpui-kit, gpui-bootstrap and the ixtable theme in light mode,
-/// unless a theme is already installed.
-pub fn init(cx: &mut App) {
-    gpui_bootstrap::init(cx);
-    let mode = Theme::global(cx).mode;
-    theme(mode).apply(cx);
+/// The theme for the OS this binary runs on.
+pub fn native(mode: ColorMode) -> Theme {
+    theme(Platform::current(), mode)
 }
 
-/// Switches color mode. Use this instead of `Theme::change_mode`, which
-/// would reset the link colors to Bootstrap's blue.
+/// Installs gpui-kit, gpui-bootstrap and the native ixtable theme in light
+/// mode, unless a theme is already installed.
+pub fn init(cx: &mut App) {
+    gpui_bootstrap::init(cx);
+    let installed = Theme::global(cx);
+    let (platform, mode) = match installed.platform {
+        Platform::Web => (Platform::current(), installed.mode),
+        platform => (platform, installed.mode),
+    };
+    theme(platform, mode).apply(cx);
+}
+
+/// Switches color mode on the installed platform. Use this instead of
+/// `Theme::change_mode`, which would reset the link colors.
 pub fn change_mode(mode: ColorMode, cx: &mut App) {
-    theme(mode).apply(cx);
+    theme(Theme::global(cx).platform, mode).apply(cx);
 }
 
 #[cfg(test)]
@@ -75,6 +83,7 @@ mod tests {
         cx.update(|cx| {
             init(cx);
             let theme = cx.theme();
+            assert_eq!(theme.platform, Platform::current());
             assert_eq!(theme.colors.primary, hex(TEAL));
             assert_eq!(theme.button(Variant::Primary).color, white());
             assert_eq!(
@@ -88,12 +97,10 @@ mod tests {
     fn pale_fills_keep_dark_text(cx: &mut TestAppContext) {
         cx.update(|cx| {
             init(cx);
-            let theme = cx.theme();
-            for variant in [Variant::Warning, Variant::Info] {
-                assert_eq!(
-                    theme.contrast(theme.colors.variant(variant)),
-                    theme.colors.black
-                );
+            for platform in DESKTOP {
+                let theme = theme(platform, ColorMode::Light);
+                let warning = theme.colors.variant(Variant::Warning);
+                assert_eq!(theme.contrast(warning), theme.colors.black, "{platform:?}");
             }
         });
     }
@@ -107,6 +114,25 @@ mod tests {
             assert_eq!(theme.mode, ColorMode::Dark);
             assert_eq!(theme.colors.primary, hex(TEAL));
             assert_eq!(theme.colors.link_color, hex(LINK_DARK));
+            assert_eq!(theme.platform, Platform::current());
+        });
+    }
+
+    #[gpui_kit::test]
+    fn every_desktop_platform_keeps_its_look_with_the_brand(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            init(cx);
+            for platform in DESKTOP {
+                for mode in [ColorMode::Light, ColorMode::Dark] {
+                    let native = Theme::platform(platform, mode);
+                    let ours = theme(platform, mode);
+                    assert_eq!(ours.colors.primary, hex(TEAL));
+                    assert_eq!(ours.contrast(ours.colors.primary), white());
+                    assert_eq!(ours.colors.body_bg, native.colors.body_bg);
+                    assert_eq!(ours.radius, native.radius);
+                    assert_eq!(ours.typography.font_family, native.typography.font_family);
+                }
+            }
         });
     }
 }

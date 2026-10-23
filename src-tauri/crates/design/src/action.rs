@@ -98,6 +98,19 @@ impl ActionButton {
         self
     }
 
+    /// Primary demoted to secondary: slots that hold non-primary actions use
+    /// this, so a screen can't end up with two filled buttons.
+    pub(crate) fn emphasis_of(&self) -> Emphasis {
+        self.emphasis
+    }
+
+    pub(crate) fn not_primary(mut self) -> Self {
+        if self.emphasis == Emphasis::Primary {
+            self.emphasis = Emphasis::Secondary;
+        }
+        self
+    }
+
     pub fn on_click(
         mut self,
         handler: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
