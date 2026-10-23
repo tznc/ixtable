@@ -40,6 +40,7 @@ fn props(value: Value, log: &Rc<Log>, window_label: &str, record: Value, attachm
     let control = rich();
     FieldProps {
         label: control.label.clone().into(),
+        hide_label: false,
         control,
         value,
         read_only: false,
