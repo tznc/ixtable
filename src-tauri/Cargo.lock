@@ -4221,7 +4221,7 @@ dependencies = [
 [[package]]
 name = "gpui-styleguidist"
 version = "0.1.1"
-source = "git+https://github.com/Ziinc/gpui-styleguidist?rev=a573b67f066c1cf4305f859d03aeb011b3413ed0#a573b67f066c1cf4305f859d03aeb011b3413ed0"
+source = "git+https://github.com/Ziinc/gpui-styleguidist?rev=6f60e2053f6a3bef9c1a342d235823fcf1c0c325#6f60e2053f6a3bef9c1a342d235823fcf1c0c325"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -4252,7 +4252,7 @@ dependencies = [
 [[package]]
 name = "gpui-styleguidist-macros"
 version = "0.1.1"
-source = "git+https://github.com/Ziinc/gpui-styleguidist?rev=a573b67f066c1cf4305f859d03aeb011b3413ed0#a573b67f066c1cf4305f859d03aeb011b3413ed0"
+source = "git+https://github.com/Ziinc/gpui-styleguidist?rev=6f60e2053f6a3bef9c1a342d235823fcf1c0c325#6f60e2053f6a3bef9c1a342d235823fcf1c0c325"
 dependencies = [
  "base64 0.22.1",
  "gpui-styleguidist-manifest 0.1.1",
@@ -4274,7 +4274,7 @@ dependencies = [
 [[package]]
 name = "gpui-styleguidist-manifest"
 version = "0.1.1"
-source = "git+https://github.com/Ziinc/gpui-styleguidist?rev=a573b67f066c1cf4305f859d03aeb011b3413ed0#a573b67f066c1cf4305f859d03aeb011b3413ed0"
+source = "git+https://github.com/Ziinc/gpui-styleguidist?rev=6f60e2053f6a3bef9c1a342d235823fcf1c0c325#6f60e2053f6a3bef9c1a342d235823fcf1c0c325"
 dependencies = [
  "serde",
  "serde_json",
