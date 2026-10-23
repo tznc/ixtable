@@ -240,6 +240,9 @@ fn control_view(ctx: &BodyContext, control: &Control, window: &mut Window, cx: &
         filter_scope,
         key_values: ctx.scope.record().clone(),
         table: form_table(&ctx.form).map(str::to_string),
+        attachment_column: (control.kind == ControlKind::RichText)
+            .then(|| attachment_column(&ctx.form))
+            .flatten(),
         prefix: ctx.prefix.clone(),
         window_label: ctx.env.label.clone(),
         on_change: Rc::new(move |value, cx| {
@@ -257,6 +260,16 @@ fn control_view(ctx: &BodyContext, control: &Control, window: &mut Window, cx: &
     };
     field.update(cx, |f, cx| f.set_props(props, window, cx));
     field.into_any_element()
+}
+
+/// The column of the form's first attachment field on its own table.
+fn attachment_column(form: &Form) -> Option<String> {
+    form.controls
+        .iter()
+        .filter(|c| c.kind == ControlKind::Attachment)
+        .filter_map(|c| c.binding.as_ref())
+        .find(|b| b.table.as_deref().is_none_or(|t| t.is_empty() || Some(t) == form_table(form)))
+        .map(|b| b.column.clone())
 }
 
 fn scope_value(scope: &Map<String, Value>, name: &str) -> Value {
