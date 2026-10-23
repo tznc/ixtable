@@ -1,10 +1,13 @@
 //! `Tabs`: switch between views of the same thing. Underline style, so tabs
-//! never look like buttons. The application stores the active tab.
+//! never look like buttons or links. The application stores the active tab.
 
 use std::rc::Rc;
 
-use gpui_bootstrap::nav::{Nav, NavItem};
-use gpui_kit::{App, ClickEvent, ElementId, IntoElement, RenderOnce, SharedString, Window};
+use gpui_bootstrap::ActiveTheme as _;
+use gpui_kit::prelude::*;
+use gpui_kit::{App, ClickEvent, ElementId, SharedString, Window, base::h_flex, div};
+
+use crate::typography::{Type, TypeScale as _};
 
 type Select = Rc<dyn Fn(usize, &ClickEvent, &mut Window, &mut App)>;
 
@@ -45,22 +48,38 @@ impl Tabs {
 }
 
 impl RenderOnce for Tabs {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        // Drawn here rather than with Bootstrap's underline nav, whose inactive
+        // items use the link color and read as links.
+        let theme = cx.theme();
+        let colors = &theme.colors;
+        let (text, muted, accent) = (colors.emphasis_color, colors.secondary_color, colors.primary);
+        let hover = colors.border_color;
         let id = self.id.clone();
-        Nav::new(self.id)
-            .underline()
-            .items(self.labels.into_iter().enumerate().map(|(index, label)| {
-                let item = NavItem::new(
-                    (id.clone(), SharedString::from(format!("tab-{index}"))),
-                    label,
-                )
-                .active(index == self.active);
-                match self.on_select.clone() {
-                    Some(select) => {
-                        item.on_click(move |event, window, cx| select(index, event, window, cx))
-                    }
-                    None => item,
-                }
+        h_flex()
+            .id(self.id)
+            .gap(theme.spacing(3))
+            .children(self.labels.into_iter().enumerate().map(|(index, label)| {
+                let active = index == self.active;
+                div()
+                    .id((id.clone(), SharedString::from(format!("tab-{index}"))))
+                    .py(theme.spacing(1))
+                    .border_b_2()
+                    .ty(Type::Label)
+                    .cursor_pointer()
+                    .map(|this| {
+                        if active {
+                            this.border_color(accent).text_color(text)
+                        } else {
+                            this.border_color(gpui_kit::transparent_black())
+                                .text_color(muted)
+                                .hover(move |style| style.border_color(hover).text_color(text))
+                        }
+                    })
+                    .when_some(self.on_select.clone(), |this, select| {
+                        this.on_click(move |event, window, cx| select(index, event, window, cx))
+                    })
+                    .child(label)
             }))
     }
 }

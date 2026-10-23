@@ -4213,11 +4213,14 @@ dependencies = [
  "anyhow",
  "gpui-pre",
  "gpui-pre-platform",
+ "gpui-pre-web",
  "gpui-styleguidist-macros",
  "gpui-styleguidist-manifest",
  "image",
  "serde",
  "serde_json",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

@@ -89,6 +89,14 @@ debug = "line-tables-only"
 [profile.dev.package."*"]
 debug = false
 
+# `cargo styleguide build --profile styleguide`: the design system's web styleguide, a smaller download.
+[profile.styleguide]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+
 # The design system crate (docs/decisions/design-system.md) shares this lockfile and target dir.
 [workspace]
 members = ["crates/design"]

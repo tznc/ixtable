@@ -16,9 +16,15 @@ gpui-styleguidist = { git = "https://github.com/Ziinc/gpui-styleguidist", rev = 
 [features]
 styleguide = ["dep:gpui-styleguidist", "gpui-bootstrap/styleguide"]
 
-[dev-dependencies]
+# Native: tests, the styleguide window and PNG rendering.
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 gpui-kit = { version = "=0.7.3", features = ["test-support"] }
 gpui-styleguidist = { git = "https://github.com/Ziinc/gpui-styleguidist", rev = "7af7f20d75ae7e2cf576873d42fbcc505c10eabe", features = ["gallery", "render"] }
 
+# wasm32: the web styleguide published for QA (`cargo styleguide build`).
+[target.'cfg(target_family = "wasm")'.dev-dependencies]
+gpui-styleguidist = { git = "https://github.com/Ziinc/gpui-styleguidist", rev = "7af7f20d75ae7e2cf576873d42fbcc505c10eabe", features = ["web"] }
+
 [[example]]
 name = "styleguide"
+

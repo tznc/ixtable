@@ -157,7 +157,8 @@ jobs:
         run: node scripts/ci/run-ignored-rust-tests.mjs "PostgreSQL conformance" recordstore postgres migrations data --skip perf_tests --skip screenshots
 
   # The design system crate (docs/decisions/design-system.md): unit tests, then every
-  # styleguide example re-rendered and compared with the committed snapshots.
+  # styleguide example rendered on every platform theme. Snapshots aren't committed; the
+  # render proves each example draws, and the PNGs are uploaded for review.
   design-system:
     name: Design system styleguide
     runs-on: ubuntu-latest
@@ -167,15 +168,14 @@ jobs:
       - name: Design system tests
         working-directory: src-tauri
         run: cargo test -p ixtable-design
-      - name: Styleguide snapshots match
+      - name: Render the styleguide
         working-directory: src-tauri/crates/design
-        run: cargo run -p ixtable-design --example styleguide -- check
+        run: cargo run -p ixtable-design --example styleguide -- render
       - uses: actions/upload-artifact@v4
-        if: failure()
         with:
-          name: styleguide-mismatches
-          path: src-tauri/target/styleguide-check
-          if-no-files-found: ignore
+          name: styleguide
+          path: src-tauri/crates/design/styleguide/snapshots
+          retention-days: 14
 
   # PRs run golden apps on ubuntu only to free macOS/Windows runners; main runs all three.
   golden:

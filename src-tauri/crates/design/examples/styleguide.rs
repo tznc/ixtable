@@ -56,9 +56,46 @@ const TONES: &[(&str, Tone)] = &[
     ("danger", Tone::Danger),
 ];
 
+#[cfg(not(target_family = "wasm"))]
+fn assets() -> gpui_kit::assets::Assets {
+    gpui_kit::assets::Assets
+}
+
+/// On the web, the few Lucide icons the examples use are compiled in (gpui-kit
+/// would fetch them over HTTP, which a sandboxed page can't rely on).
+#[cfg(target_family = "wasm")]
+struct WebIcons;
+
+#[cfg(target_family = "wasm")]
+impl AssetSource for WebIcons {
+    fn load(&self, path: &str) -> Result<Option<std::borrow::Cow<'static, [u8]>>> {
+        macro_rules! icons {
+            ($($name:literal),*) => {
+                [$((concat!("icons/", $name, ".svg"), include_bytes!(concat!("icons/", $name, ".svg")).as_slice())),*]
+            };
+        }
+        let icons = icons!(
+            "undo-2", "redo-2", "refresh-cw", "search", "plus", "layout-dashboard", "chart-pie", "x"
+        );
+        Ok(icons
+            .into_iter()
+            .find(|(name, _)| *name == path)
+            .map(|(_, bytes)| std::borrow::Cow::Borrowed(bytes)))
+    }
+
+    fn list(&self, _: &str) -> Result<Vec<SharedString>> {
+        Ok(Vec::new())
+    }
+}
+
+#[cfg(target_family = "wasm")]
+fn assets() -> WebIcons {
+    WebIcons
+}
+
 fn styleguide() -> Styleguide {
     Styleguide::new("ixtable design system")
-        .assets(gpui_kit::assets::Assets)
+        .assets(assets())
         .setup(ixtable_design::init)
         .open_window(|options, frame, cx| Ok(gpui_kit::open_window(options, cx, frame)?.0))
         .themes(themes(), apply_theme)

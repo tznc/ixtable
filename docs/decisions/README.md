@@ -35,7 +35,7 @@ every risk-retirement spike. This index maps each spike to its record.
 | [Pages](./pages.md) | none. Forms, reports and dashboards consolidated into pages on one Design page (config version 8) | accepted |
 | [Native GPUI UI](./gpui-ui.md) | none. Rust/GPUI UI via tauri-plugin-gpui and gpui-kit; conventions and headless tests | accepted |
 | [Design language](./design-language.md) | none. Type scale, colour, buttons, dialogs, callouts and tables every screen follows | accepted |
-| [Design system](./design-system.md) | `src-tauri/crates/design` (ixtable-design over gpui-bootstrap), styleguide snapshots in CI | accepted |
+| [Design system](./design-system.md) | `src-tauri/crates/design` (ixtable-design over gpui-bootstrap), styleguide rendered in CI, published for QA | accepted |
 
 The Phase 0 item "signed personalized bundle and envelope-encryption threat
 model" is covered by the [cloud security model](./cloud-security-model.md)

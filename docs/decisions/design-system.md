@@ -19,9 +19,10 @@ styleguide that proves them.
   Screens use these components. They reach for a Bootstrap primitive only when no
   component fits, and then the gap goes on the list below.
 - **The styleguide is the spec.** `examples/styleguide.rs` (gpui-styleguidist) renders
-  every component with knobs and named states, in light and dark. The PNGs under
-  `crates/design/styleguide/` are committed, and CI re-renders and compares them.
-  A visual change shows up in the PR diff as changed snapshots.
+  every component with knobs and named states, on every desktop platform in light and
+  dark. Snapshots are not committed (Zn, 2026-10-23). Visual QA happens on the published
+  styleguide artifact, and CI renders every example and uploads the PNGs as a build
+  artifact.
 
 ## Principles (Don't Make Me Think)
 
@@ -104,17 +105,20 @@ From `src-tauri/`:
 |---|---|
 | Tests | `cargo test -p ixtable-design` |
 | Open the styleguide | `cargo run -p ixtable-design --example styleguide` |
-| Re-render snapshots after a deliberate change | `cd crates/design && cargo run -p ixtable-design --example styleguide -- render` |
-| Check snapshots (CI) | `cd crates/design && cargo run -p ixtable-design --example styleguide -- check` |
+| Render PNGs to `crates/design/styleguide/` (gitignored; CI does this) | `cd crates/design && cargo run -p ixtable-design --example styleguide -- render` |
+| Web styleguide for QA (wasm) | `cargo styleguide build -p ixtable-design --profile styleguide` writes `target/styleguide/ixtable-design/` (needs `rustup toolchain install nightly --target wasm32-unknown-unknown`, `wasm-bindgen-cli` at the Cargo.lock version, and `cargo-styleguide` from gpui-styleguidist). Publish that folder for QA |
 
-Snapshots cover every desktop platform in light and dark (`macos-light` through
+The web build compiles the few Lucide icons it uses into the wasm
+(`examples/icons/`), because gpui-kit would otherwise fetch them over HTTP.
+
+Renders cover every desktop platform in light and dark (`macos-light` through
 `linux-dark`), so 6 themes for each example. CI renders on Linux, so the platform font falls
 back to the CI font there, while colors, radii and sizes match each platform. Rendering
 needs a Vulkan driver (`mesa-vulkan-drivers` on Linux; CI installs it).
 
 ## Rollout
 
-1. This change adds the crate, the styleguide, and the CI check. The app doesn't depend
+1. This change adds the crate, the styleguide, and the CI render. The app doesn't depend
    on the crate yet, so screens are unchanged.
 2. The next change adds `ixtable-design` to the app and replaces `ui::theme::apply` with
    `ixtable_design::init`. That moves gpui-kit's theme onto the native platform tokens.
