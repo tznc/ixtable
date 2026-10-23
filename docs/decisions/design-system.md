@@ -38,7 +38,7 @@ Each rule is enforced by a component's API, so it doesn't rely on reviewers.
 | Empty is a state, not a blank | `DataTable::empty(EmptyState)` names what goes there and the one action that fills it |
 | Required is normal | `Field` marks only the exceptions as "Optional"; errors replace the hint and say how to fix the value |
 | Nothing jumps | `Toast` is drawn top right by the shell; `Section` collapses in place; inline messages slide in (`widgets::slide_in`) |
-| Tabs are not buttons | `Tabs` is Bootstrap's underline nav |
+| Tabs are not buttons or links | `Tabs` underline the active tab in teal; inactive tabs are muted body text |
 | No raw sizes | `Type` has six roles (`.ty(Type::Title)`); the crate never calls `text_sm` and friends |
 
 ## Tokens
@@ -75,7 +75,7 @@ resets link colors.
 | `KeyValue` | none | Facts about one thing |
 | `DataTable` (+ `Column`, `Align`) | none | Read-only record list with selection, footer count, and empty state |
 | `EmptyState` | none | What goes here and how to add the first one |
-| `Tabs` | `Nav` underline | Views of the same thing |
+| `Tabs` | none | Views of the same thing |
 
 Composites put the building blocks together into whole regions of the screen:
 
@@ -130,5 +130,4 @@ needs a Vulkan driver (`mesa-vulkan-drivers` on Linux; CI installs it).
 
 ## Gaps (add a component before a screen needs a one-off)
 
-- Inactive `Tabs` use Bootstrap's link color. Consider body color so tabs don't read as links.
 - Datasheet (stays an app widget; it is an editable grid, not a `DataTable`).

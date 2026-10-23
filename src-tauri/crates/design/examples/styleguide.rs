@@ -75,7 +75,14 @@ impl AssetSource for WebIcons {
             };
         }
         let icons = icons!(
-            "undo-2", "redo-2", "refresh-cw", "search", "plus", "layout-dashboard", "chart-pie", "x"
+            "undo-2",
+            "redo-2",
+            "refresh-cw",
+            "search",
+            "plus",
+            "layout-dashboard",
+            "chart-pie",
+            "x"
         );
         Ok(icons
             .into_iter()
@@ -602,10 +609,22 @@ impl Render for DialogDemo {
                 .child(
                     Field::new("from", "Each order belongs to")
                         .control(fake_input("Customers"))
-                        .hint("Orders.customer_id links to Customers.id"),
+                        .hint("Each order links to one customer record."),
                 )
         };
-        div().size_full().child(dialog)
+        // The dialog is a window overlay, so the preview opens it from a trigger
+        // instead of covering the whole styleguide on load.
+        let handle = self.handle.clone();
+        let trigger = if self.destructive {
+            ActionButton::danger("open-dialog", "Delete table…")
+        } else {
+            ActionButton::new("open-dialog", "New relationship…")
+        };
+        div()
+            .size_full()
+            .p_4()
+            .child(trigger.on_click(move |_, window, cx| handle.open(window, cx)))
+            .child(dialog)
     }
 }
 
@@ -642,12 +661,13 @@ fn composites() -> Vec<gpui_styleguidist::Example> {
         .title("Document objects"),
         example!(view "dialog/confirm", |knobs, _, cx| {
             cx.new(|_| DialogDemo {
-                handle: DialogHandle::new(true),
+                handle: DialogHandle::new(knobs.bool("open", false)),
                 destructive: knobs.pick("kind", &[("delete", true), ("form", false)], "delete"),
             })
         })
         .component("Dialog")
         .title("Confirm and form")
+        .description("Press the button to open it; Escape or Cancel closes it. The open knob shows it open.")
         .size(720., 380.),
         example!("record-form/order", |knobs, _, _| {
             let failed = knobs.bool("failed save", false);

@@ -53,13 +53,15 @@ impl RenderOnce for Tabs {
         // items use the link color and read as links.
         let theme = cx.theme();
         let colors = &theme.colors;
-        let (text, muted, accent) = (colors.emphasis_color, colors.secondary_color, colors.primary);
+        let (text, muted, accent) = (
+            colors.emphasis_color,
+            colors.secondary_color,
+            colors.primary,
+        );
         let hover = colors.border_color;
         let id = self.id.clone();
-        h_flex()
-            .id(self.id)
-            .gap(theme.spacing(3))
-            .children(self.labels.into_iter().enumerate().map(|(index, label)| {
+        h_flex().id(self.id).gap(theme.spacing(3)).children(
+            self.labels.into_iter().enumerate().map(|(index, label)| {
                 let active = index == self.active;
                 div()
                     .id((id.clone(), SharedString::from(format!("tab-{index}"))))
@@ -80,6 +82,7 @@ impl RenderOnce for Tabs {
                         this.on_click(move |event, window, cx| select(index, event, window, cx))
                     })
                     .child(label)
-            }))
+            }),
+        )
     }
 }
