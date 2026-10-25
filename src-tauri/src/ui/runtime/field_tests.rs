@@ -41,6 +41,7 @@ fn props(control: &Control, value: Value, read_only: bool, changes: &Changes) ->
         filter_scope: None,
         key_values: Default::default(),
         table: Some("docs".into()),
+        attachment_column: None,
         prefix: "".into(),
         window_label: "field-test".into(),
         on_change: Rc::new(move |value, _| log.borrow_mut().push(value)),
@@ -159,7 +160,7 @@ fn shows_stored_rich_text_as_markup_while_editing(cx: &mut TestAppContext) {
     let value = json!("<p>Plan</p><ul><li><u>one</u></li><li>two</li></ul>");
     let (h, field) = host(cx, props(&rich, value, false, &changes));
     let shown = h.cx.read(|cx| field.read(cx).area.as_ref().expect("a text area").read(cx).value().to_string());
-    assert_eq!(shown, "Plan\n- ++one++\n- two");
+    assert_eq!(shown, "Plan\n\n- <u>one</u>\n- two");
     assert!(changes.borrow().is_empty(), "showing a value must not change it");
 }
 

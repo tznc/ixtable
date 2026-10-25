@@ -55,6 +55,8 @@ pub struct FieldProps {
     pub key_values: RecordValues,
     /// The form's table, where an attachment control stores its files.
     pub table: Option<String>,
+    /// The form's first attachment field, where rich text stores pasted and inserted images.
+    pub attachment_column: Option<String>,
     pub prefix: BodyKey,
     pub window_label: SharedString,
     pub on_change: ChangeHandler,
@@ -81,6 +83,9 @@ pub struct FieldView {
     // An attachment upload is running.
     uploading: bool,
     files_error: Option<String>,
+    // Rich-text images by source, and a failed image upload.
+    images: std::collections::HashMap<String, richtext::RichImage>,
+    image_error: Option<String>,
 }
 
 fn date_input(value: &Value, kind: ControlKind) -> String {
@@ -161,6 +166,8 @@ impl FieldView {
             disabled: None,
             uploading: false,
             files_error: None,
+            images: Default::default(),
+            image_error: None,
         }
     }
 
@@ -765,7 +772,13 @@ impl Render for FieldView {
 
 #[path = "field_formats.rs"]
 mod formats;
+#[path = "field_richtext.rs"]
+mod richtext;
 
 #[cfg(test)]
 #[path = "field_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "field_richtext_tests.rs"]
+mod richtext_tests;

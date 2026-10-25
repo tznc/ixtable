@@ -4849,6 +4849,7 @@ dependencies = [
  "gpui-kit",
  "image",
  "libc",
+ "markdown",
  "native-tls",
  "png 0.18.1",
  "postgres",

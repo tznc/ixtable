@@ -57,7 +57,7 @@ fn fields() {
 #[ignore = "screenshot spec: run with `cargo screenshot`"]
 fn fields_runtime() {
     let mut cx = context();
-    let mut h = Harness::start_sized(&mut cx, (1280.0, 1000.0));
+    let mut h = Harness::start_sized(&mut cx, (1280.0, 1400.0));
     h.click("new-document");
     h.create_table("tasks", &[("id", "INTEGER", 1), ("title", "TEXT", 0), ("notes", "TEXT", 0), ("files", "TEXT", 0)]);
     h.database_changed();
@@ -89,25 +89,29 @@ fn fields_runtime() {
     wait(&mut h);
     h.fill("field:title", "Plan the launch");
 
-    // Bold from the toolbar, then a bulleted list typed as markup.
+    // Markdown typed and from the toolbar, then an image inserted into the Files field.
     h.click("field:notes");
-    h.input("Before Friday");
-    h.select_all();
-    h.click("field:notes:format:bold");
+    h.input("Launch plan");
+    h.click("field:notes:format:heading");
     h.press("end");
-    h.press("enter");
-    h.input("Book the van");
-    h.press("enter");
-    h.input("Confirm the ++venue++");
-    h.press("shift-up");
-    h.click("field:notes:format:bulleted-list");
-    assert_eq!(h.label("field:notes:preview"), "Before Friday\nBook the van\nConfirm the venue");
+    h.input("\n\n**Before Friday**, <u>confirm</u> the venue.\n\n- [x] Book the van\n- [ ] Print badges\n\n");
+    h.input("| Item | Qty |\n| --- | ---: |\n| Badges | 120 |\n| Lanyards | 120 |\n\nFloor plan: ");
+    let plan = h.temp_path("floor-plan.png");
+    let picture = image::RgbImage::from_fn(240, 90, |x, y| {
+        if (x / 30 + y / 30) % 2 == 0 { image::Rgb([59, 130, 246]) } else { image::Rgb([226, 232, 240]) }
+    });
+    picture.save(&plan).expect("write a sample image");
+    h.dialogs.queue_open(Some(plan));
+    h.click("field:notes:format:image");
+    wait(&mut h);
+    assert!(h.label("field:notes:preview").starts_with("Launch plan\nBefore Friday, confirm the venue."));
+    assert!(h.exists("field:files:file:floor-plan-png"), "the image is stored in the Files field");
     h.capture(
         "fields-03-rich-text-toolbar",
         &[
-            "Above the Notes box a toolbar shows Bold, Italic, Underline, Bulleted list and Numbered list buttons.",
-            "The box holds markup: '**Before Friday**' and two lines starting '- '.",
-            "Below it a preview shows 'Before Friday' in bold and a two-item bulleted list with 'venue' underlined.",
+            "Above the Notes box a toolbar of 15 icon buttons: bold to strike, code, heading, quote, three list kinds, link, image, table, code block, divider.",
+            "The preview under the box shows a 'Launch plan' heading, a bold and underlined sentence, a checked and an unchecked task, a two-column table and a blue checkered image.",
+            "Files lists floor-plan.png, the image the toolbar inserted.",
         ],
     );
 
@@ -126,20 +130,20 @@ fn fields_runtime() {
     h.capture(
         "fields-04-attachment-removed",
         &[
-            "Files lists only venue-map.png (2 KB) with a download and a trash button beside it.",
+            "Files lists floor-plan.png and venue-map.png (2 KB), each with a download and a trash button.",
             "An 'Add file' button sits under the list; agenda.pdf is gone.",
         ],
     );
 
     h.click("create");
     wait(&mut h);
-    assert_eq!(h.label("field:notes"), "Before Friday\nBook the van\nConfirm the venue");
+    assert!(h.label("field:notes").starts_with("Launch plan\nBefore Friday, confirm the venue."));
     assert!(h.exists("field:files:save:venue-map-png"));
     assert!(!h.exists("field:files:remove:venue-map-png"));
     h.capture(
         "fields-05-read-only",
         &[
-            "The saved record shows Notes formatted: a bold first line and a two-item bulleted list.",
+            "The saved record shows Notes formatted: heading, tasks, table and the checkered image, with no toolbar.",
             "Files shows venue-map.png with only a download button, and no Add file button.",
         ],
     );

@@ -36,6 +36,8 @@ uuid = { version = "1", features = ["v4", "v5", "v7", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 base64 = "0.22"
+# Parses rich-text Markdown (forms/richtext_markup.rs); already built for gpui-kit's text view.
+markdown = "=1.0.0"
 # Links the official prebuilt libduckdb (DUCKDB_LIB_DIR, .cargo/config.toml), which already
 # includes the json and parquet readers used by file sources and imports.
 duckdb = "=1.10505.0"
