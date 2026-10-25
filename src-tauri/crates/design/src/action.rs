@@ -30,39 +30,24 @@ pub enum Emphasis {
     Danger,
 }
 
-/// How a secondary or danger button is drawn. Only [`ButtonLook::Subtle`]
-/// ships; the others are in the styleguide so the choice can be compared.
+/// How a secondary or danger button is drawn.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ButtonLook {
-    /// Hairline border in the divider color, body text, a light fill on hover.
+    /// A hairline border in the divider color, body text, a light fill on
+    /// hover. The default.
     #[default]
-    Subtle,
-    /// No border; a light grey fill.
-    Soft,
-    /// Bootstrap's outline at half strength, body text.
-    Faint,
-    /// Hairline border with a small drop shadow, like a native push button.
-    Raised,
-    /// Bootstrap's outline: a full-strength grey border and grey text.
     Outline,
+    /// No border; a light grey fill. For dense rows where borders add noise.
+    Soft,
 }
 
 impl ButtonLook {
-    pub const ALL: [ButtonLook; 5] = [
-        ButtonLook::Subtle,
-        ButtonLook::Soft,
-        ButtonLook::Faint,
-        ButtonLook::Raised,
-        ButtonLook::Outline,
-    ];
+    pub const ALL: [ButtonLook; 2] = [ButtonLook::Outline, ButtonLook::Soft];
 
     pub fn name(self) -> &'static str {
         match self {
-            ButtonLook::Subtle => "subtle",
-            ButtonLook::Soft => "soft",
-            ButtonLook::Faint => "faint",
-            ButtonLook::Raised => "raised",
             ButtonLook::Outline => "outline",
+            ButtonLook::Soft => "soft",
         }
     }
 }
@@ -95,7 +80,7 @@ impl ActionButton {
             emphasis: Emphasis::Secondary,
             confirm: false,
             small: false,
-            look: ButtonLook::Subtle,
+            look: ButtonLook::Outline,
             disabled_reason: None,
             on_click: None,
         }
@@ -180,14 +165,10 @@ impl ActionButton {
     /// Primary, quiet and the filled confirm are Bootstrap's own buttons.
     fn bootstrap(&self) -> Option<Button> {
         let button = Button::new(self.id.clone()).label(self.label.clone());
-        let button = match (self.emphasis, self.look) {
-            (Emphasis::Primary, _) => button.variant(Variant::Primary),
-            (Emphasis::Quiet, _) => button.link(),
-            (Emphasis::Danger, _) if self.confirm => button.variant(Variant::Danger),
-            (Emphasis::Secondary, ButtonLook::Outline) => {
-                button.variant(Variant::Secondary).outline()
-            }
-            (Emphasis::Danger, ButtonLook::Outline) => button.variant(Variant::Danger).outline(),
+        let button = match self.emphasis {
+            Emphasis::Primary => button.variant(Variant::Primary),
+            Emphasis::Quiet => button.link(),
+            Emphasis::Danger if self.confirm => button.variant(Variant::Danger),
             _ => return None,
         };
         Some(
@@ -197,8 +178,8 @@ impl ActionButton {
         )
     }
 
-    /// Secondary and danger in the chosen [`ButtonLook`]. The label is body
-    /// text (or a readable red), never Bootstrap's mid-grey.
+    /// Secondary and danger: a hairline border and body text (or a readable
+    /// red), never Bootstrap's full-strength grey outline and grey label.
     fn drawn(&self, window: &mut Window, cx: &mut App) -> AnyElement {
         let theme = cx.theme();
         let colors = look_colors(theme, self.look, self.emphasis == Emphasis::Danger);
@@ -230,9 +211,6 @@ impl ActionButton {
             .rounded(radius)
             .bg(colors.bg)
             .text_color(colors.color)
-            .when(self.look == ButtonLook::Raised, |this| {
-                this.shadow(vec![theme.shadow_sm()])
-            })
             .when(!disabled, |this| {
                 this.hover(move |style| {
                     style
@@ -271,7 +249,7 @@ pub(crate) fn look_colors(theme: &Theme, look: ButtonLook, danger: bool) -> Butt
         }
     };
     let (bg, border, hover_bg, active_bg) = match look {
-        ButtonLook::Subtle | ButtonLook::Raised => (
+        ButtonLook::Outline => (
             colors.body_bg,
             if danger {
                 tone(0.5)
@@ -287,8 +265,6 @@ pub(crate) fn look_colors(theme: &Theme, look: ButtonLook, danger: bool) -> Butt
             colors.secondary_bg,
             colors.secondary_bg,
         ),
-        ButtonLook::Faint => (transparent_black(), tone(0.45), tone(0.08), tone(0.16)),
-        ButtonLook::Outline => (transparent_black(), tone(1.), tone(1.), tone(1.)),
     };
     // Danger text is the theme's red, adjusted to 4.5:1 on every fill the button takes.
     let text = if danger {

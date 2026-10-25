@@ -73,14 +73,16 @@ fn pairs(theme: &Theme) -> Vec<(String, Hsla, Hsla)> {
     }
     let badge = theme.variant(Variant::Secondary);
     pairs.push(("neutral badge".into(), badge.text_emphasis, badge.bg_subtle));
-    for look in ButtonLook::ALL
-        .into_iter()
-        .filter(|look| *look != ButtonLook::Outline)
-    {
+    for look in ButtonLook::ALL {
         for danger in [false, true] {
             let button = look_colors(theme, look, danger);
             let kind = if danger { "danger" } else { "secondary" };
-            for (state, fill) in [("", button.bg), (" hover", button.hover_bg)] {
+            let states = [
+                ("", button.bg),
+                (" hover", button.hover_bg),
+                (" pressed", button.active_bg),
+            ];
+            for (state, fill) in states {
                 pairs.push((
                     format!("{} {kind} button{state}", look.name()),
                     button.color,

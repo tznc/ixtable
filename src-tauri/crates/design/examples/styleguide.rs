@@ -263,19 +263,13 @@ fn actions() -> Vec<gpui_styleguidist::Example> {
                     .items_center()
                     .child(div().w(px(64.)).ty(Type::Caption).child(look.name()))
                     .child(ActionButton::new(("cancel", look as usize), "Cancel").look(look))
-                    .child(
-                        ActionButton::new(("import", look as usize), "Import records…").look(look),
-                    )
                     .child(ActionButton::danger(("delete", look as usize), "Delete").look(look))
                     .child(ActionButton::primary(("save", look as usize), "Save"))
             }))
         })
         .component("ActionButton")
-        .title("Secondary looks")
-        .description(
-            "Options for the secondary and danger border. Subtle ships; outline is the old \
-             Bootstrap look.",
-        ),
+        .title("Looks")
+        .description("Outline everywhere; soft in dense rows where borders add noise."),
         example!("page-header/playground", |knobs, _, _| {
             div().w(px(640.)).child(
                 PageHeader::new("header", "Orders")

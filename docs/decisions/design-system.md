@@ -70,7 +70,7 @@ resets link colors.
 
 | Component | Built on | Job |
 |---|---|---|
-| `ActionButton` (+ `Emphasis`, `ButtonLook`) | `Button` | Any labelled action: Primary, Secondary (hairline border, body text), Quiet (link), Danger (red hairline, filled only with `.confirm()`). `ButtonLook` (subtle, soft, faint, raised, outline) is the secondary look; subtle ships, the others are in the guide for comparison |
+| `ActionButton` (+ `Emphasis`, `ButtonLook`) | `Button` | Any labelled action: Primary, Secondary (hairline border, body text), Quiet (link), Danger (red hairline, filled only with `.confirm()`). `ButtonLook::Soft` (borderless grey fill) is for dense rows (Zn, 2026-10-25) |
 | `PageHeader` | `Breadcrumb` slot | Screen title, state sentence, actions |
 | `Callout` | `Alert` | Inline message about this screen. Neutral sits on the lightest page fill, not Bootstrap's grey tint |
 | `Toast` | `CloseButton` | The result of an action, `TOAST_WIDTH` wide so it fits the sidebar (the shell places it, the app times it) |
