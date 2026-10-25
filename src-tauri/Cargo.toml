@@ -21,9 +21,9 @@ default = []
 [dependencies]
 tauri = { version = "2.12", features = ["unstable"] }
 # GPUI renders the whole UI inside the Tauri window (no WebView, src/ui/). The plugin and
-# gpui-kit must build on the same `gpui-pre` snapshot (0.3.8).
-tauri-plugin-gpui = { git = "https://github.com/Ziinc/tauri-gpui", rev = "ec6e8a6cf94233c0c857230cf9608e4f541aa535" }
-gpui-kit = { version = "=0.7.1", features = ["tree-sitter-sql", "tree-sitter-yaml"] }
+# gpui-kit must build on the same `gpui-pre` snapshot (0.3.9).
+tauri-plugin-gpui = { git = "https://github.com/Ziinc/tauri-gpui", rev = "d7877f2ac0da8816257bb49d9e32e03a7fce6823" }
+gpui-kit = { version = "=0.7.3", features = ["tree-sitter-sql", "tree-sitter-yaml"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9.34"
@@ -79,7 +79,7 @@ png = "0.18"
 libc = "0.2"
 
 [dev-dependencies]
-gpui-kit = { version = "=0.7.1", features = ["tree-sitter-sql", "tree-sitter-yaml", "test-support"] }
+gpui-kit = { version = "=0.7.3", features = ["tree-sitter-sql", "tree-sitter-yaml", "test-support"] }
 proptest = "1.7"
 # Screenshot harness (ui::screenshot): PNG output of GPUI captures.
 image = { version = "0.25", default-features = false, features = ["png"] }
@@ -90,3 +90,15 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 debug = false
+
+# `cargo styleguide build --profile styleguide`: the design system's web styleguide, a smaller download.
+[profile.styleguide]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+
+# The design system crate (docs/decisions/design-system.md) shares this lockfile and target dir.
+[workspace]
+members = ["crates/design"]

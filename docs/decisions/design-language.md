@@ -8,6 +8,10 @@ theme tokens (`theme.primary`, `muted_foreground`, `border`, `danger`, `warning`
 `ui/{dialog,display,toast,widgets,forms,controls}.rs` implement it; see `gpui-ui.md` for the
 rest of the UI conventions.
 
+These rules are being codified as components in the `ixtable-design` crate, which sits on
+gpui-bootstrap and has a snapshot-checked styleguide (`design-system.md`). New screens
+should prefer those components as each area migrates.
+
 Components marked *(planned)* are specified here but not built yet. Until they
 exist, use the closest existing helper rather than a one-off style.
 
