@@ -163,7 +163,7 @@ ixtable Cloud provides:
 - **Monthly only.** Every plan is billed monthly. There is no annual billing.
 - **No free trial.** A cloud app is entitled only after its first successful payment. Checkout never creates a trial period. The free desktop edition is the evaluation path.
 - **Seats.** A plan's Runtime User allowance counts active Runtime Users of that app only. Organization members and per-app console access (§20.3) are free and unlimited.
-- **Seller.** ixtable Cloud is sold by a Singapore sole proprietorship. Prices are in USD; Stripe pays out in SGD. No GST is charged while the business is below the GST registration threshold; invoices show the business name and address.
+- **Seller.** Prices are in USD. Invoices show the seller's business name and address. The seller entity, tax treatment and payout currency are business decisions recorded in the business plan (`tznc/biz-tools`, `docs/ixtable/business-plan.md`).
 
 ---
 
@@ -1309,7 +1309,8 @@ Commercial launch is blocked unless:
 
 ### Commercial conversion
 
-- Launch target: at least US$500 MRR from at least 5 paying customers.
+Revenue targets live in the business plan (`tznc/biz-tools`, `docs/ixtable/business-plan.md`).
+
 - Percentage of active local developers creating a cloud application.
 - Publish-to-invitation completion rate.
 - Invited-user activation rate.
