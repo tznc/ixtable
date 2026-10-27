@@ -69,7 +69,7 @@ Status is Done, Partial, Missing, or Deferred. Owner is one of:
 | Domain and canonical URLs | Partial | Claude | Sitemap, canonical links, and `robots.txt` use ixtable.com. Canonical URLs have no trailing slash, so Cloudflare Pages answers each with a 308 to the slash form. Emitting slash URLs needs the invite, desktop sign-in, and checkout links to change first, because `docusaurus serve` drops the query string on its slash redirect. |
 | Redirect from ixtable.pages.dev | Missing | You | Cloudflare redirect rule, 301 to ixtable.com. |
 | GA4 | Partial | You | Code is in place; set the `GA4_MEASUREMENT_ID` repository variable. |
-| Cookie consent for GA4 | Missing | Both | GA4 needs consent for EU and UK visitors. Pick a consent tool or use Google Consent Mode v2 with a banner; I wire it. |
+| Cookie consent for GA4 | Done | You | Decided: none. GA4 loads without a consent banner or Consent Mode whenever `GA4_MEASUREMENT_ID` is set. |
 | Waitlist | Partial | You | Form and table exist. Needs a hosted Supabase project to receive sign-ups. |
 | Pricing page | Done | Claude | Live plan catalog, monthly only. |
 | Blog | Done | Claude | Enabled with a first post; weekly drafts arrive as PRs. |
@@ -161,26 +161,24 @@ Status is Done, Partial, Missing, or Deferred. Owner is one of:
 5. Set up custom SMTP and DNS records (SPF, DKIM, DMARC) for ixtable.com.
 6. Install the biz-tools GitHub App on the ixtable org with Contents and Pull requests write access (`docs/github-app.md` in biz-tools).
 7. Create the GitHub environments in biz-tools: `analytics-production`, `commerce-production`, `product-production`, `marketing-production`.
-8. Decide the cookie consent approach for GA4.
 
 ### You, before public beta
 
-9. Form the legal entity if it does not exist. Apply for Apple Developer and a Windows signing certificate.
-10. Reserve social handles and support mailboxes.
-11. Run 10 to 15 customer interviews. Confirm or change the plan prices.
-12. Recruit 5 to 10 design partners.
-13. Start a trademark search for "ixtable".
+8. Form the legal entity if it does not exist. Apply for Apple Developer and a Windows signing certificate.
+9. Reserve social handles and support mailboxes.
+10. Run 10 to 15 customer interviews. Confirm or change the plan prices.
+11. Recruit 5 to 10 design partners.
+12. Start a trademark search for "ixtable".
 
 ### You, before paid launch
 
-14. Create the Stripe account, enable Stripe Tax, and add a restricted read key to biz-tools.
-15. Commission the independent security review of credential delivery (PRD §21.3).
-16. Have a lawyer review the terms, privacy policy, and DPA.
-17. Make the repository public and enable the GitHub collector.
+13. Create the Stripe account, enable Stripe Tax, and add a restricted read key to biz-tools.
+14. Commission the independent security review of credential delivery (PRD §21.3).
+15. Have a lawyer review the terms, privacy policy, and DPA.
+16. Make the repository public and enable the GitHub collector.
 
 ### With Claude, next
 
-- Wire the GA4 cookie consent once you choose an approach.
 - Apply the Search Console, GA4, and Supabase values you send me in `config.yaml` and the site build.
 - Write the comparison pages and "Access for Mac" guide from the competitor-gap report.
 - Fix `docs/concepts/deployment.md` to describe the planned Cloud distribution.
