@@ -300,3 +300,41 @@ fn a_file_that_cannot_be_opened_says_so_without_os_codes(cx: &mut TestAppContext
     assert_eq!(h.label("access-error"), "The file could not be opened.");
     assert!(!h.label("access-error").contains("os error"));
 }
+
+#[gpui_kit::test]
+fn cancelling_an_import_returns_to_the_file_with_nothing_created(cx: &mut TestAppContext) {
+    let mut h = Harness::start(cx);
+    open_wizard(&mut h);
+    choose(&mut h, binary("orders.accdb"));
+    // Stands in for a click on Cancel while the first table copies.
+    super::wizard::cancel_after_first_table_for_test(true);
+    h.click("access-import");
+    super::wizard::cancel_after_first_table_for_test(false);
+    assert_eq!(h.label("access-notice"), "The import was cancelled. Nothing was created.");
+    assert!(!h.exists("access-error"));
+    assert!(!h.exists("access-created"));
+    assert!(h.exists("access-table:Orders"));
+    assert!(!h.has_shell());
+    // The same file imports on the next try.
+    h.click("access-import");
+    assert!(h.exists("access-created"));
+}
+
+#[gpui_kit::test]
+fn a_file_changed_after_it_was_read_is_read_again_before_importing(cx: &mut TestAppContext) {
+    let mut h = Harness::start(cx);
+    open_wizard(&mut h);
+    let path = binary("orders.accdb");
+    choose(&mut h, path.clone());
+    assert_eq!(h.label("access-table:Customers"), "Customers: 6 fields, 5 rows");
+    std::fs::copy(binary("complex-data.accdb"), &path).unwrap();
+    h.click("access-import");
+    assert!(!h.exists("access-created"));
+    assert_eq!(
+        h.label("access-notice"),
+        "The file changed since it was read. Check its contents again, then import."
+    );
+    assert!(h.label("access-summary").contains("1 table"));
+    h.click("access-import");
+    assert!(h.exists("access-created"));
+}

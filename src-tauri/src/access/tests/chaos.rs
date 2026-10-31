@@ -273,3 +273,41 @@ fn a_table_renamed_for_a_reserved_name_says_so() {
     assert!(notes.contains("named \"Access sqlite_stats\""), "{notes}");
     manager().close("chaos-reserved", true).unwrap();
 }
+
+fn cancel_flag() -> std::sync::Arc<std::sync::atomic::AtomicBool> {
+    std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false))
+}
+
+#[test]
+fn a_cancelled_import_stops_and_leaves_no_document() {
+    use std::sync::atomic::Ordering;
+    let path = super::fixtures::binary("orders.accdb");
+    let cancel = cancel_flag();
+    let flag = cancel.clone();
+    // The user cancels as soon as the first table reports progress.
+    let progress: Box<dyn FnMut(&str, u64) + Send> = Box::new(move |_, _| flag.store(true, Ordering::SeqCst));
+    let options = crate::access::convert::Options { cancel: Some(cancel), ..Default::default() };
+    let err = tauri::async_runtime::block_on(crate::access::import_access_file(
+        "chaos-cancel".into(),
+        path.to_string_lossy().into_owned(),
+        Some(options),
+        Some(progress),
+    ))
+    .unwrap_err();
+    assert_eq!(err.code, "IMPORT_CANCELLED");
+    assert!(crate::manager().unwrap().state("chaos-cancel").is_err());
+}
+
+#[test]
+fn the_time_left_is_estimated_from_the_rows_copied_so_far() {
+    use crate::access::convert::time_left;
+    use std::time::Duration;
+    // Too early to say.
+    assert_eq!(time_left(100, 1_000_000, Duration::from_millis(500)), None);
+    assert_eq!(time_left(0, 1_000_000, Duration::from_secs(5)), None);
+    // 100k rows in 10 s: 900k rows take 90 s more.
+    assert_eq!(time_left(100_000, 1_000_000, Duration::from_secs(10)).as_deref(), Some("about 2 minutes left"));
+    assert_eq!(time_left(500_000, 1_000_000, Duration::from_secs(20)).as_deref(), Some("about 20 seconds left"));
+    assert_eq!(time_left(990_000, 1_000_000, Duration::from_secs(60)).as_deref(), Some("a few seconds left"));
+    assert_eq!(time_left(10_000, 1_000_000, Duration::from_secs(60)).as_deref(), Some("about 1 hour 39 minutes left"));
+}
