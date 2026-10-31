@@ -18,7 +18,7 @@ fn rename(h: &mut Harness, name: &str) {
     h.update(|_, cx| {
         shell.update(cx, |s, cx| {
             s.store
-                .update(cx, |st, cx| st.update("Rename", |c| c.name = name, cx))
+                .update(cx, |st, cx| st.update(&format!("Rename to {name}"), |c| c.name = name, cx))
                 .unwrap();
         })
     });

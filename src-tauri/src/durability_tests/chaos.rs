@@ -225,8 +225,9 @@ fn chaos_file_replaced_externally_is_a_conflict_and_never_overwritten() {
     fs::copy(d.join("other.ixt"), &path).unwrap();
     let foreign = fs::read(&path).unwrap();
     rename(&w, "mine");
-    let auto = m().autosave(&w).unwrap();
-    assert!(auto.conflict, "autosave missed the external replacement");
+    let auto = m().autosave(&w).unwrap_err();
+    assert_eq!(auto.code, "EXTERNAL_CONFLICT");
+    assert!(m().state(&w).unwrap().conflict);
     let e = m().save(&w, None).unwrap_err();
     assert_eq!(e.code, "EXTERNAL_CONFLICT");
     assert_eq!(fs::read(&path).unwrap(), foreign);
@@ -469,8 +470,7 @@ fn chaos_save_as_over_a_file_open_in_another_window() {
     m().new_session(&b).unwrap();
     m().save(&b, Some(path.clone())).unwrap();
     rename(&a, "a edits");
-    let s = m().autosave(&a).unwrap();
-    assert!(s.conflict, "window A silently lost its file to B");
+    assert_eq!(m().autosave(&a).unwrap_err().code, "EXTERNAL_CONFLICT");
     assert!(m().save(&a, None).is_err());
     m().save(&a, Some(d.join("a-copy.ixt"))).unwrap();
     assert_eq!(archived(&d.join("a-copy.ixt"), "items").1, "a edits");

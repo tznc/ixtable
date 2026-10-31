@@ -24,6 +24,7 @@ mod runtime;
 mod access_import;
 mod migrations;
 mod persistence;
+mod chaos_save;
 mod release;
 mod settings;
 mod templates;
