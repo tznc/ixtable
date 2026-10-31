@@ -277,6 +277,9 @@ pub fn plan_tables(db: &AccessDb, notes: &mut BTreeMap<String, Vec<String>>) -> 
         let note = |notes: &mut BTreeMap<String, Vec<String>>, n: String| {
             notes.entry(t.name.clone()).or_default().push(n)
         };
+        if name != t.name {
+            note(notes, format!("the table is named \"{name}\" in ixtable, because its Access name is reserved or already used"));
+        }
         let cols: Vec<(String, Kind)> = t
             .columns
             .iter()
