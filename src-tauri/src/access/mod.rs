@@ -164,17 +164,23 @@ pub async fn import_access_file(
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
-        let conversion = convert::convert(
-            file.as_mut(),
-            &name,
-            &options.unwrap_or_default(),
-            &mut |table, rows| {
-                if let Some(report) = progress.as_mut() {
-                    report(table, rows);
-                }
-            },
-        )
-        .map_err(failed)?;
+        let options = options.unwrap_or_default();
+        let stopped = |e: String| {
+            if e == convert::CANCELLED || options.cancelled() {
+                AppError::new("IMPORT_CANCELLED", "The import was cancelled. Nothing was created.")
+            } else {
+                failed(e)
+            }
+        };
+        let conversion = convert::convert(file.as_mut(), &name, &options, &mut |table, rows| {
+            if let Some(report) = progress.as_mut() {
+                report(table, rows);
+            }
+        })
+        .map_err(stopped)?;
+        if options.cancelled() {
+            return Err(stopped(convert::CANCELLED.into()));
+        }
         let m = crate::manager()?;
         // A panic while the new document is half built must not leave it open.
         let created = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

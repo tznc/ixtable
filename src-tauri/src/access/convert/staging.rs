@@ -92,6 +92,7 @@ pub fn load(
     file: &mut dyn AccessFile,
     plans: &[TablePlan],
     dir: &Path,
+    cancelled: &dyn Fn() -> bool,
     progress: &mut dyn FnMut(&str, u64),
 ) -> Result<(Staging, BTreeMap<String, u64>), String> {
     let path = dir.join(format!("ixtable-access-{}.db", uuid::Uuid::new_v4()));
@@ -156,6 +157,9 @@ pub fn load(
                 child_stmts.push(tx.prepare(&sql).map_err(err)?);
             }
             file.rows(&t.access, &mut |values| {
+                if count % 256 == 0 && cancelled() {
+                    return Err(super::CANCELLED.into());
+                }
                 let row: Vec<Sql> = t
                     .columns
                     .iter()
@@ -214,6 +218,9 @@ pub fn load(
         }
         tx.commit().map_err(err)?;
         progress(&t.access, count);
+        if cancelled() {
+            return Err(super::CANCELLED.into());
+        }
         counts.insert(t.name.clone(), count);
     }
     Ok((staging, counts))

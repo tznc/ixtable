@@ -33,6 +33,40 @@ pub struct Options {
     /// Copy the rows (false: definitions and empty tables only).
     #[serde(default = "yes")]
     pub include_data: bool,
+    /// Set by the user to stop the import; checked between rows and between steps.
+    #[serde(skip)]
+    pub cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+}
+
+/// The error text of a cancelled import ([`crate::access::import_access_file`] maps it to
+/// the code `IMPORT_CANCELLED`).
+pub const CANCELLED: &str = "the import was cancelled";
+
+impl Options {
+    pub fn cancelled(&self) -> bool {
+        self.cancel
+            .as_ref()
+            .is_some_and(|c| c.load(std::sync::atomic::Ordering::SeqCst))
+    }
+}
+
+/// "about 2 minutes left" from the rows copied so far, or None while too early to tell.
+pub fn time_left(done: u64, total: u64, elapsed: std::time::Duration) -> Option<String> {
+    if done == 0 || total <= done || elapsed.as_secs_f64() < 2.0 {
+        return None;
+    }
+    let secs = elapsed.as_secs_f64() / done as f64 * (total - done) as f64;
+    let plural = |n: u64, w: &str| format!("{n} {w}{}", if n == 1 { "" } else { "s" });
+    Some(if secs < 10.0 {
+        "a few seconds left".into()
+    } else if secs < 60.0 {
+        format!("about {} left", plural(((secs / 10.0).round() * 10.0) as u64, "second"))
+    } else if secs < 3600.0 {
+        format!("about {} left", plural((secs / 60.0).round() as u64, "minute"))
+    } else {
+        let minutes = (secs / 60.0).round() as u64;
+        format!("about {} {} left", plural(minutes / 60, "hour"), plural(minutes % 60, "minute"))
+    })
 }
 
 fn yes() -> bool {
@@ -41,7 +75,7 @@ fn yes() -> bool {
 
 impl Default for Options {
     fn default() -> Self {
-        Self { include_data: true }
+        Self { include_data: true, cancel: None }
     }
 }
 
@@ -256,7 +290,7 @@ pub fn convert(
     schema::plan_relationships(&db, &mut plans, &mut notes);
     schema::mark_nocase_keys(&mut plans);
     let (staging, rows) = if options.include_data {
-        let (s, rows) = staging::load(file, &plans, &std::env::temp_dir(), progress)?;
+        let (s, rows) = staging::load(file, &plans, &std::env::temp_dir(), &|| options.cancelled(), progress)?;
         staging::check(&s, &mut plans, &mut notes);
         (Some(s), rows)
     } else {
