@@ -38,13 +38,19 @@ use std::sync::{
 };
 use std::time::{Instant, SystemTime};
 
+/// Windows whose next import cancels itself once a table is copied (tests run in parallel,
+/// so the switch is per window).
 #[cfg(test)]
-static CANCEL_AFTER_FIRST_TABLE: AtomicBool = AtomicBool::new(false);
+static CANCEL_AFTER_FIRST_TABLE: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 /// Tests cannot click Cancel while an import runs, so this cancels once a table is copied.
 #[cfg(test)]
-pub fn cancel_after_first_table_for_test(on: bool) {
-    CANCEL_AFTER_FIRST_TABLE.store(on, Ordering::SeqCst);
+pub fn cancel_after_first_table_for_test(window: &str, on: bool) {
+    let mut windows = CANCEL_AFTER_FIRST_TABLE.lock().unwrap();
+    windows.retain(|w| w != window);
+    if on {
+        windows.push(window.to_string());
+    }
 }
 
 /// Size and modification time, to notice a file that changes after it was read.
@@ -204,10 +210,10 @@ impl AccessImportWizard {
         let cancel = self.cancel.clone();
         let copied = self.copied.clone();
         #[cfg(test)]
-        let test_cancel = self.cancel.clone();
+        let (test_cancel, test_window) = (self.cancel.clone(), self.label.clone());
         let report: Box<dyn FnMut(&str, u64) + Send> = Box::new(move |table, rows| {
             #[cfg(test)]
-            if CANCEL_AFTER_FIRST_TABLE.load(Ordering::SeqCst) {
+            if CANCEL_AFTER_FIRST_TABLE.lock().unwrap().contains(&test_window) {
                 test_cancel.store(true, Ordering::SeqCst);
             }
             let mut c = copied.lock().unwrap();

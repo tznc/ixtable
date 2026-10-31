@@ -307,9 +307,9 @@ fn cancelling_an_import_returns_to_the_file_with_nothing_created(cx: &mut TestAp
     open_wizard(&mut h);
     choose(&mut h, binary("orders.accdb"));
     // Stands in for a click on Cancel while the first table copies.
-    super::wizard::cancel_after_first_table_for_test(true);
+    super::wizard::cancel_after_first_table_for_test(&h.label, true);
     h.click("access-import");
-    super::wizard::cancel_after_first_table_for_test(false);
+    super::wizard::cancel_after_first_table_for_test(&h.label, false);
     assert_eq!(h.label("access-notice"), "The import was cancelled. Nothing was created.");
     assert!(!h.exists("access-error"));
     assert!(!h.exists("access-created"));
