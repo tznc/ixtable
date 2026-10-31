@@ -36,6 +36,8 @@ pub mod runtime_commands;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod chaos_tests;
 
 use crate::manager::AppError;
 use base64::{

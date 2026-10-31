@@ -341,3 +341,92 @@ fn cloud_live_publishes_installs_with_the_assigned_role_updates_in_place_and_rev
         h.try_label("cloud-apps-error").is_some_and(|t| t.contains("not allowed") || t.to_lowercase().contains("revoked"))
     });
 }
+
+// CHAOS (scratch): rollback by withdraw, then a lower re-publish, as a runtime on the withdrawn version sees it.
+#[gpui_kit::test]
+#[ignore = "needs a local Supabase stack"]
+fn cloud_live_chaos_rollback_by_withdraw(cx: &mut TestAppContext) {
+    let stack = Stack::connect();
+    let dev_email = Stack::unique_email("developer");
+    let runtime_email = Stack::unique_email("runtime");
+    stack.create_confirmed_user(&runtime_email, PASSWORD);
+    live(cx);
+    let mut h = Harness::start_sized(cx, (1280.0, 2800.0));
+    h.click("template:crm");
+    open_cloud_tab(&mut h);
+    h.fill("cloud-email", &dev_email);
+    h.fill("cloud-password", PASSWORD);
+    h.click("cloud-signup");
+    let want = format!("Signed in as {dev_email}");
+    wait_for(&mut h, "the developer account", |h| account(h).as_deref() == Some(want.as_str()));
+    wait_for(&mut h, "the create-application card", |h| h.exists("link-org-name"));
+    h.fill("link-org-name", "Acme");
+    h.click("link-create");
+    wait_for(&mut h, "the publish card", |h| h.exists("cloud-publish"));
+    let app_id = h.config().cloud.expect("linked").app_id;
+    stack.grant_subscription(&app_id);
+    let archive = h.temp_path("crm-chaos.ixt");
+    h.dialogs.queue_save(Some(archive));
+    h.click("save-project");
+    wait_for(&mut h, "the saved document", |h| h.try_label("document-status").as_deref() == Some("Saved"));
+    publish(&mut h, "1.0.0");
+    publish(&mut h, "2.0.0");
+    let v2 = h.config().cloud.expect("linked").head_version_id.expect("head");
+
+    let developer = stack.sign_in(&dev_email, PASSWORD);
+    let invite = stack
+        .call(&developer, "invitations-create", json!({ "kind": "app", "appId": app_id, "email": runtime_email, "roleId": SALES_REP }))
+        .expect("invite");
+    let token = invite["acceptUrl"].as_str().unwrap().split("token=").nth(1).unwrap().split('&').next().unwrap().to_string();
+    let runtime = stack.sign_in(&runtime_email, PASSWORD);
+    stack.call(&runtime, "invitations-accept", json!({ "token": token })).expect("accept");
+
+    close_to_start(&mut h);
+    switch_account(&mut h, &runtime_email);
+    let app = format!("cloud-app:{app_id}");
+    wait_for(&mut h, "the shared app", |h| h.try_label(app.clone()).as_deref() == Some("Install"));
+    h.click(app.clone());
+    wait_for(&mut h, "version 2.0.0", |h| h.try_label("cloud-runtime-version").as_deref() == Some("Version 2.0.0"));
+
+    // The developer pulls 2.0.0 (rollback).
+    let withdrawn = stack.call(&developer, "versions-resolve", json!({ "appId": app_id, "action": "withdraw", "versionId": v2 }));
+    eprintln!("CHAOS withdraw: {withdrawn:?}");
+    h.click("cloud-sync");
+    wait_for(&mut h, "the sync result", |h| h.try_label("cloud-update-notice").is_some() || h.exists("cloud-runtime-error"));
+    eprintln!(
+        "CHAOS runtime after withdraw: version={:?} notice={:?} error={:?}",
+        h.try_label("cloud-runtime-version"),
+        h.try_label("cloud-update-notice"),
+        h.try_label("cloud-runtime-error")
+    );
+    h.click("cloud-sync");
+    wait_for(&mut h, "the second sync result", |h| h.try_label("cloud-update-notice").is_some() || h.exists("cloud-runtime-error"));
+
+    let audits = stack
+        .http
+        .get(format!("{}/rest/v1/audit_events?app_id=eq.{app_id}&action=eq.bundle.generate&select=details", stack.url))
+        .header("apikey", &stack.service)
+        .bearer_auth(&stack.service)
+        .send()
+        .unwrap()
+        .text()
+        .unwrap();
+    eprintln!("CHAOS bundle.generate audits: {audits}");
+
+    // The developer re-publishes from the same document: its recorded head is the withdrawn 2.0.0.
+    close_to_start(&mut h);
+    switch_account(&mut h, &dev_email);
+    h.click("recent:crm-chaos.ixt");
+    wait_for(&mut h, "the reopened document", |h| h.has_shell());
+    open_cloud_tab(&mut h);
+    wait_for(&mut h, "the publish card", |h| h.exists("cloud-publish"));
+    h.fill("publish-version", "2.0.1");
+    h.click("publish-submit");
+    wait_for(&mut h, "a publish outcome", |h| h.exists("publish-conflict") || h.exists("publish-notice") || h.exists("publish-error"));
+    eprintln!(
+        "CHAOS developer republish after own withdraw: conflict={} error={:?} notice={:?}",
+        h.exists("publish-conflict"),
+        h.try_label("publish-error"),
+        h.try_label("publish-notice")
+    );
+}

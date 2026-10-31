@@ -288,3 +288,34 @@ fn cloud_runtime_bar() {
         ],
     );
 }
+
+// CHAOS (scratch): what the developer sees for the failure replies captured from the local stack.
+#[test]
+#[ignore = "screenshot spec: run with `cargo screenshot`"]
+fn cloud_chaos_publish_failures() {
+    let mut cx = context();
+    let (mut h, state) = linked_studio(&mut cx, |s| {
+        s.size_report = Some(size_report(false));
+        // A lost 200 on the PUT, then the retry: Storage 400 KeyAlreadyExists (mapped by error_from).
+        s.upload_error = Some(CloudError::new("CLOUD_ERROR", "The resource already exists"));
+    });
+    h.fill("publish-version", "1.0.0");
+    h.click("publish-submit");
+    eprintln!("CHAOS upload-retry error: {:?}", h.try_label("publish-error"));
+    h.capture("chaos-01-upload-retry-error", &["The publish card shows the error after a retried upload whose first attempt landed."]);
+
+    state.lock().unwrap().upload_error = None;
+    // Audit write failed after the commit: 500 INTERNAL, version already live.
+    reply(&state, "publish-checkpoint", vec![Err(CloudError::new("CLOUD_UNAVAILABLE", "Internal error"))]);
+    h.click("publish-submit");
+    eprintln!("CHAOS 500-after-commit error: {:?}", h.try_label("publish-error"));
+    h.capture("chaos-05-publish-500-after-commit", &["The publish card reports a failure for a publish that actually went live."]);
+
+    // The developer retries: the head is now their own version (409 against themselves).
+    let mut e = CloudError::new("VERSION_CONFLICT", "The published head has moved since this archive was based on it");
+    e.details = Some(json!({ "headVersionId": "own-version", "expectedHeadVersionId": null }));
+    reply(&state, "publish-checkpoint", vec![Err(e)]);
+    h.click("publish-submit");
+    eprintln!("CHAOS self-conflict dialog: {:?}", h.try_label("publish-conflict"));
+    h.capture("chaos-04-self-conflict", &["A conflict dialog appears although the only publisher is this developer."]);
+}
