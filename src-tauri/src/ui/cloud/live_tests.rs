@@ -392,15 +392,16 @@ fn cloud_live_chaos_rollback_by_withdraw(cx: &mut TestAppContext) {
     let withdrawn = stack.call(&developer, "versions-resolve", json!({ "appId": app_id, "action": "withdraw", "versionId": v2 }));
     eprintln!("CHAOS withdraw: {withdrawn:?}");
     h.click("cloud-sync");
-    wait_for(&mut h, "the sync result", |h| h.try_label("cloud-update-notice").is_some() || h.exists("cloud-runtime-error"));
+    wait_for(&mut h, "the sync result", |h| h.try_label("cloud-update-notice").is_some() || h.exists("cloud-runtime-error") || h.try_label("notice").is_some());
     eprintln!(
-        "CHAOS runtime after withdraw: version={:?} notice={:?} error={:?}",
+        "CHAOS runtime after withdraw: toast={:?} version={:?} notice={:?} error={:?}",
+        h.try_label("notice"),
         h.try_label("cloud-runtime-version"),
         h.try_label("cloud-update-notice"),
         h.try_label("cloud-runtime-error")
     );
     h.click("cloud-sync");
-    wait_for(&mut h, "the second sync result", |h| h.try_label("cloud-update-notice").is_some() || h.exists("cloud-runtime-error"));
+    wait_for(&mut h, "the second sync result", |h| h.try_label("cloud-update-notice").is_some() || h.exists("cloud-runtime-error") || h.try_label("notice").is_some());
 
     let audits = stack
         .http
