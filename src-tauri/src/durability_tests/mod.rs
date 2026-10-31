@@ -8,6 +8,7 @@ mod fixtures;
 mod heavy;
 mod incremental;
 mod kill;
+mod chaos;
 mod newer_build;
 
 /// A fresh state directory and a manager over it.

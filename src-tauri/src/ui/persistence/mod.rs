@@ -11,5 +11,7 @@ pub mod recovery_list;
 pub mod text_sections;
 #[cfg(test)]
 pub(crate) mod tests;
+#[cfg(test)]
+mod chaos_tests;
 
 pub use crate::ui::forms::eid;
