@@ -150,3 +150,24 @@ fn rows_the_reader_cannot_find_are_reported() {
         .join("\n");
     assert!(notes.contains("8 of 8 rows could not be read"), "{notes}");
 }
+
+fn select_query(input: &str) -> Vec<u8> {
+    format!("Operation =1\nOption =0\nBegin InputTables\n    Name =\"{input}\"\nEnd\nBegin OutputColumns\n    Expression =\"{input}.*\"\nEnd\n").into_bytes()
+}
+
+#[test]
+fn queries_whose_names_differ_only_by_case_are_both_kept() {
+    let path = template_with(|parts| {
+        parts.insert(format!("{OBJECTS}queryorders.txt"), select_query("Orders"));
+        parts.insert(format!("{OBJECTS}queryOrders.txt"), select_query("Customers"));
+    });
+    let (report, errs) = import(&path, "chaos-case");
+    assert_eq!(errs, Vec::<String>::new());
+    let config = manager().config("chaos-case").unwrap();
+    let names: Vec<&str> = config.saved_queries.iter().map(|q| q.name.as_str()).collect();
+    assert!(names.contains(&"Orders") || names.contains(&"orders"), "{names:?}");
+    assert!(names.iter().any(|n| n.eq_ignore_ascii_case("orders 2")), "{names:?}");
+    let notes = report.items.iter().flat_map(|i| i.notes.clone()).collect::<Vec<_>>().join("\n");
+    assert!(notes.contains("renamed"), "{notes}");
+    manager().close("chaos-case", true).unwrap();
+}
