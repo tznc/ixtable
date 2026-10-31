@@ -14,11 +14,15 @@ pub fn temp(name: &str) -> PathBuf {
 
 /// The template fixture folder zipped into an `.accdt` package.
 pub fn template() -> PathBuf {
+    template_with(|_| {})
+}
+
+/// The template fixture with its parts edited first (part path relative to the folder,
+/// e.g. `template/database/objects/queryX.txt`).
+pub fn template_with(edit: impl FnOnce(&mut std::collections::BTreeMap<String, Vec<u8>>)) -> PathBuf {
     let out = temp("Order Desk.accdt");
     let root = dir().join("template");
-    let mut zip = zip::ZipWriter::new(std::fs::File::create(&out).unwrap());
-    let options = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
+    let mut parts = std::collections::BTreeMap::new();
     let mut stack = vec![root.clone()];
     while let Some(d) = stack.pop() {
         let mut entries: Vec<_> = std::fs::read_dir(&d)
@@ -37,9 +41,16 @@ pub fn template() -> PathBuf {
                 .unwrap()
                 .to_string_lossy()
                 .replace('\\', "/");
-            zip.start_file(name, options).unwrap();
-            zip.write_all(&std::fs::read(&p).unwrap()).unwrap();
+            parts.insert(name, std::fs::read(&p).unwrap());
         }
+    }
+    edit(&mut parts);
+    let mut zip = zip::ZipWriter::new(std::fs::File::create(&out).unwrap());
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+    for (name, bytes) in parts {
+        zip.start_file(name, options).unwrap();
+        zip.write_all(&bytes).unwrap();
     }
     zip.finish().unwrap();
     out
