@@ -16,3 +16,7 @@
   (https://github.com/spannm/jackcess), Apache License 2.0.
 
 The binary fixtures are gzipped because Access pages are mostly empty.
+- `damaged/`: byte-flipped copies of the fixtures above, found by chaos
+  testing the import. `flip049-complex-data.accdb` has a row whose offsets
+  run past its start, `flip050-orders.mdb` a catalog page that lost its
+  rows, and `flip001-complex-data.accdb` a corrupt table definition.

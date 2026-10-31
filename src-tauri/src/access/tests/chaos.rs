@@ -85,3 +85,68 @@ fn a_lookup_over_a_missing_table_is_dropped_and_reported() {
     assert!(warnings.contains("The lookup of Customer reads Ghost lookup"), "{warnings}");
     manager().close("chaos-ghost", true).unwrap();
 }
+
+#[test]
+fn a_damaged_catalog_is_reported_before_the_import() {
+    let path = super::fixtures::binary("damaged/flip050-orders.mdb");
+    let inventory = crate::access::inventory(&path).unwrap();
+    let warnings = inventory.warnings.join("\n");
+    assert!(warnings.contains("The database catalog is damaged"), "{warnings}");
+}
+
+#[test]
+fn a_table_that_cannot_be_read_is_a_not_converted_item() {
+    let path = super::fixtures::binary("damaged/flip001-complex-data.accdb");
+    let mut file = crate::access::open(&path).unwrap();
+    let conversion = crate::access::convert::convert(
+        file.as_mut(),
+        "flip001-complex-data.accdb",
+        &Default::default(),
+        &mut |_, _| {},
+    )
+    .unwrap();
+    let item = conversion
+        .report
+        .items
+        .iter()
+        .find(|i| i.kind == "table" && i.name == "Table1")
+        .expect("an item for the unreadable table");
+    assert_eq!(item.status, Status::Skipped);
+    assert!(item.notes.join(" ").contains("could not be read"), "{:?}", item.notes);
+}
+
+/// A copy of orders.mdb whose Orders data pages claim no rows.
+fn orders_with_lost_rows() -> std::path::PathBuf {
+    let path = super::fixtures::binary("orders.mdb");
+    let orders = crate::access::jet::JetFile::open(std::fs::File::open(&path).unwrap())
+        .unwrap()
+        .table_page("Orders")
+        .unwrap();
+    let mut bytes = std::fs::read(&path).unwrap();
+    for page in bytes.chunks_mut(4096) {
+        let owner = u32::from_le_bytes([page[4], page[5], page[6], page[7]]);
+        if page[0] == 0x01 && owner == orders {
+            page[12] = 0;
+            page[13] = 0;
+        }
+    }
+    std::fs::write(&path, bytes).unwrap();
+    path
+}
+
+#[test]
+fn rows_the_reader_cannot_find_are_reported() {
+    let path = orders_with_lost_rows();
+    let mut file = crate::access::open(&path).unwrap();
+    let conversion =
+        crate::access::convert::convert(file.as_mut(), "orders.mdb", &Default::default(), &mut |_, _| {}).unwrap();
+    let notes = conversion
+        .report
+        .items
+        .iter()
+        .filter(|i| i.kind == "table" && i.name == "Orders")
+        .flat_map(|i| i.notes.clone())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(notes.contains("8 of 8 rows could not be read"), "{notes}");
+}
