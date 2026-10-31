@@ -1,0 +1,38 @@
+{
+  "name": "chaos-12-expired-reused",
+  "recordedAt": "2026-10-31T18:08:53.627Z",
+  "expectations": [
+    "expired 400, plan swap 404, reuse 400, with clear messages."
+  ],
+  "details": {
+    "expired": {
+      "error": {
+        "code": "VALIDATION",
+        "message": "sessionId: checkout session is no longer open",
+        "details": {
+          "field": "sessionId"
+        }
+      }
+    },
+    "swapPlan": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "Checkout session not found"
+      }
+    },
+    "reuse": {
+      "error": {
+        "code": "VALIDATION",
+        "message": "sessionId: checkout session is no longer open",
+        "details": {
+          "field": "sessionId"
+        }
+      }
+    },
+    "statuses": [
+      422,
+      404,
+      422
+    ]
+  }
+}

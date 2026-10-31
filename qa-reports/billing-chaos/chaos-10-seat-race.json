@@ -1,0 +1,64 @@
+{
+  "name": "chaos-10-seat-race",
+  "recordedAt": "2026-10-31T18:08:50.565Z",
+  "expectations": [
+    "Exactly one activation succeeds; used <= 5; others 402."
+  ],
+  "details": {
+    "statuses": [
+      200,
+      402,
+      402,
+      402
+    ],
+    "bodies": [
+      {
+        "member": {
+          "app_id": "09bdc2cd-e37f-4a40-be50-b6742fd515f9",
+          "user_id": "30479f06-6827-4f52-986d-16921963c4ae",
+          "role_id": "6f2b11c9-d4dc-4588-a0d3-cf6075a93e40",
+          "status": "active",
+          "invited_by": null,
+          "created_at": "2026-10-31T18:08:49.280318+00:00",
+          "updated_at": "2026-10-31T18:08:50.019871+00:00",
+          "revoked_at": null
+        }
+      },
+      {
+        "error": {
+          "code": "ENTITLEMENT_REQUIRED",
+          "message": "The plan's runtime-user allowance is used up.",
+          "details": {
+            "reason": "over_allowance"
+          }
+        }
+      },
+      {
+        "error": {
+          "code": "ENTITLEMENT_REQUIRED",
+          "message": "The plan's runtime-user allowance is used up.",
+          "details": {
+            "reason": "over_allowance"
+          }
+        }
+      },
+      {
+        "error": {
+          "code": "ENTITLEMENT_REQUIRED",
+          "message": "The plan's runtime-user allowance is used up.",
+          "details": {
+            "reason": "over_allowance"
+          }
+        }
+      }
+    ],
+    "ent": {
+      "used": 5,
+      "planId": "starter",
+      "reason": "ok",
+      "status": "active",
+      "allowed": true,
+      "allowance": 5
+    }
+  }
+}

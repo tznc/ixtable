@@ -288,3 +288,43 @@ fn cloud_runtime_bar() {
         ],
     );
 }
+
+// Scratch chaos capture (not for commit): key-grant refused 402 subscription_inactive.
+#[test]
+#[ignore = "screenshot spec: run with `cargo screenshot`"]
+fn cloud_runtime_entitlement_lapsed() {
+    let mut cx = context();
+    let state = scripted_headless(&mut cx);
+    {
+        let mut s = state.lock().unwrap();
+        s.session = Some(user("u1", "ada@example.test"));
+        s.app = Some(app("owner"));
+        s.runtime_info = Some(Arc::new(|| {
+            let mut i = info(Some("r1"), json!({ "navigation": [], "objects": [], "actions": [] }));
+            i.app_id = "app-1".into();
+            i.postgres = true;
+            i
+        }));
+        let body = json!({ "error": { "code": "ENTITLEMENT_REQUIRED",
+            "message": "The app's subscription is not active.",
+            "details": { "reason": "subscription_inactive", "allowance": 25, "used": 3 } } });
+        s.grants = [Err(crate::ui::cloud::errors::from_body(402, &body))].into();
+        s.size_report = Some(size_report(false));
+    }
+    crate::new_document("cloud-ent-shot".into()).unwrap();
+    let bundle = crate::paths::state_dir().join("ui-tests").join("cloud-ent-shot.ixtr");
+    std::fs::create_dir_all(bundle.parent().unwrap()).unwrap();
+    let options = serde_json::from_value(json!({ "version": "1.0.0", "releaseNotes": "" })).unwrap();
+    crate::bundle_export::export_runtime_bundle("cloud-ent-shot".into(), bundle.to_string_lossy().into(), options).unwrap();
+    crate::close_document("cloud-ent-shot".into(), true).unwrap();
+    let mut h = Harness::start_sized(&mut cx, TALL);
+    h.dialogs.queue_open(Some(bundle));
+    h.click("open-bundle");
+    let session = h.state().session_id;
+    let make = state.lock().unwrap().runtime_info.clone().unwrap();
+    h.cx.update(|cx| {
+        CloudRuntime::global(cx).update(cx, |r, cx| r.set(&session, Arc::new(make()), cx));
+    });
+    h.settle();
+    h.capture("cloud-90-entitlement-lapsed", &["Runtime user sees why access stopped (subscription lapsed) and who to contact."]);
+}

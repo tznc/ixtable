@@ -1,0 +1,39 @@
+{
+  "name": "chaos-01-unpaid-checkout-replaces",
+  "recordedAt": "2026-10-31T18:08:20.796Z",
+  "expectations": [
+    "Unpaid checkout for a new sub leaves the paid sub A active and entitled."
+  ],
+  "details": {
+    "before": {
+      "used": 0,
+      "planId": "team",
+      "reason": "ok",
+      "status": "active",
+      "allowed": true,
+      "allowance": 25
+    },
+    "res": {
+      "received": true,
+      "outcome": "applied"
+    },
+    "row": {
+      "plan_id": "business",
+      "status": "incomplete",
+      "provider": "fake",
+      "current_period_end": null,
+      "cancel_at_period_end": false,
+      "stripe_customer_id": "cus_qa_6e5c8015",
+      "stripe_subscription_id": "sub_B_7w1d3lje",
+      "provider_event_at": "2026-10-31T18:07:50+00:00"
+    },
+    "after": {
+      "used": 0,
+      "planId": "business",
+      "reason": "subscription_inactive",
+      "status": "incomplete",
+      "allowed": false,
+      "allowance": 100
+    }
+  }
+}

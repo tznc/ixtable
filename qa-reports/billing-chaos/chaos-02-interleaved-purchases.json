@@ -1,0 +1,37 @@
+{
+  "name": "chaos-02-interleaved-purchases",
+  "recordedAt": "2026-10-31T18:08:24.018Z",
+  "expectations": [
+    "App stays on C (paid, live) and entitled."
+  ],
+  "details": {
+    "mid": {
+      "plan_id": "team",
+      "status": "active",
+      "provider": "fake",
+      "current_period_end": "2026-11-30T18:08:23+00:00",
+      "cancel_at_period_end": false,
+      "stripe_customer_id": "cus_qa_c1ed213e",
+      "stripe_subscription_id": "sub_B_tt4t92wf",
+      "provider_event_at": "2026-10-31T18:07:23+00:00"
+    },
+    "row": {
+      "plan_id": "team",
+      "status": "canceled",
+      "provider": "fake",
+      "current_period_end": "2026-11-30T18:08:23+00:00",
+      "cancel_at_period_end": false,
+      "stripe_customer_id": "cus_qa_c1ed213e",
+      "stripe_subscription_id": "sub_B_tt4t92wf",
+      "provider_event_at": "2026-10-31T18:07:28+00:00"
+    },
+    "after": {
+      "used": 0,
+      "planId": "team",
+      "reason": "subscription_inactive",
+      "status": "canceled",
+      "allowed": false,
+      "allowance": 25
+    }
+  }
+}

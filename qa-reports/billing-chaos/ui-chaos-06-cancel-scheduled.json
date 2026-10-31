@@ -1,0 +1,11 @@
+{
+  "name": "ui-chaos-06-cancel-scheduled",
+  "recordedAt": "2026-10-31T18:10:27.107Z",
+  "expectations": [
+    "A Resume action should exist; other plans start a new full-price checkout."
+  ],
+  "details": {
+    "url": "http://127.0.0.1:3001/cloud/app?id=0d5a8a6c-0577-4a5d-879b-b2ac584a15fd&tab=billing",
+    "screenshot": "/home/user/ixtable/web/e2e/service-qa/.generated/ui-chaos-06-cancel-scheduled.png"
+  }
+}

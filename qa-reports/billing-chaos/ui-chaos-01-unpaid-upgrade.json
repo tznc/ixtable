@@ -1,0 +1,21 @@
+{
+  "name": "ui-chaos-01-unpaid-upgrade",
+  "recordedAt": "2026-10-31T18:10:23.597Z",
+  "expectations": [
+    "Previously active Team plan should still be shown/entitled."
+  ],
+  "details": {
+    "url": "http://127.0.0.1:3001/cloud/app?id=9127a081-32d6-42e4-9ded-2bf3740f1368&tab=billing",
+    "screenshot": "/home/user/ixtable/web/e2e/service-qa/.generated/ui-chaos-01-unpaid-upgrade.png",
+    "row": {
+      "plan_id": "business",
+      "status": "active",
+      "provider": "fake",
+      "current_period_end": "2026-11-30T18:10:22.261+00:00",
+      "cancel_at_period_end": false,
+      "stripe_customer_id": "cus_qa_9127a081",
+      "stripe_subscription_id": "sub_unpaid_1793470222289",
+      "provider_event_at": "2026-10-31T18:10:23+00:00"
+    }
+  }
+}

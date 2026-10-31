@@ -1,0 +1,21 @@
+{
+  "name": "chaos-05-double-checkout",
+  "recordedAt": "2026-10-31T18:08:33.863Z",
+  "expectations": [
+    "Second checkout is refused or the second payment is refused; one subscription."
+  ],
+  "details": {
+    "starts": [
+      200,
+      200
+    ],
+    "pays": [
+      200,
+      200
+    ],
+    "subs": [
+      "sub_fake_PE4KU2nPHzKZ",
+      "sub_fake_LtshDPVhH2Ff"
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "name": "chaos-08-cancel-vs-change",
+  "recordedAt": "2026-10-31T18:08:45.840Z",
+  "expectations": [
+    "no drift"
+  ],
+  "details": {
+    "findings": [
+      {
+        "pay": 200,
+        "cancel": 200,
+        "row": {
+          "plan_id": "business",
+          "status": "active",
+          "provider": "fake",
+          "current_period_end": "2026-11-30T18:08:42+00:00",
+          "cancel_at_period_end": false,
+          "stripe_customer_id": "cus_fake_q0Xy63OF8Lhq",
+          "stripe_subscription_id": "sub_fake_dIau0jQTxKHQ",
+          "provider_event_at": "2026-10-31T18:08:42+00:00"
+        }
+      },
+      {
+        "pay": 200,
+        "cancel": 200,
+        "row": {
+          "plan_id": "team",
+          "status": "active",
+          "provider": "fake",
+          "current_period_end": "2026-11-30T18:08:43+00:00",
+          "cancel_at_period_end": false,
+          "stripe_customer_id": "cus_fake_q0Xy63OF8Lhq",
+          "stripe_subscription_id": "sub_fake_osH1oYzl9L-6",
+          "provider_event_at": "2026-10-31T18:08:43+00:00"
+        }
+      },
+      {
+        "pay": 200,
+        "cancel": 200,
+        "row": {
+          "plan_id": "business",
+          "status": "active",
+          "provider": "fake",
+          "current_period_end": "2026-11-30T18:08:44+00:00",
+          "cancel_at_period_end": false,
+          "stripe_customer_id": "cus_fake_q0Xy63OF8Lhq",
+          "stripe_subscription_id": "sub_fake_HaHh2jzhzSKh",
+          "provider_event_at": "2026-10-31T18:08:44+00:00"
+        }
+      },
+      {
+        "pay": 200,
+        "cancel": 200,
+        "row": {
+          "plan_id": "team",
+          "status": "active",
+          "provider": "fake",
+          "current_period_end": "2026-11-30T18:08:45+00:00",
+          "cancel_at_period_end": false,
+          "stripe_customer_id": "cus_fake_q0Xy63OF8Lhq",
+          "stripe_subscription_id": "sub_fake_drM9W_varLZ2",
+          "provider_event_at": "2026-10-31T18:08:45+00:00"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "ui-chaos-04-pastdue-null",
+  "recordedAt": "2026-10-31T18:10:25.278Z",
+  "expectations": [
+    "Grace must have an end date."
+  ],
+  "details": {
+    "url": "http://127.0.0.1:3001/cloud/app?id=5b22150a-090e-4840-82b3-fd49ca508412&tab=billing",
+    "screenshot": "/home/user/ixtable/web/e2e/service-qa/.generated/ui-chaos-04-pastdue-null.png"
+  }
+}

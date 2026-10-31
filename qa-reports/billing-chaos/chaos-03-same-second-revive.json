@@ -1,0 +1,27 @@
+{
+  "name": "chaos-03-same-second-revive",
+  "recordedAt": "2026-10-31T18:08:26.978Z",
+  "expectations": [
+    "Deleted is terminal: status stays canceled."
+  ],
+  "details": {
+    "row": {
+      "plan_id": "team",
+      "status": "active",
+      "provider": "fake",
+      "current_period_end": "2026-11-30T18:08:26+00:00",
+      "cancel_at_period_end": false,
+      "stripe_customer_id": "cus_qa_4a5a551a",
+      "stripe_subscription_id": "sub_S_dmvq59p7",
+      "provider_event_at": "2026-10-31T18:07:26+00:00"
+    },
+    "after": {
+      "used": 0,
+      "planId": "team",
+      "reason": "ok",
+      "status": "active",
+      "allowed": true,
+      "allowance": 25
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "chaos-13-late-update-after-cancel",
+  "recordedAt": "2026-10-31T18:08:57.099Z",
+  "expectations": [
+    "cancel_at_period_end stays true."
+  ],
+  "details": {
+    "cancel": 200,
+    "lateRes": {
+      "received": true,
+      "outcome": "applied"
+    },
+    "row": {
+      "plan_id": "team",
+      "status": "active",
+      "provider": "fake",
+      "current_period_end": "2026-11-30T18:08:56+00:00",
+      "cancel_at_period_end": false,
+      "stripe_customer_id": "cus_qa_2ff52858",
+      "stripe_subscription_id": "sub_fake_0qku5ZAIQgls",
+      "provider_event_at": "2026-10-31T18:08:56+00:00"
+    }
+  }
+}

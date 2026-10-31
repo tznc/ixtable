@@ -1,0 +1,36 @@
+{
+  "name": "chaos-04-grace-window",
+  "recordedAt": "2026-10-31T18:08:29.973Z",
+  "expectations": [
+    "Grace ends <= 7 days after the failed renewal, never open-ended."
+  ],
+  "details": {
+    "row": {
+      "plan_id": "team",
+      "status": "past_due",
+      "provider": "fake",
+      "current_period_end": "2026-11-30T18:08:29+00:00",
+      "cancel_at_period_end": false,
+      "stripe_customer_id": "cus_qa_e3c3534e",
+      "stripe_subscription_id": "sub_S_b0wtb2fi",
+      "provider_event_at": "2026-10-31T18:06:39+00:00"
+    },
+    "ent": {
+      "used": 0,
+      "planId": "team",
+      "reason": "grace",
+      "status": "past_due",
+      "allowed": true,
+      "allowance": 25
+    },
+    "graceEnds": {},
+    "entNull": {
+      "used": 0,
+      "planId": "team",
+      "reason": "grace",
+      "status": "past_due",
+      "allowed": true,
+      "allowance": 25
+    }
+  }
+}

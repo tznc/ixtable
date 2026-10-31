@@ -1,0 +1,27 @@
+{
+  "name": "chaos-07-concurrent-duplicates",
+  "recordedAt": "2026-10-31T18:08:41.361Z",
+  "expectations": [
+    "All 2xx (or retried), one plan_changed audit, event row outcome=applied."
+  ],
+  "details": {
+    "statuses": [
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200
+    ],
+    "rows": [
+      {
+        "outcome": "applied",
+        "error": null,
+        "processed_at": "2026-10-31T18:08:40.22+00:00"
+      }
+    ],
+    "auditCount": 1
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "name": "chaos-09-rls",
+  "recordedAt": "2026-10-31T18:08:47.356Z",
+  "expectations": [
+    "No user/anon write lands; billing internals unreadable; outsiders see nothing."
+  ],
+  "details": {
+    "summary": {
+      "updateOwnSub": {
+        "status": 403,
+        "error": "42501",
+        "rows": 0
+      },
+      "insertSub": {
+        "status": 403,
+        "error": "42501",
+        "rows": 0
+      },
+      "upsertSub": {
+        "status": 403,
+        "error": "42501",
+        "rows": 0
+      },
+      "deleteSub": {
+        "status": 403,
+        "error": "42501",
+        "rows": 0
+      },
+      "updatePlan": {
+        "status": 403,
+        "error": "42501",
+        "rows": 0
+      },
+      "readEvents": {
+        "status": 403,
+        "error": "42501",
+        "rows": 0
+      },
+      "insertEvent": {
+        "status": 403,
+        "error": "42501",
+        "rows": 0
+      },
+      "readSessions": {
+        "status": 403,
+        "error": "42501",
+        "rows": 0
+      },
+      "readCustomers": {
+        "status": 403,
+        "error": "42501",
+        "rows": 0
+      },
+      "outsiderSub": {
+        "status": 200,
+        "error": null,
+        "rows": 0
+      },
+      "outsiderEnt": {
+        "status": 200,
+        "error": null,
+        "rows": 1
+      },
+      "anonPlans": {
+        "status": 401,
+        "error": "42501",
+        "rows": 0
+      },
+      "anonSubs": {
+        "status": 401,
+        "error": "42501",
+        "rows": 0
+      }
+    },
+    "outsiderCheckout": 404,
+    "outsiderFake": 404,
+    "row": {
+      "plan_id": "starter",
+      "status": "active",
+      "provider": "fake",
+      "current_period_end": "2026-11-30T18:08:46+00:00",
+      "cancel_at_period_end": false,
+      "stripe_customer_id": "cus_fake_IGYli05_TyqD",
+      "stripe_subscription_id": "sub_fake_5GjsPPxIEMBt",
+      "provider_event_at": "2026-10-31T18:08:46+00:00"
+    },
+    "plan": {
+      "runtime_user_allowance": 5
+    }
+  }
+}

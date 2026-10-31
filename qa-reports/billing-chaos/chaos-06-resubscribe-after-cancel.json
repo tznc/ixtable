@@ -1,0 +1,14 @@
+{
+  "name": "chaos-06-resubscribe-after-cancel",
+  "recordedAt": "2026-10-31T18:08:37.211Z",
+  "expectations": [
+    "Undo-cancel path instead of a new paid checkout for the same plan."
+  ],
+  "details": {
+    "status": 200,
+    "body": {
+      "url": "http://127.0.0.1:3001/cloud/billing/fake-checkout?session=cs_fake_PkBey8UDH6DJQUXJ&app=eb77e58c-174c-4213-82c4-dc24a82b09b0&plan=team",
+      "overAllowance": false
+    }
+  }
+}

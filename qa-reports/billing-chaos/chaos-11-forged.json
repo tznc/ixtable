@@ -1,0 +1,25 @@
+{
+  "name": "chaos-11-forged",
+  "recordedAt": "2026-10-31T18:08:52.008Z",
+  "expectations": [
+    "All forged variants 400; bad app id ignored; unknown plan ignored; no row."
+  ],
+  "details": {
+    "results": {
+      "wrongSecret": "[redacted]",
+      "future10m": 400,
+      "whitespace": 400,
+      "noHeader": 400,
+      "v0Only": 400
+    },
+    "badRes": {
+      "received": true,
+      "outcome": "ignored"
+    },
+    "unknownRes": {
+      "received": true,
+      "outcome": "ignored"
+    },
+    "row": null
+  }
+}
