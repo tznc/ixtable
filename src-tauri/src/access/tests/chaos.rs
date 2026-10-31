@@ -46,3 +46,42 @@ fn values_that_do_not_fit_their_column_are_emptied_and_reported() {
     assert!(report.items.iter().any(|i| i.kind == "table" && i.name == "Orders" && i.status == Status::Partial));
     m.close("chaos-values", true).unwrap();
 }
+
+fn with_order_lookup(sql: &'static str) -> std::path::PathBuf {
+    template_with(move |parts| {
+        parts.insert(
+            format!("{OBJECTS}queryGhost lookup.txt"),
+            b"Operation =1\nOption =0\nBegin InputTables\n    Name =\"Ghost\"\nEnd\nBegin OutputColumns\n    Expression =\"Ghost.ID\"\n    Expression =\"Ghost.Name\"\nEnd\n".to_vec(),
+        );
+        edit_part(parts, "tableOrders.xsd", |s| {
+            s.replace(
+                "SELECT Customers.ID, Customers.Company FROM Customers ORDER BY Customers.Company;",
+                sql,
+            )
+        })
+    })
+}
+
+#[test]
+fn a_lookup_view_with_a_spaced_name_keeps_the_tables_listed() {
+    // A computed display column makes the lookup a view ("Orders lookup").
+    let path = with_order_lookup("SELECT Customers.ID, [Company] &amp; &quot; (&quot; &amp; [Category] &amp; &quot;)&quot; AS Label FROM Customers;");
+    let (_, errs) = import(&path, "chaos-view");
+    assert_eq!(errs, Vec::<String>::new());
+    let objects = manager().database_objects("chaos-view").expect("objects list");
+    assert!(objects.iter().any(|o| o.name == "Orders"), "{objects:?}");
+    manager().close("chaos-view", true).unwrap();
+}
+
+#[test]
+fn a_lookup_over_a_missing_table_is_dropped_and_reported() {
+    let path = with_order_lookup("Ghost lookup");
+    let (report, errs) = import(&path, "chaos-ghost");
+    assert_eq!(errs, Vec::<String>::new());
+    let objects = manager().database_objects("chaos-ghost").expect("objects list");
+    assert!(objects.iter().any(|o| o.name == "Orders"), "{objects:?}");
+    assert!(!objects.iter().any(|o| o.object_type == "view"), "{objects:?}");
+    let warnings = report.warnings.join("\n");
+    assert!(warnings.contains("The lookup of Customer reads Ghost lookup"), "{warnings}");
+    manager().close("chaos-ghost", true).unwrap();
+}
