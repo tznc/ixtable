@@ -209,3 +209,15 @@ fn currency_beyond_fifteen_digits_is_reported_as_rounded() {
     assert!(notes.contains("Amount: 1 value has more than 15 significant digits"), "{notes}");
     manager().close("chaos-currency", true).unwrap();
 }
+
+#[test]
+fn text_keys_match_regardless_of_case_as_in_access() {
+    let path = super::fixtures::binary("text-keys.accdb");
+    let (report, errs) = import(&path, "chaos-text-keys");
+    assert_eq!(errs, Vec::<String>::new());
+    let notes = report.items.iter().flat_map(|i| i.notes.clone()).collect::<Vec<_>>().join("\n");
+    assert!(!notes.contains("refer to missing"), "{notes}");
+    let schema = manager().table_schema("chaos-text-keys", "Items").unwrap();
+    assert_eq!(schema.foreign_keys.len(), 1, "{schema:?}");
+    manager().close("chaos-text-keys", true).unwrap();
+}
