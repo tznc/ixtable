@@ -265,3 +265,38 @@ fn closes_with_the_header_close_button(cx: &mut TestAppContext) {
     h.click("access-wizard-dismiss");
     assert!(!h.exists("access-wizard"));
 }
+
+/// The first `len` bytes of a fixture, as a damaged copy.
+fn truncated(name: &str, len: usize) -> PathBuf {
+    let path = binary(name);
+    let bytes = std::fs::read(&path).unwrap();
+    std::fs::write(&path, &bytes[..len]).unwrap();
+    path
+}
+
+#[gpui_kit::test]
+fn a_damaged_file_says_so_and_keeps_the_details_behind_a_toggle(cx: &mut TestAppContext) {
+    let mut h = Harness::start(cx);
+    open_wizard(&mut h);
+    choose(&mut h, truncated("orders.accdb", 229_376));
+    assert_eq!(
+        h.label("access-error"),
+        "The file is damaged or incomplete. Open it in Access, run Compact and Repair, then import it again."
+    );
+    // The file has the right extension, so the extension hint would mislead.
+    assert!(!h.exists("access-error-hint"));
+    assert!(!h.exists("access-error-details"));
+    h.click("access-error-details-toggle");
+    assert!(h.label("access-error-details").contains("past the end of the file"));
+}
+
+#[gpui_kit::test]
+fn a_file_that_cannot_be_opened_says_so_without_os_codes(cx: &mut TestAppContext) {
+    let mut h = Harness::start(cx);
+    open_wizard(&mut h);
+    let dir = scratch("folder.accdb");
+    std::fs::create_dir_all(&dir).unwrap();
+    choose(&mut h, dir);
+    assert_eq!(h.label("access-error"), "The file could not be opened.");
+    assert!(!h.label("access-error").contains("os error"));
+}
