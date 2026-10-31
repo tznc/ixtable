@@ -103,6 +103,13 @@ fn is_system(r: &CatalogRow) -> bool {
 pub fn load(f: &mut JetFile) -> Result<(), String> {
     let cat_def = f.def_at(CATALOG_PAGE)?;
     let cat = SysTable::read(f, &cat_def)?;
+    if (cat.rows.len() as u64) < cat_def.row_count as u64 {
+        f.db.warnings.push(format!(
+            "The database catalog is damaged: {} of its {} entries could not be read, so some tables, queries or forms may be missing. Run Compact and Repair in Access, then import again.",
+            cat_def.row_count as usize - cat.rows.len(),
+            cat_def.row_count
+        ));
+    }
     let catalog: Vec<CatalogRow> = cat
         .rows
         .iter()
@@ -144,7 +151,10 @@ pub fn load(f: &mut JetFile) -> Result<(), String> {
                         f.defs.insert(table.name.to_lowercase(), def);
                         f.db.tables.push(table);
                     }
-                    Err(e) => f.db.warnings.push(format!("table {}: {e}", r.name)),
+                    Err(e) => {
+                        f.db.warnings.push(format!("table {}: {e}", r.name));
+                        f.db.unreadable_tables.push((r.name.clone(), e));
+                    }
                 }
             }
             object_type::LINKED | object_type::LINKED_ODBC => {

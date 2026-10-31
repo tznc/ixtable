@@ -121,6 +121,11 @@ impl JetFile {
         Ok(out)
     }
 
+    /// The table definition page of a user table.
+    pub fn table_page(&self, table: &str) -> Option<u32> {
+        self.defs.get(&table.to_lowercase()).map(|d| d.page)
+    }
+
     pub fn def_at(&mut self, page: u32) -> Result<TableDef, String> {
         let code_page = self.code_page();
         tdef::read(&mut self.pages, page, code_page)
