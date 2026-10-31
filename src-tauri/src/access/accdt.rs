@@ -85,9 +85,19 @@ impl TemplatePackage {
             }
         }
         // Sample data parts share the stem of the table's schema part.
+        // Unreadable sample data costs only that table's rows, not the whole import.
         let data = data
             .into_iter()
             .map(|(stem, bytes)| (part_tables.get(&stem).cloned().unwrap_or(stem), bytes))
+            .filter(|(table, bytes)| match xml::parse(&xml::decode(bytes)) {
+                Ok(_) => true,
+                Err(e) => {
+                    let name = db.table(table).map_or(table.clone(), |t| t.name.clone());
+                    db.table_notes
+                        .push((name, format!("its sample data could not be read, so it was imported without rows ({e})")));
+                    false
+                }
+            })
             .collect();
         if let Some(rel) = parts.get("template/database/relationships.xml") {
             db.relationships = relationships(&xml::decode(rel)).unwrap_or_else(|e| {
