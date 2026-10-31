@@ -260,3 +260,16 @@ fn config_problems_left_after_the_import_become_report_warnings() {
     assert!(warnings.iter().any(|w| w.starts_with("The new document has a problem to fix:") && w.contains("no up SQL")), "{warnings:?}");
     manager().close("chaos-validate", true).unwrap();
 }
+
+#[test]
+fn a_table_renamed_for_a_reserved_name_says_so() {
+    let path = template_with(|parts| {
+        let xsd = String::from_utf8(parts[&format!("{OBJECTS}tableOrders.xsd")].clone()).unwrap();
+        parts.insert(format!("{OBJECTS}tablesqlite_stats.xsd"), xsd.replace("Orders", "sqlite_stats").into_bytes());
+    });
+    let (report, errs) = import(&path, "chaos-reserved");
+    assert_eq!(errs, Vec::<String>::new());
+    let notes = notes_of(&report, "table", "sqlite_stats").join("\n");
+    assert!(notes.contains("named \"Access sqlite_stats\""), "{notes}");
+    manager().close("chaos-reserved", true).unwrap();
+}
