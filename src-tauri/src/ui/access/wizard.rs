@@ -5,7 +5,9 @@
 //!
 //! Test ids: dialog title `access-wizard` ("Import from Access"), `access-choose`,
 //! `access-file`, `access-busy`, `access-progress`, `access-error` (with
-//! `access-error-hint`), `access-import`, `access-cancel`, `access-open`. Contents:
+//! `access-error-hint` for files that are not Access files, and the link
+//! `access-error-details-toggle` that shows the reader's text, `access-error-details`),
+//! `access-import`, `access-cancel`, `access-open`. Contents:
 //! `access-summary`, `access-count:<Label>`, `access-compiled`, table rows
 //! `access-table:<name>` ("name: F fields, R rows"), `access-warning:<i>`, checkbox
 //! `access-include-data`. Report: verdict `access-report`, `access-created`,
@@ -66,6 +68,7 @@ pub struct AccessImportWizard {
     include_data: bool,
     busy: String,
     error: Option<AppError>,
+    show_error_details: bool,
     result: Option<Imported>,
     show_attention: Option<bool>,
     copied: Arc<Mutex<Copied>>,
@@ -105,6 +108,7 @@ impl AccessImportWizard {
             include_data: true,
             busy: String::new(),
             error: None,
+            show_error_details: false,
             result: None,
             show_attention: None,
             copied: Arc::default(),
@@ -119,6 +123,7 @@ impl AccessImportWizard {
 
     fn choose(&mut self, cx: &mut Context<Self>) {
         self.error = None;
+        self.show_error_details = false;
         cx.notify();
         let pick = dialogs::pick_file(cx, "Import from Access", &[ACCESS_FILES]);
         task::after(cx, pick, |this, picked, cx| {
@@ -145,6 +150,7 @@ impl AccessImportWizard {
 
     fn import(&mut self, cx: &mut Context<Self>) {
         self.error = None;
+        self.show_error_details = false;
         self.busy = "Converting tables, queries, forms and reports…".into();
         *self.copied.lock().unwrap() = Copied::default();
         cx.notify();
@@ -283,12 +289,35 @@ impl Render for AccessImportWizard {
             panel = panel.child(self.progress(cx));
         }
         if let Some(e) = &self.error {
+            let (shown, details) = match e.message.split_once(crate::access::DETAILS) {
+                Some((shown, details)) => (shown.to_string(), Some(details.to_string())),
+                None => (e.message.clone(), None),
+            };
+            let not_access = shown.starts_with("This file is not an Access");
+            let banner = AppError { code: e.code.clone(), message: shown };
+            let open = self.show_error_details;
             panel = panel.child(
                 v_flex()
                     .gap_1()
-                    .child(widgets::error_banner("access-error", e, None, cx))
-                    .when(self.inventory.is_none(), |el| {
+                    .child(widgets::error_banner("access-error", &banner, None, cx))
+                    .when(not_access && self.inventory.is_none(), |el| {
                         el.child(forms::muted("Choose a .accdb, .mdb or .accdt file.", cx).id("access-error-hint"))
+                    })
+                    .when_some(details, |el, details| {
+                        el.child(
+                            h_flex().child(
+                                forms::link("access-error-details-toggle", if open { "Hide details" } else { "Show details" })
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.show_error_details = !open;
+                                        cx.notify();
+                                    })),
+                            ),
+                        )
+                        .when(open, |el| {
+                            el.child(widgets::styled_text("access-error-details", details, |d| {
+                                d.ty(Type::Caption).text_color(cx.theme().muted_foreground)
+                            }))
+                        })
                     }),
             );
         }
