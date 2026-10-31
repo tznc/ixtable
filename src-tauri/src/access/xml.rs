@@ -77,16 +77,22 @@ pub fn parse(text: &str) -> Result<Element, String> {
         s: text.as_bytes(),
         text,
         pos: 0,
+        depth: 0,
     };
     p.skip_prolog()?;
     let root = p.element()?;
     Ok(root)
 }
 
+/// Deepest element nesting accepted. Access parts nest a few levels; the limit keeps a
+/// hostile file from overflowing the stack (which aborts the app).
+pub const MAX_DEPTH: usize = 200;
+
 struct Parser<'a> {
     s: &'a [u8],
     text: &'a str,
     pos: usize,
+    depth: usize,
 }
 
 impl<'a> Parser<'a> {
@@ -208,8 +214,13 @@ impl<'a> Parser<'a> {
             } else if self.starts("<?") {
                 self.skip_until("?>")?;
             } else if self.starts("<") {
-                let child = self.element()?;
-                el.children.push(XNode::Element(child));
+                if self.depth >= MAX_DEPTH {
+                    return Err(self.err("elements are nested too deeply"));
+                }
+                self.depth += 1;
+                let child = self.element();
+                self.depth -= 1;
+                el.children.push(XNode::Element(child?));
             } else {
                 let start = self.pos;
                 while self.pos < self.s.len() && self.s[self.pos] != b'<' {
