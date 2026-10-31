@@ -52,7 +52,7 @@ pub fn binary(name: &str) -> PathBuf {
     flate2::read::GzDecoder::new(&gz[..])
         .read_to_end(&mut bytes)
         .unwrap();
-    let out = temp(name);
+    let out = temp(&Path::new(name).file_name().unwrap().to_string_lossy());
     std::fs::write(&out, bytes).unwrap();
     out
 }

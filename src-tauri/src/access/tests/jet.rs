@@ -352,3 +352,69 @@ fn non_access_files_are_refused() {
         .unwrap();
     assert!(err.contains("not an Access database"), "{err}");
 }
+
+fn column(type_code: u8, flags: u8) -> crate::access::jet::tdef::ColumnDef {
+    crate::access::jet::tdef::ColumnDef {
+        name: "c".into(),
+        type_code,
+        number: 0,
+        var_index: 0,
+        fixed_offset: 0,
+        length: 10,
+        flags,
+        ext_flags: 0,
+        precision: 0,
+        scale: 0,
+        complex_id: 0,
+    }
+}
+
+#[test]
+fn damaged_rows_are_errors_not_panics() {
+    use crate::access::jet::row::split;
+    let text = column(0x0A, 0);
+    // Rows too short for their null mask and variable-length offset table.
+    for row in [&[1u8, 1][..], &[1, 0, 1][..], &[0xFF][..], &[2, 0][..]] {
+        for jet3 in [true, false] {
+            let r = std::panic::catch_unwind(|| split(row, std::slice::from_ref(&text), jet3));
+            assert!(r.is_ok(), "split panicked on {row:?} (jet3 {jet3})");
+        }
+    }
+}
+
+#[test]
+fn out_of_range_dates_do_not_panic() {
+    use crate::access::jet::row::ole_date;
+    for v in [1e10, -1e10, f64::MAX, f64::MIN, 3e6] {
+        let r = std::panic::catch_unwind(|| ole_date(v));
+        assert!(r.is_ok(), "ole_date panicked on {v}");
+    }
+    assert_eq!(ole_date(1.5), "1899-12-31T12:00:00");
+}
+
+#[test]
+fn a_short_usage_map_is_an_error() {
+    use crate::access::jet::page::inline_usage_map;
+    assert!(inline_usage_map(&[0, 1, 0]).is_err());
+    assert_eq!(inline_usage_map(&[0, 4, 0, 0, 0, 0b101]).unwrap(), vec![4, 6]);
+    // A start page near u32::MAX must not overflow.
+    assert!(std::panic::catch_unwind(|| inline_usage_map(&[0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])).is_ok());
+}
+
+#[test]
+fn a_damaged_binary_file_fails_with_a_message() {
+    // A byte-flipped copy of complex-data.accdb whose row offsets underflowed.
+    let path = super::fixtures::binary("damaged/complex-data-flip049.accdb");
+    let r = std::panic::catch_unwind(|| crate::access::inventory(&path));
+    let err = r.expect("inventory panicked").err().expect("an error");
+    assert!(!err.is_empty());
+}
+
+#[test]
+fn a_reader_panic_becomes_a_plain_error() {
+    let err = tauri::async_runtime::block_on(crate::access::blocking::<()>(|| panic!("index out of bounds")))
+        .unwrap_err();
+    assert_eq!(err.code, "IMPORT_FAILED");
+    assert!(err.message.contains("may be damaged"), "{}", err.message);
+    assert!(!err.message.contains("panicked"), "{}", err.message);
+}
