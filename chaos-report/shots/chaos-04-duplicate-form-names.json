@@ -1,0 +1,9 @@
+{
+  "name": "chaos-04-duplicate-form-names",
+  "image": "chaos-04-duplicate-form-names.png",
+  "width": 3000,
+  "height": 2400,
+  "expectations": [
+    "Two forms are both named \"Form 3\" (the page list and form title show the clash)."
+  ]
+}

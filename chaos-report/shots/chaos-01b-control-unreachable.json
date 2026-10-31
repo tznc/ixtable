@@ -1,0 +1,9 @@
+{
+  "name": "chaos-01b-control-unreachable",
+  "image": "chaos-01b-control-unreachable.png",
+  "width": 3000,
+  "height": 2400,
+  "expectations": [
+    "With Tab 1 active the label card is gone from every canvas, although the form still stores it."
+  ]
+}

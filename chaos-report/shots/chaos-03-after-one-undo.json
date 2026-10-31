@@ -1,0 +1,9 @@
+{
+  "name": "chaos-03-after-one-undo",
+  "image": "chaos-03-after-one-undo.png",
+  "width": 3000,
+  "height": 2400,
+  "expectations": [
+    "After one Undo the form is empty (\"This form is empty\"), not two cards."
+  ]
+}

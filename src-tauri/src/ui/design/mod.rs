@@ -64,6 +64,8 @@ mod tests_forms;
 #[cfg(test)]
 mod tests_panels;
 #[cfg(test)]
+mod tests_chaos;
+#[cfg(test)]
 pub(crate) mod test_support;
 
 pub use create_offer::{CreateFormsOffer, OfferEvent};

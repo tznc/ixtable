@@ -1,0 +1,9 @@
+{
+  "name": "chaos-01a-control-on-removed-tab",
+  "image": "chaos-01a-control-on-removed-tab.png",
+  "width": 3000,
+  "height": 2400,
+  "expectations": [
+    "The tab group shows only \"Tab 1\", not highlighted, yet a \"New text\" card is drawn below it (the removed page)."
+  ]
+}

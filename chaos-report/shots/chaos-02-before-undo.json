@@ -1,0 +1,9 @@
+{
+  "name": "chaos-02-before-undo",
+  "image": "chaos-02-before-undo.png",
+  "width": 3000,
+  "height": 2400,
+  "expectations": [
+    "The canvas shows three \"New text field\" cards."
+  ]
+}

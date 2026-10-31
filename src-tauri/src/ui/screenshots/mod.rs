@@ -11,6 +11,7 @@ mod pages;
 mod query;
 mod datasheet;
 mod design;
+mod chaos;
 mod export;
 mod extras;
 mod import;
