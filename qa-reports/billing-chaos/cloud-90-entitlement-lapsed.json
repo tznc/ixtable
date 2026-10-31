@@ -1,0 +1,9 @@
+{
+  "name": "cloud-90-entitlement-lapsed",
+  "image": "cloud-90-entitlement-lapsed.png",
+  "width": 2560,
+  "height": 3200,
+  "expectations": [
+    "Runtime user sees why access stopped (subscription lapsed) and who to contact."
+  ]
+}

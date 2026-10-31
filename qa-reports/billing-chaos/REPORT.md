@@ -19,7 +19,7 @@
 | F7 | Medium | There is no way to undo a scheduled cancel. The UI only offers new full-price checkouts. | C06 ✗, ui-chaos-06 |
 | F8 | Medium | Invoice webhooks read `invoice.subscription`, which newer Stripe API versions removed. Payment-failed and paid events would then be silently ignored. | code |
 | F9 | Medium | Currency display: every currency is divided by 100 (JPY/KRW shown 100× too small), and plan prices are hard-coded to USD. | code |
-| F10 | Medium | Desktop shows "The developer must upgrade" for every 402, even when the real reason is a lapsed payment. | code (+ desktop capture if built) |
+| F10 | Medium | Desktop shows "The developer must upgrade" for every 402, even when the real reason is a lapsed payment. | cloud-90-entitlement-lapsed.png |
 | F11 | Low | `billing-cancel` writes the local row optimistically, without a compare-and-set, so it can race webhooks. | code, C08 not reproduced in 4 runs |
 | F12 | Low | Error text shown to users includes the internal field name ("sessionId: checkout session is no longer open"). | C12 |
 | F13 | Low | Two concurrent first checkouts create an orphan Stripe customer. | code |
@@ -207,6 +207,12 @@ With Stripe, the first subscription is charged and then cancelled without a refu
 **Where:** `ui/cloud/errors.rs` maps every `ENTITLEMENT_REQUIRED` to "This application's plan does not allow this. The developer must upgrade.", even though the server sends `details.reason` (`subscription_inactive`, `over_allowance`, `no_subscription`).
 
 A runtime user whose app lapsed for non-payment is told to upgrade.
+
+**Capture (`cloud-90-entitlement-lapsed.png`):**
+
+- The bold headline reads "This application's plan does not allow this. The developer must upgrade."
+- The server's line "The app's subscription is not active." appears only as small print below it.
+- The sidebar still says "Requesting database access…" next to the refusal, a stale status.
 
 **Options:**
 
