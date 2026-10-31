@@ -51,7 +51,8 @@ pub fn sql_value(v: &Value, hyperlink: bool, ole: bool) -> Sql {
         Value::Bool(b) => Sql::Integer(*b as i64),
         Value::Int(i) => Sql::Integer(*i),
         Value::Double(d) if d.is_finite() => Sql::Real(*d),
-        Value::Double(_) => Sql::Null,
+        // Kept as text so the type check empties it with a note instead of silently.
+        Value::Double(d) => Sql::Text(format!("{d}")),
         Value::Decimal(d) => Sql::Text(d.clone()),
         Value::Text(t) if hyperlink => Sql::Text(hyperlink_address(t)),
         Value::Text(t) | Value::Guid(t) | Value::DateTime(t) => Sql::Text(t.clone()),
@@ -283,6 +284,17 @@ pub fn check(staging: &Staging, plans: &mut [TablePlan], notes: &mut NoteMap) {
             let col = quote(&c.name);
             if let Some(n) = empty_misfits(conn, &table, &col, &c.declared) {
                 note(n.replace("{column}", &c.name));
+            }
+            if c.declared.starts_with("DECIMAL") {
+                let digits = format!("length(ltrim(replace(replace(replace(CAST({col} AS TEXT), '-', ''), '+', ''), '.', ''), '0'))");
+                if let Ok(n @ 1..) = count(conn, &format!("SELECT count(*) FROM {table} WHERE typeof({col}) = 'text' AND {digits} > 15")) {
+                    let (values, has) = if n == 1 { ("value", "has") } else { ("values", "have") };
+                    note(format!(
+                        "{}: {n} {values} {has} more than 15 significant digits and {} stored rounded",
+                        c.name,
+                        if n == 1 { "is" } else { "are" }
+                    ));
+                }
             }
             match c.date_candidate {
                 Conv::DateOnly => {
