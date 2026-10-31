@@ -111,6 +111,48 @@ wizard is `src/access/AccessImportWizard.tsx`, opened from the start screen's
 "Import Access database…" button: choose a file, review the inventory, choose
 whether to import data, import, read the report, open the document.
 
+**Damaged and unusual files.** Chaos testing (2026-10-31) fed the importer
+truncated, byte-flipped and hand-built files. The import now treats damage
+as data to report, not a reason to crash or to fail quietly:
+
+- The XML and SaveAsText parsers stop at 200 levels of nesting
+  (`xml::MAX_DEPTH`, `text_format::MAX_DEPTH`). Deeper input is a parse error.
+  A stack overflow aborts the whole app, so recursion depth has a hard limit.
+- The Jet reader checks every offset, length and date it takes from the file.
+  A panic that still slips through becomes "The file could not be read" in
+  `access::blocking`, and an import that panics closes its half-built document.
+- Reader errors reach the user through `access::explain`: a plain sentence
+  ("not an Access database", "damaged or incomplete", "could not be opened"),
+  with the reader's own text after `access::DETAILS`. The wizard shows that
+  text behind a Show details link.
+- A table whose definition cannot be read is a Not converted item. A catalog
+  with fewer readable entries than it claims gets a warning before the import.
+  A table with fewer readable rows than its definition counts gets a note.
+- Staging empties values that do not fit the column's declared type
+  (`convert::fit`) and names them in a note. DuckDB fails the whole table on
+  one such value, so leaving them in would make the table unreadable.
+  Not-a-number doubles take the same path, and decimals past 15 digits get a
+  rounding note.
+- Each lookup view is created and read once in a scratch SQLite database of
+  the planned tables before it is kept. A view over a missing or linked table
+  is dropped with a warning. `ReadRuntime::objects` falls back to SQLite's own
+  catalog when DuckDB cannot list it, so one bad view never hides the tables.
+- Text columns in keys and relationships are `COLLATE NOCASE`, because Access
+  matches `AB` to `ab`.
+- Queries, forms, reports and macros whose names differ only by case are
+  renamed (`Orders 2`) with a note. Macros that run each other in a loop lose
+  the call that closes the loop, with a note. A file without tables gets no
+  schema migration. Errors `validate_config` still finds go into the report.
+- Unreadable sample data in a template costs that table's rows only.
+
+**Cancel and progress.** `Options::cancel` is checked every 256 rows and
+after each table. A cancelled import returns `IMPORT_CANCELLED` and creates
+nothing. The wizard's Cancel button stays live during an import, and the
+progress line adds the time left (`convert::time_left`) once two seconds have
+passed. The wizard records the file's size and modification time when it
+reads the contents. If they change before Import, it reads the file again
+instead of importing contents the user has not seen.
+
 ## Consequences
 
 - Importing a binary database keeps its data, keys, relationships, and
@@ -173,3 +215,7 @@ whether to import data, import, read the report, open the document.
   `Choose`), and the migration report tab with links, review marks and
   export. The template corpus was not re-run: its host is unreachable from
   the cloud build environment.
+- 2026-10-31: chaos testing fixes (damaged and unusual files above), Cancel
+  and time left in the wizard, a re-read when the file changes. Damaged
+  fixtures live in `tests/fixtures/access/damaged/`, and the tests in
+  `src-tauri/src/access/tests/chaos.rs`.
