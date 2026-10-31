@@ -45,6 +45,10 @@ pub struct Context<'a> {
     pub extra_queries: Vec<Value>,
     pub lookup_views: Vec<String>,
     pub view_names: BTreeSet<String>,
+    /// Lookups whose view did not work: (owner, view, error), for the report.
+    pub dropped_views: Vec<(String, String, String)>,
+    /// Scratch SQLite database with the planned tables, to try each view before keeping it.
+    pub view_check: Option<rusqlite::Connection>,
     pub assets: Vec<AssetRef>,
     pub start_form: Option<String>,
     /// Forms only used inside other forms.
@@ -86,6 +90,8 @@ impl<'a> Context<'a> {
             extra_queries: vec![],
             lookup_views: vec![],
             view_names: BTreeSet::new(),
+            dropped_views: vec![],
+            view_check: None,
             assets: vec![],
             start_form: None,
             subforms: BTreeSet::new(),

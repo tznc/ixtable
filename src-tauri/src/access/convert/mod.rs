@@ -166,6 +166,11 @@ pub fn convert(
     let mut saved = queries::saved_queries(&queries);
     saved.extend(ctx.extra_queries.clone());
     let views = ctx.lookup_views.clone();
+    for (owner, source, e) in &ctx.dropped_views {
+        report.warnings.push(format!(
+            "The lookup of {owner} reads {source}, which does not work after the import, so the lookup was dropped or simplified ({e})"
+        ));
+    }
     let nav = navigation::build(&ctx, &forms, &reports, &plans);
     for m in &db.modules {
         report.add("module", &m.name, Status::Skipped, vec!["VBA code does not run in ixtable; the source is kept in the document asset \"Access VBA.txt\"".into()]);
