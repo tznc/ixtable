@@ -8,6 +8,7 @@ pub mod convert;
 pub mod jet;
 pub mod model;
 pub mod query_def;
+pub mod sample;
 pub mod text_format;
 pub mod translate;
 pub mod xml;

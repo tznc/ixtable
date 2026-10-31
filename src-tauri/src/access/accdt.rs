@@ -7,8 +7,8 @@
 //! `relationships.xml` the rows of `MSysRelationships`.
 use crate::access::model::*;
 use crate::access::xml::{self, unescape_name, Element};
-use crate::access::{blob, query_def, text_format};
-use base64::Engine;
+use crate::access::{query_def, text_format};
+pub use crate::access::sample::sample_value;
 use std::collections::BTreeMap;
 use std::io::{Read, Seek};
 
@@ -84,8 +84,7 @@ impl TemplatePackage {
                 part_tables.insert(stem.to_lowercase(), t.name.to_lowercase());
             }
         }
-        // Sample data parts share the stem of the table's schema part.
-        // Unreadable sample data costs only that table's rows, not the whole import.
+        // Sample data shares its schema part's stem; an unreadable part costs only its rows.
         let data = data
             .into_iter()
             .map(|(stem, bytes)| (part_tables.get(&stem).cloned().unwrap_or(stem), bytes))
@@ -434,60 +433,6 @@ fn utf16_or_utf8(b: &[u8]) -> String {
             .to_string();
     }
     text_format::decode(b)
-}
-
-/// Converts one sample-data value to a model value for a column.
-pub fn sample_value(col: &Column, el: &Element) -> Value {
-    let text = el.text();
-    match (&col.ty, &col.complex) {
-        (_, Some(Complex::Attachment)) => {
-            let get = |k: &str| el.child(k).map(|e| e.text()).unwrap_or_default();
-            let content = decode_base64(&get("FileData"));
-            let (ext, data) = blob::split_attachment(&content);
-            let file_type = if get("FileType").is_empty() {
-                ext
-            } else {
-                get("FileType")
-            };
-            Value::Attachments(vec![Attachment {
-                file_name: get("FileName"),
-                file_type,
-                data,
-            }])
-        }
-        (_, Some(Complex::MultiValue(ty))) => {
-            let inner = el.child("Value").map(|v| v.text()).unwrap_or(text);
-            Value::Multi(vec![scalar(*ty, inner.trim())])
-        }
-        (ColType::Ole | ColType::Binary, _) => Value::Binary(decode_base64(&text)),
-        (ty, _) => scalar(*ty, &text),
-    }
-}
-
-fn scalar(ty: ColType, text: &str) -> Value {
-    let t = text.trim();
-    match ty {
-        ColType::Boolean => Value::Bool(matches!(t, "1" | "-1" | "true" | "True")),
-        ColType::Byte | ColType::Integer | ColType::Long | ColType::BigInt => t
-            .parse::<i64>()
-            .map(Value::Int)
-            .unwrap_or_else(|_| Value::Text(text.to_string())),
-        ColType::Single | ColType::Double => t
-            .parse::<f64>()
-            .map(Value::Double)
-            .unwrap_or_else(|_| Value::Text(text.to_string())),
-        ColType::Currency | ColType::Numeric { .. } => Value::Decimal(t.to_string()),
-        ColType::DateTime | ColType::ExtDateTime => Value::DateTime(t.to_string()),
-        ColType::Guid => Value::Guid(t.trim_matches(|c| c == '{' || c == '}').to_lowercase()),
-        _ => Value::Text(text.to_string()),
-    }
-}
-
-fn decode_base64(s: &str) -> Vec<u8> {
-    let clean: String = s.chars().filter(|c| !c.is_whitespace()).collect();
-    base64::engine::general_purpose::STANDARD
-        .decode(clean)
-        .unwrap_or_default()
 }
 
 impl AccessFile for TemplatePackage {
