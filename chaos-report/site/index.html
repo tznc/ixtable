@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ixtable Form Designer Chaos Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout: single reading column; findings as severity-striped blocks, summary table first. */
+  --bg: #f6f7f8;
+  --surface: #ffffff;
+  --ink: #1b2126;
+  --muted: #5d6870;
+  --line: #dde2e6;
+  --accent: #0f8a8a;
+  --high: #c2362b;
+  --med: #b8740b;
+  --low: #5b6b78;
+  --ok: #2f7d4f;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161a; --surface: #1a2026; --ink: #e4e9ec; --muted: #9aa6ae; --line: #2c343b;
+    --accent: #3cc0bd; --high: #f0776b; --med: #e2a646; --low: #93a3b0; --ok: #62c08a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161a; --surface: #1a2026; --ink: #e4e9ec; --muted: #9aa6ae; --line: #2c343b;
+  --accent: #3cc0bd; --high: #f0776b; --med: #e2a646; --low: #93a3b0; --ok: #62c08a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body); }
+main { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px; display: grid; gap: 28px; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 1.1rem; }
+p { margin: 0; }
+code { font-family: var(--font-mono); font-size: .88em; background: color-mix(in srgb, var(--line) 55%, transparent); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.meta { color: var(--muted); font-size: .92rem; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.lede { max-width: 65ch; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: .94rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; color: var(--muted); }
+.pill { display: inline-block; font-size: .74rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.high { color: var(--high); } .pill.med { color: var(--med); } .pill.low { color: var(--low); }
+.finding { background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--low); border-radius: 8px; padding: 20px 22px; display: grid; gap: 12px; }
+.finding.high { border-left-color: var(--high); }
+.finding.med { border-left-color: var(--med); }
+.finding header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.finding dl { margin: 0; display: grid; grid-template-columns: 90px 1fr; gap: 6px 14px; }
+.finding dt { color: var(--muted); font-size: .88rem; font-weight: 600; }
+.finding dd { margin: 0; min-width: 0; }
+.options { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.options li { display: grid; grid-template-columns: 26px 1fr; gap: 8px; }
+.options b { font-family: var(--font-mono); color: var(--muted); }
+.options li.rec { background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 6px; padding: 4px 6px; margin: 0 -6px; }
+.options li.rec b { color: var(--accent); }
+.rec-tag { color: var(--accent); font-weight: 600; font-size: .82rem; margin-left: 6px; }
+figure { margin: 0; display: grid; gap: 6px; }
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+figure img { max-width: 100%; display: block; border: 1px solid var(--line); border-radius: 6px; }
+figcaption { color: var(--muted); font-size: .86rem; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px 22px; display: grid; gap: 10px; }
+.panel ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.ok { color: var(--ok); font-weight: 600; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 480px) { .finding dl { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <header style="display:grid;gap:10px">
+    <h1>Form designer chaos report</h1>
+    <div class="meta">
+      <span>ixtable · <code>src-tauri/src/ui/design/</code></span>
+      <span>Branch <code>chaos/form-designer</code></span>
+      <span>31 Oct 2026</span>
+    </div>
+    <p class="lede">I drove the real <code>AppView</code> headlessly through <code>ui::testing::Harness</code>, against the real backend. 1,550 random monkey steps passed without a crash. Targeted probes found 6 defects. Each one below has repro steps, options A, B and C, and a recommendation. No fixes have been made yet.</p>
+  </header>
+
+  <section style="display:grid;gap:12px">
+    <h2>Summary</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Severity</th><th>Finding</th><th>Recommended</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td><span class="pill high">High</span></td><td>A control added after its tab page is removed or undone is orphaned</td><td>B</td></tr>
+          <tr><td class="num">2</td><td><span class="pill med">Medium</span></td><td>One Undo reverts several distinct adds</td><td>A</td></tr>
+          <tr><td class="num">3</td><td><span class="pill med">Medium</span></td><td>Undo with a focused field is re-applied by the next keystroke (plausible)</td><td>A</td></tr>
+          <tr><td class="num">4</td><td><span class="pill low">Low</span></td><td>Duplicate default form names</td><td>A</td></tr>
+          <tr><td class="num">5</td><td><span class="pill low">Low</span></td><td>Hostile form names stored with no feedback</td><td>B</td></tr>
+          <tr><td class="num">6</td><td><span class="pill low">Low</span></td><td>A tab group can have zero pages</td><td>A</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:16px">
+    <h2>Findings</h2>
+
+    <article class="finding high" id="f1">
+      <header><span class="pill high">High</span><h3>1. A control added after its tab page is removed or undone is orphaned</h3></header>
+      <dl>
+        <dt>Repro</dt><dd>Add Tabs → click Tab 2 → select the tab group → Remove tab 2 → add Label. A second path: Add tab → click Tab 3 → Undo → select the group → add Text.</dd>
+        <dt>Result</dt><dd>The control is stored with <code>parent.tab</code> set to a page that no longer exists. The designer draws it on a phantom page, with no tab highlighted, until you click a real tab. After that it is on no canvas, and the Runtime never shows it. The Container picker shows <code>Missing (01a19371-…)</code>, a raw UUID.</dd>
+        <dt>Cause</dt><dd><code>DesignStudio.active_tabs</code> is never pruned. <code>target_container</code> trusts it, and <code>structural()</code> does not check that <code>parent.tab</code> exists.</dd>
+      </dl>
+      <div class="shots">
+        <figure><img src="img/chaos-01a-control-on-removed-tab.png" alt="Tab group showing only Tab 1, not highlighted, with a New text card drawn below it"><figcaption>Drawn on the removed page. Tab 1 is not highlighted.</figcaption></figure>
+        <figure><img src="img/chaos-01b-control-unreachable.png" alt="Tab 1 active and the label card gone, while Properties still shows the control"><figcaption>After clicking Tab 1, the control is on no canvas but still stored.</figcaption></figure>
+      </div>
+      <ul class="options">
+        <li><b>A</b><span>In <code>target_container</code>, ignore an active tab that is not in <code>selected.tabs</code> and fall back to the first page.</span></li>
+        <li class="rec"><b>B</b><span>A, plus prune <code>active_tabs</code> on <code>StoreEvent::Changed</code>, so the canvas never renders a removed page. <span class="rec-tag">Recommended</span></span></li>
+        <li><b>C</b><span>B, plus a structural or Problems check for an unknown <code>parent.tab</code>, with a "Move to Tab 1" fix.</span></li>
+      </ul>
+      <p>B fixes the cause and the phantom render. Add C's Problems check later for documents that already contain orphans.</p>
+    </article>
+
+    <article class="finding med" id="f2">
+      <header><span class="pill med">Medium</span><h3>2. One Undo reverts several distinct adds</h3></header>
+      <dl>
+        <dt>Repro</dt><dd>Click Add Text 3 times within 1 second, then Undo once. All 3 controls are gone.</dd>
+        <dt>Cause</dt><dd><code>ConfigStore</code> merges edits by label alone (<code>COALESCE</code>, 1 s). That suits typing, but not discrete actions such as "Add control", "Add tab" (labelled "Edit control") or "Duplicate".</dd>
+      </dl>
+      <div class="shots">
+        <figure><img src="img/chaos-02-before-undo.png" alt="Canvas with three New text field cards"><figcaption>Three controls before Undo.</figcaption></figure>
+        <figure><img src="img/chaos-03-after-one-undo.png" alt="Empty form after one Undo"><figcaption>After one Undo the form is empty.</figcaption></figure>
+      </div>
+      <ul class="options">
+        <li class="rec"><b>A</b><span>Give discrete actions a non-coalescing path (<code>update_discrete</code>, or a <code>coalesce: bool</code>). <span class="rec-tag">Recommended</span></span></li>
+        <li><b>B</b><span>Coalesce on label plus target key (control id and field), so only repeated keystrokes to the same field merge.</span></li>
+        <li><b>C</b><span>Drop time-based coalescing and commit inputs as drafts on blur or Enter.</span></li>
+      </ul>
+      <p>A is the smallest change and leaves typing merges alone. B is a follow-up if label collisions across controls show up.</p>
+    </article>
+
+    <article class="finding med" id="f3">
+      <header><span class="pill med">Medium · plausible</span><h3>3. Undo with a focused field is re-applied by the next keystroke</h3></header>
+      <dl>
+        <dt>Repro</dt><dd>Select a control → type "A" in Label → Undo while the input keeps focus → type "B". The stored label becomes <code>New text fieldAB</code>, so the undo is lost silently.</dd>
+        <dt>Cause</dt><dd><code>Fields::get</code> never resyncs a focused input. Headless tests do not deliver blur, so confirm in the real app whether clicking the ribbon's Undo moves focus.</dd>
+      </dl>
+      <ul class="options">
+        <li class="rec"><b>A</b><span>On <code>StoreEvent::Changed</code> from undo or redo, force every field to resync even when focused. <span class="rec-tag">Recommended</span></span></li>
+        <li><b>B</b><span>Blur the focused input before undo or redo.</span></li>
+        <li><b>C</b><span>Route Ctrl+Z inside a field to the input's own text undo, and use the ribbon only for store undo.</span></li>
+      </ul>
+    </article>
+
+    <article class="finding low" id="f4">
+      <header><span class="pill low">Low</span><h3>4. Duplicate default form names</h3></header>
+      <dl>
+        <dt>Repro</dt><dd>New form twice → delete "Form 2" → New form. Two forms are named "Form 3".</dd>
+        <dt>Cause</dt><dd><code>create_form</code> names the form with <code>forms.len() + 1</code>.</dd>
+      </dl>
+      <figure><img src="img/chaos-04-duplicate-form-names.png" alt="Pages list showing Form 3 twice"><figcaption>The Pages list shows "Form 3" twice.</figcaption></figure>
+      <ul class="options">
+        <li class="rec"><b>A</b><span>Pick the lowest free "Form N". <span class="rec-tag">Recommended</span></span></li>
+        <li><b>B</b><span>Pick max(N) + 1.</span></li>
+        <li><b>C</b><span>A, plus a Problems warning for duplicate names.</span></li>
+      </ul>
+    </article>
+
+    <article class="finding low" id="f5">
+      <header><span class="pill low">Low</span><h3>5. Hostile form names stored with no feedback</h3></header>
+      <dl>
+        <dt>Repro</dt><dd>Set the form name to <code>""</code>, <code>"   "</code>, an RTL override (<code>U+202E</code>), NUL or a tab. All are accepted, and no error appears. A newline is stripped. Names round-trip through save and reload unchanged. I did not check whether Problems flags an empty name.</dd>
+      </dl>
+      <ul class="options">
+        <li><b>A</b><span>Trim the name and reject empty, showing a draft error like the grid inputs do.</span></li>
+        <li class="rec"><b>B</b><span>A, plus strip control and bidi-override characters. <span class="rec-tag">Recommended</span></span></li>
+        <li><b>C</b><span>Allow anything, but warn in Problems.</span></li>
+      </ul>
+    </article>
+
+    <article class="finding low" id="f6">
+      <header><span class="pill low">Low</span><h3>6. A tab group can have zero pages</h3></header>
+      <dl>
+        <dt>Repro</dt><dd>Remove every page of a tab group. The empty group stays. Adding while it is selected falls back to the form root, so it is harmless but confusing.</dd>
+      </dl>
+      <ul class="options">
+        <li class="rec"><b>A</b><span>Hide Remove when only one page is left. <span class="rec-tag">Recommended</span></span></li>
+        <li><b>B</b><span>Ask for confirmation, then delete the group.</span></li>
+        <li><b>C</b><span>Leave it as is and show an empty-state hint.</span></li>
+      </ul>
+    </article>
+  </section>
+
+  <section class="panel">
+    <h2>Held up under chaos</h2>
+    <ul>
+      <li><span class="ok">Monkey:</span> 5 seeds, 1,550 steps of random clicks, drags, Alt and Alt+Shift arrows, Enter, Esc, Tab, Ctrl+Z, Delete, palette adds, hostile text, undo, redo and Delete control. After every step the stored design still passed validation and had no orphans, with no panics and no error banners.</li>
+      <li><span class="ok">Undo/redo storm:</span> 30 steps after deleting the open form while it was previewed, then redo-all, left the design valid.</li>
+      <li><span class="ok">Save and reload:</span> an <code>.ixt</code> holding sections, tabs and a Unicode/RTL name came back with an identical design.</li>
+      <li><span class="ok">Schema changes:</span> a column rename shows <code>Missing (name)</code> in the column picker. Dropping the bound table leaves the preview safe, and Problems reports the missing table. Bindings not following renames is a known limitation that the change plan warns about.</li>
+      <li><span class="ok">Expressions:</span> the parser's depth and length caps (100 / 10k) held against unbalanced, unterminated and deeply nested input.</li>
+      <li><span class="ok">Min and max:</span> typing a min of 50, then a max of 100, stores both correctly. The transient "1" &lt; 50 is rejected silently, with no banner.</li>
+      <li><span class="ok">Mode switches</span> mid-typing keep the half-typed label, and no keys leak afterwards.</li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2>Limits</h2>
+    <ul>
+      <li>In debug headless runs a keystroke costs about 70 ms. Profiling showed this is layout of the 1500×4200 test window, one frame per keystroke. The backend write is about 2.5 ms. This is not an app issue.</li>
+      <li>I did not cover tiny windows: the start screen's New document button is hidden below about 700×420, and the harness cannot resize a window.</li>
+      <li><code>cargo screenshot &lt;filter&gt;</code> ORs the filter with <code>ui::screenshots</code> and runs every spec. To run one, call the test binary with <code>--exact … --ignored</code>.</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>
