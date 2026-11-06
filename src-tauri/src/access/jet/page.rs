@@ -173,10 +173,7 @@ impl Pages {
         let map = self.row(page, row)?.data;
         let mut pages = vec![];
         match map.first() {
-            Some(0) => {
-                let start = u32_at(&map, 1);
-                collect_bits(&map[5..], start, &mut pages);
-            }
+            Some(0) => pages = inline_usage_map(&map)?,
             Some(1) => {
                 let per_page = ((self.page_size() - 4) * 8) as u32;
                 for (i, chunk) in map[1..].chunks_exact(4).enumerate() {
@@ -197,11 +194,24 @@ impl Pages {
     }
 }
 
+/// Pages of an inline (type 0) usage map: type byte, u32 first page, then a bitmap.
+pub fn inline_usage_map(map: &[u8]) -> Result<Vec<u32>, String> {
+    if map.len() < 5 {
+        return Err("a table's page map is damaged".into());
+    }
+    let mut pages = vec![];
+    collect_bits(&map[5..], u32_at(map, 1), &mut pages);
+    Ok(pages)
+}
+
 fn collect_bits(bitmap: &[u8], start: u32, out: &mut Vec<u32>) {
     for (i, byte) in bitmap.iter().enumerate() {
         for bit in 0..8 {
             if byte & (1 << bit) != 0 {
-                out.push(start + (i * 8 + bit) as u32);
+                // A damaged start can point past the last page; the reader skips those.
+                if let Some(page) = u32::try_from(i * 8 + bit).ok().and_then(|n| start.checked_add(n)) {
+                    out.push(page);
+                }
             }
         }
     }

@@ -33,12 +33,18 @@ fn failed(e: impl std::fmt::Display) -> AppError {
     AppError::new("IMPORT_FAILED", e.to_string())
 }
 
+/// Runs reader work off the UI thread. A panic in the reader means the file has a shape
+/// it did not expect, so the user hears that, not the panic text.
 async fn blocking<T: Send + 'static>(
     f: impl FnOnce() -> Result<T, AppError> + Send + 'static,
 ) -> Result<T, AppError> {
-    tauri::async_runtime::spawn_blocking(f)
-        .await
-        .map_err(failed)?
+    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| {
+        crate::logging::warn("access", &format!("reader panic: {e}"));
+        AppError::new(
+            "IMPORT_FAILED",
+            "The file could not be read. It may be damaged; open it in Access, run Compact and Repair, and try again.",
+        )
+    })?
 }
 
 /// One table in the inventory.
@@ -144,8 +150,18 @@ pub async fn import_access_file(
             },
         )
         .map_err(failed)?;
-        let (state, report) =
-            convert::create(crate::manager()?, &window_label, file.as_ref(), conversion)?;
+        let m = crate::manager()?;
+        // A panic while the new document is half built must not leave it open.
+        let created = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            convert::create(m, &window_label, file.as_ref(), conversion)
+        }));
+        let (state, report) = match created {
+            Ok(r) => r?,
+            Err(panic) => {
+                let _ = m.close(&window_label, true);
+                std::panic::resume_unwind(panic)
+            }
+        };
         Ok(AccessImport { state, report })
     })
     .await

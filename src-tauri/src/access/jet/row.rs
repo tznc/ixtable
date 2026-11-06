@@ -32,6 +32,7 @@ pub fn split(
         } else {
             jet4_var_offsets(row, mask_len)
         }
+        .ok_or("variable-length offsets past the row")?
     } else {
         vec![]
     };
@@ -79,38 +80,42 @@ fn fixed_size(c: &ColumnDef) -> usize {
 }
 
 /// Jet 4: u16 offsets stored backwards before the variable column count.
-fn jet4_var_offsets(row: &[u8], mask_len: usize) -> Vec<usize> {
-    let count_at = row.len() - mask_len - 2;
+fn jet4_var_offsets(row: &[u8], mask_len: usize) -> Option<Vec<usize>> {
+    let count_at = row.len().checked_sub(mask_len + 2)?;
     let count = u16_at(row, count_at) as usize;
-    (0..=count)
-        .map(|i| {
-            count_at
-                .checked_sub(2 * (i + 1))
-                .map(|p| u16_at(row, p) as usize)
-                .unwrap_or(0)
-        })
-        .collect()
+    Some(
+        (0..=count)
+            .map(|i| {
+                count_at
+                    .checked_sub(2 * (i + 1))
+                    .map(|p| u16_at(row, p) as usize)
+                    .unwrap_or(0)
+            })
+            .collect(),
+    )
 }
 
 /// Jet 3: one-byte offsets plus a jump table for rows longer than 255 bytes.
-fn jet3_var_offsets(row: &[u8], mask_len: usize) -> Vec<usize> {
-    let row_end = row.len() - 1;
-    let num_var = row[row_end - mask_len] as usize;
-    let mut num_jumps = (row.len() - 1) / 256;
-    let col_offset = row_end - mask_len - num_jumps - 1;
+fn jet3_var_offsets(row: &[u8], mask_len: usize) -> Option<Vec<usize>> {
+    let row_end = row.len().checked_sub(1)?;
+    let num_var = *row.get(row_end.checked_sub(mask_len)?)? as usize;
+    let mut num_jumps = row_end / 256;
+    let col_offset = row_end.checked_sub(mask_len + num_jumps + 1)?;
     if (col_offset.saturating_sub(num_var)) / 256 < num_jumps {
         num_jumps -= 1;
     }
     let mut jumps_used = 0;
     let mut out = Vec::with_capacity(num_var + 1);
     for i in 0..=num_var {
-        while jumps_used < num_jumps && i == row[row_end - mask_len - jumps_used - 1] as usize {
+        while jumps_used < num_jumps
+            && i == *row.get(row_end.checked_sub(mask_len + jumps_used + 1)?)? as usize
+        {
             jumps_used += 1;
         }
         let at = col_offset.saturating_sub(i);
-        out.push(row[at] as usize + jumps_used * 256);
+        out.push(*row.get(at)? as usize + jumps_used * 256);
     }
-    out
+    Some(out)
 }
 
 /// Reads a long value (memo, OLE): a 12 byte header in the row, then inline
@@ -130,7 +135,8 @@ pub fn long_value(pages: &mut Pages, slot: &[u8]) -> Result<Vec<u8>, String> {
             Ok(data)
         }
         _ => {
-            let mut out = Vec::with_capacity(len);
+            // `len` comes from the file; a damaged one must not reserve a gigabyte up front.
+            let mut out = Vec::with_capacity(len.min(1 << 20));
             let mut ptr = u32_at(slot, 4);
             let mut guard = 0;
             while ptr != 0 && out.len() < len {
@@ -151,8 +157,10 @@ pub fn long_value(pages: &mut Pages, slot: &[u8]) -> Result<Vec<u8>, String> {
 
 /// Days since 1899-12-30 → `YYYY-MM-DDTHH:MM:SS[.fff]`.
 pub fn ole_date(v: f64) -> String {
-    if !v.is_finite() {
-        return String::new();
+    // Access dates run from year 100 to 9999; anything else is damage. The raw number is
+    // kept so the import can report it.
+    if !v.is_finite() || !(-700_000.0..=3_000_000.0).contains(&v) {
+        return format!("{v}");
     }
     let days = v.trunc();
     let frac = (v - days).abs();
@@ -346,9 +354,11 @@ fn ext_date(b: &[u8]) -> String {
     let (secs, frac) = rest.split_at(rest.len().saturating_sub(7));
     let secs: i64 = secs.trim().parse().unwrap_or(0);
     let base = chrono::NaiveDate::from_ymd_opt(1, 1, 1).expect("valid date");
-    let date = base + chrono::Duration::days(days);
+    let Some(date) = chrono::Duration::try_days(days).and_then(|d| base.checked_add_signed(d)) else {
+        return s.trim_end_matches('\0').to_string();
+    };
     let time = chrono::NaiveTime::from_hms_opt(0, 0, 0).expect("valid time")
-        + chrono::Duration::seconds(secs);
+        + chrono::Duration::seconds(secs.rem_euclid(86_400));
     let frac = frac.trim_end_matches('0');
     let head = date.and_time(time).format("%Y-%m-%dT%H:%M:%S").to_string();
     if frac.is_empty() {
