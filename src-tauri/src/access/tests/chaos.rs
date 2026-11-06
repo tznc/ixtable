@@ -221,3 +221,42 @@ fn text_keys_match_regardless_of_case_as_in_access() {
     assert_eq!(schema.foreign_keys.len(), 1, "{schema:?}");
     manager().close("chaos-text-keys", true).unwrap();
 }
+
+#[test]
+fn a_template_without_tables_makes_a_valid_document() {
+    let path = template_with(|parts| {
+        parts.retain(|k, _| !k.contains("/objects/table") && !k.contains("sampleData") && !k.ends_with("relationships.xml"));
+        parts.retain(|k, _| !k.contains("/objects/") || k.contains("/objects/module"));
+    });
+    let (_, errs) = import(&path, "chaos-empty");
+    assert_eq!(errs, Vec::<String>::new());
+    manager().close("chaos-empty", true).unwrap();
+}
+
+#[test]
+fn a_macro_that_runs_itself_is_cut_with_a_note() {
+    let path = template_with(|parts| {
+        parts.insert(
+            format!("{OBJECTS}macroLoop.txt"),
+            b"Version =196611\nBegin\n    Action =\"RunMacro\"\n    Argument =\"Loop\"\nEnd\n".to_vec(),
+        );
+    });
+    let (report, errs) = import(&path, "chaos-loop");
+    assert_eq!(errs, Vec::<String>::new());
+    let notes = notes_of(&report, "macro", "Loop").join("\n");
+    assert!(notes.contains("runs itself"), "{notes}");
+    manager().close("chaos-loop", true).unwrap();
+}
+
+#[test]
+fn config_problems_left_after_the_import_become_report_warnings() {
+    let (_, _) = import(&super::fixtures::template(), "chaos-validate");
+    let mut config = manager().config("chaos-validate").unwrap();
+    let mut broken = config.migrations[0].clone();
+    broken.id = "broken".into();
+    broken.up = String::new();
+    config.migrations.push(broken);
+    let warnings = crate::access::convert::validation_warnings(&config);
+    assert!(warnings.iter().any(|w| w.starts_with("The new document has a problem to fix:") && w.contains("no up SQL")), "{warnings:?}");
+    manager().close("chaos-validate", true).unwrap();
+}

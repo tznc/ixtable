@@ -60,6 +60,85 @@ fn id() -> String {
     uuid::Uuid::now_v7().to_string()
 }
 
+/// runAction targets of an action's steps, at any depth.
+fn run_targets(v: &Value, out: &mut Vec<String>) {
+    match v {
+        Value::Object(o) => {
+            if o.get("kind").and_then(Value::as_str) == Some("runAction") {
+                if let Some(id) = o.get("actionId").and_then(Value::as_str) {
+                    out.push(id.to_string());
+                }
+            }
+            o.values().for_each(|x| run_targets(x, out));
+        }
+        Value::Array(a) => a.iter().for_each(|x| run_targets(x, out)),
+        _ => {}
+    }
+}
+
+fn drop_run_steps(v: &mut Value, target: &str) {
+    match v {
+        Value::Array(a) => {
+            a.retain(|x| {
+                !(x.get("kind").and_then(Value::as_str) == Some("runAction")
+                    && x.get("actionId").and_then(Value::as_str) == Some(target))
+            });
+            a.iter_mut().for_each(|x| drop_run_steps(x, target));
+        }
+        Value::Object(o) => o.values_mut().for_each(|x| drop_run_steps(x, target)),
+        _ => {}
+    }
+}
+
+/// Access macros may call each other in a loop; ixtable refuses such actions. Cuts the
+/// call that closes each loop: (macro name, called macro name).
+fn break_run_cycles(actions: &mut [Value]) -> Vec<(String, String)> {
+    let id_of = |a: &Value| a.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+    let name_of = |actions: &[Value], id: &str| {
+        actions
+            .iter()
+            .find(|a| id_of(a) == id)
+            .and_then(|a| a.get("name").and_then(Value::as_str))
+            .unwrap_or(id)
+            .to_string()
+    };
+    let mut cut = vec![];
+    loop {
+        let edges: BTreeMap<String, Vec<String>> = actions
+            .iter()
+            .map(|a| {
+                let mut t = vec![];
+                run_targets(a.get("steps").unwrap_or(&Value::Null), &mut t);
+                (id_of(a), t)
+            })
+            .collect();
+        let reaches = |from: &str, to: &str| {
+            let mut stack = vec![from.to_string()];
+            let mut seen = std::collections::BTreeSet::new();
+            while let Some(n) = stack.pop() {
+                if n == to {
+                    return true;
+                }
+                if seen.insert(n.clone()) {
+                    stack.extend(edges.get(&n).cloned().unwrap_or_default());
+                }
+            }
+            false
+        };
+        let closing = edges
+            .iter()
+            .find_map(|(a, ts)| ts.iter().find(|b| reaches(b, a)).map(|b| (a.clone(), b.clone())));
+        let Some((a, b)) = closing else { break };
+        cut.push((name_of(actions, &a), name_of(actions, &b)));
+        if let Some(action) = actions.iter_mut().find(|x| id_of(x) == a) {
+            if let Some(steps) = action.get_mut("steps") {
+                drop_run_steps(steps, &b);
+            }
+        }
+    }
+    cut
+}
+
 /// Access names are case-insensitive, but a template can hold parts whose names differ
 /// only by case. The later ones get a number so neither is lost: (kind, old, new).
 fn rename_case_clashes(db: &mut AccessDb) -> Vec<(String, String, String)> {
@@ -244,6 +323,13 @@ pub fn convert(
     let mut all_actions = actions;
     all_actions.extend(form_actions);
     sanitize_actions(&mut all_actions);
+    for (macro_name, target) in break_run_cycles(&mut all_actions) {
+        report.note(
+            "macro",
+            &macro_name,
+            format!("RunMacro {target} was left out: it runs itself again, which would never end"),
+        );
+    }
     let action_queries: Vec<Value> = queries
         .unconverted
         .iter()
@@ -281,7 +367,8 @@ pub fn convert(
         "pages": [],
         "actions": all_actions,
         "triggers": [],
-        "migrations": [migration],
+        // A file with no tables has nothing to migrate, and an empty migration is invalid.
+        "migrations": if migration["up"].as_str().is_some_and(|u| u.trim().is_empty()) { vec![] } else { vec![migration] },
         "datasource": { "kind": "sqlite", "id": id() },
         "entities": entities,
         "roles": [],
@@ -442,6 +529,7 @@ pub fn create(
         actions::check_statements(m, window, &config, &mut report)?;
         // The report stays with the document (Settings › YAML shows it).
         report.link_targets(&config);
+        report.warnings.extend(validation_warnings(&config));
         config.settings["accessImport"]["report"] =
             serde_json::to_value(&report.items).unwrap_or_default();
         config.settings["accessImport"]["warnings"] = serde_json::json!(report.warnings);
@@ -463,6 +551,16 @@ pub fn create(
             Err(e)
         }
     }
+}
+
+/// Errors the document validator still finds after the import, as report warnings, so
+/// the user meets them in the report rather than only in Problems.
+pub fn validation_warnings(config: &DocumentConfig) -> Vec<String> {
+    crate::archive::validate_config(config)
+        .into_iter()
+        .filter(|i| i.severity == crate::archive::Severity::Error)
+        .map(|i| format!("The new document has a problem to fix: {}", i.message))
+        .collect()
 }
 
 /// Runs DuckDB's binder over each saved query; failures go into the report.

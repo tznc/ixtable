@@ -30,7 +30,32 @@ pub fn open(path: &Path) -> Result<Box<dyn AccessFile>, String> {
 }
 
 fn failed(e: impl std::fmt::Display) -> AppError {
-    AppError::new("IMPORT_FAILED", e.to_string())
+    explain(&e.to_string())
+}
+
+/// Separates the plain message from the reader's own words in an import error.
+pub const DETAILS: &str = "\n\nDetails: ";
+
+/// Turns a reader error into a message for the user, with the reader's text kept as
+/// details after [`DETAILS`].
+pub fn explain(raw: &str) -> AppError {
+    let lower = raw.to_lowercase();
+    let has = |words: &[&str]| words.iter().any(|w| lower.contains(w));
+    let plain = |s: &str| {
+        let mut c = s.chars();
+        c.next().map(|f| f.to_uppercase().chain(c).collect::<String>()).unwrap_or_default()
+    };
+    let message = if has(&["has a password", "is encrypted", "larger than 1 gb"]) {
+        // Already written for the user.
+        return AppError::new("IMPORT_FAILED", plain(raw));
+    } else if has(&["not an access", "msisam", "no template/database/objects part"]) {
+        "This file is not an Access database or template."
+    } else if has(&["os error", "no such file", "permission denied", "is a directory"]) {
+        "The file could not be opened."
+    } else {
+        "The file is damaged or incomplete. Open it in Access, run Compact and Repair, then import it again."
+    };
+    AppError::new("IMPORT_FAILED", format!("{message}{DETAILS}{raw}"))
 }
 
 /// Runs reader work off the UI thread. A panic in the reader means the file has a shape
