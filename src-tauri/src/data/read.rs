@@ -171,6 +171,39 @@ impl ReadRuntime {
     pub fn objects(&self) -> Result<Vec<DbObject>, String> {
         self.ready()?;
         let _gate = self.read_gate()?;
+        // DuckDB parses every SQLite view to list the catalog, so one view it cannot read
+        // hides all tables. SQLite's own catalog still names them.
+        let (listed, fallback) = match self.catalog() {
+            Ok(listed) => (listed, false),
+            Err(e) if matches!(self.target, ReadTarget::Sqlite) => {
+                (self.sqlite_catalog().map_err(|_| e)?, true)
+            }
+            Err(e) => return Err(e),
+        };
+        let mut out = vec![];
+        for (name, object_type) in listed {
+            let row_count = self
+                .connection
+                .query_row(
+                    &format!("SELECT count(*) FROM {}", self.from(&name)),
+                    [],
+                    |r| r.get::<_, u64>(0),
+                )
+                .ok();
+            // In the fallback, the views that do not read are the ones that broke the catalog.
+            if fallback && object_type == "view" && row_count.is_none() {
+                continue;
+            }
+            out.push(DbObject {
+                name,
+                object_type,
+                row_count,
+            })
+        }
+        Ok(out)
+    }
+
+    fn catalog(&self) -> Result<Vec<(String, String)>, String> {
         let mut stmt = self
             .connection
             .prepare(
@@ -185,24 +218,26 @@ impl ReadRuntime {
                 Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
             })
             .map_err(|e| e.to_string())?;
-        let mut out = vec![];
-        for row in rows {
-            let (name, object_type) = row.map_err(|e| e.to_string())?;
-            let row_count = self
-                .connection
-                .query_row(
-                    &format!("SELECT count(*) FROM {}", self.from(&name)),
-                    [],
-                    |r| r.get::<_, u64>(0),
-                )
-                .ok();
-            out.push(DbObject {
-                name,
-                object_type,
-                row_count,
-            })
-        }
-        Ok(out)
+        rows.map(|r| r.map_err(|e| e.to_string())).collect()
+    }
+
+    fn sqlite_catalog(&self) -> Result<Vec<(String, String)>, String> {
+        let conn = rusqlite::Connection::open_with_flags(
+            self.workspace.join("data.db"),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') \
+                 AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\' \
+                 AND name NOT LIKE '\\_ixtable\\_%' ESCAPE '\\' ORDER BY lower(name)",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+            .map_err(|e| e.to_string())?;
+        rows.map(|r| r.map_err(|e| e.to_string())).collect()
     }
     /// Counts rows of any table, including internal `_ixtable_` tables.
     pub fn row_count(&self, table: &str) -> Result<u64, String> {

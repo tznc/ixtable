@@ -404,7 +404,7 @@ fn a_short_usage_map_is_an_error() {
 #[test]
 fn a_damaged_binary_file_fails_with_a_message() {
     // A byte-flipped copy of complex-data.accdb whose row offsets underflowed.
-    let path = super::fixtures::binary("damaged/complex-data-flip049.accdb");
+    let path = super::fixtures::binary("damaged/flip049-complex-data.accdb");
     let r = std::panic::catch_unwind(|| crate::access::inventory(&path));
     let err = r.expect("inventory panicked").err().expect("an error");
     assert!(!err.is_empty());

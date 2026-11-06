@@ -152,7 +152,27 @@ pub fn convert(
         (None, BTreeMap::new())
     };
     report.tables = plans.len();
+    for t in &db.tables {
+        let (Some(total), Some(plan)) = (t.row_count, plans.iter().find(|p| p.role == TableRole::Main && p.access == t.name)) else {
+            continue;
+        };
+        let read = rows.get(&plan.name).copied().unwrap_or(total);
+        if options.include_data && read < total {
+            notes.entry(t.name.clone()).or_default().push(format!(
+                "{} of {total} rows could not be read; the file may be damaged (run Compact and Repair in Access)",
+                total - read
+            ));
+        }
+    }
     record_table_notes(&mut report, &plans, &notes, &rows);
+    for (name, why) in &db.unreadable_tables {
+        report.add(
+            "table",
+            name,
+            Status::Skipped,
+            vec![format!("the table could not be read, so it was not imported ({why})")],
+        );
+    }
     let mut dbschema = DbSchema {
         db: &db,
         query_columns: BTreeMap::new(),
@@ -166,6 +186,11 @@ pub fn convert(
     let mut saved = queries::saved_queries(&queries);
     saved.extend(ctx.extra_queries.clone());
     let views = ctx.lookup_views.clone();
+    for (owner, source, e) in &ctx.dropped_views {
+        report.warnings.push(format!(
+            "The lookup of {owner} reads {source}, which does not work after the import, so the lookup was dropped or simplified ({e})"
+        ));
+    }
     let nav = navigation::build(&ctx, &forms, &reports, &plans);
     for m in &db.modules {
         report.add("module", &m.name, Status::Skipped, vec!["VBA code does not run in ixtable; the source is kept in the document asset \"Access VBA.txt\"".into()]);
