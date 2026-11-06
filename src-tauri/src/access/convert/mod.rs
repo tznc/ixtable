@@ -175,6 +175,7 @@ pub fn convert(
     let mut notes: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut plans = schema::plan_tables(&db, &mut notes);
     schema::plan_relationships(&db, &mut plans, &mut notes);
+    schema::mark_nocase_keys(&mut plans);
     let (staging, rows) = if options.include_data {
         let (s, rows) = staging::load(file, &plans, &std::env::temp_dir(), progress)?;
         staging::check(&s, &mut plans, &mut notes);
