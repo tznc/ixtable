@@ -245,3 +245,21 @@ fn in_filters_match_any_listed_value_and_nothing_when_empty() {
     assert_eq!(none.total, 0);
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn a_view_that_does_not_bind_does_not_hide_the_tables() {
+    let workspace = std::env::temp_dir().join(format!("ixtable-badview-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&workspace).unwrap();
+    let db = rusqlite::Connection::open(workspace.join("data.db")).unwrap();
+    db.execute_batch(
+        "CREATE TABLE \"Orders\" (id INTEGER PRIMARY KEY); INSERT INTO \"Orders\" VALUES (1);
+         CREATE VIEW \"Customer lookup\" AS SELECT \"Ghost\".id FROM \"Ghost\";",
+    )
+    .unwrap();
+    drop(db);
+    let runtime = ReadRuntime::new(&workspace, &sqlite_extension_path().unwrap()).unwrap();
+    let objects = runtime.objects().expect("objects despite a broken view");
+    let orders = objects.iter().find(|o| o.name == "Orders").expect("Orders listed");
+    assert_eq!(orders.row_count, Some(1));
+    assert!(!objects.iter().any(|o| o.name == "Customer lookup"), "{objects:?}");
+}

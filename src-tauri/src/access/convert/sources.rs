@@ -335,10 +335,28 @@ impl<'a> Context<'a> {
         for dep in w.out.queries.clone() {
             self.ensure_view(&dep, depth + 1)?;
         }
-        self.lookup_views
-            .push(format!("CREATE VIEW {} AS {sql};", quote(&name)));
+        let create = format!("CREATE VIEW {} AS {sql};", quote(&name));
+        self.try_view(&name, &create)?;
+        self.lookup_views.push(create);
         self.view_names.insert(name.to_lowercase());
         Ok(name)
+    }
+
+    /// Tries the view on a scratch copy of the planned tables; a failing one would break reads.
+    fn try_view(&mut self, name: &str, create: &str) -> Result<(), String> {
+        if self.view_check.is_none() {
+            let conn = rusqlite::Connection::open_in_memory().map_err(|e| e.to_string())?;
+            conn.execute_batch(&super::schema_sql(self.plans, &[]))
+                .map_err(|e| e.to_string())?;
+            self.view_check = Some(conn);
+        }
+        let conn = self.view_check.as_ref().expect("opened above");
+        conn.execute_batch(create)
+            .and_then(|_| conn.prepare(&format!("SELECT * FROM {} LIMIT 0", quote(name))).map(|_| ()))
+            .map_err(|e| {
+                let _ = conn.execute_batch(&format!("DROP VIEW IF EXISTS {}", quote(name)));
+                e.to_string()
+            })
     }
 
     /// A lookup from `RowSourceType`/`RowSource` properties.
@@ -435,7 +453,10 @@ impl<'a> Context<'a> {
                 value,
                 display,
             }),
-            Err(_) => self.table_fallback(&from, &value),
+            Err(e) => {
+                self.dropped_views.push((owner.to_string(), rs.to_string(), e));
+                self.table_fallback(&from, &value)
+            }
         }
     }
 

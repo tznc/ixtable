@@ -8,13 +8,17 @@
 pub mod actions;
 pub mod autoforms;
 pub mod controls;
+mod fit;
 pub mod forms;
 pub mod layout;
 pub mod macros;
 pub mod navigation;
+mod progress;
+pub use progress::time_left;
 pub mod queries;
 pub mod report;
 pub mod reports;
+mod repair;
 pub mod schema;
 pub mod sources;
 pub mod staging;
@@ -33,6 +37,21 @@ pub struct Options {
     /// Copy the rows (false: definitions and empty tables only).
     #[serde(default = "yes")]
     pub include_data: bool,
+    /// Set by the user to stop the import; checked between rows and between steps.
+    #[serde(skip)]
+    pub cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+}
+
+/// The error text of a cancelled import ([`crate::access::import_access_file`] maps it to
+/// the code `IMPORT_CANCELLED`).
+pub const CANCELLED: &str = "the import was cancelled";
+
+impl Options {
+    pub fn cancelled(&self) -> bool {
+        self.cancel
+            .as_ref()
+            .is_some_and(|c| c.load(std::sync::atomic::Ordering::SeqCst))
+    }
 }
 
 fn yes() -> bool {
@@ -41,7 +60,7 @@ fn yes() -> bool {
 
 impl Default for Options {
     fn default() -> Self {
-        Self { include_data: true }
+        Self { include_data: true, cancel: None }
     }
 }
 
@@ -136,7 +155,8 @@ pub fn convert(
     options: &Options,
     progress: &mut dyn FnMut(&str, u64),
 ) -> Result<Conversion, String> {
-    let db = file.db().clone();
+    let mut db = file.db().clone();
+    let renames = repair::rename_case_clashes(&mut db);
     let mut report = ImportReport {
         warnings: db.warnings.clone(),
         ..Default::default()
@@ -144,15 +164,39 @@ pub fn convert(
     let mut notes: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut plans = schema::plan_tables(&db, &mut notes);
     schema::plan_relationships(&db, &mut plans, &mut notes);
+    schema::mark_nocase_keys(&mut plans);
     let (staging, rows) = if options.include_data {
-        let (s, rows) = staging::load(file, &plans, &std::env::temp_dir(), progress)?;
+        let (s, rows) = staging::load(file, &plans, &std::env::temp_dir(), &|| options.cancelled(), progress)?;
         staging::check(&s, &mut plans, &mut notes);
         (Some(s), rows)
     } else {
         (None, BTreeMap::new())
     };
     report.tables = plans.len();
+    for (table, note) in &db.table_notes {
+        notes.entry(table.clone()).or_default().push(note.clone());
+    }
+    for t in &db.tables {
+        let (Some(total), Some(plan)) = (t.row_count, plans.iter().find(|p| p.role == TableRole::Main && p.access == t.name)) else {
+            continue;
+        };
+        let read = rows.get(&plan.name).copied().unwrap_or(total);
+        if options.include_data && read < total {
+            notes.entry(t.name.clone()).or_default().push(format!(
+                "{} of {total} rows could not be read; the file may be damaged (run Compact and Repair in Access)",
+                total - read
+            ));
+        }
+    }
     record_table_notes(&mut report, &plans, &notes, &rows);
+    for (name, why) in &db.unreadable_tables {
+        report.add(
+            "table",
+            name,
+            Status::Skipped,
+            vec![format!("the table could not be read, so it was not imported ({why})")],
+        );
+    }
     let mut dbschema = DbSchema {
         db: &db,
         query_columns: BTreeMap::new(),
@@ -166,6 +210,11 @@ pub fn convert(
     let mut saved = queries::saved_queries(&queries);
     saved.extend(ctx.extra_queries.clone());
     let views = ctx.lookup_views.clone();
+    for (owner, source, e) in &ctx.dropped_views {
+        report.warnings.push(format!(
+            "The lookup of {owner} reads {source}, which does not work after the import, so the lookup was dropped or simplified ({e})"
+        ));
+    }
     let nav = navigation::build(&ctx, &forms, &reports, &plans);
     for m in &db.modules {
         report.add("module", &m.name, Status::Skipped, vec!["VBA code does not run in ixtable; the source is kept in the document asset \"Access VBA.txt\"".into()]);
@@ -184,6 +233,13 @@ pub fn convert(
     let mut all_actions = actions;
     all_actions.extend(form_actions);
     sanitize_actions(&mut all_actions);
+    for (macro_name, target) in repair::break_run_cycles(&mut all_actions) {
+        report.note(
+            "macro",
+            &macro_name,
+            format!("RunMacro {target} was left out: it runs itself again, which would never end"),
+        );
+    }
     let action_queries: Vec<Value> = queries
         .unconverted
         .iter()
@@ -221,7 +277,8 @@ pub fn convert(
         "pages": [],
         "actions": all_actions,
         "triggers": [],
-        "migrations": [migration],
+        // A file with no tables has nothing to migrate, and an empty migration is invalid.
+        "migrations": if migration["up"].as_str().is_some_and(|u| u.trim().is_empty()) { vec![] } else { vec![migration] },
         "datasource": { "kind": "sqlite", "id": id() },
         "entities": entities,
         "roles": [],
@@ -243,6 +300,13 @@ pub fn convert(
                 .map(|(_, table)| (q.id.clone(), table.clone()))
         })
         .collect();
+    for (kind, from, to) in &renames {
+        report.note(
+            kind,
+            to,
+            format!("renamed from {from}: another {kind} has the same name in a different case"),
+        );
+    }
     Ok(Conversion {
         config,
         plans,
@@ -375,6 +439,7 @@ pub fn create(
         actions::check_statements(m, window, &config, &mut report)?;
         // The report stays with the document (Settings › YAML shows it).
         report.link_targets(&config);
+        report.warnings.extend(validation_warnings(&config));
         config.settings["accessImport"]["report"] =
             serde_json::to_value(&report.items).unwrap_or_default();
         config.settings["accessImport"]["warnings"] = serde_json::json!(report.warnings);
@@ -396,6 +461,16 @@ pub fn create(
             Err(e)
         }
     }
+}
+
+/// Errors the document validator still finds after the import, as report warnings, so
+/// the user meets them in the report rather than only in Problems.
+pub fn validation_warnings(config: &DocumentConfig) -> Vec<String> {
+    crate::archive::validate_config(config)
+        .into_iter()
+        .filter(|i| i.severity == crate::archive::Severity::Error)
+        .map(|i| format!("The new document has a problem to fix: {}", i.message))
+        .collect()
 }
 
 /// Runs DuckDB's binder over each saved query; failures go into the report.

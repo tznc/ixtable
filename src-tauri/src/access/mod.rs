@@ -8,6 +8,7 @@ pub mod convert;
 pub mod jet;
 pub mod model;
 pub mod query_def;
+pub mod sample;
 pub mod text_format;
 pub mod translate;
 pub mod xml;
@@ -30,7 +31,32 @@ pub fn open(path: &Path) -> Result<Box<dyn AccessFile>, String> {
 }
 
 fn failed(e: impl std::fmt::Display) -> AppError {
-    AppError::new("IMPORT_FAILED", e.to_string())
+    explain(&e.to_string())
+}
+
+/// Separates the plain message from the reader's own words in an import error.
+pub const DETAILS: &str = "\n\nDetails: ";
+
+/// Turns a reader error into a message for the user, with the reader's text kept as
+/// details after [`DETAILS`].
+pub fn explain(raw: &str) -> AppError {
+    let lower = raw.to_lowercase();
+    let has = |words: &[&str]| words.iter().any(|w| lower.contains(w));
+    let plain = |s: &str| {
+        let mut c = s.chars();
+        c.next().map(|f| f.to_uppercase().chain(c).collect::<String>()).unwrap_or_default()
+    };
+    let message = if has(&["has a password", "is encrypted", "larger than 1 gb"]) {
+        // Already written for the user.
+        return AppError::new("IMPORT_FAILED", plain(raw));
+    } else if has(&["not an access", "msisam", "no template/database/objects part"]) {
+        "This file is not an Access database or template."
+    } else if has(&["os error", "no such file", "permission denied", "is a directory"]) {
+        "The file could not be opened."
+    } else {
+        "The file is damaged or incomplete. Open it in Access, run Compact and Repair, then import it again."
+    };
+    AppError::new("IMPORT_FAILED", format!("{message}{DETAILS}{raw}"))
 }
 
 /// Runs reader work off the UI thread. A panic in the reader means the file has a shape
@@ -139,17 +165,23 @@ pub async fn import_access_file(
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
-        let conversion = convert::convert(
-            file.as_mut(),
-            &name,
-            &options.unwrap_or_default(),
-            &mut |table, rows| {
-                if let Some(report) = progress.as_mut() {
-                    report(table, rows);
-                }
-            },
-        )
-        .map_err(failed)?;
+        let options = options.unwrap_or_default();
+        let stopped = |e: String| {
+            if e == convert::CANCELLED || options.cancelled() {
+                AppError::new("IMPORT_CANCELLED", "The import was cancelled. Nothing was created.")
+            } else {
+                failed(e)
+            }
+        };
+        let conversion = convert::convert(file.as_mut(), &name, &options, &mut |table, rows| {
+            if let Some(report) = progress.as_mut() {
+                report(table, rows);
+            }
+        })
+        .map_err(stopped)?;
+        if options.cancelled() {
+            return Err(stopped(convert::CANCELLED.into()));
+        }
         let m = crate::manager()?;
         // A panic while the new document is half built must not leave it open.
         let created = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

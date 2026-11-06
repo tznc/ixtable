@@ -258,6 +258,10 @@ pub struct AccessDb {
     pub props: BTreeMap<String, String>,
     /// Problems met while reading that did not stop the read.
     pub warnings: Vec<String>,
+    /// Tables named by the file whose definition could not be read: (name, why).
+    pub unreadable_tables: Vec<(String, String)>,
+    /// Reader notes about one table: (table, note).
+    pub table_notes: Vec<(String, String)>,
 }
 
 impl AccessDb {
@@ -270,6 +274,8 @@ impl AccessDb {
             forms: vec![],
             reports: vec![],
             macros: vec![],
+            unreadable_tables: vec![],
+            table_notes: vec![],
             modules: vec![],
             resources: vec![],
             props: BTreeMap::new(),

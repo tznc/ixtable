@@ -51,7 +51,8 @@ pub fn sql_value(v: &Value, hyperlink: bool, ole: bool) -> Sql {
         Value::Bool(b) => Sql::Integer(*b as i64),
         Value::Int(i) => Sql::Integer(*i),
         Value::Double(d) if d.is_finite() => Sql::Real(*d),
-        Value::Double(_) => Sql::Null,
+        // Kept as text so the type check empties it with a note instead of silently.
+        Value::Double(d) => Sql::Text(format!("{d}")),
         Value::Decimal(d) => Sql::Text(d.clone()),
         Value::Text(t) if hyperlink => Sql::Text(hyperlink_address(t)),
         Value::Text(t) | Value::Guid(t) | Value::DateTime(t) => Sql::Text(t.clone()),
@@ -91,6 +92,7 @@ pub fn load(
     file: &mut dyn AccessFile,
     plans: &[TablePlan],
     dir: &Path,
+    cancelled: &dyn Fn() -> bool,
     progress: &mut dyn FnMut(&str, u64),
 ) -> Result<(Staging, BTreeMap<String, u64>), String> {
     let path = dir.join(format!("ixtable-access-{}.db", uuid::Uuid::new_v4()));
@@ -155,6 +157,9 @@ pub fn load(
                 child_stmts.push(tx.prepare(&sql).map_err(err)?);
             }
             file.rows(&t.access, &mut |values| {
+                if count % 256 == 0 && cancelled() {
+                    return Err(super::CANCELLED.into());
+                }
                 let row: Vec<Sql> = t
                     .columns
                     .iter()
@@ -213,59 +218,12 @@ pub fn load(
         }
         tx.commit().map_err(err)?;
         progress(&t.access, count);
+        if cancelled() {
+            return Err(super::CANCELLED.into());
+        }
         counts.insert(t.name.clone(), count);
     }
     Ok((staging, counts))
-}
-
-/// SQL that is true for a stored value the declared type cannot hold. DuckDB reads a
-/// SQLite column by its declared type and fails the whole table on one such value.
-fn misfit_sql(col: &str, declared: &str) -> Option<String> {
-    let hex = |n: usize| "[0-9a-fA-F]".repeat(n);
-    let kind = declared.split('(').next().unwrap_or(declared);
-    match kind {
-        // Staging columns are untyped, so numbers can arrive as text (template sample data).
-        "INTEGER" | "BOOLEAN" => Some(format!(
-            "typeof({col}) = 'blob' OR (typeof({col}) = 'real' AND {col} <> CAST({col} AS INTEGER)) \
-             OR (typeof({col}) = 'text' AND (trim({col}) GLOB '*[^0-9+-]*' OR trim({col}) NOT GLOB '*[0-9]*'))"
-        )),
-        "DECIMAL" | "REAL" => Some(format!(
-            "typeof({col}) = 'blob' OR (typeof({col}) = 'text' AND (trim({col}) GLOB '*[^0-9eE.+-]*' OR trim({col}) NOT GLOB '*[0-9]*'))"
-        )),
-        "TIMESTAMP" | "DATE" => Some(format!(
-            "typeof({col}) <> 'text' OR datetime({col}) IS NULL OR substr({col}, 5, 1) <> '-'"
-        )),
-        "UUID" => Some(format!(
-            "typeof({col}) <> 'text' OR {col} NOT GLOB '{}-{}-{}-{}-{}'",
-            hex(8), hex(4), hex(4), hex(4), hex(12)
-        )),
-        _ => None,
-    }
-}
-
-/// Empties the values of a column that do not fit its type; returns a note naming a
-/// few of them (`{column}` stands for the column name).
-fn empty_misfits(conn: &Connection, table: &str, col: &str, declared: &str) -> Option<String> {
-    let bad = misfit_sql(col, declared)?;
-    let filter = format!("{col} IS NOT NULL AND ({bad})");
-    let n = count(conn, &format!("SELECT count(*) FROM {table} WHERE {filter}")).ok()?;
-    if n == 0 {
-        return None;
-    }
-    let examples: Vec<String> = conn
-        .prepare(&format!("SELECT DISTINCT CAST({col} AS TEXT) FROM {table} WHERE {filter} LIMIT 3"))
-        .and_then(|mut st| {
-            st.query_map([], |r| r.get::<_, Option<String>>(0))
-                .map(|rows| rows.flatten().flatten().map(|v| format!("\"{v}\"")).collect())
-        })
-        .unwrap_or_default();
-    conn.execute_batch(&format!("UPDATE {table} SET {col} = NULL WHERE {filter}")).ok()?;
-    let values = if n == 1 { "value does not fit" } else { "values do not fit" };
-    Some(format!(
-        "{{column}}: {n} {values} the column type and {} left empty ({})",
-        if n == 1 { "was" } else { "were" },
-        examples.join(", ")
-    ))
 }
 
 fn count(conn: &Connection, sql: &str) -> Result<i64, String> {
@@ -281,8 +239,19 @@ pub fn check(staging: &Staging, plans: &mut [TablePlan], notes: &mut NoteMap) {
         let table = quote(&t.name);
         for c in t.columns.iter_mut() {
             let col = quote(&c.name);
-            if let Some(n) = empty_misfits(conn, &table, &col, &c.declared) {
+            if let Some(n) = super::fit::empty_misfits(conn, &table, &col, &c.declared) {
                 note(n.replace("{column}", &c.name));
+            }
+            if c.declared.starts_with("DECIMAL") {
+                let digits = format!("length(ltrim(replace(replace(replace(CAST({col} AS TEXT), '-', ''), '+', ''), '.', ''), '0'))");
+                if let Ok(n @ 1..) = count(conn, &format!("SELECT count(*) FROM {table} WHERE typeof({col}) = 'text' AND {digits} > 15")) {
+                    let (values, has) = if n == 1 { ("value", "has") } else { ("values", "have") };
+                    note(format!(
+                        "{}: {n} {values} {has} more than 15 significant digits and {} stored rounded",
+                        c.name,
+                        if n == 1 { "is" } else { "are" }
+                    ));
+                }
             }
             match c.date_candidate {
                 Conv::DateOnly => {
@@ -362,7 +331,7 @@ pub fn check(staging: &Staging, plans: &mut [TablePlan], notes: &mut NoteMap) {
             let cols = t
                 .primary_key
                 .iter()
-                .map(|k| quote(k))
+                .map(|k| super::schema::key_expr(t, "", k))
                 .collect::<Vec<_>>()
                 .join(", ");
             let not_null = t
@@ -385,13 +354,13 @@ pub fn check(staging: &Staging, plans: &mut [TablePlan], notes: &mut NoteMap) {
                 t.primary_key.clear();
             }
         }
-        for i in t.indexes.iter_mut().filter(|i| i.unique) {
-            let cols = i
-                .columns
-                .iter()
-                .map(|k| quote(k))
-                .collect::<Vec<_>>()
-                .join(", ");
+        let collated: Vec<Vec<String>> = t
+            .indexes
+            .iter()
+            .map(|i| i.columns.iter().map(|k| super::schema::key_expr(t, "", k)).collect())
+            .collect();
+        for (i, collated) in t.indexes.iter_mut().zip(collated).filter(|(i, _)| i.unique) {
+            let cols = collated.join(", ");
             let not_null = i
                 .columns
                 .iter()
@@ -424,6 +393,10 @@ fn check_foreign_keys(conn: &Connection, plans: &mut [TablePlan], notes: &mut No
             (p.name.clone(), k)
         })
         .collect();
+    let nocase: std::collections::BTreeSet<(String, String)> = plans
+        .iter()
+        .flat_map(|t| t.columns.iter().filter(|c| c.nocase).map(|c| (t.name.clone(), c.name.to_lowercase())))
+        .collect();
     for t in plans.iter_mut() {
         let owner = t.access.clone();
         let mut note = |n: String| notes.entry(owner.clone()).or_default().push(n);
@@ -443,7 +416,14 @@ fn check_foreign_keys(conn: &Connection, plans: &mut [TablePlan], notes: &mut No
                 .columns
                 .iter()
                 .zip(&fk.target_columns)
-                .map(|(c, p)| format!("p.{} = c.{}", quote(p), quote(c)))
+                .map(|(c, p)| {
+                    let collate = if nocase.contains(&(fk.target_table.clone(), p.to_lowercase())) {
+                        " COLLATE NOCASE"
+                    } else {
+                        ""
+                    };
+                    format!("p.{} = c.{}{collate}", quote(p), quote(c))
+                })
                 .collect::<Vec<_>>()
                 .join(" AND ");
             let present = fk
