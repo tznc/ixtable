@@ -171,3 +171,20 @@ fn queries_whose_names_differ_only_by_case_are_both_kept() {
     assert!(notes.contains("renamed"), "{notes}");
     manager().close("chaos-case", true).unwrap();
 }
+
+#[test]
+fn unreadable_sample_data_skips_that_table_s_rows_only() {
+    let path = template_with(|parts| {
+        let mut garbage = vec![0xFF, 0xFE];
+        garbage.extend((0..999u32).map(|i| (i * 7919 % 251) as u8));
+        parts.insert(format!("{OBJECTS}sampleData/tableOrders.xml"), garbage);
+    });
+    let (report, errs) = import(&path, "chaos-garbage");
+    assert_eq!(errs, Vec::<String>::new());
+    let m = manager();
+    assert_eq!(m.read_query("chaos-garbage", "SELECT * FROM \"Orders\"").unwrap().rows.len(), 0);
+    assert_eq!(m.read_query("chaos-garbage", "SELECT * FROM \"Customers\"").unwrap().rows.len(), 3);
+    let notes = notes_of(&report, "table", "Orders").join("\n");
+    assert!(notes.contains("sample data could not be read"), "{notes}");
+    m.close("chaos-garbage", true).unwrap();
+}

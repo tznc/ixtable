@@ -183,6 +183,9 @@ pub fn convert(
         (None, BTreeMap::new())
     };
     report.tables = plans.len();
+    for (table, note) in &db.table_notes {
+        notes.entry(table.clone()).or_default().push(note.clone());
+    }
     for t in &db.tables {
         let (Some(total), Some(plan)) = (t.row_count, plans.iter().find(|p| p.role == TableRole::Main && p.access == t.name)) else {
             continue;
