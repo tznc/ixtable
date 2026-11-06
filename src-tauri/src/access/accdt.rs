@@ -73,8 +73,12 @@ impl TemplatePackage {
             let stem = file.rsplit_once('.').map(|(s, _)| s).unwrap_or(file);
             let name = names.get(stem).cloned();
             let before = db.tables.len();
-            if let Err(e) = read_object(&mut db, file, stem, name, bytes) {
+            if let Err(e) = read_object(&mut db, file, stem, name.clone(), bytes) {
                 db.warnings.push(format!("{file}: {e}"));
+                if let Some(table) = stem.strip_prefix("table").filter(|_| file.ends_with(".xsd")) {
+                    let table = name.unwrap_or_else(|| table.to_string());
+                    db.unreadable_tables.push((table, e));
+                }
             }
             if let Some(t) = db.tables.get(before) {
                 part_tables.insert(stem.to_lowercase(), t.name.to_lowercase());
