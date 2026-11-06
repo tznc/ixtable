@@ -19,7 +19,7 @@ pub mod schema;
 pub mod sources;
 pub mod staging;
 
-use crate::access::model::{AccessFile, SourceFormat};
+use crate::access::model::{AccessDb, AccessFile, SourceFormat};
 use crate::archive::DocumentConfig;
 use crate::manager::{AppError, DocumentManager, SessionState};
 use report::{ImportReport, Status};
@@ -58,6 +58,36 @@ pub struct Conversion {
 
 fn id() -> String {
     uuid::Uuid::now_v7().to_string()
+}
+
+/// Access names are case-insensitive, but a template can hold parts whose names differ
+/// only by case. The later ones get a number so neither is lost: (kind, old, new).
+fn rename_case_clashes(db: &mut AccessDb) -> Vec<(String, String, String)> {
+    fn dedupe(kind: &str, names: Vec<&mut String>, out: &mut Vec<(String, String, String)>) {
+        let mut seen = std::collections::BTreeSet::new();
+        let taken: std::collections::BTreeSet<String> = names.iter().map(|n| n.to_lowercase()).collect();
+        for name in names {
+            if seen.insert(name.to_lowercase()) {
+                continue;
+            }
+            let mut n = 2;
+            let new = loop {
+                let candidate = format!("{name} {n}");
+                if !taken.contains(&candidate.to_lowercase()) && !seen.contains(&candidate.to_lowercase()) {
+                    break candidate;
+                }
+                n += 1;
+            };
+            seen.insert(new.to_lowercase());
+            out.push((kind.into(), std::mem::replace(name, new.clone()), new));
+        }
+    }
+    let mut out = vec![];
+    dedupe("query", db.queries.iter_mut().map(|q| &mut q.name).collect(), &mut out);
+    dedupe("form", db.forms.iter_mut().map(|f| &mut f.name).collect(), &mut out);
+    dedupe("report", db.reports.iter_mut().map(|r| &mut r.name).collect(), &mut out);
+    dedupe("macro", db.macros.iter_mut().map(|m| &mut m.name).collect(), &mut out);
+    out
 }
 
 /// Notes keyed by Access object name → report items.
@@ -136,7 +166,8 @@ pub fn convert(
     options: &Options,
     progress: &mut dyn FnMut(&str, u64),
 ) -> Result<Conversion, String> {
-    let db = file.db().clone();
+    let mut db = file.db().clone();
+    let renames = rename_case_clashes(&mut db);
     let mut report = ImportReport {
         warnings: db.warnings.clone(),
         ..Default::default()
@@ -152,6 +183,9 @@ pub fn convert(
         (None, BTreeMap::new())
     };
     report.tables = plans.len();
+    for (table, note) in &db.table_notes {
+        notes.entry(table.clone()).or_default().push(note.clone());
+    }
     for t in &db.tables {
         let (Some(total), Some(plan)) = (t.row_count, plans.iter().find(|p| p.role == TableRole::Main && p.access == t.name)) else {
             continue;
@@ -268,6 +302,13 @@ pub fn convert(
                 .map(|(_, table)| (q.id.clone(), table.clone()))
         })
         .collect();
+    for (kind, from, to) in &renames {
+        report.note(
+            kind,
+            to,
+            format!("renamed from {from}: another {kind} has the same name in a different case"),
+        );
+    }
     Ok(Conversion {
         config,
         plans,
