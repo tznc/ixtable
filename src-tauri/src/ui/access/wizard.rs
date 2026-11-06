@@ -4,7 +4,9 @@
 //! what each object became. Port of src/access/AccessImportWizard.tsx.
 //!
 //! Test ids: dialog title `access-wizard` ("Import from Access"), `access-choose`,
-//! `access-file`, `access-busy`, `access-progress`, `access-error` (with
+//! `access-file`, `access-busy` (with the time left once it can be told), `access-progress`,
+//! `access-notice` (a cancelled import, or a file that changed after it was read),
+//! `access-error` (with
 //! `access-error-hint` for files that are not Access files, and the link
 //! `access-error-details-toggle` that shows the reader's text, `access-error-details`),
 //! `access-import`, `access-cancel`, `access-open`. Contents:
@@ -30,7 +32,31 @@ use crate::{
 use gpui_kit::component::{Disableable as _, progress::Progress};
 
 mod sections;
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+};
+use std::time::{Instant, SystemTime};
+
+/// Windows whose next import cancels itself once a table is copied (tests run in parallel,
+/// so the switch is per window).
+#[cfg(test)]
+static CANCEL_AFTER_FIRST_TABLE: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// Tests cannot click Cancel while an import runs, so this cancels once a table is copied.
+#[cfg(test)]
+pub fn cancel_after_first_table_for_test(window: &str, on: bool) {
+    let mut windows = CANCEL_AFTER_FIRST_TABLE.lock().unwrap();
+    windows.retain(|w| w != window);
+    if on {
+        windows.push(window.to_string());
+    }
+}
+
+/// Size and modification time, to notice a file that changes after it was read.
+fn stamp(path: &str) -> Option<(u64, Option<SystemTime>)> {
+    std::fs::metadata(path).ok().map(|m| (m.len(), m.modified().ok()))
+}
 
 /// Rows copied so far, written by the import thread and read by the dialog.
 #[derive(Default)]
@@ -69,6 +95,13 @@ pub struct AccessImportWizard {
     busy: String,
     error: Option<AppError>,
     show_error_details: bool,
+    /// A cancelled import or a changed file.
+    notice: Option<String>,
+    /// The file as it was when its contents were read.
+    stamp: Option<(u64, Option<SystemTime>)>,
+    /// Set by Cancel while an import runs.
+    cancel: Arc<AtomicBool>,
+    started: Option<Instant>,
     result: Option<Imported>,
     show_attention: Option<bool>,
     copied: Arc<Mutex<Copied>>,
@@ -109,6 +142,10 @@ impl AccessImportWizard {
             busy: String::new(),
             error: None,
             show_error_details: false,
+            notice: None,
+            stamp: None,
+            cancel: Arc::default(),
+            started: None,
             result: None,
             show_attention: None,
             copied: Arc::default(),
@@ -124,39 +161,61 @@ impl AccessImportWizard {
     fn choose(&mut self, cx: &mut Context<Self>) {
         self.error = None;
         self.show_error_details = false;
+        self.notice = None;
         cx.notify();
         let pick = dialogs::pick_file(cx, "Import from Access", &[ACCESS_FILES]);
         task::after(cx, pick, |this, picked, cx| {
             let Some(picked) = picked else { return };
-            let path = picked.to_string_lossy().into_owned();
-            this.path = path.clone();
-            this.inventory = None;
-            this.busy = "Reading the Access file…".into();
-            cx.notify();
-            task::spawn_call(
-                cx,
-                move || tauri::async_runtime::block_on(crate::access::inspect_access_file(path)),
-                |this, result, cx| {
-                    this.busy.clear();
-                    match result {
-                        Ok(inventory) => this.inventory = Some(inventory),
-                        Err(e) => this.error = Some(e),
-                    }
-                    cx.notify();
-                },
-            );
+            this.path = picked.to_string_lossy().into_owned();
+            this.read_contents(cx);
         });
+    }
+
+    /// Reads what the chosen file holds.
+    fn read_contents(&mut self, cx: &mut Context<Self>) {
+        let path = self.path.clone();
+        self.inventory = None;
+        self.stamp = stamp(&path);
+        self.busy = "Reading the Access file…".into();
+        cx.notify();
+        task::spawn_call(
+            cx,
+            move || tauri::async_runtime::block_on(crate::access::inspect_access_file(path)),
+            |this, result, cx| {
+                this.busy.clear();
+                match result {
+                    Ok(inventory) => this.inventory = Some(inventory),
+                    Err(e) => this.error = Some(e),
+                }
+                cx.notify();
+            },
+        );
     }
 
     fn import(&mut self, cx: &mut Context<Self>) {
         self.error = None;
         self.show_error_details = false;
+        self.notice = None;
+        if stamp(&self.path) != self.stamp {
+            self.notice = Some("The file changed since it was read. Check its contents again, then import.".into());
+            self.read_contents(cx);
+            return;
+        }
         self.busy = "Converting tables, queries, forms and reports…".into();
         *self.copied.lock().unwrap() = Copied::default();
+        self.cancel = Arc::default();
+        self.started = Some(Instant::now());
         cx.notify();
         let (label, path, include_data) = (self.label.clone(), self.path.clone(), self.include_data);
+        let cancel = self.cancel.clone();
         let copied = self.copied.clone();
+        #[cfg(test)]
+        let (test_cancel, test_window) = (self.cancel.clone(), self.label.clone());
         let report: Box<dyn FnMut(&str, u64) + Send> = Box::new(move |table, rows| {
+            #[cfg(test)]
+            if CANCEL_AFTER_FIRST_TABLE.lock().unwrap().contains(&test_window) {
+                test_cancel.store(true, Ordering::SeqCst);
+            }
             let mut c = copied.lock().unwrap();
             if let Some((name, n)) = c.current.take() {
                 if name != table {
@@ -187,12 +246,13 @@ impl AccessImportWizard {
                 tauri::async_runtime::block_on(crate::access::import_access_file(
                     label,
                     path,
-                    Some(Options { include_data }),
+                    Some(Options { include_data, cancel: Some(cancel) }),
                     Some(report),
                 ))
             },
             |this, result, cx| {
                 this.busy.clear();
+                this.started = None;
                 match result {
                     Ok(done) => {
                         this.result = Some(Imported {
@@ -203,11 +263,23 @@ impl AccessImportWizard {
                             state: done.state,
                         })
                     }
+                    Err(e) if e.code == "IMPORT_CANCELLED" => this.notice = Some(e.message),
                     Err(e) => this.error = Some(e),
                 }
                 cx.notify();
             },
         );
+    }
+
+    /// Cancel: stops a running import, otherwise closes the dialog.
+    fn cancel_or_close(&mut self, cx: &mut Context<Self>) {
+        if self.is_busy() && self.started.is_some() {
+            self.cancel.store(true, Ordering::SeqCst);
+            self.busy = "Cancelling…".into();
+            cx.notify();
+        } else {
+            self.cancel(cx);
+        }
     }
 
     // Once imported, the new document is open: every way out shows it.
@@ -227,8 +299,9 @@ impl AccessImportWizard {
         let total = self.inventory.as_ref().map_or(0, total_rows);
         let copied = self.copied.lock().unwrap();
         let done: u64 = copied.finished.iter().map(|(_, n)| n).sum();
+        let cancelling = self.cancel.load(Ordering::SeqCst);
         let (line, value) = match &copied.current {
-            Some((table, n)) if self.include_data && total > 0 => {
+            Some((table, n)) if self.include_data && total > 0 && !cancelling => {
                 let of = self
                     .inventory
                     .as_ref()
@@ -236,8 +309,13 @@ impl AccessImportWizard {
                     .and_then(|t| t.rows)
                     .map(|rows| format!(" of {}", grouped(rows)))
                     .unwrap_or_default();
+                let left = self
+                    .started
+                    .and_then(|t| crate::access::convert::time_left(done + n, total, t.elapsed()))
+                    .map(|l| format!(" · {l}"))
+                    .unwrap_or_default();
                 (
-                    format!("Copying {table}: {} rows{of}", grouped(*n)),
+                    format!("Copying {table}: {} rows{of}{left}", grouped(*n)),
                     ((done + n) as f32 / total as f32 * 100.).min(100.),
                 )
             }
@@ -288,6 +366,9 @@ impl Render for AccessImportWizard {
         if busy {
             panel = panel.child(self.progress(cx));
         }
+        if let Some(notice) = &self.notice {
+            panel = panel.child(widgets::styled_text("access-notice", notice.clone(), |d| d.ty(Type::Body)));
+        }
         if let Some(e) = &self.error {
             let (shown, details) = match e.message.split_once(crate::access::DETAILS) {
                 Some((shown, details)) => (shown.to_string(), Some(details.to_string())),
@@ -332,9 +413,10 @@ impl Render for AccessImportWizard {
         } else {
             panel
                 .footer(
+                    // While an import runs, Cancel stops it; reading a file is quick.
                     forms::secondary("access-cancel", "Cancel")
-                        .disabled(busy)
-                        .on_click(cx.listener(|this, _, _, cx| this.cancel(cx))),
+                        .disabled(busy && self.started.is_none())
+                        .on_click(cx.listener(|this, _, _, cx| this.cancel_or_close(cx))),
                 )
                 .footer(
                     forms::primary("access-import", "Import")
