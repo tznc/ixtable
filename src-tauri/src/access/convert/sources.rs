@@ -342,8 +342,7 @@ impl<'a> Context<'a> {
         Ok(name)
     }
 
-    /// Creates the view in a scratch database of the planned tables and reads it once. A
-    /// view that fails there would break every read of the imported document.
+    /// Tries the view on a scratch copy of the planned tables; a failing one would break reads.
     fn try_view(&mut self, name: &str, create: &str) -> Result<(), String> {
         if self.view_check.is_none() {
             let conn = rusqlite::Connection::open_in_memory().map_err(|e| e.to_string())?;
