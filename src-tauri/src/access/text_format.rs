@@ -161,7 +161,7 @@ pub fn decode(bytes: &[u8]) -> String {
 /// Parses the text of a SaveAsText file.
 pub fn parse(text: &str) -> Result<Node, ParseError> {
     let lines: Vec<&str> = text.lines().collect();
-    let mut p = Parser { lines, pos: 0 };
+    let mut p = Parser { lines, pos: 0, depth: 0 };
     let mut root = p.block("", true)?;
     if p.pos < p.lines.len() {
         // Only reachable after `CodeBehindForm`.
@@ -170,9 +170,14 @@ pub fn parse(text: &str) -> Result<Node, ParseError> {
     Ok(root)
 }
 
+/// Deepest `Begin` nesting accepted; real forms nest a handful of levels. The limit
+/// keeps a hostile file from overflowing the stack, which aborts the app.
+pub const MAX_DEPTH: usize = 200;
+
 struct Parser<'a> {
     lines: Vec<&'a str>,
     pos: usize,
+    depth: usize,
 }
 
 impl<'a> Parser<'a> {
@@ -185,6 +190,16 @@ impl<'a> Parser<'a> {
     }
 
     fn block(&mut self, kind: &str, root: bool) -> Result<Node, ParseError> {
+        if self.depth >= MAX_DEPTH {
+            return Err(self.err("blocks are nested too deeply"));
+        }
+        self.depth += 1;
+        let node = self.block_body(kind, root);
+        self.depth -= 1;
+        node
+    }
+
+    fn block_body(&mut self, kind: &str, root: bool) -> Result<Node, ParseError> {
         let mut node = Node {
             kind: kind.to_string(),
             ..Default::default()

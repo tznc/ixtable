@@ -59,3 +59,24 @@ fn decodes_utf16_utf8_and_ansi() {
     assert_eq!(decode("\u{feff}Café".as_bytes()), "Café");
     assert_eq!(decode(&[b'C', b'a', b'f', 0xE9]), "Café");
 }
+
+#[test]
+fn deeply_nested_blocks_are_an_error_not_a_stack_overflow() {
+    let depth = 100_000;
+    let text = format!("{}{}", "Begin Section\n".repeat(depth), "End\n".repeat(depth));
+    let err = parse(&text).unwrap_err();
+    assert!(err.to_string().contains("nested too deeply"), "{err}");
+    // Ordinary nesting still parses.
+    let ok = format!("{}{}", "Begin Section\n".repeat(40), "End\n".repeat(40));
+    assert!(parse(&ok).is_ok());
+}
+
+#[test]
+fn deeply_nested_xml_is_an_error_not_a_stack_overflow() {
+    let depth = 100_000;
+    let text = format!("<?xml version=\"1.0\"?>{}{}", "<a>".repeat(depth), "</a>".repeat(depth));
+    let err = crate::access::xml::parse(&text).unwrap_err();
+    assert!(err.contains("nested too deeply"), "{err}");
+    let ok = format!("{}{}", "<a>".repeat(40), "</a>".repeat(40));
+    assert!(crate::access::xml::parse(&ok).is_ok());
+}
