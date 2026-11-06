@@ -157,8 +157,7 @@ pub fn long_value(pages: &mut Pages, slot: &[u8]) -> Result<Vec<u8>, String> {
 
 /// Days since 1899-12-30 → `YYYY-MM-DDTHH:MM:SS[.fff]`.
 pub fn ole_date(v: f64) -> String {
-    // Access dates run from year 100 to 9999; anything else is damage. The raw number is
-    // kept so the import can report it.
+    // Outside Access's years 100–9999 the value is damage; the raw number is kept for the report.
     if !v.is_finite() || !(-700_000.0..=3_000_000.0).contains(&v) {
         return format!("{v}");
     }
