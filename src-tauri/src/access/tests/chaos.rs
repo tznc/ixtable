@@ -188,3 +188,36 @@ fn unreadable_sample_data_skips_that_table_s_rows_only() {
     assert!(notes.contains("sample data could not be read"), "{notes}");
     m.close("chaos-garbage", true).unwrap();
 }
+
+#[test]
+fn not_a_number_doubles_reach_the_type_check_instead_of_vanishing() {
+    use crate::access::convert::staging::sql_value;
+    use rusqlite::types::Value as Sql;
+    assert_eq!(sql_value(&crate::access::model::Value::Double(f64::NAN), false, false), Sql::Text("NaN".into()));
+    assert_eq!(sql_value(&crate::access::model::Value::Double(f64::INFINITY), false, false), Sql::Text("inf".into()));
+}
+
+#[test]
+fn currency_beyond_fifteen_digits_is_reported_as_rounded() {
+    let path = template_with(|parts| {
+        edit_part(parts, "sampleData/tableOrders.xml", |s| {
+            s.replacen("<Amount>75</Amount>", "<Amount>922337203685477.5807</Amount>", 1)
+        })
+    });
+    let (report, _) = import(&path, "chaos-currency");
+    let notes = notes_of(&report, "table", "Orders").join("\n");
+    assert!(notes.contains("Amount: 1 value has more than 15 significant digits"), "{notes}");
+    manager().close("chaos-currency", true).unwrap();
+}
+
+#[test]
+fn text_keys_match_regardless_of_case_as_in_access() {
+    let path = super::fixtures::binary("text-keys.accdb");
+    let (report, errs) = import(&path, "chaos-text-keys");
+    assert_eq!(errs, Vec::<String>::new());
+    let notes = report.items.iter().flat_map(|i| i.notes.clone()).collect::<Vec<_>>().join("\n");
+    assert!(!notes.contains("refer to missing"), "{notes}");
+    let schema = manager().table_schema("chaos-text-keys", "Items").unwrap();
+    assert_eq!(schema.foreign_keys.len(), 1, "{schema:?}");
+    manager().close("chaos-text-keys", true).unwrap();
+}

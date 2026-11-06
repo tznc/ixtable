@@ -34,6 +34,8 @@ pub struct ColumnPlan {
     /// A calculated column's SQLite expression, kept current by triggers.
     pub calc_sql: Option<String>,
     pub date_candidate: Conv,
+    /// Text compared without case, as Access compares key values.
+    pub nocase: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -296,6 +298,7 @@ pub fn plan_tables(db: &AccessDb, notes: &mut BTreeMap<String, Vec<String>>) -> 
                 source: Some(i),
                 calc_sql: None,
                 date_candidate: date_candidate(c),
+                nocase: false,
             };
             if let ColType::Numeric { precision, .. } = c.ty {
                 if precision > 15 {
@@ -426,7 +429,39 @@ fn plain_column(name: &str, declared: &str, kind: Kind) -> ColumnPlan {
         source: None,
         calc_sql: None,
         date_candidate: Conv::AsIs,
+        nocase: false,
     }
+}
+
+/// Access matches text keys without regard to case: "AB" finds the parent "ab", and a
+/// unique text key cannot hold both. Text columns of keys and relationships get NOCASE.
+pub fn mark_nocase_keys(plans: &mut [TablePlan]) {
+    let mut keyed: Vec<(String, String)> = vec![];
+    for t in plans.iter() {
+        let mut cols: Vec<&String> = t.primary_key.iter().collect();
+        cols.extend(t.indexes.iter().filter(|i| i.unique).flat_map(|i| &i.columns));
+        for fk in &t.foreign_keys {
+            cols.extend(&fk.columns);
+            keyed.extend(fk.target_columns.iter().map(|c| (fk.target_table.clone(), c.clone())));
+        }
+        keyed.extend(cols.into_iter().map(|c| (t.name.clone(), c.clone())));
+    }
+    for (table, col) in keyed {
+        if let Some(c) = plans
+            .iter_mut()
+            .find(|t| t.name == table)
+            .and_then(|t| t.column_mut(&col))
+            .filter(|c| c.declared == "TEXT")
+        {
+            c.nocase = true;
+        }
+    }
+}
+
+/// `col` with the collation its key comparisons need.
+pub fn key_expr(table: &TablePlan, prefix: &str, col: &str) -> String {
+    let nocase = table.column(col).is_some_and(|c| c.nocase);
+    format!("{prefix}{}{}", quote(col), if nocase { " COLLATE NOCASE" } else { "" })
 }
 
 fn child_table(t: &Table, c: &Column, name: &str, parent: &TablePlan) -> TablePlan {
@@ -584,6 +619,9 @@ pub fn plan_relationships(
 
 fn column_sql(c: &ColumnPlan, pk_inline: bool) -> String {
     let mut s = format!("{} {}", quote(&c.name), final_declared(c));
+    if c.nocase {
+        s.push_str(" COLLATE NOCASE");
+    }
     if pk_inline {
         s.push_str(" PRIMARY KEY");
     }

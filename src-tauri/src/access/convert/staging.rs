@@ -51,7 +51,8 @@ pub fn sql_value(v: &Value, hyperlink: bool, ole: bool) -> Sql {
         Value::Bool(b) => Sql::Integer(*b as i64),
         Value::Int(i) => Sql::Integer(*i),
         Value::Double(d) if d.is_finite() => Sql::Real(*d),
-        Value::Double(_) => Sql::Null,
+        // Kept as text so the type check empties it with a note instead of silently.
+        Value::Double(d) => Sql::Text(format!("{d}")),
         Value::Decimal(d) => Sql::Text(d.clone()),
         Value::Text(t) if hyperlink => Sql::Text(hyperlink_address(t)),
         Value::Text(t) | Value::Guid(t) | Value::DateTime(t) => Sql::Text(t.clone()),
@@ -284,6 +285,17 @@ pub fn check(staging: &Staging, plans: &mut [TablePlan], notes: &mut NoteMap) {
             if let Some(n) = empty_misfits(conn, &table, &col, &c.declared) {
                 note(n.replace("{column}", &c.name));
             }
+            if c.declared.starts_with("DECIMAL") {
+                let digits = format!("length(ltrim(replace(replace(replace(CAST({col} AS TEXT), '-', ''), '+', ''), '.', ''), '0'))");
+                if let Ok(n @ 1..) = count(conn, &format!("SELECT count(*) FROM {table} WHERE typeof({col}) = 'text' AND {digits} > 15")) {
+                    let (values, has) = if n == 1 { ("value", "has") } else { ("values", "have") };
+                    note(format!(
+                        "{}: {n} {values} {has} more than 15 significant digits and {} stored rounded",
+                        c.name,
+                        if n == 1 { "is" } else { "are" }
+                    ));
+                }
+            }
             match c.date_candidate {
                 Conv::DateOnly => {
                     let timed = count(conn, &format!("SELECT count(*) FROM {table} WHERE {col} IS NOT NULL AND substr({col}, 11) NOT IN ('', 'T00:00:00')"));
@@ -362,7 +374,7 @@ pub fn check(staging: &Staging, plans: &mut [TablePlan], notes: &mut NoteMap) {
             let cols = t
                 .primary_key
                 .iter()
-                .map(|k| quote(k))
+                .map(|k| super::schema::key_expr(t, "", k))
                 .collect::<Vec<_>>()
                 .join(", ");
             let not_null = t
@@ -385,13 +397,13 @@ pub fn check(staging: &Staging, plans: &mut [TablePlan], notes: &mut NoteMap) {
                 t.primary_key.clear();
             }
         }
-        for i in t.indexes.iter_mut().filter(|i| i.unique) {
-            let cols = i
-                .columns
-                .iter()
-                .map(|k| quote(k))
-                .collect::<Vec<_>>()
-                .join(", ");
+        let collated: Vec<Vec<String>> = t
+            .indexes
+            .iter()
+            .map(|i| i.columns.iter().map(|k| super::schema::key_expr(t, "", k)).collect())
+            .collect();
+        for (i, collated) in t.indexes.iter_mut().zip(collated).filter(|(i, _)| i.unique) {
+            let cols = collated.join(", ");
             let not_null = i
                 .columns
                 .iter()
@@ -424,6 +436,10 @@ fn check_foreign_keys(conn: &Connection, plans: &mut [TablePlan], notes: &mut No
             (p.name.clone(), k)
         })
         .collect();
+    let nocase: std::collections::BTreeSet<(String, String)> = plans
+        .iter()
+        .flat_map(|t| t.columns.iter().filter(|c| c.nocase).map(|c| (t.name.clone(), c.name.to_lowercase())))
+        .collect();
     for t in plans.iter_mut() {
         let owner = t.access.clone();
         let mut note = |n: String| notes.entry(owner.clone()).or_default().push(n);
@@ -443,7 +459,14 @@ fn check_foreign_keys(conn: &Connection, plans: &mut [TablePlan], notes: &mut No
                 .columns
                 .iter()
                 .zip(&fk.target_columns)
-                .map(|(c, p)| format!("p.{} = c.{}", quote(p), quote(c)))
+                .map(|(c, p)| {
+                    let collate = if nocase.contains(&(fk.target_table.clone(), p.to_lowercase())) {
+                        " COLLATE NOCASE"
+                    } else {
+                        ""
+                    };
+                    format!("p.{} = c.{}{collate}", quote(p), quote(c))
+                })
                 .collect::<Vec<_>>()
                 .join(" AND ");
             let present = fk
